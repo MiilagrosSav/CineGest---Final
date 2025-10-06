@@ -177,15 +177,16 @@ SOCIAL_AUTH_AUTHENTICATION_BACKENDS = (
 SOCIAL_AUTH_USER_MODEL = 'accounts.User'  # Usar nuestro modelo personalizado
 SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/?error=oauth_error'
 
-# ✅ Pipeline PERSONALIZADO que maneja usuarios existentes correctamente
+# ✅ Pipeline OAuth MEJORADO que maneja usuarios existentes
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',    # Obtiene detalles del usuario
     'social_core.pipeline.social_auth.social_uid',        # Obtiene ID único de Google
     'social_core.pipeline.social_auth.auth_allowed',      # Verifica si puede autenticarse
-    'accounts.pipeline.custom_social_user',               # 🆕 Función que no da error con usuarios existentes
+    'social_core.pipeline.social_auth.social_user',       # Busca usuario social existente
     'social_core.pipeline.user.get_username',             # Genera username único
     'social_core.pipeline.user.create_user',              # Crea usuario si no existe
-    'accounts.pipeline.setup_user_profile',               # Función personalizada para perfil
+    'accounts.pipeline.setup_user_profile',               # Configuración personalizada del perfil
+    'social_core.pipeline.social_auth.associate_user',    # Asocia cuenta social con usuario
     'social_core.pipeline.social_auth.load_extra_data',   # Carga datos extra
     'social_core.pipeline.user.user_details',             # Actualiza detalles del usuario
 )

@@ -1,35 +1,47 @@
 def custom_social_user(backend, uid, user=None, *args, **kwargs):
     """
-    Función personalizada que reemplaza social_core.pipeline.social_auth.social_user
-    para evitar el error AuthAlreadyAssociated
+    Pipeline que maneja usuarios sociales existentes y busca por email
     """
     from social_django.models import UserSocialAuth
     from django.contrib.auth import get_user_model
     
-    print(f"🔍 Buscando usuario social: provider={backend.name}, uid={uid}")
+    print(f"🔍 Pipeline OAuth: provider={backend.name}, uid={uid}")
     
-    # Buscar asociación social existente
-    social = UserSocialAuth.get_social_auth(backend.name, uid)
-    if social:
-        print(f"✅ Asociación social encontrada: {social.user.username}")
-        return {'social': social, 'user': social.user, 'is_new': False}
+    # 1. Buscar asociación social existente
+    try:
+        social = UserSocialAuth.get_social_auth(backend.name, uid)
+        if social:
+            print(f"✅ Usuario social encontrado: {social.user.username}")
+            return {'social': social, 'user': social.user, 'is_new': False}
+    except UserSocialAuth.DoesNotExist:
+        print("📝 No hay asociación social previa")
     
-    # Si no se encontró asociación social, buscar por email
-    email = kwargs.get('details', {}).get('email')
+    # 2. Si no hay asociación social, buscar usuario por email
+    details = kwargs.get('details', {})
+    email = details.get('email')
+    
     if email:
         User = get_user_model()
         try:
             existing_user = User.objects.get(email=email)
-            print(f"👤 Usuario encontrado por email: {existing_user.username}")
-            # Crear nueva asociación social para este usuario
-            social = UserSocialAuth.create_social_auth(existing_user, uid, backend.name)
-            print(f"🔗 Nueva asociación social creada")
-            return {'social': social, 'user': existing_user, 'is_new': False}
+            print(f"👤 Usuario existente encontrado por email: {existing_user.username}")
+            
+            # Crear nueva asociación social
+            try:
+                social = UserSocialAuth.create_social_auth(existing_user, uid, backend.name)
+                print(f"🔗 Asociación social creada exitosamente")
+                return {'social': social, 'user': existing_user, 'is_new': False}
+            except Exception as e:
+                print(f"❌ Error creando asociación social: {e}")
+                # Si no se puede crear la asociación, al menos retornar el usuario
+                return {'user': existing_user, 'is_new': False}
+                
         except User.DoesNotExist:
-            print(f"📧 No se encontró usuario con email: {email}")
+            print(f"📧 Usuario no encontrado con email: {email}")
     
-    # No hay usuario social ni usuario por email
-    return {}
+    # 3. Si no hay usuario, el pipeline continuará para crear uno nuevo
+    print("🆕 Continuando pipeline para crear nuevo usuario")
+    return None
 
 
 def associate_by_email(backend, details, user=None, uid=None, *args, **kwargs):
