@@ -1,0 +1,81 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Política de Privacidad - CineGest{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card glass-container">
+        <h1 class="text-gradient-primary">Política de Privacidad</h1>
+        <p class="text-secondary mb-lg">Última actualización: Octubre 2024</p>
+        
+        <div style="line-height: 1.6; color: var(--text-primary);">
+            <h2>1. Información que Recopilamos</h2>
+            <p>Cuando uses Google para iniciar sesión en CineGest, recopilamos:</p>
+            <ul>
+                <li>Tu dirección de correo electrónico</li>
+                <li>Tu nombre y apellido</li>
+                <li>Tu foto de perfil de Google (si está disponible)</li>
+                <li>ID único de Google para autenticación</li>
+            </ul>
+            
+            <h2>2. Cómo Usamos tu Información</h2>
+            <p>Utilizamos tu información para:</p>
+            <ul>
+                <li>Crear y mantener tu cuenta de usuario en CineGest</li>
+                <li>Permitir la compra y gestión de entradas de cine</li>
+                <li>Personalizar tu experiencia en la plataforma</li>
+                <li>Enviarte confirmaciones de compras y notificaciones importantes</li>
+                <li>Mejorar nuestros servicios y funcionalidades</li>
+            </ul>
+            
+            <h2>3. Compartir Información</h2>
+            <p>No compartimos, vendemos ni alquilamos tu información personal a terceros, excepto:</p>
+            <ul>
+                <li>Cuando sea requerido por ley</li>
+                <li>Para procesar pagos (información limitada a procesadores de pago seguros)</li>
+                <li>Con tu consentimiento explícito</li>
+            </ul>
+            
+            <h2>4. Seguridad de Datos</h2>
+            <p>Implementamos medidas de seguridad apropiadas para proteger tu información personal:</p>
+            <ul>
+                <li>Conexiones encriptadas (HTTPS)</li>
+                <li>Autenticación segura via Google OAuth2</li>
+                <li>Acceso restringido a datos personales</li>
+            </ul>
+            
+            <h2>5. Tus Derechos</h2>
+            <p>Tienes derecho a:</p>
+            <ul>
+                <li>Acceder a tu información personal</li>
+                <li>Corregir información incorrecta</li>
+                <li>Eliminar tu cuenta y datos asociados</li>
+                <li>Revocar el acceso de Google OAuth en cualquier momento</li>
+            </ul>
+            
+            <h2>6. Cookies y Tecnologías Similares</h2>
+            <p>Utilizamos cookies para:</p>
+            <ul>
+                <li>Mantener tu sesión iniciada</li>
+                <li>Recordar tus preferencias</li>
+                <li>Mejorar la funcionalidad del sitio</li>
+            </ul>
+            
+            <h2>7. Cambios a esta Política</h2>
+            <p>Podemos actualizar esta política de privacidad ocasionalmente. Te notificaremos de cambios significativos por email o mediante un aviso en la plataforma.</p>
+            
+            <h2>8. Contacto</h2>
+            <p>Si tienes preguntas sobre esta política de privacidad, contáctanos en:</p>
+            <ul>
+                <li>Email: soporte@cinegest.com</li>
+                <li>Teléfono: +54 11 1234-5678</li>
+                <li>Dirección: Av. Corrientes 1234, Ciudad de Buenos Aires</li>
+            </ul>
+        </div>
+        
+        <div style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid rgba(255,255,255,0.1);">
+            <a href="{% url 'accounts:login' %}" class="btn btn-outline">Volver al Login</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

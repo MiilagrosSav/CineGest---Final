@@ -1,0 +1,167 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Gestión de Empleados{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card glass-container mb-lg">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1 class="card-title text-gradient-primary">👥 Gestión de Empleados</h1>
+        </div>
+    </div>
+
+    <div class="card glass-container">
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--glass-border);">
+                        <th style="padding: var(--space-sm);">Usuario</th>
+                        <th style="padding: var(--space-sm);">Nombre</th>
+                        <th style="padding: var(--space-sm);">Email</th>
+                        <th style="padding: var(--space-sm);">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employee in employees %}
+                    <tr class="employee-row" data-id="{{ employee.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                        <td style="padding: var(--space-sm); font-weight: 600;">{{ employee.username }}</td>
+                        <td style="padding: var(--space-sm);">{{ employee.get_full_name|default:"-" }}</td>
+                        <td style="padding: var(--space-sm);">{{ employee.email }}</td>
+                        <td style="padding: var(--space-sm);">
+                            {% if employee.is_active %}
+                                <span style="color: var(--success); font-weight: 500;">● Activo</span>
+                            {% else %}
+                                <span style="color: var(--danger); font-weight: 500;">● Inactivo</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-secondary" style="padding: var(--space-lg);">
+                            No hay empleados registrados todavía. ¡Añade el primero!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- Panel de Acciones ABM -->
+            <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); margin-top: var(--space-lg); padding: var(--space-md);">
+                <a href="{% url 'accounts:create_employee' %}" class="btn btn-primary" style="min-width: 120px;">
+                    ✨ Nuevo
+                </a>
+                <button id="btn-modificar" class="btn btn-outline" style="min-width: 120px;" disabled>
+                    ✏️ Modificar
+                </button>
+                <button id="btn-eliminar" class="btn btn-secondary" style="min-width: 120px;" disabled>
+                    🗑️ Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .employee-row {
+        transition: background-color 0.2s ease;
+    }
+    .employee-row:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    .employee-row.selected {
+        background-color: rgba(var(--primary-rgb), 0.15);
+        border-left: 3px solid var(--primary);
+    }
+    /* Para mostrar el total de seleccionados */
+    .selection-info {
+        display: inline-block;
+        margin-left: 10px;
+        font-size: 0.9em;
+        opacity: 0.7;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const rows = document.querySelectorAll('.employee-row');
+        const btnModificar = document.getElementById('btn-modificar');
+        const btnEliminar = document.getElementById('btn-eliminar');
+        
+        // Variable para almacenar la selección actual
+        let selectedRows = [];
+        
+        // Función para actualizar la interfaz según la selección
+        function updateUI() {
+            // Actualizar estado de botones
+            btnModificar.disabled = selectedRows.length !== 1;
+            btnEliminar.disabled = selectedRows.length === 0;
+            
+            // Actualizar texto del botón eliminar con contador
+            if (selectedRows.length > 0) {
+                btnEliminar.textContent = `🗑️ Eliminar ${selectedRows.length > 1 ? `(${selectedRows.length})` : ''}`;
+            } else {
+                btnEliminar.textContent = '🗑️ Eliminar';
+            }
+        }
+        
+        // Función para seleccionar/deseleccionar una fila
+        function toggleRowSelection(row) {
+            const rowId = row.dataset.id;
+            
+            if (row.classList.contains('selected')) {
+                // Deseleccionar
+                row.classList.remove('selected');
+                selectedRows = selectedRows.filter(id => id !== rowId);
+            } else {
+                // Seleccionar
+                row.classList.add('selected');
+                selectedRows.push(rowId);
+            }
+            
+            updateUI();
+        }
+        
+        // Evento para el clic en fila
+        rows.forEach(row => {
+            row.addEventListener('click', function() {
+                // Si se mantiene presionada la tecla Ctrl, permite selección múltiple
+                if (!event.ctrlKey && !event.metaKey) {
+                    // Si no se presiona Ctrl/Cmd, deseleccionar todas las demás
+                    rows.forEach(r => {
+                        if (r !== this && r.classList.contains('selected')) {
+                            r.classList.remove('selected');
+                        }
+                    });
+                    selectedRows = [];
+                }
+                
+                toggleRowSelection(this);
+            });
+        });
+        
+        // Evento para botón modificar
+        btnModificar.addEventListener('click', function() {
+            if (selectedRows.length === 1) {
+                window.location.href = `/accounts/employees/${selectedRows[0]}/edit/`;
+            }
+        });
+        
+        // Evento para botón eliminar
+        btnEliminar.addEventListener('click', function() {
+            if (selectedRows.length === 0) return;
+            
+            if (selectedRows.length === 1) {
+                window.location.href = `/accounts/employees/${selectedRows[0]}/delete/`;
+            } else {
+                if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} empleados seleccionados?`)) {
+                    // Aquí implementaríamos la eliminación masiva
+                    alert('Función de eliminación masiva en desarrollo');
+                }
+            }
+        });
+        
+        // Inicializar UI
+        updateUI();
+    });
+</script>
+{% endblock %}

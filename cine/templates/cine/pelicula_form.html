@@ -1,0 +1,91 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}{{ titulo_pagina }} - CineGest{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card glass-container">
+        <div class="card-header">
+            <h1 class="card-title text-gradient-primary">{{ titulo_pagina }}</h1>
+            <p class="card-subtitle">Completa la información de la película con todos los datos requeridos</p>
+        </div>
+
+        <!-- ✅ FORMULARIO CON VALIDACIONES HTML NATIVAS -->
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="message message-error" style="text-align: center; margin-bottom: var(--space-md);">
+                    <strong>❌</strong> {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+            
+            {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                    </label>
+                    
+                    <!-- ✅ RENDERIZADO AUTOMÁTICO CON VALIDACIONES HTML -->
+                    {{ field }}
+                    
+                    {% if field.help_text %}
+                        <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">
+                            💡 {{ field.help_text }}
+                        </small>
+                    {% endif %}
+                    
+                    {% if field.errors %}
+                        {% for error in field.errors %}
+                            <span class="form-error" role="alert">⚠️ {{ error }}</span>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <div style="display: flex; gap: var(--space-md); margin-top: var(--space-lg);">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    {{ nombre_boton }}
+                </button>
+                <a href="{% url 'cine:pelicula_list' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">
+                    🔙 Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // ✅ VALIDACIONES ADICIONALES EN JAVASCRIPT
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        
+        // Validación de confirmación de contraseña (si aplica)
+        const password1 = document.querySelector('input[name="password1"]');
+        const password2 = document.querySelector('input[name="password2"]');
+        
+        if (password1 && password2) {
+            password2.addEventListener('input', function() {
+                if (password1.value !== password2.value) {
+                    password2.setCustomValidity('Las contraseñas no coinciden');
+                } else {
+                    password2.setCustomValidity('');
+                }
+            });
+        }
+        
+        // Mejorar feedback visual de validaciones
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.validity.valid) {
+                    this.style.borderColor = '#4ecdc4';
+                } else if (this.value) {
+                    this.style.borderColor = '#ff6b6b';
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}

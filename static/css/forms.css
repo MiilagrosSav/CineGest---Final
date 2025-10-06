@@ -1,0 +1,292 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+
+/* ===== VARIABLES MINIMALISTAS ===== */
+:root {
+  /* Colores esenciales */
+  --primary: #8B5FBF;
+  --dark: #1A1625;
+  --darker: #0F0F23;
+  --white: #FFFFFF;
+  --gray: #94A3B8;
+  
+  /* Tipografía */
+  --font-primary: 'Inter', system-ui, sans-serif;
+  
+  /* Espaciados */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2rem;
+  
+  /* Bordes */
+  --radius: 0.5rem;
+  
+  /* Transiciones */
+  --transition: all 0.2s ease;
+}
+
+/* ===== RESET BÁSICO ===== */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-primary);
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--white);
+  background: var(--dark);
+  min-height: 100vh;
+}
+
+/* ===== CONTENEDORES ===== */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 var(--space-sm);
+}
+
+.container-narrow {
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 0 var(--space-sm);
+}
+
+/* ===== TARJETAS ===== */
+.card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(139, 95, 191, 0.2);
+  border-radius: var(--radius);
+  padding: var(--space-md);
+}
+
+.card-header {
+  margin-bottom: var(--space-md);
+}
+
+.card-title {
+  font-size: 1.4rem;
+  font-weight: 600;
+  margin-bottom: var(--space-xs);
+}
+
+/* ===== BOTONES ===== */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md);
+  border: none;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--white);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--primary);
+  color: var(--primary);
+}
+
+/* ===== FORMULARIOS ===== */
+.form-group {
+  margin-bottom: var(--space-md);
+}
+
+.form-label {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+/* Combobox */
+.form-select {
+  display: block;
+  width: 100%;
+  padding: 0.7rem 1rem;
+  color: var(--white);
+  background-color: rgba(255, 255, 255, 0.05);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='white' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  background-size: 16px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  appearance: none;
+}
+
+.form-select:focus {
+  border-color: var(--primary);
+  outline: 0;
+}
+
+.form-select option {
+  background-color: var(--darker);
+  color: var(--white);
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--space-sm);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+  color: var(--white);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+}
+
+/* ===== NAVEGACIÓN ===== */
+.navbar {
+  background: var(--darker);
+  border-bottom: 1px solid rgba(139, 95, 191, 0.2);
+  padding: var(--space-sm) 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.navbar-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logo {
+  font-weight: 600;
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.nav-links {
+  display: flex;
+  gap: var(--space-md);
+  list-style: none;
+}
+
+.nav-link {
+  color: var(--gray);
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  color: var(--primary);
+}
+
+/* ===== LAYOUT ===== */
+.page-wrapper {
+  min-height: 100vh;
+  padding-top: 60px;
+  padding-bottom: 40px; /* ✅ Mismo tamaño que el navbar */
+}
+
+.page-content {
+  padding: var(--space-md) 0;
+}
+
+/* ===== MENSAJES ===== */
+.messages {
+  padding: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.message {
+  background: rgba(255, 255, 255, 0.1);
+  padding: var(--space-sm);
+  border-radius: var(--radius);
+  margin-bottom: var(--space-xs);
+}
+
+/* ===== UTILIDADES ===== */
+.text-center { text-align: center; }
+.mb-sm { margin-bottom: var(--space-sm); }
+.mb-md { margin-bottom: var(--space-md); }
+
+/* ===== PIE DE PÁGINA FIJO (mismo tamaño que navbar) ===== */
+.site-footer {
+  background: var(--darker);
+  border-top: 1px solid rgba(139, 95, 191, 0.2);
+  padding: 0.5rem 0; /* ✅ Mismo padding que el navbar */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 99;
+  height: 40px; /* ✅ Misma altura que el navbar */
+  display: flex;
+  align-items: center; /* ✅ Centrado vertical como el navbar */
+}
+
+/* ===== ESTILOS PARA PIE DE PÁGINA MINIMALISTA ===== */
+.site-footer h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* ===== NAVEGACIÓN MEJORADA ===== */
+.nav-link.user-info {
+  background: rgba(139, 95, 191, 0.2);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius);
+  font-weight: 500;
+}
+
+.nav-link.logout-btn:hover {
+  color: #ff6b6b;
+}
+
+/* ===== VALIDACIONES VISUALES ===== */
+.form-input.valid {
+  border-color: #4ecdc4;
+  background: rgba(78, 205, 196, 0.1);
+}
+
+.form-input.invalid {
+  border-color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.form-input.valid:focus {
+  border-color: #4ecdc4;
+  box-shadow: 0 0 0 2px rgba(78, 205, 196, 0.2);
+}
+
+.form-input.invalid:focus {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2);
+}
+
+/* ===== RESPONSIVE MEJORADO ===== */
+@media (max-width: 768px) {
+  .navbar-content {
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+  
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: var(--space-sm);
+  }
+
+  /* ✅ FOOTER RESPONSIVE */
+  .site-footer h3 {
+    font-size: 0.9rem;
+  }
+}

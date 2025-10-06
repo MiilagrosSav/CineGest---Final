@@ -1,0 +1,58 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}{{ titulo_pagina }} - CineGest{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card glass-container">
+        <div class="card-header">
+            <h1 class="card-title text-gradient-primary">{{ titulo_pagina }}</h1>
+            <p class="card-subtitle">Complete todos los campos obligatorios para continuar</p>
+        </div>
+
+        <!-- ✅ FORMULARIO SIN NOVALIDATE PARA VALIDACIONES HTML NATIVAS -->
+        <form method="post">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="message message-error" style="text-align: center; margin-bottom: var(--space-md);">
+                    <strong>❌</strong> {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+            
+            {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                    </label>
+                    
+                    <!-- ✅ RENDERIZADO AUTOMÁTICO CON VALIDACIONES HTML -->
+                    {{ field }}
+                    
+                    {% if field.help_text %}
+                        <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">
+                            💡 {{ field.help_text }}
+                        </small>
+                    {% endif %}
+                    
+                    {% if field.errors %}
+                        {% for error in field.errors %}
+                            <span class="form-error" role="alert">⚠️ {{ error }}</span>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-md);">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    {{ nombre_boton }}
+                </button>
+                <a href="{% url 'accounts:employee_list' %}" class="btn btn-outline" style="flex: 1;">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

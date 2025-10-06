@@ -1,0 +1,107 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Términos de Servicio - CineGest{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card glass-container">
+        <h1 class="text-gradient-primary">Términos de Servicio</h1>
+        <p class="text-secondary mb-lg">Última actualización: Octubre 2024</p>
+        
+        <div style="line-height: 1.6; color: var(--text-primary);">
+            <h2>1. Aceptación de Términos</h2>
+            <p>Al acceder y usar CineGest, aceptas estar sujeto a estos términos de servicio y todas las leyes y regulaciones aplicables.</p>
+            
+            <h2>2. Descripción del Servicio</h2>
+            <p>CineGest es una plataforma digital que te permite:</p>
+            <ul>
+                <li>Ver la cartelera de películas disponibles</li>
+                <li>Comprar entradas para funciones de cine</li>
+                <li>Gestionar tus reservas y entradas</li>
+                <li>Recibir información sobre próximos estrenos</li>
+                <li>Acceder a promociones y descuentos especiales</li>
+            </ul>
+            
+            <h2>3. Registro y Cuentas de Usuario</h2>
+            <p>Para usar nuestros servicios, debes:</p>
+            <ul>
+                <li>Ser mayor de 18 años o tener autorización parental</li>
+                <li>Proporcionar información precisa y actualizada</li>
+                <li>Mantener la confidencialidad de tu cuenta</li>
+                <li>Notificar inmediatamente cualquier uso no autorizado</li>
+                <li>Ser responsable de todas las actividades en tu cuenta</li>
+            </ul>
+            
+            <h2>4. Compras y Pagos</h2>
+            <p>Respecto a las compras de entradas:</p>
+            <ul>
+                <li>Todas las compras están sujetas a disponibilidad</li>
+                <li>Los precios pueden cambiar sin previo aviso</li>
+                <li>El pago debe completarse al momento de la reserva</li>
+                <li>Las entradas son válidas solo para la función específica</li>
+                <li>Se requiere confirmación de pago para garantizar el asiento</li>
+            </ul>
+            
+            <h2>5. Política de Cancelación y Reembolsos</h2>
+            <p>Para cancelaciones y reembolsos:</p>
+            <ul>
+                <li>Las cancelaciones deben realizarse con al menos 2 horas de anticipación</li>
+                <li>Los reembolsos se procesarán en 5-10 días hábiles</li>
+                <li>No se permiten reembolsos después del horario de la función</li>
+                <li>En caso de cancelación por parte del cine, se realizará reembolso completo</li>
+            </ul>
+            
+            <h2>6. Uso Aceptable</h2>
+            <p>Te comprometes a NO:</p>
+            <ul>
+                <li>Usar el servicio para actividades ilegales</li>
+                <li>Intentar acceder a cuentas de otros usuarios</li>
+                <li>Transmitir virus o código malicioso</li>
+                <li>Hacer uso comercial no autorizado del servicio</li>
+                <li>Interferir con el funcionamiento normal del sistema</li>
+            </ul>
+            
+            <h2>7. Propiedad Intelectual</h2>
+            <p>Todo el contenido de CineGest, incluyendo:</p>
+            <ul>
+                <li>Logotipos, diseños y marcas</li>
+                <li>Software y código fuente</li>
+                <li>Textos, imágenes y multimedia</li>
+                <li>Está protegido por derechos de autor y otras leyes de propiedad intelectual</li>
+            </ul>
+            
+            <h2>8. Limitación de Responsabilidad</h2>
+            <p>CineGest no será responsable por:</p>
+            <ul>
+                <li>Interrupciones del servicio por mantenimiento</li>
+                <li>Pérdida de datos debido a fallos técnicos</li>
+                <li>Daños indirectos o consecuenciales</li>
+                <li>Cambios en la programación de películas por parte de los cines</li>
+            </ul>
+            
+            <h2>9. Modificaciones del Servicio</h2>
+            <p>Nos reservamos el derecho de:</p>
+            <ul>
+                <li>Modificar o discontinuar el servicio en cualquier momento</li>
+                <li>Actualizar estos términos cuando sea necesario</li>
+                <li>Cambiar precios y políticas con previo aviso</li>
+            </ul>
+            
+            <h2>10. Ley Aplicable</h2>
+            <p>Estos términos se rigen por las leyes de la República Argentina. Cualquier disputa será resuelta en los tribunales de la Ciudad Autónoma de Buenos Aires.</p>
+            
+            <h2>11. Contacto</h2>
+            <p>Para consultas sobre estos términos, contáctanos en:</p>
+            <ul>
+                <li>Email: legal@cinegest.com</li>
+                <li>Teléfono: +54 11 1234-5678</li>
+                <li>Dirección: Av. Corrientes 1234, Ciudad de Buenos Aires</li>
+            </ul>
+        </div>
+        
+        <div style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid rgba(255,255,255,0.1);">
+            <a href="{% url 'accounts:login' %}" class="btn btn-outline">Volver al Login</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

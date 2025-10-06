@@ -1,0 +1,31 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Confirmar Eliminación{% endblock %}
+
+{% block content %}
+<div class="container-narrow">
+    <div class="card glass-container text-center">
+        <div class="card-header">
+            <h1 class="card-title text-gradient-secondary">🗑️ ¿Estás seguro?</h1>
+            <p class="card-subtitle">
+                Estás a punto de eliminar permanentemente la película:
+                <strong style="display: block; font-size: 1.2rem; margin-top: var(--space-sm);">"{{ object.titulo }}"</strong>
+            </p>
+        </div>
+
+        <p class="text-secondary">Esta acción no se puede deshacer.</p>
+
+        <form method="post">
+            {% csrf_token %}
+            <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-lg);">
+                <button type="submit" class="btn btn-secondary" style="flex-grow: 1;">
+                    Sí, Eliminar
+                </button>
+                <a href="{% url 'cine:pelicula_list' %}" class="btn btn-outline" style="flex-grow: 1;">
+                    No, Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

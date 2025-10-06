@@ -1,0 +1,95 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Panel de Empleado - CineGest{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- Bienvenida Personalizada -->
+    <div class="card glass-container mb-lg">
+        <div class="card-header">
+            <h1 class="card-title text-gradient-primary">🎯 Panel de Empleado</h1>
+            <p class="card-subtitle">
+                Hola <strong>{{ user.first_name|default:user.username|title }}</strong>, 
+                gestiona las operaciones diarias del cine de manera eficiente.
+            </p>
+        </div>
+    </div>
+
+    <!-- Acciones Rápidas -->
+    <div class="dashboard-grid">
+        <div class="card glass-container">
+            <h3 class="mb-md text-gradient-accent">🎫 Venta de Tickets</h3>
+            <p class="text-secondary mb-md">
+                Procesa ventas de entradas, gestiona reservas y atiende a los clientes.
+            </p>
+            <a href="#" class="btn btn-primary">
+                💳 Vender Tickets
+            </a>
+        </div>
+
+        <div class="card glass-container">
+            <h3 class="mb-md text-gradient-accent">📅 Horarios de Hoy</h3>
+            <p class="text-secondary mb-md">
+                Consulta las funciones programadas para el día actual y próximas sesiones.
+            </p>
+            <a href="#" class="btn btn-outline">
+                🕒 Ver Horarios
+            </a>
+        </div>
+
+        <div class="card glass-container">
+            <h3 class="mb-md text-gradient-accent">👥 Atención al Cliente</h3>
+            <p class="text-secondary mb-md">
+                Busca información de clientes y gestiona sus consultas y solicitudes.
+            </p>
+            <a href="#" class="btn btn-outline">
+                🔍 Buscar Cliente
+            </a>
+        </div>
+    </div>
+
+    <!-- Información del Turno -->
+    <div class="card glass-container mt-lg">
+        <h3 class="mb-md text-gradient-primary">⏰ Mi Turno Actual</h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-md);">
+            <div>
+                <strong class="text-gradient-accent">🕘 Horario:</strong>
+                <p class="mb-sm" style="color: var(--white); font-weight: 500;">09:00 - 17:00</p>
+            </div>
+            <div>
+                <strong class="text-gradient-accent">🎬 Salas Asignadas:</strong>
+                <p class="mb-sm" style="color: var(--white); font-weight: 500;">Sala 1, 2, 3</p>
+            </div>
+            <div>
+                <strong class="text-gradient-accent">💰 Ventas del Día:</strong>
+                <p class="mb-sm" style="color: #38ef7d; font-weight: 600;">145 tickets vendidos</p>
+            </div>
+            <div>
+                <strong class="text-gradient-accent">📊 Estado:</strong>
+                <span style="color: #38ef7d; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                    🟢 Activo
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tareas Pendientes -->
+    <div class="card glass-container mt-lg">
+        <h3 class="mb-md text-gradient-accent">📋 Tareas Pendientes</h3>
+        <div class="text-secondary">
+            <p class="mb-sm" style="display: flex; align-items: center; gap: 12px;">
+                <span style="color: #f59e0b;">⏳</span> 
+                Revisar inventario de sala 2 - <strong>Pendiente</strong>
+            </p>
+            <p class="mb-sm" style="display: flex; align-items: center; gap: 12px;">
+                <span style="color: #38ef7d;">✅</span> 
+                Limpieza de sala 1 - <strong>Completada</strong>
+            </p>
+            <p class="mb-sm" style="display: flex; align-items: center; gap: 12px;">
+                <span style="color: #00f2fe;">🔄</span> 
+                Preparar proyección 15:30 - <strong>En proceso</strong>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

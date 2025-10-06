@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}CineGest{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/forms.css' %}?v={% now 'U' %}">
+</head>
+<body>
+    <div class="page-wrapper">
+        <nav class="navbar">
+            <div class="container">
+                <div class="navbar-content">
+                    <a href="{% url 'accounts:dashboard' %}" class="logo">CineGest</a>
+                    
+                    <ul class="nav-links">
+                        {% if user.is_authenticated %}
+                            <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
+                            
+                            <!-- ✅ SEPARACIÓN CLARA DE ROLES -->
+                            {% if user.user_type == 'administrador' %}
+                                <!-- SOLO OPCIONES DE ADMINISTRADOR -->
+                                <li><a href="{% url 'accounts:admin_only' %}" class="nav-link">🔧 Gestión</a></li>
+                                <li><a href="/admin/" class="nav-link" target="_blank">⚙️ Panel Admin</a></li>
+                                <li><a href="{% url 'accounts:employee_list' %}" class="nav-link">👥 Empleados</a></li>
+                                <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🎭 Películas</a></li>
+                            {% elif user.user_type == 'empleado' %}
+                                <!-- SOLO OPCIONES DE EMPLEADO -->
+                                <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🎭 Películas</a></li>
+                            {% elif user.user_type == 'cliente' %}
+                                <!-- SOLO OPCIONES DE CLIENTE -->
+                                <li><a href="#" class="nav-link">🎫 Mis Compras</a></li>
+                                <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🍿 Cartelera</a></li>
+                            {% endif %}
+                            
+                            <li><span class="nav-link user-info">👤 {{ user.first_name|default:user.username|title }}</span></li>
+                            <li><a href="{% url 'accounts:logout' %}" class="nav-link logout-btn">🚪 Salir</a></li>
+                        {% else %}
+                            <li><a href="{% url 'accounts:login' %}" class="nav-link">🔐 Ingresar</a></li>
+                            <li><a href="{% url 'accounts:register' %}" class="nav-link">📝 Registrarse</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <main class="page-content">
+            {% if messages %}
+                <div class="messages">
+                    {% for message in messages %}
+                        <div class="message message-{{ message.tags }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
+            {% block content %}
+            {% endblock %}
+        </main>
+
+        
+<!-- ✅ PIE DE PÁGINA MINIMALISTA -->
+        <footer class="site-footer">
+            <div class="container text-center">
+                <h3 class="text-gradient-primary">🎬 CineGest</h3>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        // Auto-ocultar mensajes
+        document.addEventListener('DOMContentLoaded', function() {
+            const messages = document.querySelectorAll('.message');
+            messages.forEach(message => {
+                setTimeout(() => message.remove(), 5000);
+            });
+        });
+
+        // ✅ VALIDACIONES MEJORADAS
+        document.addEventListener('DOMContentLoaded', function() {
+            // Mejorar feedback visual de validaciones
+            const inputs = document.querySelectorAll('input[required], select[required], textarea[required]');
+            
+            inputs.forEach(input => {
+                input.addEventListener('blur', function() {
+                    if (this.validity.valid) {
+                        this.classList.add('valid');
+                        this.classList.remove('invalid');
+                    } else {
+                        this.classList.add('invalid');
+                        this.classList.remove('valid');
+                    }
+                });
+                
+                input.addEventListener('input', function() {
+                    if (this.classList.contains('invalid')) {
+                        if (this.validity.valid) {
+                            this.classList.add('valid');
+                            this.classList.remove('invalid');
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
