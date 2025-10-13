@@ -12,6 +12,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+SECRET_KEY = os.getenv('SECRET_KEY')
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -19,14 +27,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-0+afih#)y7i*@^q$8g08jv(5269a7k-ex@gg*=i2pdllz0&y3i'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('true', '1', 'yes')
-DEBUG = True  # ✅ TEMPORALMENTE TRUE PARA DESARROLLO
-
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '*.herokuapp.com'] if DEBUG else ['tu-dominio.com']
 
 # Application definition
 INSTALLED_APPS = [
@@ -145,9 +146,9 @@ AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',  # Backend tradicional de Django
 )
 
-# ⚠️ REEMPLAZA ESTOS VALORES CON TUS CREDENCIALES REALES DE GOOGLE ⚠️
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '1071737485505-b3hrkuii1ne7felraapq8ihn3vd5t82i.apps.googleusercontent.com'  # El ID que aparece en tu pantalla
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'  # El secreto que debes copiar
+# ✅ CREDENCIALES DE GOOGLE DESDE VARIABLES DE ENTORNO
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.getenv('GOOGLE_CLIENT_ID')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
 # Permisos que solicitamos a Google
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
@@ -157,7 +158,6 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
 
 # URLs de redirección después del login/logout
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = '/accounts/dashboard/'  # Después del login exitoso
-SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/?error=oauth'  # Si hay error
 SOCIAL_AUTH_LOGOUT_REDIRECT_URL = '/accounts/login/'  # Después del logout
 
 # Configuración adicional de Google OAuth2
@@ -175,7 +175,7 @@ SOCIAL_AUTH_AUTHENTICATION_BACKENDS = (
 
 # ✅ Configuración adicional para evitar duplicados
 SOCIAL_AUTH_USER_MODEL = 'accounts.User'  # Usar nuestro modelo personalizado
-SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/?error=oauth_error'
+SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/?error=oauth_error' # Si hay error
 
 # ✅ Pipeline PERSONALIZADO que maneja usuarios existentes correctamente
 SOCIAL_AUTH_PIPELINE = (
@@ -185,6 +185,7 @@ SOCIAL_AUTH_PIPELINE = (
     'accounts.pipeline.custom_social_user',               # 🆕 Función que no da error con usuarios existentes
     'social_core.pipeline.user.get_username',             # Genera username único
     'social_core.pipeline.user.create_user',              # Crea usuario si no existe
+    'social_core.pipeline.social_auth.associate_user',    # 🆕 FALTABA: Crea asociación social
     'accounts.pipeline.setup_user_profile',               # Función personalizada para perfil
     'social_core.pipeline.social_auth.load_extra_data',   # Carga datos extra
     'social_core.pipeline.user.user_details',             # Actualiza detalles del usuario
@@ -203,7 +204,21 @@ SOCIAL_AUTH_SANITIZE_REDIRECTS = False
 SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/?error=oauth'
 
 # ✅ CONFIGURACIÓN ESPECÍFICA PARA DESARROLLO LOCAL
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']  # Asegurar que estos hosts estén permitidos
+# ALLOWED_HOSTS ya está configurado arriba
+
+# ✅ CONFIGURACIÓN CSRF PARA DESARROLLO
+CSRF_TRUSTED_ORIGINS = ['http://127.0.0.1:8000', 'http://localhost:8000']
+CSRF_COOKIE_SECURE = False  # Para desarrollo local (HTTP)
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False  # Permite que JavaScript acceda a la cookie CSRF
+CSRF_USE_SESSIONS = False  # Usar cookies en lugar de sesiones para CSRF
+CSRF_COOKIE_AGE = 31449600  # 1 año
+SESSION_COOKIE_SECURE = False  # Para desarrollo local (HTTP)
+SESSION_COOKIE_AGE = 1209600  # 2 semanas
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+
+# ✅ CONFIGURACIÓN ESPECÍFICA DEL ADMIN
+CSRF_FAILURE_VIEW = 'django.views.csrf.csrf_failure'
 
 # ✅ LOGGING PARA VER ERRORES OAUTH EN DETALLE
 LOGGING = {

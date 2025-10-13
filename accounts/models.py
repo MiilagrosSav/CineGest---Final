@@ -15,6 +15,9 @@ class User(AbstractUser):
         (EMPLEADO, 'Empleado'),
     ]
 
+    # ✅ HACER EMAIL ÚNICO PARA EVITAR DUPLICADOS
+    email = models.EmailField(unique=True, blank=False, null=False)
+
     user_type = models.CharField(
         max_length=15,
         choices=USER_TYPE_CHOICES,
@@ -22,8 +25,17 @@ class User(AbstractUser):
         help_text="Tipo de usuario: ADMINISTRADOR / CLIENTE / EMPLEADO"
     )
 
+    def save(self, *args, **kwargs):
+        # SOLO cambiar a ADMINISTRADOR si es superusuario Y se está creando por primera vez
+        # Y NO es un usuario de OAuth (que tienen email de proveedores externos)
+        if (self.is_superuser and 
+            self.user_type == self.CLIENTE and 
+            not hasattr(self, '_oauth_user')):  # Flag para usuarios OAuth
+            self.user_type = self.ADMINISTRADOR
+        super().save(*args, **kwargs)
+
     def is_admin(self):
-        return self.user_type == self.ADMINISTRADOR
+        return self.user_type == self.ADMINISTRADOR or self.is_superuser
 
     def is_client(self):
         return self.user_type == self.CLIENTE
