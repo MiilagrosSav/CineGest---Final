@@ -2,8 +2,8 @@ from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from .models import Pelicula
-from .forms import PeliculaForm
+from .models import Pelicula, Sala
+from .forms import PeliculaForm, SalaForm
 
 # --- Mixin de Seguridad para Administradores ---
 # Este mixin se asegura de que solo los usuarios con el rol 'administrador'
@@ -64,5 +64,34 @@ class PeliculaDeleteView(AdminRequiredMixin, DeleteView):
     success_url = reverse_lazy('cine:pelicula_list')
 
 
+# --- Vistas del CRUD de Salas ---
 
-# Create your views here.
+# READ: Vista para listar todas las salas
+class SalaListView(AdminRequiredMixin, ListView):
+    model = Sala
+    template_name = 'cine/salas/sala_list.html'
+    context_object_name = 'salas'
+    paginate_by = 10
+    
+    def get_queryset(self):
+        return Sala.objects.all().order_by('numero')
+
+# CREATE: Vista para crear una nueva sala
+class SalaCreateView(AdminRequiredMixin, CreateView):
+    model = Sala
+    form_class = SalaForm
+    template_name = 'cine/salas/sala_form.html'
+    success_url = reverse_lazy('cine:sala_list')
+
+# UPDATE: Vista para editar una sala existente
+class SalaUpdateView(AdminRequiredMixin, UpdateView):
+    model = Sala
+    form_class = SalaForm
+    template_name = 'cine/salas/sala_form.html'
+    success_url = reverse_lazy('cine:sala_list')
+
+# DELETE: Vista para confirmar la eliminación de una sala
+class SalaDeleteView(AdminRequiredMixin, DeleteView):
+    model = Sala
+    template_name = 'cine/salas/sala_confirm_delete.html'
+    success_url = reverse_lazy('cine:sala_list')

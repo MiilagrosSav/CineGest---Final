@@ -4,19 +4,32 @@ from . import views
 app_name = 'cine'
 
 urlpatterns = [
+    # --- URLs de Películas ---
     # Read: Lista de todas las películas
-    # Ejemplo: /peliculas/
-    path('', views.PeliculaListView.as_view(), name='pelicula_list'),
+    path('peliculas/', views.PeliculaListView.as_view(), name='pelicula_list'),
 
     # Create: Formulario para crear una nueva película
-    # Ejemplo: /peliculas/nueva/
-    path('nueva/', views.PeliculaCreateView.as_view(), name='pelicula_create'),
+    path('peliculas/nueva/', views.PeliculaCreateView.as_view(), name='pelicula_create'),
 
     # Update: Formulario para editar una película existente
-    # Ejemplo: /peliculas/5/editar/
-    path('<int:pk>/editar/', views.PeliculaUpdateView.as_view(), name='pelicula_update'),
+    path('peliculas/<int:pk>/editar/', views.PeliculaUpdateView.as_view(), name='pelicula_update'),
 
     # Delete: Página de confirmación para eliminar una película
-    # Ejemplo: /peliculas/5/eliminar/
-    path('<int:pk>/eliminar/', views.PeliculaDeleteView.as_view(), name='pelicula_delete'),
+    path('peliculas/<int:pk>/eliminar/', views.PeliculaDeleteView.as_view(), name='pelicula_delete'),
+
+    # --- URLs de Salas ---
+    # Read: Lista de todas las salas
+    path('salas/', views.SalaListView.as_view(), name='sala_list'),
+
+    # Create: Formulario para crear una nueva sala
+    path('salas/nueva/', views.SalaCreateView.as_view(), name='sala_create'),
+
+    # Update: Formulario para editar una sala existente
+    path('salas/<int:pk>/editar/', views.SalaUpdateView.as_view(), name='sala_update'),
+
+    # Delete: Página de confirmación para eliminar una sala
+    path('salas/<int:pk>/eliminar/', views.SalaDeleteView.as_view(), name='sala_delete'),
+
+    # Redirect por defecto a películas
+    path('', views.PeliculaListView.as_view(), name='index'),
 ]
