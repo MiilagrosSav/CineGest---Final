@@ -39,3 +39,82 @@ class Pelicula(models.Model):
         verbose_name = "Película"
         verbose_name_plural = "Películas"
         ordering = ['-fecha_estreno', 'titulo']
+
+
+class Sala(models.Model):
+    """
+    Modelo para representar una sala de cine.
+    Cada sala tiene una capacidad específica y puede proyectar películas.
+    """
+    # Opciones para el tipo de sala
+    TIPO_CHOICES = [
+        ('NORMAL', 'Sala Normal'),
+        ('VIP', 'Sala VIP'),
+        ('IMAX', 'Sala IMAX'),
+        ('4DX', 'Sala 4DX'),
+        ('DOLBY_ATMOS', 'Dolby Atmos'),
+    ]
+
+    numero = models.PositiveIntegerField(
+        unique=True,
+        help_text="Número único de la sala (ej: 1, 2, 3...)"
+    )
+    
+    nombre = models.CharField(
+        max_length=100,
+        help_text="Nombre descriptivo de la sala (ej: 'Sala Premium A')"
+    )
+    
+    capacidad = models.PositiveIntegerField(
+        help_text="Número total de asientos en la sala"
+    )
+    
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default='NORMAL',
+        help_text="Tipo de sala y experiencia que ofrece"
+    )
+    
+    activa = models.BooleanField(
+        default=True,
+        help_text="Indica si la sala está disponible para proyecciones"
+    )
+    
+    precio_base = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        help_text="Precio base de entrada para esta sala"
+    )
+    
+    observaciones = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Notas adicionales sobre la sala (equipamiento, mantenimiento, etc.)"
+    )
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Sala {self.numero} - {self.nombre}"
+    
+    def get_tipo_display_icon(self):
+        """Retorna un icono para el tipo de sala"""
+        icons = {
+            'NORMAL': '🎬',
+            'VIP': '👑',
+            'IMAX': '📽️',
+            '4DX': '🎢',
+            'DOLBY_ATMOS': '🔊'
+        }
+        return icons.get(self.tipo, '🎬')
+    
+    def get_status_display(self):
+        """Retorna el estado de la sala con icono"""
+        return "🟢 Activa" if self.activa else "🔴 Inactiva"
+
+    class Meta:
+        verbose_name = "Sala"
+        verbose_name_plural = "Salas"
+        ordering = ['numero']
