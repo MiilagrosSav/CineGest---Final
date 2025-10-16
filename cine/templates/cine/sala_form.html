@@ -1,0 +1,80 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}{{ titulo_pagina }} - CineGest{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card glass-container">
+        <div class="card-header">
+            <h1 class="card-title text-gradient-primary">{{ titulo_pagina }}</h1>
+            <p class="card-subtitle">Completa la información de la sala con todos los datos requeridos</p>
+        </div>
+
+        <!-- ✅ FORMULARIO CON VALIDACIONES HTML NATIVAS -->
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="message message-error" style="text-align: center; margin-bottom: var(--space-md);">
+                    <strong>❌</strong> {{ form.non_field_errors.0 }}
+                </div>
+            {% endif %}
+            
+            {% for field in form %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                    </label>
+                    
+                    <!-- ✅ RENDERIZADO AUTOMÁTICO CON VALIDACIONES HTML -->
+                    {{ field }}
+                    
+                    {% if field.help_text %}
+                        <div class="form-help">{{ field.help_text }}</div>
+                    {% endif %}
+                    
+                    {% if field.errors %}
+                        <div class="message message-error">
+                            <strong>❌</strong> {{ field.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% endfor %}
+
+            <!-- ✅ BOTONES DEL FORMULARIO -->
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    {{ nombre_boton }}
+                </button>
+                <a href="{% url 'cine:sala_list' %}" class="btn btn-outline">
+                    ↩️ Volver a Lista
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- ✅ JAVASCRIPT PARA MEJORAR LA EXPERIENCIA -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ✅ Auto-focus en el primer campo del formulario
+    const primerCampo = document.querySelector('form input, form select, form textarea');
+    if (primerCampo) {
+        primerCampo.focus();
+    }
+
+    // ✅ Confirmación al enviar (solo para edición)
+    const form = document.querySelector('form');
+    const titulo = document.querySelector('h1').textContent;
+    
+    if (titulo.includes('Editar')) {
+        form.addEventListener('submit', function(e) {
+            if (!confirm('¿Estás seguro de que quieres guardar los cambios en esta sala?')) {
+                e.preventDefault();
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

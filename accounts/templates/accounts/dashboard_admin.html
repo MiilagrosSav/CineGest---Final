@@ -29,6 +29,22 @@
             </a>
         </div>
     </div>
+
+    <!-- Gestión de Salas -->
+    <div class="card mt-md">
+        <h3 class="mb-md">Gestión de Salas</h3>
+        <p class="mb-md">
+            Administra las salas del cine y su configuración.
+        </p>
+        <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+            <a href="{% url 'cine:sala_list' %}" class="btn btn-primary">
+                Ver Salas
+            </a>
+            <a href="{% url 'cine:sala_create' %}" class="btn btn-outline">
+                Agregar Sala
+            </a>
+        </div>
+    </div>
     
     <!-- Gestión de Empleados -->
     <div class="card mt-md">

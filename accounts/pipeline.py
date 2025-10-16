@@ -28,7 +28,8 @@ def custom_social_user(backend, uid, user=None, *args, **kwargs):
         except User.DoesNotExist:
             print(f"📧 No se encontró usuario con email: {email}")
     
-    # No hay usuario social ni usuario por email
+    # No hay usuario social ni usuario por email - continuar con pipeline normal
+    # IMPORTANTE: No retornar social=None, simplemente no incluir la key
     return {}
 
 
@@ -106,11 +107,21 @@ def setup_user_profile(backend, user, response, *args, **kwargs):
     # Verificar si es un usuario completamente nuevo
     is_new_user = kwargs.get('is_new', False)
     
+    # ✅ NO MODIFICAR SUPERUSUARIOS
+    if user.is_superuser:
+        print(f"🛡️ Superusuario detectado: {user.username}, saltando configuración de perfil")
+        return {'user': user, 'is_new': is_new_user}
+    
     if is_new_user:
-        # Si es nuevo, asignarle automáticamente el tipo 'cliente'
-        user.user_type = 'cliente'
+        # Si es nuevo, asignarle automáticamente el tipo 'CLIENTE' (usar la constante del modelo)
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        user.user_type = User.CLIENTE
         print(f"🆕 Usuario nuevo creado con Google: {user.username}")
-        print(f"👤 Tipo de usuario asignado: cliente")
+        print(f"👤 Tipo de usuario asignado: {User.CLIENTE}")
+    else:
+        # Si es usuario existente, preservar su tipo actual
+        print(f"👤 Usuario existente: {user.username}, tipo actual: {user.user_type}")
     
     # Actualizar información del perfil con datos que Google nos dio
     
@@ -149,6 +160,11 @@ def setup_user_profile(backend, user, response, *args, **kwargs):
     
     # Guardar todos los cambios en la base de datos
     user.save()
+    
+    # ✅ LIMPIAR FLAG TEMPORAL
+    if hasattr(user, '_oauth_user'):
+        delattr(user, '_oauth_user')
+    
     print(f"💾 Perfil guardado correctamente")
     
     # Devolver el usuario para que Django continúe con el proceso
