@@ -194,9 +194,9 @@ class SalaForm(forms.ModelForm):
     
     tipo = forms.ChoiceField(
         label='🎭 Tipo de sala',
-        choices=Sala.TIPO_CHOICES,
+        choices=[('', 'Selecciona un tipo de sala...')] + Sala.TIPO_CHOICES,
         widget=forms.Select(attrs={
-            'class': 'form-input',
+            'class': 'form-select',
             'required': True,
             'title': 'Selecciona el tipo de experiencia'
         }),

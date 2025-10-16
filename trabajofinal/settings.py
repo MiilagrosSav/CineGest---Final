@@ -26,7 +26,22 @@ SECRET_KEY = 'django-insecure-0+afih#)y7i*@^q$8g08jv(5269a7k-ex@gg*=i2pdllz0&y3i
 # DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('true', '1', 'yes')
 DEBUG = True  # ✅ TEMPORALMENTE TRUE PARA DESARROLLO
 
-ALLOWED_HOSTS = []
+# ✅ CONFIGURACIÓN PARA DESARROLLO LOCAL
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '127.0.0.1:8000', 'localhost:8000']
+
+# ✅ CONFIGURACIÓN CSRF PARA EVITAR ERRORES 403
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:8000',
+    'http://localhost:8000',
+    'https://127.0.0.1:8000',
+    'https://localhost:8000'
+]
+
+# ✅ CONFIGURACIONES ADICIONALES CSRF PARA ADMIN
+CSRF_COOKIE_SECURE = False  # Para desarrollo HTTP (no HTTPS)
+CSRF_COOKIE_HTTPONLY = False  # Permitir acceso por JavaScript si es necesario
+CSRF_USE_SESSIONS = False  # Usar cookies en lugar de sesiones
+CSRF_COOKIE_SAMESITE = 'Lax'  # Política de SameSite relajada para desarrollo
 
 # Application definition
 INSTALLED_APPS = [
@@ -167,24 +182,18 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
 }
 
 # ✅ CONFIGURACIÓN PARA MANEJAR USUARIOS EXISTENTES
-SOCIAL_AUTH_ASSOCIATE_BY_EMAIL = True  # Asocia por email si ya existe usuario
-SOCIAL_AUTH_RAISE_EXCEPTIONS = False   # No lanza excepción, redirige a error URL
-SOCIAL_AUTH_AUTHENTICATION_BACKENDS = (
-    'social_core.backends.google.GoogleOAuth2',
-)
-
-# ✅ Configuración adicional para evitar duplicados
 SOCIAL_AUTH_USER_MODEL = 'accounts.User'  # Usar nuestro modelo personalizado
-SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/?error=oauth_error'
 
 # ✅ Pipeline PERSONALIZADO que maneja usuarios existentes correctamente
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',    # Obtiene detalles del usuario
     'social_core.pipeline.social_auth.social_uid',        # Obtiene ID único de Google
     'social_core.pipeline.social_auth.auth_allowed',      # Verifica si puede autenticarse
-    'accounts.pipeline.custom_social_user',               # 🆕 Función que no da error con usuarios existentes
+    'accounts.pipeline.custom_social_user',               # 🆕 Busca asociación social existente
     'social_core.pipeline.user.get_username',             # Genera username único
+    'accounts.pipeline.associate_by_email',               # 🆕 Asocia por email si existe usuario
     'social_core.pipeline.user.create_user',              # Crea usuario si no existe
+    'social_core.pipeline.social_auth.associate_user',    # ✅ CRÍTICO: Crea la asociación UserSocialAuth
     'accounts.pipeline.setup_user_profile',               # Función personalizada para perfil
     'social_core.pipeline.social_auth.load_extra_data',   # Carga datos extra
     'social_core.pipeline.user.user_details',             # Actualiza detalles del usuario
@@ -194,7 +203,7 @@ SOCIAL_AUTH_PIPELINE = (
 SOCIAL_AUTH_SESSION_EXPIRATION = False  # Las sesiones no expiran automáticamente
 
 # ✅ CONFIGURACIÓN ADICIONAL PARA DEBUG Y SEGURIDAD
-SOCIAL_AUTH_RAISE_EXCEPTIONS = True   # Cambiar a True para ver errores detallados
+SOCIAL_AUTH_RAISE_EXCEPTIONS = False   # No lanzar excepciones, redirigir en caso de error
 SOCIAL_AUTH_REDIRECT_IS_HTTPS = False  # Para desarrollo local
 SOCIAL_AUTH_URL_NAMESPACE = 'social'   # Namespace para las URLs
 
@@ -202,8 +211,7 @@ SOCIAL_AUTH_URL_NAMESPACE = 'social'   # Namespace para las URLs
 SOCIAL_AUTH_SANITIZE_REDIRECTS = False
 SOCIAL_AUTH_LOGIN_ERROR_URL = '/accounts/login/?error=oauth'
 
-# ✅ CONFIGURACIÓN ESPECÍFICA PARA DESARROLLO LOCAL
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost']  # Asegurar que estos hosts estén permitidos
+# ✅ CONFIGURACIÓN ESPECÍFICA PARA DESARROLLO LOCAL (Ya definida arriba)
 
 # ✅ LOGGING PARA VER ERRORES OAUTH EN DETALLE
 LOGGING = {

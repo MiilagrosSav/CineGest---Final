@@ -14,11 +14,12 @@ from .models import User
 # Mixin de administración para vistas basadas en clases
 class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     """
-    Asegura que el usuario esté logueado y sea un administrador.
+    Asegura que el usuario esté logueado y sea un administrador o superusuario.
     """
     def test_func(self):
-        # Comprueba si el usuario está autenticado y si su tipo es 'administrador'
-        return self.request.user.is_authenticated and self.request.user.is_admin()
+        # Comprueba si el usuario es superusuario O administrador
+        return (self.request.user.is_authenticated and 
+                (self.request.user.is_superuser or self.request.user.is_admin()))
 
     def handle_no_permission(self):
         # Redirige al dashboard si no es administrador
@@ -66,7 +67,11 @@ def dashboard_view(request):
     Redirige al dashboard correspondiente según el tipo de usuario
     """
     user = request.user
-    if user.is_admin():
+    
+    # ✅ SUPERUSUARIOS van al dashboard de admin
+    if user.is_superuser:
+        return render(request, 'accounts/dashboard_admin.html')
+    elif user.is_admin():
         return render(request, 'accounts/dashboard_admin.html')
     elif user.is_employee():
         return render(request, 'accounts/dashboard_empleado.html')

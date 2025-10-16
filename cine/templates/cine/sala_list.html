@@ -1,0 +1,137 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Gestión de Salas{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card glass-container mb-lg">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1 class="card-title text-gradient-primary">🏛️ Gestión de Salas</h1>
+        </div>
+    </div>
+
+    <div class="card glass-container">
+        <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--glass-border);">
+                        <th style="padding: var(--space-sm);">Número</th>
+                        <th style="padding: var(--space-sm);">Nombre</th>
+                        <th style="padding: var(--space-sm);">Capacidad</th>
+                        <th style="padding: var(--space-sm);">Tipo</th>
+                        <th style="padding: var(--space-sm);">Estado</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sala in salas %}
+                    <tr class="sala-row" data-id="{{ sala.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                        <td style="padding: var(--space-sm); font-weight: 600; color: var(--primary);">{{ sala.numero }}</td>
+                        <td style="padding: var(--space-sm); font-weight: 600;">{{ sala.nombre }}</td>
+                        <td style="padding: var(--space-sm);">{{ sala.capacidad }} asientos</td>
+                        <td style="padding: var(--space-sm); color: var(--text-primary);">{{ sala.get_tipo_display_icon }} {{ sala.get_tipo_display }}</td>
+                        <td style="padding: var(--space-sm);">{{ sala.get_status_display }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-secondary" style="padding: var(--space-lg);">
+                            No hay salas registradas todavía. ¡Añade la primera!
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <!-- Panel de Acciones ABM -->
+            <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); margin-top: var(--space-lg); padding: var(--space-md);">
+                <a href="{% url 'cine:sala_create' %}" class="btn btn-primary" style="min-width: 120px;">
+                    ✨ Nueva
+                </a>
+                <button id="btn-modificar" class="btn btn-outline" style="min-width: 120px;" disabled>
+                    ✏️ Modificar
+                </button>
+                <button id="btn-eliminar" class="btn btn-secondary" style="min-width: 120px;" disabled>
+                    🗑️ Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .sala-row {
+        transition: background-color 0.2s ease;
+    }
+    .sala-row:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    .sala-row.selected {
+        background-color: rgba(var(--primary-rgb), 0.15);
+        border-left: 3px solid var(--primary);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const rows = document.querySelectorAll('.sala-row');
+        const btnModificar = document.getElementById('btn-modificar');
+        const btnEliminar = document.getElementById('btn-eliminar');
+        
+        let selectedRows = [];
+        
+        function updateUI() {
+            btnModificar.disabled = selectedRows.length !== 1;
+            btnEliminar.disabled = selectedRows.length === 0;
+            if (selectedRows.length > 0) {
+                btnEliminar.textContent = `🗑️ Eliminar ${selectedRows.length > 1 ? `(${selectedRows.length})` : ''}`;
+            } else {
+                btnEliminar.textContent = '🗑️ Eliminar';
+            }
+        }
+        
+        function toggleRowSelection(row) {
+            const rowId = row.dataset.id;
+            if (row.classList.contains('selected')) {
+                row.classList.remove('selected');
+                selectedRows = selectedRows.filter(id => id !== rowId);
+            } else {
+                row.classList.add('selected');
+                selectedRows.push(rowId);
+            }
+            updateUI();
+        }
+        
+        rows.forEach(row => {
+            row.addEventListener('click', function(event) {
+                if (!event.ctrlKey && !event.metaKey) {
+                    rows.forEach(r => {
+                        if (r !== this && r.classList.contains('selected')) {
+                            r.classList.remove('selected');
+                        }
+                    });
+                    selectedRows = [];
+                }
+                toggleRowSelection(this);
+            });
+        });
+        
+        btnModificar.addEventListener('click', function() {
+            if (selectedRows.length === 1) {
+                window.location.href = `/salas/${selectedRows[0]}/editar/`;
+            }
+        });
+        
+        btnEliminar.addEventListener('click', function() {
+            if (selectedRows.length === 0) return;
+            if (selectedRows.length === 1) {
+                window.location.href = `/salas/${selectedRows[0]}/eliminar/`;
+            } else {
+                if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} salas seleccionadas?`)) {
+                    alert('Función de eliminación masiva en desarrollo');
+                }
+            }
+        });
+        
+        updateUI();
+    });
+</script>
+{% endblock %}

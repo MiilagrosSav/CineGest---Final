@@ -69,29 +69,38 @@ class PeliculaDeleteView(AdminRequiredMixin, DeleteView):
 # READ: Vista para listar todas las salas
 class SalaListView(AdminRequiredMixin, ListView):
     model = Sala
-    template_name = 'cine/salas/sala_list.html'
-    context_object_name = 'salas'
-    paginate_by = 10
-    
-    def get_queryset(self):
-        return Sala.objects.all().order_by('numero')
+    template_name = 'cine/sala_list.html'  # Mismo patrón que películas
+    context_object_name = 'salas'          # Nombre de la variable en el template
+    paginate_by = 10                       # Opcional: para paginar la lista
 
-# CREATE: Vista para crear una nueva sala
+# CREATE: Vista para mostrar el formulario de creación
 class SalaCreateView(AdminRequiredMixin, CreateView):
     model = Sala
-    form_class = SalaForm
-    template_name = 'cine/salas/sala_form.html'
-    success_url = reverse_lazy('cine:sala_list')
+    form_class = SalaForm  # ✅ USAR FORMULARIO CON VALIDACIONES HTML
+    template_name = 'cine/sala_form.html'  # Template con el formulario
+    success_url = reverse_lazy('cine:sala_list') # Redirige aquí tras crear con éxito
 
-# UPDATE: Vista para editar una sala existente
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_pagina'] = '🏛️ Añadir Nueva Sala'
+        context['nombre_boton'] = '✨ Crear Sala'
+        return context
+
+# UPDATE: Vista para mostrar el formulario de edición
 class SalaUpdateView(AdminRequiredMixin, UpdateView):
     model = Sala
-    form_class = SalaForm
-    template_name = 'cine/salas/sala_form.html'
+    form_class = SalaForm  # ✅ USAR FORMULARIO CON VALIDACIONES HTML
+    template_name = 'cine/sala_form.html'
     success_url = reverse_lazy('cine:sala_list')
 
-# DELETE: Vista para confirmar la eliminación de una sala
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo_pagina'] = 'Editar Sala'
+        context['nombre_boton'] = 'Guardar Cambios'
+        return context
+
+# DELETE: Vista para confirmar la eliminación
 class SalaDeleteView(AdminRequiredMixin, DeleteView):
     model = Sala
-    template_name = 'cine/salas/sala_confirm_delete.html'
+    template_name = 'cine/sala_confirm_delete.html' # Template de confirmación
     success_url = reverse_lazy('cine:sala_list')

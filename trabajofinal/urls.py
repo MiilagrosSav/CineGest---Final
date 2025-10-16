@@ -24,7 +24,7 @@ urlpatterns = [
     path('', RedirectView.as_view(url='/accounts/login/', permanent=False), name='index'),  # Redirige la raíz al login
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls', namespace='accounts')),
-    path('peliculas/', include('cine.urls', namespace='cine')), # AÑADE ESTA LÍNEA PARA INCLUIR LAS URLS DE CINE
+    path('', include('cine.urls', namespace='cine')), # URLs de cine (películas y salas) - cambiado de 'peliculas/' a 'cine/'
     path('oauth/', include('social_django.urls', namespace='social')),  # Añade esta línea para las URLs de autenticación social
 ]
 
