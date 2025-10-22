@@ -1,4 +1,7 @@
 from django.db import models
+from django.core.exceptions import ValidationError
+from django.utils import timezone
+from datetime import date
 #----------------------------------------------------------------------------------------------
 #--------------------------------creamos la clase PELICULA---------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -37,10 +40,36 @@ class Pelicula(models.Model):
     def __str__(self):
         return self.titulo
 
+    def clean(self):
+        """
+        Validaciones personalizadas del modelo
+        """
+        super().clean()
+        
+        # Validar que la fecha de estreno no sea en el pasado
+        if self.fecha_estreno and self.fecha_estreno < date.today():
+            raise ValidationError({
+                'fecha_estreno': 'La fecha de estreno no puede ser anterior a la fecha actual.'
+            })
+        
+        # Validar que la duración sea razonable (entre 30 minutos y 5 horas)
+        if self.duracion and (self.duracion < 30 or self.duracion > 300):
+            raise ValidationError({
+                'duracion': 'La duración debe estar entre 30 y 300 minutos.'
+            })
+
+    def save(self, *args, **kwargs):
+        """
+        Ejecutar validaciones antes de guardar
+        """
+        self.clean()
+        super().save(*args, **kwargs)
+
     class Meta:
         verbose_name = "Película"
         verbose_name_plural = "Películas"
         ordering = ['-fecha_estreno', 'titulo']
+        db_table = "peliculas"  # 🎬 Nombre personalizado de la tabla
 #----------------------------------------------------------------------------------------------
 #--------------------------------creamos la clase SALA---------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -120,4 +149,6 @@ class Sala(models.Model):
     class Meta:
         verbose_name = "Sala"
         verbose_name_plural = "Salas"
+        ordering = ['numero']
+        db_table = "salas"  # 🏛️ Nombre personalizado de la tabla
         ordering = ['numero']

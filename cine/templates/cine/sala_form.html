@@ -31,50 +31,61 @@
                     {{ field }}
                     
                     {% if field.help_text %}
-                        <div class="form-help">{{ field.help_text }}</div>
+                        <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">
+                            💡 {{ field.help_text }}
+                        </small>
                     {% endif %}
                     
                     {% if field.errors %}
-                        <div class="message message-error">
-                            <strong>❌</strong> {{ field.errors.0 }}
-                        </div>
+                        {% for error in field.errors %}
+                            <span class="form-error" role="alert">⚠️ {{ error }}</span>
+                        {% endfor %}
                     {% endif %}
                 </div>
             {% endfor %}
 
-            <!-- ✅ BOTONES DEL FORMULARIO -->
-            <div class="form-actions">
-                <button type="submit" class="btn btn-primary">
+            <div style="display: flex; gap: var(--space-md); margin-top: var(--space-lg);">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
                     {{ nombre_boton }}
                 </button>
-                <a href="{% url 'cine:sala_list' %}" class="btn btn-outline">
-                    ↩️ Volver a Lista
+                <a href="{% url 'cine:sala_list' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">
+                    🔙 Cancelar
                 </a>
             </div>
         </form>
     </div>
 </div>
 
-<!-- ✅ JAVASCRIPT PARA MEJORAR LA EXPERIENCIA -->
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // ✅ Auto-focus en el primer campo del formulario
-    const primerCampo = document.querySelector('form input, form select, form textarea');
-    if (primerCampo) {
-        primerCampo.focus();
-    }
-
-    // ✅ Confirmación al enviar (solo para edición)
-    const form = document.querySelector('form');
-    const titulo = document.querySelector('h1').textContent;
-    
-    if (titulo.includes('Editar')) {
-        form.addEventListener('submit', function(e) {
-            if (!confirm('¿Estás seguro de que quieres guardar los cambios en esta sala?')) {
-                e.preventDefault();
-            }
+    // ✅ VALIDACIONES ADICIONALES EN JAVASCRIPT
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        
+        // Validación de confirmación de contraseña (si aplica)
+        const password1 = document.querySelector('input[name="password1"]');
+        const password2 = document.querySelector('input[name="password2"]');
+        
+        if (password1 && password2) {
+            password2.addEventListener('input', function() {
+                if (password1.value !== password2.value) {
+                    password2.setCustomValidity('Las contraseñas no coinciden');
+                } else {
+                    password2.setCustomValidity('');
+                }
+            });
+        }
+        
+        // Mejorar feedback visual de validaciones
+        const inputs = form.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.addEventListener('blur', function() {
+                if (this.validity.valid) {
+                    this.style.borderColor = '#4ecdc4';
+                } else if (this.value) {
+                    this.style.borderColor = '#ff6b6b';
+                }
+            });
         });
-    }
-});
+    });
 </script>
 {% endblock %}

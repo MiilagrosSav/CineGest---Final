@@ -1,5 +1,7 @@
 from django import forms
 from .models import Pelicula, Sala
+from datetime import date
+from django.core.exceptions import ValidationError
 
 class PeliculaForm(forms.ModelForm):
     """
@@ -94,7 +96,8 @@ class PeliculaForm(forms.ModelForm):
             'class': 'form-input',
             'type': 'date',
             'required': True,
-            'title': 'La fecha de estreno es obligatoria'
+            'min': date.today().strftime('%Y-%m-%d'),  # No permitir fechas pasadas
+            'title': 'La fecha de estreno debe ser hoy o en el futuro'
         }),
         error_messages={
             'required': 'La fecha de estreno es obligatoria.',
@@ -131,6 +134,13 @@ class PeliculaForm(forms.ModelForm):
         if duracion > 300:
             raise forms.ValidationError('La duración máxima es de 300 minutos.')
         return duracion
+    
+    def clean_fecha_estreno(self):
+        """Validación personalizada para la fecha de estreno"""
+        fecha_estreno = self.cleaned_data['fecha_estreno']
+        if fecha_estreno < date.today():
+            raise forms.ValidationError('La fecha de estreno no puede ser anterior a la fecha actual.')
+        return fecha_estreno
 
 
 class SalaForm(forms.ModelForm):

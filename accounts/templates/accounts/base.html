@@ -12,30 +12,30 @@
         <nav class="navbar">
             <div class="container">
                 <div class="navbar-content">
+                    
                     <a href="{% url 'accounts:dashboard' %}" class="logo">CineGest</a>
                     
                     <ul class="nav-links">
                         {% if user.is_authenticated %}
                             <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
                             
-                            <!-- ✅ SEPARACIÓN CLARA DE ROLES -->
-                            {% if user.user_type == 'administrador' %}
-                                <!-- SOLO OPCIONES DE ADMINISTRADOR -->
-                                <li><a href="{% url 'accounts:admin_only' %}" class="nav-link">🔧 Gestión</a></li>
+                            {% if user.is_superuser or user.rol == 'admin' %}
                                 <li><a href="/admin/" class="nav-link" target="_blank">⚙️ Panel Admin</a></li>
                                 <li><a href="{% url 'accounts:employee_list' %}" class="nav-link">👥 Empleados</a></li>
                                 <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🎭 Películas</a></li>
-                            {% elif user.user_type == 'empleado' %}
-                                <!-- SOLO OPCIONES DE EMPLEADO -->
+                            
+                            {% elif user.rol == 'empleado' %}
                                 <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🎭 Películas</a></li>
-                            {% elif user.user_type == 'cliente' %}
-                                <!-- SOLO OPCIONES DE CLIENTE -->
+                            
+                            {% elif user.rol == 'cliente' %}
                                 <li><a href="#" class="nav-link">🎫 Mis Compras</a></li>
                                 <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🍿 Cartelera</a></li>
+                            
                             {% endif %}
                             
                             <li><span class="nav-link user-info">👤 {{ user.first_name|default:user.username|title }}</span></li>
                             <li><a href="{% url 'accounts:logout' %}" class="nav-link logout-btn">🚪 Salir</a></li>
+                        
                         {% else %}
                             <li><a href="{% url 'accounts:login' %}" class="nav-link">🔐 Ingresar</a></li>
                             <li><a href="{% url 'accounts:register' %}" class="nav-link">📝 Registrarse</a></li>
@@ -59,8 +59,7 @@
         </main>
 
         
-<!-- ✅ PIE DE PÁGINA MINIMALISTA -->
-        <footer class="site-footer">
+<footer class="site-footer">
             <div class="container text-center">
                 <h3 class="text-gradient-primary">🎬 CineGest</h3>
             </div>
@@ -69,7 +68,7 @@
     </div>
 
     <script>
-        // Auto-ocultar mensajes
+        // Auto-ocultar mensajes (esto estaba bien)
         document.addEventListener('DOMContentLoaded', function() {
             const messages = document.querySelectorAll('.message');
             messages.forEach(message => {
@@ -77,9 +76,8 @@
             });
         });
 
-        // ✅ VALIDACIONES MEJORADAS
+        // ✅ VALIDACIONES MEJORADAS (esto estaba bien)
         document.addEventListener('DOMContentLoaded', function() {
-            // Mejorar feedback visual de validaciones
             const inputs = document.querySelectorAll('input[required], select[required], textarea[required]');
             
             inputs.forEach(input => {

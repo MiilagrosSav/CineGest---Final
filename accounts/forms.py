@@ -1,82 +1,109 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
-from .models import User
+from django.db import transaction
+from .models import Usuario, Cliente, Empleado
 
+# --- Formulario de Registro de Clientes ---
 class CustomUserCreationForm(UserCreationForm):
-    username = forms.CharField(
-        label='👤 Nombre de usuario',
-        help_text='Requerido. 150 caracteres o menos. Letras, números y @/./+/-/_ solamente.',
-        widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Ej: miusuario123',
-            'required': True,
-            'minlength': '3',
-            'maxlength': '150',
-            'pattern': '^[a-zA-Z0-9@.+_-]+$',
-            'title': 'Solo letras, números y los símbolos @.+_-'
-        })
-    )
-    email = forms.EmailField(
-        label='📧 Correo electrónico',
-        help_text='Requerido. Ingresa una dirección de correo válida.',
-        widget=forms.EmailInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'tu@email.com',
-            'required': True,
-            'autocomplete': 'email'
-        })
-    )
-    first_name = forms.CharField(
-        label='👨‍💼 Nombre',
-        max_length=150,
+    # Campos del perfil Cliente
+    direccion = forms.CharField(
+        label='🏠 Dirección', 
+        max_length=255, 
         required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Tu nombre',
-            'maxlength': '150',
-            'pattern': '^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s]+$',
-            'title': 'Solo letras y espacios'
-        })
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Tu dirección'})
     )
-    last_name = forms.CharField(
-        label='👥 Apellidos',
-        max_length=150,
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Tus apellidos',
-            'maxlength': '150',
-            'pattern': '^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s]+$',
-            'title': 'Solo letras y espacios'
-        })
+    fecha_nacimiento = forms.DateField(
+        label='🎂 Fecha de Nacimiento', 
+        required=False, 
+        widget=forms.DateInput(attrs={'class': 'form-input', 'type': 'date'})
     )
-    password1 = forms.CharField(
-        label='🔒 Contraseña',
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Mínimo 8 caracteres',
-            'required': True,
-            'minlength': '8',
-            'autocomplete': 'new-password'
-        }),
-        help_text='Tu contraseña debe tener al menos 8 caracteres y no puede ser completamente numérica.'
+    
+    # Campos del Usuario (puedes añadir dni, telefono si quieres pedirlos en el registro)
+    dni = forms.CharField(label='DNI', max_length=20, required=False, widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Tu DNI'}))
+    telefono = forms.CharField(label='Teléfono', max_length=20, required=False, widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Tu teléfono'}))
+
+    class Meta(UserCreationForm.Meta):
+        model = Usuario
+        fields = ('username', 'email', 'first_name', 'last_name', 'dni', 'telefono') # Campos del Usuario
+
+    def clean_email(self):
+        """Validación personalizada para email único"""
+        email = self.cleaned_data['email']
+        if Usuario.objects.filter(email=email).exists():
+            raise forms.ValidationError('Ya existe un usuario con este email.')
+        return email
+
+    def clean_dni(self):
+        """Validación personalizada para DNI único"""
+        dni = self.cleaned_data.get('dni')
+        if dni and Usuario.objects.filter(dni=dni).exists():
+            raise forms.ValidationError('Ya existe un usuario con este DNI.')
+        return dni
+
+    @transaction.atomic # Asegura que o se crean los dos (Usuario y Cliente) o ninguno
+    def save(self, commit=True):
+        # 1. Guarda el objeto Usuario
+        user = super().save(commit=False) # No guarda en BD todavía
+        user.rol = 'cliente' # Asigna el rol de cliente
+        user.is_staff = False
+        
+        # 2. Guarda los campos extra del Usuario
+        user.dni = self.cleaned_data.get('dni')
+        user.telefono = self.cleaned_data.get('telefono')
+        
+        if commit:
+            user.save() # Ahora sí, guarda el Usuario
+        
+        # 3. Crea y guarda el objeto Cliente enlazado
+        cliente = Cliente(
+            usuario=user,
+            direccion=self.cleaned_data.get('direccion'),
+            fecha_nacimiento=self.cleaned_data.get('fecha_nacimiento')
+        )
+        if commit:
+            cliente.save()
+            
+        return user
+
+# --- Formulario de Creación de Empleados (para Admins) ---
+class EmployeeCreationForm(UserCreationForm):
+    # Campos del perfil Empleado
+    cargo = forms.CharField(
+        label='📋 Cargo', 
+        max_length=100,
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Ej: Vendedor'})
     )
-    password2 = forms.CharField(
-        label='🔐 Confirmar contraseña',
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Repite tu contraseña',
-            'required': True,
-            'minlength': '8',
-            'autocomplete': 'new-password'
-        }),
-        help_text='Ingresa la misma contraseña que antes, para verificación.'
+    fecha_ingreso = forms.DateField(
+        label='🗓️ Fecha de Ingreso', 
+        widget=forms.DateInput(attrs={'class': 'form-input', 'type': 'date'})
     )
 
-    class Meta:
-        model = User
-        fields = ('username', 'email', 'first_name', 'last_name')
+    class Meta(UserCreationForm.Meta):
+        model = Usuario
+        fields = ('username', 'email', 'first_name', 'last_name') # Campos del Usuario
 
+    @transaction.atomic
+    def save(self, commit=True):
+        # 1. Guarda el objeto Usuario
+        user = super().save(commit=False)
+        user.rol = 'empleado' # Asigna el rol de empleado
+        user.is_staff = False # Los empleados no entran al admin
+        
+        if commit:
+            user.save()
+            
+        # 2. Crea y guarda el objeto Empleado enlazado
+        empleado = Empleado(
+            usuario=user,
+            cargo=self.cleaned_data.get('cargo'),
+            fecha_ingreso=self.cleaned_data.get('fecha_ingreso')
+        )
+        if commit:
+            empleado.save()
+            
+        return user
+
+# --- Formulario de Login (Sin cambios, estaba bien) ---
 class CustomAuthenticationForm(AuthenticationForm):
     username = forms.CharField(
         label='👤 Usuario',
@@ -86,8 +113,6 @@ class CustomAuthenticationForm(AuthenticationForm):
             'placeholder': 'Tu nombre de usuario',
             'autofocus': True,
             'required': True,
-            'minlength': '1',
-            'maxlength': '254',
             'autocomplete': 'username'
         })
     )
@@ -98,7 +123,6 @@ class CustomAuthenticationForm(AuthenticationForm):
             'class': 'form-input',
             'placeholder': 'Tu contraseña secreta',
             'required': True,
-            'minlength': '1',
             'autocomplete': 'current-password'
         })
     )
@@ -107,95 +131,3 @@ class CustomAuthenticationForm(AuthenticationForm):
         'invalid_login': 'Por favor, ingrese un nombre de usuario y contraseña correctos.',
         'inactive': 'Esta cuenta está inactiva.',
     }
-from django import forms
-
-class LoginForm(forms.Form):
-    username = forms.CharField(
-        label='Nombre de usuario',
-        max_length=150,
-        widget=forms.TextInput(attrs={'class': 'form-control'})
-    )
-    password = forms.CharField(
-        label='Contraseña',
-        widget=forms.PasswordInput(attrs={'class': 'form-control'})
-    )
-
-class EmployeeCreationForm(UserCreationForm):
-    """Formulario para que los administradores creen usuarios empleados"""
-    username = forms.CharField(
-        label='👨‍💼 Nombre de usuario',
-        help_text='Requerido. 150 caracteres o menos. Letras, números y @/./+/-/_ solamente.',
-        widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Ej: empleado.juan',
-            'required': True,
-            'minlength': '3',
-            'maxlength': '150',
-            'pattern': '^[a-zA-Z0-9@.+_-]+$',
-            'title': 'Solo letras, números y los símbolos @.+_-'
-        })
-    )
-    email = forms.EmailField(
-        label='📧 Correo electrónico',
-        help_text='Requerido. Ingresa una dirección de correo válida.',
-        widget=forms.EmailInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'empleado@cinegest.com',
-            'required': True,
-            'autocomplete': 'email'
-        })
-    )
-    first_name = forms.CharField(
-        label='👤 Nombre',
-        max_length=150,
-        required=True,
-        help_text='Nombre del empleado.',
-        widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Juan Carlos',
-            'required': True,
-            'maxlength': '150',
-            'pattern': '^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s]+$',
-            'title': 'Solo letras y espacios'
-        })
-    )
-    last_name = forms.CharField(
-        label='👥 Apellidos',
-        max_length=150,
-        required=True,
-        help_text='Apellidos del empleado.',
-        widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Pérez González',
-            'required': True,
-            'maxlength': '150',
-            'pattern': '^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s]+$',
-            'title': 'Solo letras y espacios'
-        })
-    )
-    password1 = forms.CharField(
-        label='🔒 Contraseña',
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Mínimo 8 caracteres',
-            'required': True,
-            'minlength': '8',
-            'autocomplete': 'new-password'
-        }),
-        help_text='La contraseña debe tener al menos 8 caracteres.'
-    )
-    password2 = forms.CharField(
-        label='🔐 Confirmar contraseña',
-        widget=forms.PasswordInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Repite la contraseña',
-            'required': True,
-            'minlength': '8',
-            'autocomplete': 'new-password'
-        }),
-        help_text='Ingresa la misma contraseña que antes, para verificación.'
-    )
-
-    class Meta:
-        model = User
-        fields = ('username', 'email', 'first_name', 'last_name')

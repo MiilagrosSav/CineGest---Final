@@ -12,6 +12,10 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde .env
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,11 +24,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-0+afih#)y7i*@^q$8g08jv(5269a7k-ex@gg*=i2pdllz0&y3i'
+SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-for-development')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-# DEBUG = os.environ.get('DJANGO_DEBUG', 'False').lower() in ('true', '1', 'yes')
-DEBUG = True  # ✅ TEMPORALMENTE TRUE PARA DESARROLLO
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 # ✅ CONFIGURACIÓN PARA DESARROLLO LOCAL
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '127.0.0.1:8000', 'localhost:8000']
@@ -97,8 +100,12 @@ WSGI_APPLICATION = 'trabajofinal.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('DB_NAME', 'cinegest'),
+        'USER': os.getenv('DB_USER', 'postgres'),
+        'PASSWORD': os.getenv('DB_PASSWORD', ''),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '5432'),
     }
 }
 
@@ -143,7 +150,7 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Configuración de usuario personalizado y autenticación
-AUTH_USER_MODEL = 'accounts.User'  # modelo personalizado
+AUTH_USER_MODEL = 'accounts.Usuario'  # modelo personalizado
 LOGIN_URL = '/accounts/login/'     # URL a la que redirigir si no está logueado
 LOGIN_REDIRECT_URL = '/accounts/dashboard/'  # a dónde ir tras login
 LOGOUT_REDIRECT_URL = '/accounts/login/'     # tras logout
@@ -160,9 +167,9 @@ AUTHENTICATION_BACKENDS = (
     'django.contrib.auth.backends.ModelBackend',  # Backend tradicional de Django
 )
 
-# ⚠️ REEMPLAZA ESTOS VALORES CON TUS CREDENCIALES REALES DE GOOGLE ⚠️
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '1071737485505-b3hrkuii1ne7felraapq8ihn3vd5t82i.apps.googleusercontent.com'  # El ID que aparece en tu pantalla
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'  # El secreto que debes copiar
+# Google OAuth2 Configuration (from .env file)
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = os.getenv('GOOGLE_CLIENT_ID', '')
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
 
 # Permisos que solicitamos a Google
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
@@ -182,7 +189,7 @@ SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
 }
 
 # ✅ CONFIGURACIÓN PARA MANEJAR USUARIOS EXISTENTES
-SOCIAL_AUTH_USER_MODEL = 'accounts.User'  # Usar nuestro modelo personalizado
+SOCIAL_AUTH_USER_MODEL = 'accounts.Usuario'  # Usar nuestro modelo personalizado
 
 # ✅ Pipeline PERSONALIZADO que maneja usuarios existentes correctamente
 SOCIAL_AUTH_PIPELINE = (
