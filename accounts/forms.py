@@ -67,20 +67,72 @@ class CustomUserCreationForm(UserCreationForm):
 
 # --- Formulario de Creación de Empleados (para Admins) ---
 class EmployeeCreationForm(UserCreationForm):
-    # Campos del perfil Empleado
-    cargo = forms.CharField(
-        label='📋 Cargo', 
-        max_length=100,
-        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Ej: Vendedor'})
+    # Campos adicionales del Usuario
+    dni = forms.CharField(
+        label='🆔 DNI',
+        max_length=20,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej: 12345678'
+        })
     )
+    
+    telefono = forms.CharField(
+        label='📱 Teléfono',
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej: +54 9 11 1234-5678'
+        })
+    )
+    
+    # Campos del perfil Empleado
     fecha_ingreso = forms.DateField(
         label='🗓️ Fecha de Ingreso', 
-        widget=forms.DateInput(attrs={'class': 'form-input', 'type': 'date'})
+        widget=forms.DateInput(attrs={
+            'class': 'form-input',
+            'type': 'date'
+        })
     )
 
     class Meta(UserCreationForm.Meta):
         model = Usuario
-        fields = ('username', 'email', 'first_name', 'last_name') # Campos del Usuario
+        fields = ('username', 'email', 'first_name', 'last_name', 'dni', 'telefono')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Agregar clase form-input a todos los campos heredados
+        for field_name in self.fields:
+            if field_name not in ['dni', 'telefono', 'fecha_ingreso']:
+                self.fields[field_name].widget.attrs['class'] = 'form-input'
+        
+        # Personalizar labels y placeholders
+        self.fields['username'].label = '👤 Nombre de usuario'
+        self.fields['username'].widget.attrs['placeholder'] = 'Ej: jperez'
+        
+        self.fields['email'].label = '📧 Email address'
+        self.fields['email'].widget.attrs['placeholder'] = 'Ej: empleado@cinegest.com'
+        
+        self.fields['first_name'].label = '📝 Nombre'
+        self.fields['first_name'].widget.attrs['placeholder'] = 'Ej: Juan'
+        
+        self.fields['last_name'].label = '📝 Apellidos'
+        self.fields['last_name'].widget.attrs['placeholder'] = 'Ej: Pérez'
+        
+        self.fields['password1'].label = '🔒 Contraseña'
+        self.fields['password1'].widget.attrs['placeholder'] = '••••••••'
+        
+        self.fields['password2'].label = '🔒 Confirmar contraseña'
+        self.fields['password2'].widget.attrs['placeholder'] = '••••••••'
+
+    def clean_dni(self):
+        """Validar que el DNI sea único"""
+        dni = self.cleaned_data['dni']
+        if Usuario.objects.filter(dni=dni).exists():
+            raise forms.ValidationError('Ya existe un usuario con este DNI.')
+        return dni
 
     @transaction.atomic
     def save(self, commit=True):
@@ -88,6 +140,8 @@ class EmployeeCreationForm(UserCreationForm):
         user = super().save(commit=False)
         user.rol = 'empleado' # Asigna el rol de empleado
         user.is_staff = False # Los empleados no entran al admin
+        user.dni = self.cleaned_data.get('dni')
+        user.telefono = self.cleaned_data.get('telefono')
         
         if commit:
             user.save()
@@ -95,7 +149,6 @@ class EmployeeCreationForm(UserCreationForm):
         # 2. Crea y guarda el objeto Empleado enlazado
         empleado = Empleado(
             usuario=user,
-            cargo=self.cleaned_data.get('cargo'),
             fecha_ingreso=self.cleaned_data.get('fecha_ingreso')
         )
         if commit:
@@ -131,3 +184,51 @@ class CustomAuthenticationForm(AuthenticationForm):
         'invalid_login': 'Por favor, ingrese un nombre de usuario y contraseña correctos.',
         'inactive': 'Esta cuenta está inactiva.',
     }
+
+
+# --- Formulario de Edición de Empleados ---
+class EmployeeUpdateForm(forms.ModelForm):
+    """
+    Formulario para editar empleados existentes
+    """
+    class Meta:
+        model = Usuario
+        fields = ['username', 'email', 'first_name', 'last_name', 'dni', 'telefono', 'is_active']
+        widgets = {
+            'username': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Nombre de usuario'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Email'
+            }),
+            'first_name': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Nombre'
+            }),
+            'last_name': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Apellidos'
+            }),
+            'dni': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'DNI'
+            }),
+            'telefono': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Teléfono'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-checkbox'
+            })
+        }
+        labels = {
+            'username': '👤 Nombre de usuario',
+            'email': '📧 Email',
+            'first_name': '📝 Nombre',
+            'last_name': '📝 Apellidos',
+            'dni': '🆔 DNI',
+            'telefono': '📱 Teléfono',
+            'is_active': '✅ Usuario activo'
+        }

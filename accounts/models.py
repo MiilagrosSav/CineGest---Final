@@ -102,7 +102,6 @@ class Empleado(models.Model):
     
     # Campos específicos de Empleado
     fecha_ingreso = models.DateField()
-    cargo = models.CharField(max_length=100)
 
     def __str__(self):
         return f"Empleado: {self.usuario.username}"

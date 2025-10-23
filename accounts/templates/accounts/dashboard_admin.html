@@ -45,6 +45,22 @@
             </a>
         </div>
     </div>
+
+    <!-- Gestión de Funciones -->
+    <div class="card mt-md">
+        <h3 class="mb-md"> Gestión de Funciones</h3>
+        <p class="mb-md">
+            Programa las funciones y horarios de proyección.
+        </p>
+        <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+            <a href="{% url 'cine:funcion_list' %}" class="btn btn-primary">
+                Ver Funciones
+            </a>
+            <a href="{% url 'cine:funcion_create' %}" class="btn btn-outline">
+                Programar Función
+            </a>
+        </div>
+    </div>
     
     <!-- Gestión de Empleados -->
     <div class="card mt-md">

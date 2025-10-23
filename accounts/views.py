@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.views.generic import UpdateView, DeleteView, ListView, CreateView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from .forms import CustomUserCreationForm, CustomAuthenticationForm, EmployeeCreationForm
+from .forms import CustomUserCreationForm, CustomAuthenticationForm, EmployeeCreationForm, EmployeeUpdateForm
 from .models import Empleado # Importamos Empleado para la lista
 
 # Obtenemos nuestro modelo de Usuario personalizado
@@ -100,22 +100,20 @@ class EmployeeCreateView(AdminRequiredMixin, CreateView):
 
 # --- Vista para Listar Empleados (Actualizada) ---
 class EmployeeListView(AdminRequiredMixin, ListView):
-    model = Empleado # <-- Cambiamos al modelo Empleado
+    model = Usuario
     template_name = 'accounts/employee_list.html'
     context_object_name = 'employees'
     
     def get_queryset(self):
-        # Obtenemos todos los perfiles de Empleado
-        # Usamos select_related('usuario') para optimizar la consulta
-        # y traer los datos del Usuario en la misma query
-        return Empleado.objects.all().select_related('usuario')
+        # Obtenemos todos los usuarios con rol 'empleado'
+        # Usamos select_related('empleado') para traer el perfil de Empleado
+        return Usuario.objects.filter(rol='empleado').select_related('empleado')
 
 # --- Vista para Editar Empleados (Actualizada) ---
 class EmployeeUpdateView(AdminRequiredMixin, UpdateView):
-    model = Usuario # <-- El modelo base sigue siendo Usuario
+    model = Usuario
+    form_class = EmployeeUpdateForm
     template_name = 'accounts/employee_form.html'
-    # Solo permitimos editar los campos del Usuario base
-    fields = ['username', 'email', 'first_name', 'last_name', 'dni', 'telefono', 'is_active']
     success_url = reverse_lazy('accounts:employee_list')
     
     def get_queryset(self):
@@ -124,8 +122,8 @@ class EmployeeUpdateView(AdminRequiredMixin, UpdateView):
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['titulo_pagina'] = 'Editar Empleado'
-        context['nombre_boton'] = 'Guardar Cambios'
+        context['titulo_pagina'] = '✏️ Editar Empleado'
+        context['nombre_boton'] = '💾 Guardar Cambios'
         return context
         
     def form_valid(self, form):

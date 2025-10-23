@@ -113,12 +113,6 @@ class Sala(models.Model):
         help_text="Indica si la sala está disponible para proyecciones"
     )
     
-    precio_base = models.DecimalField(
-        max_digits=8,
-        decimal_places=2,
-        help_text="Precio base de entrada para esta sala"
-    )
-    
     observaciones = models.TextField(
         blank=True,
         null=True,
@@ -151,4 +145,117 @@ class Sala(models.Model):
         verbose_name_plural = "Salas"
         ordering = ['numero']
         db_table = "salas"  # 🏛️ Nombre personalizado de la tabla
-        ordering = ['numero']
+
+
+#----------------------------------------------------------------------------------------------
+#--------------------------------creamos la clase FUNCION---------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
+class Funcion(models.Model):
+    """
+    Modelo para representar una función (proyección) de una película en una sala.
+    Una función es la combinación de una película, una sala y un horario específico.
+    """
+    pelicula = models.ForeignKey(
+        Pelicula,
+        on_delete=models.CASCADE,
+        related_name='funciones',
+        help_text="La película que se proyectará en esta función"
+    )
+    
+    sala = models.ForeignKey(
+        Sala,
+        on_delete=models.CASCADE,
+        related_name='funciones',
+        help_text="La sala donde se proyectará la función"
+    )
+    
+    fecha_hora = models.DateTimeField(
+        help_text="Fecha y hora de inicio de la función"
+    )
+    
+    precio_base = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        help_text="Precio base de la entrada para esta función (puede variar del precio de la sala)"
+    )
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.pelicula.titulo} - Sala {self.sala.numero} - {self.fecha_hora.strftime('%d/%m/%Y %H:%M')}"
+    
+    def clean(self):
+        """
+        Validaciones personalizadas del modelo Funcion
+        """
+        super().clean()
+        
+        # Validar que la fecha_hora no sea en el pasado
+        if self.fecha_hora and self.fecha_hora < timezone.now():
+            raise ValidationError({
+                'fecha_hora': 'La fecha y hora de la función no puede ser en el pasado.'
+            })
+        
+        # Validar que no haya solapamiento de funciones en la misma sala
+        if self.sala and self.pelicula and self.fecha_hora:
+            # Calcular el tiempo de finalización de esta función (duración + 30 min de limpieza)
+            from datetime import timedelta
+            duracion_total = timedelta(minutes=self.pelicula.duracion + 30)
+            fin_funcion = self.fecha_hora + duracion_total
+            
+            # Buscar funciones que se solapen en la misma sala
+            funciones_solapadas = Funcion.objects.filter(
+                sala=self.sala,
+                fecha_hora__lt=fin_funcion,
+            ).exclude(pk=self.pk if self.pk else None)
+            
+            for funcion in funciones_solapadas:
+                duracion_otra = timedelta(minutes=funcion.pelicula.duracion + 30)
+                fin_otra = funcion.fecha_hora + duracion_otra
+                
+                # Si hay solapamiento
+                if funcion.fecha_hora < fin_funcion and self.fecha_hora < fin_otra:
+                    raise ValidationError({
+                        'fecha_hora': f'Esta función se solapa con otra función en la misma sala: '
+                                    f'{funcion.pelicula.titulo} a las {funcion.fecha_hora.strftime("%H:%M")}. '
+                                    f'Debe haber al menos 30 minutos entre funciones.'
+                    })
+        
+        # Validar que la sala esté activa
+        if self.sala and not self.sala.activa:
+            raise ValidationError({
+                'sala': 'No se pueden programar funciones en salas inactivas.'
+            })
+
+    def save(self, *args, **kwargs):
+        """
+        Ejecutar validaciones antes de guardar
+        """
+        self.clean()
+        super().save(*args, **kwargs)
+    
+    def get_hora_fin(self):
+        """Retorna la hora de finalización estimada de la función"""
+        from datetime import timedelta
+        if self.pelicula and self.fecha_hora:
+            return self.fecha_hora + timedelta(minutes=self.pelicula.duracion)
+        return None
+    
+    def get_asientos_disponibles(self):
+        """Retorna el número de asientos disponibles para esta función"""
+        # Por ahora retorna la capacidad total de la sala
+        # En el futuro, aquí se restaría el número de entradas vendidas
+        return self.sala.capacidad
+
+    class Meta:
+        verbose_name = "Función"
+        verbose_name_plural = "Funciones"
+        ordering = ['fecha_hora', 'sala__numero']
+        db_table = "funciones"  # 🎭 Nombre personalizado de la tabla
+        
+        # Índices para mejorar el rendimiento de las consultas
+        indexes = [
+            models.Index(fields=['fecha_hora', 'sala']),
+            models.Index(fields=['pelicula', 'fecha_hora']),
+        ]

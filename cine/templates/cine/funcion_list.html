@@ -1,12 +1,12 @@
 {% extends "accounts/base.html" %}
 
-{% block title %}Gestión de Empleados{% endblock %}
+{% block title %}Gestión de Funciones{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="card glass-container mb-lg">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1 class="card-title text-gradient-primary">👥 Gestión de Empleados</h1>
+            <h1 class="card-title text-gradient-primary">🎭 Gestión de Funciones</h1>
         </div>
     </div>
 
@@ -15,40 +15,36 @@
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
                     <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <th style="padding: var(--space-sm);">Usuario</th>
-                        <th style="padding: var(--space-sm);">Nombre Completo</th>
-                        <th style="padding: var(--space-sm);">DNI</th>
-                        <th style="padding: var(--space-sm);">Email</th>
-                        <th style="padding: var(--space-sm);">Fecha Ingreso</th>
-                        <th style="padding: var(--space-sm);">Estado</th>
+                        <th style="padding: var(--space-sm);">Película</th>
+                        <th style="padding: var(--space-sm);">Sala</th>
+                        <th style="padding: var(--space-sm);">Fecha y Hora</th>
+                        <th style="padding: var(--space-sm);">Precio</th>
+                        <th style="padding: var(--space-sm);">Duración</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for employee in employees %}
-                    <tr class="employee-row" data-id="{{ employee.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
-                        <td style="padding: var(--space-sm); font-weight: 600;">{{ employee.username }}</td>
-                        <td style="padding: var(--space-sm);">{{ employee.get_full_name|default:"-" }}</td>
-                        <td style="padding: var(--space-sm);">{{ employee.dni|default:"-" }}</td>
-                        <td style="padding: var(--space-sm); font-size: 0.9rem; color: var(--gray);">{{ employee.email }}</td>
+                    {% for funcion in funciones %}
+                    <tr class="funcion-row" data-id="{{ funcion.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                        <td style="padding: var(--space-sm); font-weight: 600;">{{ funcion.pelicula.titulo }}</td>
                         <td style="padding: var(--space-sm);">
-                            {% if employee.empleado %}
-                                {{ employee.empleado.fecha_ingreso|date:"d/m/Y" }}
-                            {% else %}
-                                -
-                            {% endif %}
+                            <span title="{{ funcion.sala.nombre }}">
+                                Sala {{ funcion.sala.numero }}
+                            </span>
                         </td>
                         <td style="padding: var(--space-sm);">
-                            {% if employee.is_active %}
-                                <span style="color: #38ef7d; font-weight: 500;">✓ Activo</span>
-                            {% else %}
-                                <span style="color: #ef4444; font-weight: 500;">✗ Inactivo</span>
-                            {% endif %}
+                            {{ funcion.fecha_hora|date:"d/m/Y H:i" }}
+                        </td>
+                        <td style="padding: var(--space-sm);">
+                            ${{ funcion.precio_base|floatformat:2 }}
+                        </td>
+                        <td style="padding: var(--space-sm); color: var(--text-secondary);">
+                            {{ funcion.pelicula.duracion }} min
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">
-                            No hay empleados registrados todavía. ¡Añade el primero!
+                        <td colspan="5" class="text-center text-secondary" style="padding: var(--space-lg);">
+                            No hay funciones programadas todavía. ¡Programa la primera!
                         </td>
                     </tr>
                     {% endfor %}
@@ -57,8 +53,8 @@
             
             <!-- Panel de Acciones ABM -->
             <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); margin-top: var(--space-lg); padding: var(--space-md);">
-                <a href="{% url 'accounts:create_employee' %}" class="btn btn-primary" style="min-width: 120px;">
-                    ✨ Nuevo
+                <a href="{% url 'cine:funcion_create' %}" class="btn btn-primary" style="min-width: 120px;">
+                    ✨ Nueva
                 </a>
                 <button id="btn-modificar" class="btn btn-outline" style="min-width: 120px;" disabled>
                     ✏️ Modificar
@@ -72,28 +68,21 @@
 </div>
 
 <style>
-    .employee-row {
+    .funcion-row {
         transition: background-color 0.2s ease;
     }
-    .employee-row:hover {
+    .funcion-row:hover {
         background-color: rgba(255, 255, 255, 0.05);
     }
-    .employee-row.selected {
+    .funcion-row.selected {
         background-color: rgba(var(--primary-rgb), 0.15);
         border-left: 3px solid var(--primary);
-    }
-    /* Para mostrar el total de seleccionados */
-    .selection-info {
-        display: inline-block;
-        margin-left: 10px;
-        font-size: 0.9em;
-        opacity: 0.7;
     }
 </style>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const rows = document.querySelectorAll('.employee-row');
+        const rows = document.querySelectorAll('.funcion-row');
         const btnModificar = document.getElementById('btn-modificar');
         const btnEliminar = document.getElementById('btn-eliminar');
         
@@ -133,7 +122,7 @@
         
         // Evento para el clic en fila
         rows.forEach(row => {
-            row.addEventListener('click', function() {
+            row.addEventListener('click', function(event) {
                 // Si se mantiene presionada la tecla Ctrl, permite selección múltiple
                 if (!event.ctrlKey && !event.metaKey) {
                     // Si no se presiona Ctrl/Cmd, deseleccionar todas las demás
@@ -152,7 +141,7 @@
         // Evento para botón modificar
         btnModificar.addEventListener('click', function() {
             if (selectedRows.length === 1) {
-                window.location.href = `/accounts/employees/${selectedRows[0]}/edit/`;
+                window.location.href = `/funciones/${selectedRows[0]}/editar/`;
             }
         });
         
@@ -161,9 +150,9 @@
             if (selectedRows.length === 0) return;
             
             if (selectedRows.length === 1) {
-                window.location.href = `/accounts/employees/${selectedRows[0]}/delete/`;
+                window.location.href = `/funciones/${selectedRows[0]}/eliminar/`;
             } else {
-                if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} empleados seleccionados?`)) {
+                if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} funciones seleccionadas?`)) {
                     // Aquí implementaríamos la eliminación masiva
                     alert('Función de eliminación masiva en desarrollo');
                 }

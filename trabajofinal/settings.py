@@ -58,6 +58,8 @@ INSTALLED_APPS = [
     'accounts',
     'cine', #agregado por mi maneja el cine
     'social_django', # Añade esta línea para la autenticación social
+
+    'widget_tweaks',
 ]
 
 MIDDLEWARE = [

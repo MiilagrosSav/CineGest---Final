@@ -1,7 +1,8 @@
 from django import forms
-from .models import Pelicula, Sala
-from datetime import date
+from .models import Pelicula, Sala, Funcion
+from datetime import date, datetime
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 class PeliculaForm(forms.ModelForm):
     """
@@ -215,25 +216,6 @@ class SalaForm(forms.ModelForm):
         }
     )
     
-    precio_base = forms.DecimalField(
-        label='💰 Precio base',
-        min_value=0.01,
-        max_digits=8,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Ej: 1200.00',
-            'required': True,
-            'min': '0.01',
-            'step': '0.01',
-            'title': 'Precio base de entrada'
-        }),
-        error_messages={
-            'required': 'El precio base es obligatorio.',
-            'min_value': 'El precio debe ser mayor a 0.'
-        }
-    )
-    
     activa = forms.BooleanField(
         label='✅ Sala activa',
         required=False,
@@ -258,7 +240,7 @@ class SalaForm(forms.ModelForm):
 
     class Meta:
         model = Sala
-        fields = ['numero', 'nombre', 'capacidad', 'tipo', 'precio_base', 'activa', 'observaciones']
+        fields = ['numero', 'nombre', 'capacidad', 'tipo', 'activa', 'observaciones']
 
     def clean_numero(self):
         """Validación para número único de sala"""
@@ -288,3 +270,149 @@ class SalaForm(forms.ModelForm):
         if capacidad > 500:
             raise forms.ValidationError('La capacidad máxima es de 500 asientos.')
         return capacidad
+
+
+class FuncionForm(forms.ModelForm):
+    """
+    Formulario para crear y editar funciones (proyecciones) con validaciones completas
+    """
+    
+    pelicula = forms.ModelChoiceField(
+        label='🎬 Película',
+        queryset=Pelicula.objects.all().order_by('titulo'),
+        empty_label='Selecciona una película...',
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'required': True,
+            'title': 'Selecciona la película a proyectar'
+        }),
+        error_messages={
+            'required': 'Debes seleccionar una película.',
+            'invalid_choice': 'La película seleccionada no es válida.'
+        }
+    )
+    
+    sala = forms.ModelChoiceField(
+        label='🏛️ Sala',
+        queryset=Sala.objects.filter(activa=True).order_by('numero'),
+        empty_label='Selecciona una sala...',
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'required': True,
+            'title': 'Selecciona la sala donde se proyectará'
+        }),
+        error_messages={
+            'required': 'Debes seleccionar una sala.',
+            'invalid_choice': 'La sala seleccionada no es válida.'
+        }
+    )
+    
+    fecha_hora = forms.DateTimeField(
+        label='📅 Fecha y hora',
+        widget=forms.DateTimeInput(attrs={
+            'class': 'form-input',
+            'type': 'datetime-local',
+            'required': True,
+            'min': timezone.now().strftime('%Y-%m-%dT%H:%M'),
+            'title': 'Selecciona la fecha y hora de la función'
+        }),
+        error_messages={
+            'required': 'La fecha y hora son obligatorias.',
+            'invalid': 'Ingresa una fecha y hora válidas.'
+        }
+    )
+    
+    precio_base = forms.DecimalField(
+        label='💰 Precio de entrada',
+        min_value=0.01,
+        max_digits=8,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej: 1500.00',
+            'required': True,
+            'min': '0.01',
+            'step': '0.01',
+            'title': 'Precio de entrada para esta función'
+        }),
+        error_messages={
+            'required': 'El precio es obligatorio.',
+            'min_value': 'El precio debe ser mayor a 0.',
+            'invalid': 'Ingresa un precio válido.'
+        }
+    )
+
+    class Meta:
+        model = Funcion
+        fields = ['pelicula', 'sala', 'fecha_hora', 'precio_base']
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Si estamos editando, actualizar el min de fecha_hora dinámicamente
+        if self.instance and self.instance.pk:
+            # Para ediciones, permitir mantener la fecha actual si ya está programada
+            pass
+    
+    def clean_fecha_hora(self):
+        """Validación para fecha y hora de la función"""
+        fecha_hora = self.cleaned_data['fecha_hora']
+        
+        # Solo validar para nuevas funciones o si se cambió la fecha
+        if not self.instance.pk or self.instance.fecha_hora != fecha_hora:
+            if fecha_hora < timezone.now():
+                raise forms.ValidationError('La fecha y hora no pueden ser en el pasado.')
+        
+        return fecha_hora
+    
+    def clean_precio_base(self):
+        """Validación para el precio"""
+        precio = self.cleaned_data['precio_base']
+        if precio <= 0:
+            raise forms.ValidationError('El precio debe ser mayor a 0.')
+        if precio > 99999.99:
+            raise forms.ValidationError('El precio es demasiado alto.')
+        return precio
+    
+    def clean(self):
+        """Validaciones que requieren múltiples campos"""
+        cleaned_data = super().clean()
+        sala = cleaned_data.get('sala')
+        pelicula = cleaned_data.get('pelicula')
+        fecha_hora = cleaned_data.get('fecha_hora')
+        
+        if sala and pelicula and fecha_hora:
+            # Verificar que la sala esté activa
+            if not sala.activa:
+                raise ValidationError({
+                    'sala': 'No se pueden programar funciones en salas inactivas.'
+                })
+            
+            # Verificar solapamiento de funciones
+            # Calcular fin de esta función (duración + 30 min de limpieza)
+            from datetime import timedelta
+            duracion_total = timedelta(minutes=pelicula.duracion + 30)
+            fin_funcion = fecha_hora + duracion_total
+            
+            # Buscar funciones que se solapen
+            funciones_solapadas = Funcion.objects.filter(
+                sala=sala,
+                fecha_hora__lt=fin_funcion,
+            )
+            
+            # Si estamos editando, excluir la función actual
+            if self.instance.pk:
+                funciones_solapadas = funciones_solapadas.exclude(pk=self.instance.pk)
+            
+            for funcion in funciones_solapadas:
+                duracion_otra = timedelta(minutes=funcion.pelicula.duracion + 30)
+                fin_otra = funcion.fecha_hora + duracion_otra
+                
+                # Verificar si hay solapamiento
+                if funcion.fecha_hora < fin_funcion and fecha_hora < fin_otra:
+                    raise ValidationError({
+                        'fecha_hora': f'Esta función se solapa con "{funcion.pelicula.titulo}" '
+                                    f'programada a las {funcion.fecha_hora.strftime("%d/%m/%Y %H:%M")} en la misma sala. '
+                                    f'Debe haber al menos 30 minutos de diferencia entre funciones.'
+                    })
+        
+        return cleaned_data
