@@ -26,7 +26,7 @@ class SalaAdmin(admin.ModelAdmin):
     """
     Configuración personalizada para el modelo Sala en el panel de admin.
     """
-    list_display = ('numero', 'nombre', 'tipo', 'capacidad', 'precio_base', 'get_status_display')
+    list_display = ('numero', 'nombre', 'tipo', 'capacidad', 'get_status_display')
     list_filter = ('tipo', 'activa', 'fecha_creacion')
     search_fields = ('numero', 'nombre', 'observaciones')
     ordering = ('numero',)
@@ -38,8 +38,8 @@ class SalaAdmin(admin.ModelAdmin):
         ('Información Básica', {
             'fields': ('numero', 'nombre', 'tipo')
         }),
-        ('Capacidad y Precios', {
-            'fields': ('capacidad', 'precio_base')
+        ('Capacidad', {
+            'fields': ('capacidad',)
         }),
         ('Estado y Configuración', {
             'fields': ('activa', 'observaciones')

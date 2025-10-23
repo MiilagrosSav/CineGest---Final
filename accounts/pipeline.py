@@ -116,12 +116,15 @@ def setup_user_profile(backend, user, response, *args, **kwargs):
         # Si es nuevo, asignarle automáticamente el tipo 'CLIENTE' (usar la constante del modelo)
         from django.contrib.auth import get_user_model
         User = get_user_model()
-        user.user_type = User.CLIENTE
+        # El modelo `Usuario` ahora usa el campo `rol` con valores de texto.
+        # Asignamos el rol 'cliente' a usuarios nuevos autenticados por Google.
+        user.rol = 'cliente'
         print(f"🆕 Usuario nuevo creado con Google: {user.username}")
-        print(f"👤 Tipo de usuario asignado: {User.CLIENTE}")
+        print(f"👤 Rol de usuario asignado: cliente")
     else:
         # Si es usuario existente, preservar su tipo actual
-        print(f"👤 Usuario existente: {user.username}, tipo actual: {user.user_type}")
+        # El campo actual de rol se encuentra en `user.rol`
+        print(f"👤 Usuario existente: {user.username}, rol actual: {getattr(user, 'rol', 'N/A')}")
     
     # Actualizar información del perfil con datos que Google nos dio
     

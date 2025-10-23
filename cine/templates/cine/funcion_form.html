@@ -7,11 +7,11 @@
     <div class="card glass-container">
         <div class="card-header">
             <h1 class="card-title text-gradient-primary">{{ titulo_pagina }}</h1>
-            <p class="card-subtitle">Completa la información de la película con todos los datos requeridos</p>
+            <p class="card-subtitle">Programa una función seleccionando la película, sala y horario</p>
         </div>
 
         <!-- ✅ FORMULARIO CON VALIDACIONES HTML NATIVAS -->
-        <form method="post" enctype="multipart/form-data">
+        <form method="post">
             {% csrf_token %}
             
             {% if form.non_field_errors %}
@@ -48,7 +48,7 @@
                 <button type="submit" class="btn btn-primary" style="flex: 1;">
                     {{ nombre_boton }}
                 </button>
-                <a href="{% url 'cine:pelicula_list' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">
+                <a href="{% url 'cine:funcion_list' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">
                     🔙 Cancelar
                 </a>
             </div>
@@ -61,21 +61,27 @@
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.querySelector('form');
         
-        // Validación específica para fecha de estreno
-        const fechaEstrenoInput = document.querySelector('input[name="fecha_estreno"]');
-        if (fechaEstrenoInput) {
-            // Establecer fecha mínima como hoy
-            const today = new Date().toISOString().split('T')[0];
-            fechaEstrenoInput.min = today;
+        // Validación específica para fecha_hora
+        const fechaHoraInput = document.querySelector('input[name="fecha_hora"]');
+        if (fechaHoraInput) {
+            // Establecer fecha y hora mínima como ahora
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const minDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+            
+            fechaHoraInput.min = minDateTime;
             
             // Validación en tiempo real
-            fechaEstrenoInput.addEventListener('change', function() {
-                const selectedDate = new Date(this.value);
-                const todayDate = new Date();
-                todayDate.setHours(0, 0, 0, 0); // Resetear la hora para comparar solo fechas
+            fechaHoraInput.addEventListener('change', function() {
+                const selectedDateTime = new Date(this.value);
+                const nowDateTime = new Date();
                 
-                if (selectedDate < todayDate) {
-                    this.setCustomValidity('La fecha de estreno no puede ser anterior a la fecha actual.');
+                if (selectedDateTime < nowDateTime) {
+                    this.setCustomValidity('La fecha y hora no pueden ser en el pasado.');
                     this.style.borderColor = '#ff6b6b';
                 } else {
                     this.setCustomValidity('');
@@ -84,16 +90,20 @@
             });
         }
         
-        // Validación de confirmación de contraseña (si aplica)
-        const password1 = document.querySelector('input[name="password1"]');
-        const password2 = document.querySelector('input[name="password2"]');
-        
-        if (password1 && password2) {
-            password2.addEventListener('input', function() {
-                if (password1.value !== password2.value) {
-                    password2.setCustomValidity('Las contraseñas no coinciden');
+        // Validación del precio
+        const precioInput = document.querySelector('input[name="precio_base"]');
+        if (precioInput) {
+            precioInput.addEventListener('input', function() {
+                const value = parseFloat(this.value);
+                if (value <= 0) {
+                    this.setCustomValidity('El precio debe ser mayor a 0');
+                    this.style.borderColor = '#ff6b6b';
+                } else if (value > 99999.99) {
+                    this.setCustomValidity('El precio es demasiado alto');
+                    this.style.borderColor = '#ff6b6b';
                 } else {
-                    password2.setCustomValidity('');
+                    this.setCustomValidity('');
+                    this.style.borderColor = '#4ecdc4';
                 }
             });
         }
@@ -112,16 +122,27 @@
         
         // Validación antes de enviar el formulario
         form.addEventListener('submit', function(e) {
-            const fechaEstreno = document.querySelector('input[name="fecha_estreno"]');
-            if (fechaEstreno && fechaEstreno.value) {
-                const selectedDate = new Date(fechaEstreno.value);
-                const todayDate = new Date();
-                todayDate.setHours(0, 0, 0, 0);
+            const fechaHora = document.querySelector('input[name="fecha_hora"]');
+            if (fechaHora && fechaHora.value) {
+                const selectedDateTime = new Date(fechaHora.value);
+                const nowDateTime = new Date();
                 
-                if (selectedDate < todayDate) {
+                if (selectedDateTime < nowDateTime) {
                     e.preventDefault();
-                    alert('❌ La fecha de estreno no puede ser anterior a la fecha actual.');
-                    fechaEstreno.focus();
+                    alert('❌ La fecha y hora no pueden ser en el pasado.');
+                    fechaHora.focus();
+                    return false;
+                }
+            }
+            
+            // Validar precio
+            const precio = document.querySelector('input[name="precio_base"]');
+            if (precio && precio.value) {
+                const precioValue = parseFloat(precio.value);
+                if (precioValue <= 0) {
+                    e.preventDefault();
+                    alert('❌ El precio debe ser mayor a 0.');
+                    precio.focus();
                     return false;
                 }
             }
