@@ -322,6 +322,19 @@ class FuncionForm(forms.ModelForm):
         }
     )
     
+    formato_proyeccion = forms.ChoiceField(
+        label='🎞️ Formato de proyección',
+        choices=Funcion.FORMATO_CHOICES,
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'required': True,
+            'title': 'Selecciona el formato en que se proyectará'
+        }),
+        error_messages={
+            'required': 'Debes seleccionar un formato de proyección.'
+        }
+    )
+    
     precio_base = forms.DecimalField(
         label='💰 Precio de entrada',
         min_value=0.01,
@@ -344,7 +357,7 @@ class FuncionForm(forms.ModelForm):
 
     class Meta:
         model = Funcion
-        fields = ['pelicula', 'sala', 'fecha_hora', 'precio_base']
+        fields = ['pelicula', 'sala', 'fecha_hora', 'formato_proyeccion', 'precio_base']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

@@ -30,6 +30,10 @@ urlpatterns = [
     # Delete: Página de confirmación para eliminar una sala
     path('salas/<int:pk>/eliminar/', views.SalaDeleteView.as_view(), name='sala_delete'),
 
+    # --- URLs del Diseñador de Butacas ---
+    path('salas/<int:sala_id>/disenar/', views.disenar_layout_sala, name='disenar_layout_sala'),
+    path('salas/<int:sala_id>/api/guardar_layout/', views.api_guardar_layout_sala, name='api_guardar_layout_sala'),
+
     # --- URLs de Funciones ---
     # Read: Lista de todas las funciones
     path('funciones/', views.FuncionListView.as_view(), name='funcion_list'),

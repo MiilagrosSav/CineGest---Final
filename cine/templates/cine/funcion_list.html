@@ -17,6 +17,7 @@
                     <tr style="border-bottom: 1px solid var(--glass-border);">
                         <th style="padding: var(--space-sm);">Película</th>
                         <th style="padding: var(--space-sm);">Sala</th>
+                        <th style="padding: var(--space-sm);">Formato</th>
                         <th style="padding: var(--space-sm);">Fecha y Hora</th>
                         <th style="padding: var(--space-sm);">Precio</th>
                         <th style="padding: var(--space-sm);">Duración</th>
@@ -32,6 +33,11 @@
                             </span>
                         </td>
                         <td style="padding: var(--space-sm);">
+                            <span class="formato-badge formato-{{ funcion.formato_proyeccion }}">
+                                🎞️ {{ funcion.get_formato_proyeccion_display }}
+                            </span>
+                        </td>
+                        <td style="padding: var(--space-sm);">
                             {{ funcion.fecha_hora|date:"d/m/Y H:i" }}
                         </td>
                         <td style="padding: var(--space-sm);">
@@ -43,7 +49,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-secondary" style="padding: var(--space-lg);">
+                        <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">
                             No hay funciones programadas todavía. ¡Programa la primera!
                         </td>
                     </tr>
@@ -77,6 +83,48 @@
     .funcion-row.selected {
         background-color: rgba(var(--primary-rgb), 0.15);
         border-left: 3px solid var(--primary);
+    }
+    
+    /* Badges de formato */
+    .formato-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.85em;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    
+    /* Formatos individuales */
+    .formato-2D {
+        background: linear-gradient(135deg, #4A90E2, #357ABD);
+        color: white;
+    }
+    .formato-3D {
+        background: linear-gradient(135deg, #9B59B6, #8E44AD);
+        color: white;
+    }
+    .formato-4D {
+        background: linear-gradient(135deg, #7ED321, #5FA518);
+        color: white;
+    }
+    .formato-IMAX {
+        background: linear-gradient(135deg, #E74C3C, #C0392B);
+        color: white;
+    }
+    
+    /* Formatos combinados */
+    .formato-2D_3D {
+        background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #9B59B6 50%, #9B59B6 100%);
+        color: white;
+    }
+    .formato-2D_4D {
+        background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #7ED321 50%, #7ED321 100%);
+        color: white;
+    }
+    .formato-3D_4D {
+        background: linear-gradient(135deg, #9B59B6 0%, #9B59B6 50%, #7ED321 50%, #7ED321 100%);
+        color: white;
     }
 </style>
 
