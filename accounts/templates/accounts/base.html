@@ -7,43 +7,57 @@
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/forms.css' %}?v={% now 'U' %}">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
     <div class="page-wrapper">
+        {% if user.is_authenticated %}
         <nav class="navbar">
             <div class="container">
                 <div class="navbar-content">
+                    
                     <a href="{% url 'accounts:dashboard' %}" class="logo">CineGest</a>
                     
                     <ul class="nav-links">
-                        {% if user.is_authenticated %}
-                            <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
-                            
-                            <!-- ✅ SEPARACIÓN CLARA DE ROLES -->
-                            {% if user.user_type == 'administrador' %}
-                                <!-- SOLO OPCIONES DE ADMINISTRADOR -->
-                                <li><a href="{% url 'accounts:admin_only' %}" class="nav-link">🔧 Gestión</a></li>
-                                <li><a href="/admin/" class="nav-link" target="_blank">⚙️ Panel Admin</a></li>
-                                <li><a href="{% url 'accounts:employee_list' %}" class="nav-link">👥 Empleados</a></li>
-                                <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🎭 Películas</a></li>
-                            {% elif user.user_type == 'empleado' %}
-                                <!-- SOLO OPCIONES DE EMPLEADO -->
-                                <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🎭 Películas</a></li>
-                            {% elif user.user_type == 'cliente' %}
-                                <!-- SOLO OPCIONES DE CLIENTE -->
-                                <li><a href="#" class="nav-link">🎫 Mis Compras</a></li>
-                                <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🍿 Cartelera</a></li>
-                            {% endif %}
-                            
-                            <li><span class="nav-link user-info">👤 {{ user.first_name|default:user.username|title }}</span></li>
-                            <li><a href="{% url 'accounts:logout' %}" class="nav-link logout-btn">🚪 Salir</a></li>
-                        {% else %}
-                            <li><a href="{% url 'accounts:login' %}" class="nav-link">🔐 Ingresar</a></li>
-                            <li><a href="{% url 'accounts:register' %}" class="nav-link">📝 Registrarse</a></li>
+                        <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
+                        
+                        {% if user.is_superuser or user.rol == 'admin' %}
+                            <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">Gestión de Películas</a></li>
+                            <li><a href="{% url 'cine:sala_list' %}" class="nav-link">Gestión de Salas</a></li>
+                            <li><a href="{% url 'cine:funcion_list' %}" class="nav-link">Gestión de Funciones</a></li>
+                            <li><a href="{% url 'accounts:employee_list' %}" class="nav-link">Gestión de Empleados</a></li>
+                        
+                        {% elif user.rol == 'empleado' %}
+                            <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🎭 Películas</a></li>
+                        
+                        {% elif user.rol == 'cliente' %}
+                            <li><a href="#" class="nav-link">🎫 Mis Compras</a></li>
+                            <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🍿 Cartelera</a></li>
+                        
                         {% endif %}
+                        
+                        <!-- Menú desplegable del usuario -->
+                        <li class="user-menu">
+                            <button class="user-menu-button nav-link" id="userMenuButton">
+                                👤 {{ user.first_name|default:user.username|title }}
+                                <span class="dropdown-arrow">▼</span>
+                            </button>
+                            <div class="user-menu-dropdown" id="userMenuDropdown">
+                                <a href="#" class="dropdown-item">
+                                    <span>👤</span> Mi Perfil
+                                </a>
+                                <a href="#" class="dropdown-item">
+                                    <span>⚙️</span> Configuración
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                <a href="{% url 'accounts:logout' %}" class="dropdown-item logout-item">
+                                    <span>🚪</span> Cerrar Sesión
+                                </a>
+                            </div>
+                        </li>
                     </ul>
                 </div>
             </div>
         </nav>
+        {% endif %}
 
         <main class="page-content">
             {% if messages %}
@@ -58,18 +72,18 @@
             {% endblock %}
         </main>
 
-        
-<!-- ✅ PIE DE PÁGINA MINIMALISTA -->
+        {% if user.is_authenticated %}
         <footer class="site-footer">
             <div class="container text-center">
                 <h3 class="text-gradient-primary">🎬 CineGest</h3>
             </div>
         </footer>
+        {% endif %}
 
     </div>
 
     <script>
-        // Auto-ocultar mensajes
+        // Auto-ocultar mensajes (esto estaba bien)
         document.addEventListener('DOMContentLoaded', function() {
             const messages = document.querySelectorAll('.message');
             messages.forEach(message => {
@@ -77,9 +91,8 @@
             });
         });
 
-        // ✅ VALIDACIONES MEJORADAS
+        // ✅ VALIDACIONES MEJORADAS (esto estaba bien)
         document.addEventListener('DOMContentLoaded', function() {
-            // Mejorar feedback visual de validaciones
             const inputs = document.querySelectorAll('input[required], select[required], textarea[required]');
             
             inputs.forEach(input => {
@@ -102,6 +115,27 @@
                     }
                 });
             });
+        });
+
+        // ✅ MENÚ DESPLEGABLE DE USUARIO
+        document.addEventListener('DOMContentLoaded', function() {
+            const userMenuButton = document.getElementById('userMenuButton');
+            const userMenuDropdown = document.getElementById('userMenuDropdown');
+            
+            if (userMenuButton && userMenuDropdown) {
+                // Toggle del menú al hacer clic en el botón
+                userMenuButton.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    userMenuDropdown.classList.toggle('show');
+                });
+                
+                // Cerrar el menú al hacer clic fuera de él
+                document.addEventListener('click', function(e) {
+                    if (!userMenuButton.contains(e.target) && !userMenuDropdown.contains(e.target)) {
+                        userMenuDropdown.classList.remove('show');
+                    }
+                });
+            }
         });
     </script>
 </body>

@@ -16,8 +16,10 @@
                 <thead>
                     <tr style="border-bottom: 1px solid var(--glass-border);">
                         <th style="padding: var(--space-sm);">Usuario</th>
-                        <th style="padding: var(--space-sm);">Nombre</th>
+                        <th style="padding: var(--space-sm);">Nombre Completo</th>
+                        <th style="padding: var(--space-sm);">DNI</th>
                         <th style="padding: var(--space-sm);">Email</th>
+                        <th style="padding: var(--space-sm);">Fecha Ingreso</th>
                         <th style="padding: var(--space-sm);">Estado</th>
                     </tr>
                 </thead>
@@ -26,18 +28,26 @@
                     <tr class="employee-row" data-id="{{ employee.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
                         <td style="padding: var(--space-sm); font-weight: 600;">{{ employee.username }}</td>
                         <td style="padding: var(--space-sm);">{{ employee.get_full_name|default:"-" }}</td>
-                        <td style="padding: var(--space-sm);">{{ employee.email }}</td>
+                        <td style="padding: var(--space-sm);">{{ employee.dni|default:"-" }}</td>
+                        <td style="padding: var(--space-sm); font-size: 0.9rem; color: var(--gray);">{{ employee.email }}</td>
+                        <td style="padding: var(--space-sm);">
+                            {% if employee.empleado %}
+                                {{ employee.empleado.fecha_ingreso|date:"d/m/Y" }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
                         <td style="padding: var(--space-sm);">
                             {% if employee.is_active %}
-                                <span style="color: var(--success); font-weight: 500;">● Activo</span>
+                                <span style="color: #38ef7d; font-weight: 500;">✓ Activo</span>
                             {% else %}
-                                <span style="color: var(--danger); font-weight: 500;">● Inactivo</span>
+                                <span style="color: #ef4444; font-weight: 500;">✗ Inactivo</span>
                             {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="text-center text-secondary" style="padding: var(--space-lg);">
+                        <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">
                             No hay empleados registrados todavía. ¡Añade el primero!
                         </td>
                     </tr>

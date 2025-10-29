@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Pelicula, Sala
+from .models import Pelicula, Sala, Butaca
 
 @admin.register(Pelicula)
 class PeliculaAdmin(admin.ModelAdmin):
@@ -26,7 +26,7 @@ class SalaAdmin(admin.ModelAdmin):
     """
     Configuración personalizada para el modelo Sala en el panel de admin.
     """
-    list_display = ('numero', 'nombre', 'tipo', 'capacidad', 'precio_base', 'get_status_display')
+    list_display = ('numero', 'nombre', 'tipo', 'capacidad', 'get_status_display')
     list_filter = ('tipo', 'activa', 'fecha_creacion')
     search_fields = ('numero', 'nombre', 'observaciones')
     ordering = ('numero',)
@@ -38,8 +38,8 @@ class SalaAdmin(admin.ModelAdmin):
         ('Información Básica', {
             'fields': ('numero', 'nombre', 'tipo')
         }),
-        ('Capacidad y Precios', {
-            'fields': ('capacidad', 'precio_base')
+        ('Capacidad', {
+            'fields': ('capacidad',)
         }),
         ('Estado y Configuración', {
             'fields': ('activa', 'observaciones')
@@ -57,4 +57,15 @@ class SalaAdmin(admin.ModelAdmin):
         """Mostrar estado con icono en la lista"""
         return obj.get_status_display()
     get_status_display.short_description = 'Estado'
+
+
+@admin.register(Butaca)
+class ButacaAdmin(admin.ModelAdmin):
+    """
+    Administración básica para el modelo Butaca
+    """
+    list_display = ('__str__', 'sala', 'fila', 'numero', 'tipo')
+    list_filter = ('tipo', 'sala')
+    search_fields = ('fila', 'numero', 'sala__nombre')
+    ordering = ('sala', 'fila', 'numero')
 

@@ -1,12 +1,12 @@
 {% extends "accounts/base.html" %}
 
-{% block title %}Gestión de Salas{% endblock %}
+{% block title %}Gestión de Funciones{% endblock %}
 
 {% block content %}
 <div class="container">
     <div class="card glass-container mb-lg">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1 class="card-title text-gradient-primary">🏛️ Gestión de Salas</h1>
+            <h1 class="card-title text-gradient-primary">🎭 Gestión de Funciones</h1>
         </div>
     </div>
 
@@ -15,36 +15,42 @@
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
                     <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <th style="padding: var(--space-sm);">Número</th>
-                        <th style="padding: var(--space-sm);">Nombre</th>
-                        <th style="padding: var(--space-sm);">Capacidad</th>
-                        <th style="padding: var(--space-sm);">Tipo</th>
-                        <th style="padding: var(--space-sm);">Estado</th>
-                        <th style="padding: var(--space-sm); text-align: center;">Acciones</th>
+                        <th style="padding: var(--space-sm);">Película</th>
+                        <th style="padding: var(--space-sm);">Sala</th>
+                        <th style="padding: var(--space-sm);">Formato</th>
+                        <th style="padding: var(--space-sm);">Fecha y Hora</th>
+                        <th style="padding: var(--space-sm);">Precio</th>
+                        <th style="padding: var(--space-sm);">Duración</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for sala in salas %}
-                    <tr class="sala-row" data-id="{{ sala.pk }}" style="border-bottom: 1px solid var(--glass-border);">
-                        <td style="padding: var(--space-sm); font-weight: 600; color: var(--primary); cursor: pointer;" class="selectable-cell">{{ sala.numero }}</td>
-                        <td style="padding: var(--space-sm); font-weight: 600; cursor: pointer;" class="selectable-cell">{{ sala.nombre }}</td>
-                        <td style="padding: var(--space-sm); cursor: pointer;" class="selectable-cell">{{ sala.capacidad }} asientos</td>
-                        <td style="padding: var(--space-sm); color: var(--text-primary); cursor: pointer;" class="selectable-cell">{{ sala.get_tipo_display_icon }} {{ sala.get_tipo_display }}</td>
-                        <td style="padding: var(--space-sm); cursor: pointer;" class="selectable-cell">{{ sala.get_status_display }}</td>
-                        <td style="padding: var(--space-sm); text-align: center;">
-                            <a href="{% url 'cine:disenar_layout_sala' sala.id %}" 
-                               class="btn-layout" 
-                               title="Configurar distribución de asientos"
-                               onclick="event.stopPropagation();"
-                               style="display: inline-block; padding: 0.4rem 0.8rem; background: rgba(78, 205, 196, 0.2); color: #4ecdc4; border-radius: var(--radius); text-decoration: none; font-size: 0.85rem; transition: all 0.2s ease;">
-                                � Distribución
-                            </a>
+                    {% for funcion in funciones %}
+                    <tr class="funcion-row" data-id="{{ funcion.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                        <td style="padding: var(--space-sm); font-weight: 600;">{{ funcion.pelicula.titulo }}</td>
+                        <td style="padding: var(--space-sm);">
+                            <span title="{{ funcion.sala.nombre }}">
+                                Sala {{ funcion.sala.numero }}
+                            </span>
+                        </td>
+                        <td style="padding: var(--space-sm);">
+                            <span class="formato-badge formato-{{ funcion.formato_proyeccion }}">
+                                🎞️ {{ funcion.get_formato_proyeccion_display }}
+                            </span>
+                        </td>
+                        <td style="padding: var(--space-sm);">
+                            {{ funcion.fecha_hora|date:"d/m/Y H:i" }}
+                        </td>
+                        <td style="padding: var(--space-sm);">
+                            ${{ funcion.precio_base|floatformat:2 }}
+                        </td>
+                        <td style="padding: var(--space-sm); color: var(--text-secondary);">
+                            {{ funcion.pelicula.duracion }} min
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
                         <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">
-                            No hay salas registradas todavía. ¡Añade la primera!
+                            No hay funciones programadas todavía. ¡Programa la primera!
                         </td>
                     </tr>
                     {% endfor %}
@@ -53,7 +59,7 @@
             
             <!-- Panel de Acciones ABM -->
             <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); margin-top: var(--space-lg); padding: var(--space-md);">
-                <a href="{% url 'cine:sala_create' %}" class="btn btn-primary" style="min-width: 120px;">
+                <a href="{% url 'cine:funcion_create' %}" class="btn btn-primary" style="min-width: 120px;">
                     ✨ Nueva
                 </a>
                 <button id="btn-modificar" class="btn btn-outline" style="min-width: 120px;" disabled>
@@ -68,26 +74,63 @@
 </div>
 
 <style>
-    .sala-row {
+    .funcion-row {
         transition: background-color 0.2s ease;
     }
-    .sala-row:hover {
+    .funcion-row:hover {
         background-color: rgba(255, 255, 255, 0.05);
     }
-    .sala-row.selected {
+    .funcion-row.selected {
         background-color: rgba(var(--primary-rgb), 0.15);
         border-left: 3px solid var(--primary);
     }
-    .btn-layout:hover {
-        background: rgba(78, 205, 196, 0.3) !important;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 8px rgba(78, 205, 196, 0.3);
+    
+    /* Badges de formato */
+    .formato-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.85em;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+    
+    /* Formatos individuales */
+    .formato-2D {
+        background: linear-gradient(135deg, #4A90E2, #357ABD);
+        color: white;
+    }
+    .formato-3D {
+        background: linear-gradient(135deg, #9B59B6, #8E44AD);
+        color: white;
+    }
+    .formato-4D {
+        background: linear-gradient(135deg, #7ED321, #5FA518);
+        color: white;
+    }
+    .formato-IMAX {
+        background: linear-gradient(135deg, #E74C3C, #C0392B);
+        color: white;
+    }
+    
+    /* Formatos combinados */
+    .formato-2D_3D {
+        background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #9B59B6 50%, #9B59B6 100%);
+        color: white;
+    }
+    .formato-2D_4D {
+        background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #7ED321 50%, #7ED321 100%);
+        color: white;
+    }
+    .formato-3D_4D {
+        background: linear-gradient(135deg, #9B59B6 0%, #9B59B6 50%, #7ED321 50%, #7ED321 100%);
+        color: white;
     }
 </style>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        const rows = document.querySelectorAll('.sala-row');
+        const rows = document.querySelectorAll('.funcion-row');
         const btnModificar = document.getElementById('btn-modificar');
         const btnEliminar = document.getElementById('btn-eliminar');
         
@@ -128,11 +171,6 @@
         // Evento para el clic en fila
         rows.forEach(row => {
             row.addEventListener('click', function(event) {
-                // Solo permitir selección en celdas seleccionables
-                if (!event.target.classList.contains('selectable-cell')) {
-                    return;
-                }
-                
                 // Si se mantiene presionada la tecla Ctrl, permite selección múltiple
                 if (!event.ctrlKey && !event.metaKey) {
                     // Si no se presiona Ctrl/Cmd, deseleccionar todas las demás
@@ -151,7 +189,7 @@
         // Evento para botón modificar
         btnModificar.addEventListener('click', function() {
             if (selectedRows.length === 1) {
-                window.location.href = `/salas/${selectedRows[0]}/editar/`;
+                window.location.href = `/funciones/${selectedRows[0]}/editar/`;
             }
         });
         
@@ -160,9 +198,9 @@
             if (selectedRows.length === 0) return;
             
             if (selectedRows.length === 1) {
-                window.location.href = `/salas/${selectedRows[0]}/eliminar/`;
+                window.location.href = `/funciones/${selectedRows[0]}/eliminar/`;
             } else {
-                if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} salas seleccionadas?`)) {
+                if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} funciones seleccionadas?`)) {
                     // Aquí implementaríamos la eliminación masiva
                     alert('Función de eliminación masiva en desarrollo');
                 }
