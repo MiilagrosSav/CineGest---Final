@@ -147,6 +147,7 @@ class Sala(models.Model):
         db_table = "salas"  # 🏛️ Nombre personalizado de la tabla
 
 
+
 #----------------------------------------------------------------------------------------------
 #--------------------------------creamos la clase FUNCION---------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -155,6 +156,18 @@ class Funcion(models.Model):
     Modelo para representar una función (proyección) de una película en una sala.
     Una función es la combinación de una película, una sala y un horario específico.
     """
+    
+    # Opciones para el formato de proyección
+    FORMATO_CHOICES = [
+        ('2D', '2D'),
+        ('3D', '3D'),
+        ('4D', '4D'),
+        ('IMAX', 'IMAX'),
+        ('2D_3D', '2D + 3D'),  # Función mixta con asientos 2D y 3D
+        ('2D_4D', '2D + 4D'),  # Función mixta con asientos 2D y 4D
+        ('3D_4D', '3D + 4D'),  # Función mixta con asientos 3D y 4D
+    ]
+    
     pelicula = models.ForeignKey(
         Pelicula,
         on_delete=models.CASCADE,
@@ -173,6 +186,13 @@ class Funcion(models.Model):
         help_text="Fecha y hora de inicio de la función"
     )
     
+    formato_proyeccion = models.CharField(
+        max_length=10,
+        choices=FORMATO_CHOICES,
+        default='2D',
+        help_text="Formato en el que se proyectará la película"
+    )
+    
     precio_base = models.DecimalField(
         max_digits=8,
         decimal_places=2,
@@ -183,7 +203,7 @@ class Funcion(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.pelicula.titulo} - Sala {self.sala.numero} - {self.fecha_hora.strftime('%d/%m/%Y %H:%M')}"
+        return f"{self.pelicula.titulo} [{self.formato_proyeccion}] - Sala {self.sala.numero} - {self.fecha_hora.strftime('%d/%m/%Y %H:%M')}"
     
     def clean(self):
         """
@@ -259,3 +279,56 @@ class Funcion(models.Model):
             models.Index(fields=['fecha_hora', 'sala']),
             models.Index(fields=['pelicula', 'fecha_hora']),
         ]
+
+
+# ----------------------------------------------------------------------------------------------
+# ------------------------------ creamos la clase BUTACA -------------------------------------
+# -----------------------------------------------------------------------------
+class Butaca(models.Model):
+    """
+    Modelo para representar una butaca individual en una sala de cine.
+    Cada butaca tiene una ubicación única (fila y número) dentro de una sala específica.
+    """
+
+    # Opciones para el tipo de butaca
+    TIPO_CHOICES = [
+        ('GENERAL', 'General'),
+        ('VIP', 'VIP'),
+        ('DISCAPACITADO', 'Discapacitado'),
+        ('4D', '4D'),
+    ]
+
+    sala = models.ForeignKey(
+        Sala,
+        on_delete=models.CASCADE,
+        related_name='butacas',
+        help_text="La sala a la que pertenece esta butaca"
+    )
+
+    fila = models.CharField(
+        max_length=5,
+        help_text="Fila de la butaca (ej: A, B, C, AA, BB)"
+    )
+
+    numero = models.PositiveIntegerField(
+        help_text="Número de asiento en la fila"
+    )
+
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default='GENERAL',
+        help_text="Tipo de butaca"
+    )
+
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Butaca {self.fila}{self.numero} - Sala {self.sala.numero}"
+
+    class Meta:
+        verbose_name = "Butaca"
+        verbose_name_plural = "Butacas"
+        ordering = ['sala', 'fila', 'numero']
+        unique_together = ("sala", "fila", "numero")
+        indexes = [models.Index(fields=['sala', 'fila', 'numero'])]

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Pelicula, Sala
+from .models import Pelicula, Sala, Butaca
 
 @admin.register(Pelicula)
 class PeliculaAdmin(admin.ModelAdmin):
@@ -57,4 +57,15 @@ class SalaAdmin(admin.ModelAdmin):
         """Mostrar estado con icono en la lista"""
         return obj.get_status_display()
     get_status_display.short_description = 'Estado'
+
+
+@admin.register(Butaca)
+class ButacaAdmin(admin.ModelAdmin):
+    """
+    Administración básica para el modelo Butaca
+    """
+    list_display = ('__str__', 'sala', 'fila', 'numero', 'tipo')
+    list_filter = ('tipo', 'sala')
+    search_fields = ('fila', 'numero', 'sala__nombre')
+    ordering = ('sala', 'fila', 'numero')
 

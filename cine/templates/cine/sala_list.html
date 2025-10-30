@@ -20,20 +20,30 @@
                         <th style="padding: var(--space-sm);">Capacidad</th>
                         <th style="padding: var(--space-sm);">Tipo</th>
                         <th style="padding: var(--space-sm);">Estado</th>
+                        <th style="padding: var(--space-sm); text-align: center;">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for sala in salas %}
-                    <tr class="sala-row" data-id="{{ sala.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
-                        <td style="padding: var(--space-sm); font-weight: 600; color: var(--primary);">{{ sala.numero }}</td>
-                        <td style="padding: var(--space-sm); font-weight: 600;">{{ sala.nombre }}</td>
-                        <td style="padding: var(--space-sm);">{{ sala.capacidad }} asientos</td>
-                        <td style="padding: var(--space-sm); color: var(--text-primary);">{{ sala.get_tipo_display_icon }} {{ sala.get_tipo_display }}</td>
-                        <td style="padding: var(--space-sm);">{{ sala.get_status_display }}</td>
+                    <tr class="sala-row" data-id="{{ sala.pk }}" style="border-bottom: 1px solid var(--glass-border);">
+                        <td style="padding: var(--space-sm); font-weight: 600; color: var(--primary); cursor: pointer;" class="selectable-cell">{{ sala.numero }}</td>
+                        <td style="padding: var(--space-sm); font-weight: 600; cursor: pointer;" class="selectable-cell">{{ sala.nombre }}</td>
+                        <td style="padding: var(--space-sm); cursor: pointer;" class="selectable-cell">{{ sala.capacidad }} asientos</td>
+                        <td style="padding: var(--space-sm); color: var(--text-primary); cursor: pointer;" class="selectable-cell">{{ sala.get_tipo_display_icon }} {{ sala.get_tipo_display }}</td>
+                        <td style="padding: var(--space-sm); cursor: pointer;" class="selectable-cell">{{ sala.get_status_display }}</td>
+                        <td style="padding: var(--space-sm); text-align: center;">
+                            <a href="{% url 'cine:disenar_layout_sala' sala.id %}" 
+                               class="btn-layout" 
+                               title="Configurar distribución de asientos"
+                               onclick="event.stopPropagation();"
+                               style="display: inline-block; padding: 0.4rem 0.8rem; background: rgba(78, 205, 196, 0.2); color: #4ecdc4; border-radius: var(--radius); text-decoration: none; font-size: 0.85rem; transition: all 0.2s ease;">
+                                � Distribución
+                            </a>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-secondary" style="padding: var(--space-lg);">
+                        <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">
                             No hay salas registradas todavía. ¡Añade la primera!
                         </td>
                     </tr>
@@ -67,6 +77,11 @@
     .sala-row.selected {
         background-color: rgba(var(--primary-rgb), 0.15);
         border-left: 3px solid var(--primary);
+    }
+    .btn-layout:hover {
+        background: rgba(78, 205, 196, 0.3) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(78, 205, 196, 0.3);
     }
 </style>
 
@@ -113,6 +128,11 @@
         // Evento para el clic en fila
         rows.forEach(row => {
             row.addEventListener('click', function(event) {
+                // Solo permitir selección en celdas seleccionables
+                if (!event.target.classList.contains('selectable-cell')) {
+                    return;
+                }
+                
                 // Si se mantiene presionada la tecla Ctrl, permite selección múltiple
                 if (!event.ctrlKey && !event.metaKey) {
                     // Si no se presiona Ctrl/Cmd, deseleccionar todas las demás
