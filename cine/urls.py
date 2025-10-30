@@ -47,6 +47,9 @@ urlpatterns = [
     # Delete: Página de confirmación para eliminar una función
     path('funciones/<int:pk>/eliminar/', views.FuncionDeleteView.as_view(), name='funcion_delete'),
 
+    # --- Cartelera Pública ---
+    path('cartelera/', views.cartelera_view, name='cartelera'),
+
     # Redirect por defecto a películas
     path('', views.PeliculaListView.as_view(), name='index'),
 ]

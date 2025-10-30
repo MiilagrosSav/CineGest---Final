@@ -1,0 +1,274 @@
+{% extends "accounts/base.html" %}
+{% load cine_filters %}
+
+{% block title %}Cartelera - CineGest{% endblock %}
+
+{% block content %}
+
+<style>
+    /* --- Estilos para Búsqueda Expandible --- */
+    .search-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .search-btn {
+        background: none;
+        border: none;
+        cursor: pointer;
+        font-size: 1.2rem;
+        padding: 0.4rem 0.6rem;
+        color: var(--text-secondary, #aaa);
+        transition: color 0.2s;
+        z-index: 2;
+        margin: 0;
+    }
+    .search-btn:hover {
+        color: var(--primary, #fff);
+    }
+    .search-input {
+        width: 0;
+        padding: 0.4rem 0;
+        border-radius: var(--radius);
+        transition: all 0.3s ease-in-out;
+        opacity: 0;
+        border: 1px solid transparent;
+        transform: translateX(-10px);
+        font-size: 0.8rem;
+    }
+    .search-container.active .search-input {
+        width: 140px;
+        padding: 0.4rem 0.6rem;
+        opacity: 1;
+        border-color: var(--primary-light-50, #ccc);
+        transform: translateX(0);
+        padding-left: 2.5rem; 
+    }
+    .search-container.active .search-btn {
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--primary, #fff);
+    }
+
+    /* --- Estilos para la info de la tarjeta --- */
+    .info-label {
+        font-size: 0.8rem; 
+        color: var(--text-secondary, #aaa); 
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .info-value {
+        font-size: 0.9rem; /* Ligeramente más pequeño para el grid */
+        color: var(--text-light, #fff); 
+        font-weight: 600;
+    }
+</style>
+
+
+<div class="container" style="max-width: 1400px;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg); gap: var(--space-md);">
+        <div>
+            <h1 class="card-title text-gradient-primary" style="margin: 0;">🎬 Cartelera</h1>
+        </div>
+
+        <form method="get" action="{% url 'cine:cartelera' %}" id="filtrosForm" style="display: flex; gap: var(--space-xs); align-items: center;">
+            
+            <div class="search-container" id="searchContainer">
+                <button type="button" class="search-btn" id="searchBtn">🔍</button>
+                <input type="text" 
+                       name="search" 
+                       value="{{ filtro_search|default:'' }}"
+                       placeholder="Buscar..."
+                       class="form-input search-input"
+                       id="searchInput">
+            </div>
+
+            <select name="genero" class="form-select" style="width: 110px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
+                <option value="">Género</option>
+                {% for codigo, nombre in generos_disponibles %}
+                    <option value="{{ codigo }}" {% if filtro_genero == codigo %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="formato" class="form-select" style="width: 95px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
+                <option value="">Formato</option>
+                {% for codigo, nombre in formatos_disponibles %}
+                    <option value="{{ codigo }}" {% if filtro_formato == codigo %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="orden" class="form-select" style="width: 120px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
+                <option value="fecha" {% if filtro_orden == 'fecha' or not filtro_orden %}selected{% endif %}>Por Fecha</option>
+                <option value="precio_asc" {% if filtro_orden == 'precio_asc' %}selected{% endif %}>Mejor Precio</option>
+                <option value="precio_desc" {% if filtro_orden == 'precio_desc' %}selected{% endif %}>Precio más alto</option>
+            </select>
+
+            <button type="submit" class="btn btn-primary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
+                Filtrar
+            </button>
+            
+            {% if filtro_search or filtro_genero or filtro_formato or filtro_fecha %}
+            <a href="{% url 'cine:cartelera' %}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.6rem;" title="Limpiar">
+                ✖
+            </a>
+            {% endif %}
+        </form>
+    </div>
+
+    {% if peliculas_con_funciones %}
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-lg);">
+            
+            {% for item in peliculas_con_funciones %}
+                    <div class="card glass-container" style="display: flex; gap: var(--space-md); padding: var(--space-md); align-items: flex-start;">
+                        
+                        <div style="flex-shrink: 0;">
+                            {% if item.pelicula.imagen_portada %}
+                                <img src="{{ item.pelicula.imagen_portada.url }}" 
+                                     alt="{{ item.pelicula.titulo }}"
+                                     style="width: 210px; height: 300px; object-fit: cover; border-radius: var(--radius);">
+                            {% else %}
+                                <div style="width: 210px; height: 300px; background: linear-gradient(135deg, rgba(74, 144, 226, 0.2), rgba(155, 89, 182, 0.2)); border-radius: var(--radius); display: flex; align-items: center; justify-content: center;">
+                                    <span style="font-size: 4rem;">🎬</span>
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            
+                            <h3 class="text-gradient-accent" style="font-size: 1.3rem; margin-top: 0; margin-bottom: var(--space-sm);">
+                                {{ item.pelicula.titulo }}
+                            </h3>
+                            
+                            <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md); font-size: 0.9rem;">
+                                <div style="display: flex; align-items: center; gap: var(--space-xs);">
+                                    <span style="font-size: 1.1rem;">🕒</span>
+                                    <span style="color: var(--text-light); font-weight: 500;">{{ item.pelicula.duracion }} min</span>
+                                    <span style="font-size: 1.1rem;">🎭</span>
+                                    <span style="color: var(--text-light); font-weight: 500;">{{ item.pelicula.get_genero_display }}</span>
+                                </div>
+                            </div>
+
+                            <div style="display: grid; grid-template-columns: 1fr; gap: var(--space-sm); margin-bottom: var(--space-md);">
+                                <div>
+                                    <div class="info-label">Fecha</div>
+                                    {% if item.funciones %}
+                                        {% with primera=item.funciones.0 %}
+                                            <div class="info-value">{{ primera.fecha_hora|date:"d/m/Y" }}</div>
+                                        {% endwith %}
+                                    {% else %}
+                                        <div class="info-value">—</div>
+                                    {% endif %}
+                                </div>
+                                <div style="display: flex; align-items: center; gap: var(--space-xs);">
+                                    <div>
+                                        <div class="info-label">Clasificación</div>
+                                        <div class="info-value">
+                                            {% if item.pelicula.edad_minima %}
+                                                {{ item.pelicula.edad_minima }} años
+                                            {% elif item.pelicula.clasificacion %}
+                                                {{ item.pelicula.get_clasificacion_display }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: var(--space-xs);">
+                                    <div>
+                                        <div class="info-label">Formato</div>
+                                        <div class="info-value">
+                                            {{ item.pelicula.get_formato_display }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="info-label" style="margin-bottom: var(--space-sm);">Horarios</div>
+                            <div style="display: flex; flex-wrap: wrap; gap: var(--space-xs);">
+                                {% for funcion in item.funciones %}
+                                <button type="button" 
+                                        class="btn btn-outline"
+                                        title="{{ funcion.fecha_hora|date:'d/m' }} - {{ funcion.get_formato_proyccion_display }}"
+                                        style="display: flex; flex-direction: column; align-items: center; padding: 0.4rem 0.8rem; line-height: 1.2; min-width: 70px;">
+                                    <span style="font-weight: 700; font-size: 1rem; color: var(--primary);">
+                                        {{ funcion.fecha_hora|date:"H:i" }}
+                                    </span>
+                                    <span class="text-secondary" style="font-size: 0.7rem;">
+                                        {{ funcion.get_formato_proyccion_display }}
+                                    </span>
+                                   
+                                </button>
+                                {% endfor %}
+                            </div>
+
+                        </div>
+                    </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card glass-container text-center" style="padding: var(--space-xl);">
+            <div style="font-size: 4rem; margin-bottom: var(--space-md); opacity: 0.3;">
+                {% if filtro_search or filtro_genero or filtro_formato or filtro_fecha %}🔍{% else %}🎬{% endif %}
+            </div>
+            <h3 class="mb-md text-gradient-secondary">
+                {% if filtro_search or filtro_genero or filtro_formato or filtro_fecha %}
+                    No se encontraron funciones
+                {% else %}
+                    No hay funciones programadas
+                {% endif %}
+            </h3>
+            {% if filtro_search or filtro_genero or filtro_formato or filtro_fecha %}
+                <a href="{% url 'cine:cartelera' %}" class="btn btn-primary">
+                    Ver todas las funciones
+                </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+
+
+<script>
+    function reservarFuncion(funcionId) {
+        alert(`Reservando función #${funcionId}. Esta funcionalidad se implementará próximamente.`);
+        // window.location.href = `/funciones/${funcionId}/reservar/`;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('filtrosForm');
+        
+        const searchContainer = document.getElementById('searchContainer');
+        const searchBtn = document.getElementById('searchBtn');
+        const searchInput = document.getElementById('searchInput');
+
+        searchBtn.addEventListener('click', function(e) {
+            if (!searchContainer.classList.contains('active')) {
+                e.preventDefault(); 
+                searchContainer.classList.add('active');
+                searchInput.focus();
+            }
+        });
+
+        document.addEventListener('click', function(e) {
+            if (!searchContainer.contains(e.target) && searchInput.value === '') {
+                 searchContainer.classList.remove('active');
+            }
+        });
+
+        if (searchInput.value !== '') {
+            searchContainer.classList.add('active');
+        }
+
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    form.submit();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}
