@@ -22,6 +22,7 @@ from django.views.generic import RedirectView
 
 urlpatterns = [
     path('', RedirectView.as_view(url='/accounts/login/', permanent=False), name='index'),  # Redirige la raíz al login
+    path('login/', RedirectView.as_view(url='/accounts/login/', permanent=False)),  # Redirige /login a /accounts/login/
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls', namespace='accounts')),
     path('', include('cine.urls', namespace='cine')), # URLs de cine (películas y salas) - cambiado de 'peliculas/' a 'cine/'

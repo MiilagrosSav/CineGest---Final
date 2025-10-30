@@ -23,8 +23,12 @@ class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
     def handle_no_permission(self):
         return redirect('accounts:dashboard')
 
-# --- Vista de Registro (Actualizada) ---
+# --- Vista de Registro (Actualizada con redirección si ya está autenticado) ---
 def register_view(request):
+    # Si el usuario ya está autenticado, redirigir al dashboard
+    if request.user.is_authenticated:
+        return redirect('accounts:dashboard')
+    
     if request.method == 'POST':
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
@@ -38,8 +42,12 @@ def register_view(request):
         form = CustomUserCreationForm()
     return render(request, 'accounts/register.html', {'form': form, 'user_type': 'cliente'})
 
-# --- Vista de Login (Sin cambios) ---
+# --- Vista de Login (Actualizada con redirección si ya está autenticado) ---
 def login_view(request):
+    # Si el usuario ya está autenticado, redirigir al dashboard
+    if request.user.is_authenticated:
+        return redirect('accounts:dashboard')
+    
     if request.method == 'POST':
         form = CustomAuthenticationForm(request, data=request.POST)
         if form.is_valid():

@@ -1,0 +1,689 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Configurar Sala - {{ sala.nombre }} - CineGest{% endblock %}
+
+{% block content %}
+<div class="container-fluid designer-page">
+    <!-- Panel de Generación Superior -->
+    <div class="card glass-container generation-panel">
+        <div class="generation-header">
+            <h1 class="card-title text-gradient-primary">🎭 Configurar Distribución de Asientos</h1>
+            <p class="card-subtitle">{{ sala.nombre }} - Sala {{ sala.numero }} (Capacidad actual: {{ sala.capacidad }} asientos)</p>
+        </div>
+        <div class="generation-controls">
+            <div>
+                <label class="form-label">🔤 Número de Filas (A, B, C...)</label>
+                <input type="number" id="numFilas" min="1" max="26" value="10" class="form-input">
+            </div>
+            <div>
+                <label class="form-label">🔢 Asientos por Fila (1, 2, 3...)</label>
+                <input type="number" id="numColumnas" min="1" max="40" value="12" class="form-input">
+            </div>
+            <button id="btnGenerar" class="btn btn-primary">✨ Crear Grilla Inicial</button>
+        </div>
+    </div>
+
+    <div class="designer-main-layout">
+        <!-- Columna Izquierda: El Lienzo Principal -->
+        <div class="designer-canvas">
+            <div class="card glass-container">
+                <div class="screen-container">
+                    <div class="screen-display">📽️ PANTALLA</div>
+                </div>
+                <div id="areaAsientos" class="seat-map-area">
+                    <p class="placeholder-text">👆 Crea una grilla para empezar a diseñar</p>
+                </div>
+                <div class="seat-counter-box">
+                    <strong>Total de asientos:</strong> 
+                    <span id="contadorAsientos">0</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Columna Derecha: Herramientas e Información -->
+        <div class="designer-sidebar">
+            <div class="card glass-container">
+                <h3 class="sidebar-title">Herramientas</h3>
+                
+                <div class="tool-section">
+                    <label class="form-label">🎭 Tipo de Asiento</label>
+                    <select id="tipoAsiento" class="form-select">
+                        <option value="GENERAL">🔵 General</option>
+                        <option value="VIP">🟠 VIP</option>
+                        <option value="4D">🟢 Soporta 4D</option>
+                        <option value="DISCAPACITADO">🟣 Discapacitado</option>
+                    </select>
+                </div>
+
+                <div class="instructions-box">
+                    <strong>💡 Instrucciones</strong>
+                    <ul>
+                        <li><strong>Doble click:</strong> Crea/elimina un pasillo.</li>
+                    </ul>
+                </div>
+
+                <div class="seat-legend">
+                    <div class="legend-item"><div class="legend-swatch general"></div><span>General</span></div>
+                    <div class="legend-item"><div class="legend-swatch vip"></div><span>VIP</span></div>
+                    <div class="legend-item"><div class="legend-swatch cuatrod"></div><span>4D</span></div>
+                    <div class="legend-item"><div class="legend-swatch discapacitado"></div><span>Discapacitado</span></div>
+                    <div class="legend-item"><div class="legend-swatch pasillo"></div><span>Pasillo</span></div>
+                </div>
+
+                <div class="button-bar">
+                    <button id="btnGuardar" class="btn btn-primary btn-save">💾 Guardar</button>
+                    <button id="btnLimpiar" class="btn btn-outline">🗑️ Limpiar</button>
+                    <a href="{% url 'cine:sala_list' %}" class="btn btn-outline">🔙 Volver</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* --- NUEVA ESTRUCTURA DEL DISEÑADOR --- */
+.designer-page {
+    padding: var(--space-md);
+}
+.generation-panel {
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+}
+.generation-header {
+    text-align: center;
+    margin-bottom: var(--space-lg);
+}
+.generation-header .card-title {
+    font-size: 2rem;
+}
+.generation-controls {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: var(--space-lg);
+    flex-wrap: wrap;
+}
+.generation-controls > div {
+    flex-grow: 1;
+    max-width: 250px;
+}
+.generation-controls .btn {
+    height: 44px; /* Alinea con los inputs */
+    flex-shrink: 0;
+}
+
+.designer-main-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px; /* Columna principal y sidebar */
+    gap: var(--space-md);
+    align-items: flex-start;
+}
+
+.designer-canvas .card {
+    padding: var(--space-md);
+}
+
+.designer-sidebar .card {
+    padding: var(--space-md);
+    position: sticky;
+    top: var(--space-md);
+}
+.sidebar-title {
+    text-align: center;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: var(--space-lg);
+    font-size: 1.3rem;
+}
+.tool-section {
+    margin-bottom: var(--space-md);
+}
+.instructions-box {
+    background: rgba(139, 95, 191, 0.1);
+    padding: var(--space-sm);
+    border-radius: var(--radius);
+    margin-bottom: var(--space-md);
+    font-size: 0.9rem;
+}
+.instructions-box ul {
+    margin: 0.5rem 0 0 1.5rem;
+    padding: 0;
+}
+.seat-legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+.legend-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+}
+.legend-swatch.general { background: #4A90E2; }
+.legend-swatch.vip { background: #F5A623; }
+.legend-swatch.cuatrod { background: #7ED321; }
+.legend-swatch.discapacitado { background: #9B59B6; }
+.legend-swatch.pasillo {
+    background: #3a3a3a;
+    border: 2px solid #555;
+}
+.button-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-sm);
+}
+.button-bar .btn-save {
+    grid-column: 1 / -1; /* Ocupa todo el ancho */
+}
+.btn-save {
+    background: #4ecdc4;
+}
+.btn-save:hover {
+    background: #45b8b0;
+}
+
+/* Pantalla */
+.screen-container {
+    text-align: center;
+    margin-bottom: var(--space-md);
+}
+.screen-display {
+    background: linear-gradient(to bottom, rgba(139, 95, 191, 0.3), transparent);
+    padding: var(--space-sm);
+    border-radius: var(--radius);
+    display: inline-block;
+    min-width: 80%;
+    font-weight: 600;
+    letter-spacing: 2px;
+}
+
+/* Área de Asientos */
+#areaAsientos {
+    padding: var(--space-lg);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius);
+    min-height: 450px;
+    overflow-x: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+#areaAsientos .placeholder-text {
+    color: var(--gray);
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.1rem;
+}
+
+/* Contador */
+.seat-counter-box {
+    text-align: center;
+    margin-top: var(--space-md);
+    padding: var(--space-sm);
+    background: rgba(139, 95, 191, 0.1);
+    border-radius: var(--radius);
+}
+.seat-counter-box strong {
+    color: var(--primary);
+}
+#contadorAsientos {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #4ecdc4;
+}
+
+
+/* --- ESTILOS DE ASIENTOS --- */
+.asiento {
+    width: 32px;
+    height: 32px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.7rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.asiento:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+.asiento.GENERAL {
+    background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+}
+.asiento.VIP {
+    background: linear-gradient(135deg, #F5A623 0%, #E8890C 100%);
+}
+.asiento[data-tipo="4D"] {
+    background: linear-gradient(135deg, #7ED321 0%, #6BB91C 100%);
+}
+.asiento.DISCAPACITADO {
+    background: linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%);
+}
+.asiento.vacio {
+    background: #3a3a3a;
+    border: 2px solid #555;
+    color: #666;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.asiento.vacio:hover {
+    background: #454545;
+    border-color: #777;
+}
+.fila-asientos {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.label-fila {
+    width: 30px;
+    text-align: center;
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 0.85rem;
+    background: rgba(139, 95, 191, 0.1);
+    padding: 0.3rem;
+    border-radius: 4px;
+}
+
+/* Media query para pantallas más pequeñas */
+@media (max-width: 992px) {
+    .designer-main-layout {
+        grid-template-columns: 1fr; /* Apila las columnas */
+    }
+    .designer-sidebar .card {
+        position: static; /* Elimina el sticky en móvil */
+    }
+}
+
+/* --- ESTILOS DE NOTIFICACIÓN --- */
+@keyframes slideIn {
+    from { transform: translateX(400px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(400px); opacity: 0; }
+}
+</style>
+
+<script>
+// --- SCRIPT PRINCIPAL ---
+window.addEventListener('DOMContentLoaded', function() {
+
+    let distribucionActual = [];
+
+    // Selectores de DOM
+    const areaAsientos = document.getElementById('areaAsientos');
+    const btnGenerar = document.getElementById('btnGenerar');
+    const btnLimpiar = document.getElementById('btnLimpiar');
+    const btnGuardar = document.getElementById('btnGuardar');
+    const inputFilas = document.getElementById('numFilas');
+    const inputColumnas = document.getElementById('numColumnas');
+    const selectTipo = document.getElementById('tipoAsiento');
+    const contador = document.getElementById('contadorAsientos');
+
+    // --- FUNCIONES ---
+
+    function crearAsiento(fila, numero, tipo) {
+        const b = document.createElement('div');
+        b.className = 'asiento';
+        // Para 4D no agregamos clase, usamos solo data-tipo
+        if (tipo !== '4D' && tipo !== 'vacio') {
+            b.className += ` ${tipo}`;
+        }
+        if (tipo === 'vacio') {
+            b.className += ' vacio';
+        }
+        b.dataset.fila = fila;
+        b.dataset.num = numero;
+        b.dataset.tipo = tipo;
+        b.textContent = numero;
+
+        // Click: Cambiar tipo
+        b.addEventListener('click', () => {
+            const tipoSel = selectTipo.value;
+            if (b.dataset.tipo !== 'vacio') {
+                b.className = 'asiento';
+                // Para 4D no agregamos clase, usamos solo data-tipo
+                if (tipoSel !== '4D') {
+                    b.className += ` ${tipoSel}`;
+                }
+                b.dataset.tipo = tipoSel;
+                const idx = distribucionActual.findIndex(x => x.fila === fila && x.num === numero);
+                if (idx !== -1) distribucionActual[idx].tipo = tipoSel;
+            }
+        });
+
+        // Doble Click: Alternar vacío/asiento
+        b.addEventListener('dblclick', () => {
+            if (b.dataset.tipo !== 'vacio') {
+                // Convertir asiento a pasillo (vacío)
+                b.className = 'asiento vacio';
+                b.dataset.tipo = 'vacio';
+                b.textContent = '';
+                distribucionActual = distribucionActual.filter(x => !(x.fila === fila && x.num === numero));
+                
+                // Renumerar asientos de esta fila
+                renumerarFila(fila);
+            } else {
+                // Convertir pasillo a asiento
+                const tipoSel = selectTipo.value;
+                b.className = 'asiento';
+                // Para 4D no agregamos clase, usamos solo data-tipo
+                if (tipoSel !== '4D') {
+                    b.className += ` ${tipoSel}`;
+                }
+                b.dataset.tipo = tipoSel;
+                b.textContent = numero;
+                distribucionActual.push({ fila, num: numero, tipo: tipoSel });
+                
+                // Renumerar asientos de esta fila
+                renumerarFila(fila);
+            }
+            actualizarContador();
+            actualizarDimensionesInputs(); // <-- Actualiza inputs en doble click
+        });
+
+        return b;
+    }
+
+    /**
+     * Renumera los asientos de una fila específica de forma consecutiva.
+     * Los pasillos (vacíos) no tienen número, solo los asientos reales.
+     */
+    function renumerarFila(fila) {
+        // Obtener todos los elementos de asiento de esta fila en el DOM
+        const filaRow = Array.from(areaAsientos.children).find(row => {
+            const label = row.querySelector('.label-fila');
+            return label && label.textContent === fila;
+        });
+
+        if (!filaRow) return;
+
+        // Obtener todos los divs de asientos de esta fila (excluyendo el label)
+        const asientosEnFila = Array.from(filaRow.querySelectorAll('.asiento'));
+        
+        // Contar solo los asientos reales (no vacíos) para renumeración
+        let contadorAsiento = 1;
+        
+        asientosEnFila.forEach((asientoDiv) => {
+            const esVacio = asientoDiv.dataset.tipo === 'vacio';
+            
+            if (!esVacio) {
+                // Es un asiento real: actualizar número
+                const numeroAnterior = parseInt(asientoDiv.dataset.num);
+                const numeroNuevo = contadorAsiento;
+                
+                // Actualizar el DOM
+                asientoDiv.dataset.num = numeroNuevo;
+                asientoDiv.textContent = numeroNuevo;
+                
+                // Actualizar en distribucionActual
+                const idx = distribucionActual.findIndex(
+                    x => x.fila === fila && x.num === numeroAnterior
+                );
+                if (idx !== -1) {
+                    distribucionActual[idx].num = numeroNuevo;
+                }
+                
+                contadorAsiento++;
+            } else {
+                // Es un pasillo: no tiene número visible
+                asientoDiv.textContent = '';
+            }
+        });
+    }
+
+    /**
+     * Recalcula las filas y columnas máximas basadas 
+     * en la distribución actual y actualiza los inputs.
+     */
+    function actualizarDimensionesInputs() {
+        if (distribucionActual.length === 0) {
+            inputFilas.value = 0;
+            inputColumnas.value = 0;
+            return;
+        }
+
+        // 1. Encontrar la columna máxima
+        const maxCol = Math.max(0, ...distribucionActual.map(b => b.num));
+        inputColumnas.value = maxCol;
+
+        // 2. Encontrar la fila máxima (letra)
+        const filasCharCodes = distribucionActual.map(b => b.fila.charCodeAt(0));
+        const maxCharCode = Math.max(64, ...filasCharCodes); // 64 para que si está vacío, dé 0
+        
+        // (65 - 65) + 1 = 1 (Fila A)
+        // (64 - 65) + 1 = 0 (Sin filas)
+        const numFilas = (maxCharCode - 65) + 1;
+        inputFilas.value = numFilas > 0 ? numFilas : 0;
+    }
+
+    function generarDistribucionBase() {
+        const nf = parseInt(inputFilas.value) || 10;
+        const nc = parseInt(inputColumnas.value) || 12;
+
+        if (nf < 1 || nf > 26) {
+            mostrarMensaje('⚠️ El número de filas debe estar entre 1 y 26', 'error');
+            return;
+        }
+        if (nc < 1 || nc > 40) {
+            mostrarMensaje('⚠️ El número de asientos por fila debe estar entre 1 y 40', 'error');
+            return;
+        }
+
+        if (distribucionActual.length > 0 && !confirm('¿Deseas reemplazar la distribución actual?')) {
+            return;
+        }
+
+        areaAsientos.innerHTML = '';
+        distribucionActual = [];
+
+        for (let i = 0; i < nf; i++) {
+            const letra = String.fromCharCode(65 + i); // 65 es 'A'
+            const row = document.createElement('div');
+            row.className = 'fila-asientos';
+
+            const label = document.createElement('div');
+            label.className = 'label-fila';
+            label.textContent = letra;
+            row.appendChild(label);
+
+            for (let j = 1; j <= nc; j++) {
+                const b = crearAsiento(letra, j, 'GENERAL');
+                row.appendChild(b);
+                distribucionActual.push({ fila: letra, num: j, tipo: 'GENERAL' });
+            }
+            areaAsientos.appendChild(row);
+        }
+
+        actualizarContador();
+        // No es necesario llamar a actualizarDimensionesInputs() aquí,
+        // porque los inputs ya tienen los valores correctos (nf, nc).
+        mostrarMensaje(`✅ Distribución generada: ${nf} filas × ${nc} asientos = ${nf * nc} asientos`, 'success');
+    }
+
+    function limpiarDistribucion() {
+        if (distribucionActual.length === 0) {
+            mostrarMensaje('ℹ️ No hay nada que limpiar', 'error');
+            return;
+        }
+
+        if (confirm(`¿Estás seguro de limpiar ${distribucionActual.length} asientos?\n\nEsta acción no se puede deshacer.`)) {
+            areaAsientos.innerHTML = '<p class="placeholder-text">👆 Crea una grilla para empezar a diseñar</p>';
+            distribucionActual = [];
+            actualizarContador();
+            actualizarDimensionesInputs(); // <-- Actualiza inputs al limpiar
+            mostrarMensaje('🗑️ Distribución limpiada correctamente', 'success');
+        }
+    }
+
+    async function guardarDistribucion() {
+        if (distribucionActual.length === 0) {
+            mostrarMensaje('❌ No hay asientos para guardar. Genera una distribución primero.', 'error');
+            return;
+        }
+
+        const tiposCount = {
+            GENERAL: distribucionActual.filter(b => b.tipo === 'GENERAL').length,
+            VIP: distribucionActual.filter(b => b.tipo === 'VIP').length,
+            DISCAPACITADO: distribucionActual.filter(b => b.tipo === 'DISCAPACITADO').length
+        };
+
+        const mensaje = `¿Guardar esta distribución?\n\n📊 Total: ${distribucionActual.length} asientos\n🟦 General: ${tiposCount.GENERAL}\n🟨 VIP: ${tiposCount.VIP}\n🟩 Discapacitado: ${tiposCount.DISCAPACITADO}`;
+
+        if (!confirm(mensaje)) return;
+
+        btnGuardar.disabled = true;
+        btnGuardar.textContent = '⏳ Guardando...';
+
+        try {
+            const res = await fetch("{% url 'cine:api_guardar_layout_sala' sala.id %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify(distribucionActual)
+            });
+            const data = await res.json();
+
+            if (data.status === 'ok' || res.ok) {
+                mostrarMensaje(`✅ Distribución guardada exitosamente! ${distribucionActual.length} asientos creados.`, 'success');
+                document.querySelector('.card-subtitle').textContent =
+                    `{{ sala.nombre }} - Sala {{ sala.numero }} (Capacidad actual: ${distribucionActual.length} asientos)`;
+            } else {
+                mostrarMensaje('❌ Error: ' + (data.message || 'Error desconocido'), 'error');
+            }
+        } catch (e) {
+            mostrarMensaje('❌ Error de conexión: ' + e.message, 'error');
+        } finally {
+            btnGuardar.disabled = false;
+            btnGuardar.textContent = '💾 Guardar Distribución';
+        }
+    }
+
+    function cargarDistribucionExistente() {
+        const dataEl = document.getElementById('butacasData');
+        if (!dataEl) return;
+
+        try {
+            const butacasExistentes = JSON.parse(dataEl.textContent);
+            if (butacasExistentes && butacasExistentes.length > 0) {
+                
+                const filas = [...new Set(butacasExistentes.map(b => b.fila))].sort();
+                const maxColVisual = Math.max(0, ...butacasExistentes.map(b => b.numero));
+                
+                areaAsientos.innerHTML = '';
+                distribucionActual = [];
+
+                filas.forEach(f => {
+                    const row = document.createElement('div');
+                    row.className = 'fila-asientos';
+                    const label = document.createElement('div');
+                    label.className = 'label-fila';
+                    label.textContent = f;
+                    row.appendChild(label);
+
+                    for (let j = 1; j <= maxColVisual; j++) { 
+                        const be = butacasExistentes.find(x => x.fila === f && x.numero === j);
+                        let b;
+                        if (be) {
+                            b = crearAsiento(f, j, be.tipo);
+                            distribucionActual.push({ fila: f, num: j, tipo: be.tipo });
+                        } else {
+                            b = crearAsiento(f, j, 'vacio');
+                            b.textContent = '';
+                        }
+                        row.appendChild(b);
+                    }
+                    areaAsientos.appendChild(row);
+                });
+                
+                actualizarContador();
+                actualizarDimensionesInputs(); // <-- Actualiza inputs al cargar
+            }
+        } catch(e) {
+            console.error("Error al cargar butacas existentes:", e);
+            mostrarMensaje("❌ Error al procesar datos de la sala.", "error");
+        }
+    }
+
+    function actualizarContador() {
+        contador.textContent = distribucionActual.length;
+    }
+
+    // --- INICIALIZACIÓN ---
+    btnGenerar.addEventListener('click', generarDistribucionBase);
+    btnLimpiar.addEventListener('click', limpiarDistribucion);
+    btnGuardar.addEventListener('click', guardarDistribucion);
+
+    cargarDistribucionExistente();
+});
+
+
+// --- FUNCIONES AUXILIARES (Fuera del DOMContentLoaded) ---
+
+function mostrarMensaje(texto, tipo) {
+    const msg = document.createElement('div');
+    msg.textContent = texto;
+    msg.style.cssText = `
+        position: fixed;
+        top: 80px;
+        right: 20px;
+        padding: 1rem 1.5rem;
+        border-radius: var(--radius);
+        font-weight: 500;
+        z-index: 1000;
+        animation: slideIn 0.3s ease;
+        ${tipo === 'success' ?
+            'background: rgba(126,211,33,0.15); border: 1px solid #7ED321; color: #7ED321;' :
+            'background: rgba(239,68,68,0.15); border: 1px solid #ef4444; color: #ef4444;'}
+    `;
+    document.body.appendChild(msg);
+    setTimeout(() => {
+        msg.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => msg.remove(), 300);
+    }, 3000);
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+
+{% if butacas_existentes %}
+<script id="butacasData" type="application/json">
+[
+{% for butaca in butacas_existentes %}
+    {"fila": "{{ butaca.fila }}", "numero": {{ butaca.numero }}, "tipo": "{{ butaca.tipo }}"}{% if not forloop.last %},{% endif %}
+{% endfor %}
+]
+</script>
+{% endif %}
+
+{% endblock %}
