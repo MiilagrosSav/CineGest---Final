@@ -7,16 +7,18 @@
     <div class="card glass-container">
         <div class="card-header">
             <h1 class="card-title text-gradient-primary">{{ titulo_pagina }}</h1>
-            <p class="card-subtitle">Programa una función seleccionando la película, sala y horario</p>
+            <p class="card-subtitle">Programa una o más funciones seleccionando la película, sala, día y los horarios</p>
         </div>
 
-        <!-- ✅ FORMULARIO CON VALIDACIONES HTML NATIVAS -->
         <form method="post">
             {% csrf_token %}
             
             {% if form.non_field_errors %}
                 <div class="message message-error" style="text-align: center; margin-bottom: var(--space-md);">
-                    <strong>❌</strong> {{ form.non_field_errors.0 }}
+                    <strong>❌</strong> 
+                    {% for error in form.non_field_errors %}
+                        {{ error }}<br>
+                    {% endfor %}
                 </div>
             {% endif %}
             
@@ -27,7 +29,6 @@
                         {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
                     </label>
                     
-                    <!-- ✅ RENDERIZADO AUTOMÁTICO CON VALIDACIONES HTML -->
                     {{ field }}
                     
                     {% if field.help_text %}
@@ -57,14 +58,12 @@
 </div>
 
 <script>
-    // ✅ VALIDACIONES ADICIONALES EN JAVASCRIPT
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.querySelector('form');
         
-        // Validación específica para fecha_hora
+        // --- VALIDACIÓN PARA 'fecha_hora' (Solo se ejecutará en la página de EDICIÓN) ---
         const fechaHoraInput = document.querySelector('input[name="fecha_hora"]');
         if (fechaHoraInput) {
-            // Establecer fecha y hora mínima como ahora
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -73,9 +72,11 @@
             const minutes = String(now.getMinutes()).padStart(2, '0');
             const minDateTime = `${year}-${month}-${day}T${hours}:${minutes}`;
             
-            fechaHoraInput.min = minDateTime;
+            // Solo aplicar el 'min' si es un formulario nuevo (sin valor)
+            if (!fechaHoraInput.value) {
+                fechaHoraInput.min = minDateTime;
+            }
             
-            // Validación en tiempo real
             fechaHoraInput.addEventListener('change', function() {
                 const selectedDateTime = new Date(this.value);
                 const nowDateTime = new Date();
@@ -90,7 +91,53 @@
             });
         }
         
-        // Validación del precio
+        // --- NUEVA VALIDACIÓN para 'fecha' (Solo se ejecutará en la página de CREACIÓN) ---
+        const fechaInput = document.querySelector('input[name="fecha"]');
+        if (fechaInput) {
+             const now = new Date();
+             const year = now.getFullYear();
+             const month = String(now.getMonth() + 1).padStart(2, '0');
+             const day = String(now.getDate()).padStart(2, '0');
+             const minDate = `${year}-${month}-${day}`;
+
+             // El form de Django ya pone el 'min', pero esto es un refuerzo
+             if (!fechaInput.value) { 
+                 fechaInput.min = minDate;
+             }
+             
+             fechaInput.addEventListener('change', function() {
+                // Se debe sumar T00:00 para evitar errores de zona horaria
+                const selectedDate = new Date(this.value + 'T00:00:00'); 
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Comparar solo la fecha
+
+                if (selectedDate < today) {
+                    this.setCustomValidity('La fecha no puede ser en el pasado.');
+                    this.style.borderColor = '#ff6b6b';
+                } else {
+                    this.setCustomValidity('');
+                    this.style.borderColor = '#4ecdc4';
+                }
+             });
+        }
+
+        // --- NUEVA VALIDACIÓN para 'horarios' (Solo en CREACIÓN) ---
+        const horariosInput = document.querySelector('input[name="horarios"]');
+        if (horariosInput) {
+            horariosInput.addEventListener('input', function() {
+                // Regex simple que valida "HH:MM" o "HH:MM, HH:MM, ..."
+                const regex = /^\s*([0-2]\d:[0-5]\d)(\s*,\s*[0-2]\d:[0-5]\d)*\s*$/;
+                if (!this.value.match(regex) && this.value.length > 0) {
+                    this.setCustomValidity('Formato incorrecto. Debe ser HH:MM, ej: 18:00, 20:15');
+                    this.style.borderColor = '#ff6b6b';
+                } else {
+                    this.setCustomValidity('');
+                    this.style.borderColor = '#4ecdc4';
+                }
+            });
+        }
+
+        // --- VALIDACIÓN DE PRECIO (Funciona para ambas páginas) ---
         const precioInput = document.querySelector('input[name="precio_base"]');
         if (precioInput) {
             precioInput.addEventListener('input', function() {
@@ -108,20 +155,9 @@
             });
         }
         
-        // Mejorar feedback visual de validaciones
-        const inputs = form.querySelectorAll('input, select, textarea');
-        inputs.forEach(input => {
-            input.addEventListener('blur', function() {
-                if (this.validity.valid) {
-                    this.style.borderColor = '#4ecdc4';
-                } else if (this.value) {
-                    this.style.borderColor = '#ff6b6b';
-                }
-            });
-        });
-        
-        // Validación antes de enviar el formulario
+        // --- VALIDACIÓN DE SUBMIT (Revisa todos los casos) ---
         form.addEventListener('submit', function(e) {
+            // Caso 1: Página de Edición (tiene fecha_hora)
             const fechaHora = document.querySelector('input[name="fecha_hora"]');
             if (fechaHora && fechaHora.value) {
                 const selectedDateTime = new Date(fechaHora.value);
@@ -135,7 +171,21 @@
                 }
             }
             
-            // Validar precio
+            // Caso 2: Página de Creación (tiene fecha)
+            const fecha = document.querySelector('input[name="fecha"]');
+            if (fecha && fecha.value) {
+                const selectedDate = new Date(fecha.value + 'T00:00:00');
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                if (selectedDate < today) {
+                    e.preventDefault();
+                    alert('❌ La fecha no puede ser en el pasado.');
+                    fecha.focus();
+                    return false;
+                }
+            }
+
+            // Caso 3: Precio (en ambas páginas)
             const precio = document.querySelector('input[name="precio_base"]');
             if (precio && precio.value) {
                 const precioValue = parseFloat(precio.value);

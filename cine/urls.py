@@ -39,7 +39,7 @@ urlpatterns = [
     path('funciones/', views.FuncionListView.as_view(), name='funcion_list'),
 
     # Create: Formulario para crear una nueva función
-    path('funciones/nueva/', views.FuncionCreateView.as_view(), name='funcion_create'),
+    path('funciones/nueva/', views.funcion_create_view, name='funcion_create'),
 
     # Update: Formulario para editar una función existente
     path('funciones/<int:pk>/editar/', views.FuncionUpdateView.as_view(), name='funcion_update'),
