@@ -1,0 +1,87 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Procesar Pago - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 0 auto;">
+    <div class="card glass-container">
+        <div class="card-header">
+            <h1 class="card-title text-gradient-primary">💳 Procesar Pago</h1>
+            <p class="card-subtitle">Completa tu compra de forma segura con Mercado Pago</p>
+        </div>
+
+        <div style="padding: var(--space-lg);">
+            <h3 style="margin-bottom: var(--space-md);">📋 Resumen de tu compra</h3>
+            
+            <div style="background: rgba(255,255,255,0.05); padding: var(--space-md); border-radius: var(--radius); margin-bottom: var(--space-lg);">
+                <p><strong>🎫 Número de venta:</strong> #{{ venta.id_venta }}</p>
+                <p><strong>📅 Fecha:</strong> {{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
+                <p><strong>🎬 Entradas:</strong> {{ venta.entradas.count }}</p>
+                <hr style="margin: var(--space-md) 0; border-color: rgba(255,255,255,0.1);">
+                
+                {% for entrada in venta.entradas.all %}
+                <div style="margin: var(--space-sm) 0; padding: var(--space-sm); background: rgba(0,0,0,0.2); border-radius: 6px;">
+                    <p style="margin: 4px 0;"><strong>{{ entrada.id_funcion.pelicula.titulo }}</strong></p>
+                    <p style="margin: 4px 0; font-size: 0.9rem; opacity: 0.8;">
+                        🏛️ Sala {{ entrada.id_sala.numero }} - 
+                        💺 Butaca {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }} - 
+                        ${{ entrada.id_funcion.precio_base }}
+                    </p>
+                </div>
+                {% endfor %}
+                
+                <hr style="margin: var(--space-md) 0; border-color: rgba(255,255,255,0.1);">
+                <p style="font-size: 1.5rem; font-weight: 600; color: var(--primary);">
+                    <strong>💰 Total:</strong> ${{ venta.calcular_total }}
+                </p>
+            </div>
+
+            <!-- Botón de Mercado Pago -->
+            <div style="text-align: center; margin: var(--space-lg) 0;">
+                <div class="cho-container"></div>
+                
+                <p style="margin-top: var(--space-md); font-size: 0.9rem; opacity: 0.7;">
+                    🔒 Pago seguro procesado por Mercado Pago
+                </p>
+            </div>
+
+            <div style="text-align: center; margin-top: var(--space-lg);">
+                <a href="{% url 'ventas:mis_ventas' %}" class="btn btn-outline">
+                    🔙 Volver a mis compras
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SDK de Mercado Pago -->
+<script src="https://sdk.mercadopago.com/js/v2"></script>
+
+<script>
+    // Inicializar Mercado Pago con tu Public Key
+    const mp = new MercadoPago('{{ public_key }}', {
+        locale: 'es-AR'  // Cambiar según tu país: es-AR, es-MX, pt-BR, etc.
+    });
+
+    // Crear el botón de pago
+    mp.checkout({
+        preference: {
+            id: '{{ preference_id }}'
+        },
+        render: {
+            container: '.cho-container',  // Contenedor donde se renderiza el botón
+            label: 'Pagar con Mercado Pago',  // Texto del botón
+        }
+    });
+</script>
+
+<style>
+    /* Estilos personalizados para el botón de Mercado Pago */
+    .cho-container {
+        min-height: 60px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+</style>
+{% endblock %}
