@@ -65,11 +65,73 @@
         color: var(--text-light, #fff); 
         font-weight: 600;
     }
+
+    /* --- Estilos para días de la semana (minimalista) --- */
+    .dia-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0.4rem 0.8rem;
+        border-radius: 8px;
+        text-decoration: none;
+        min-width: 60px;
+        transition: all 0.2s;
+        border: 1px solid rgba(155, 89, 182, 0.2);
+        background: rgba(155, 89, 182, 0.05);
+    }
+    .dia-item:hover {
+        background: rgba(155, 89, 182, 0.15);
+        border-color: var(--accent);
+    }
+    .dia-item.activo {
+        background: linear-gradient(135deg, var(--accent), rgba(155, 89, 182, 0.8));
+        border: 1px solid var(--accent);
+        box-shadow: 0 2px 8px rgba(155, 89, 182, 0.3);
+    }
+    .dia-nombre {
+        font-size: 0.65rem;
+        color: rgb(255, 255, 255);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 0.1rem;
+        font-weight: 500;
+    }
+    .dia-item.activo .dia-nombre {
+        color: white;
+    }
+    .dia-numero {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        line-height: 1;
+    }
+    .dia-item.activo .dia-numero {
+        color: white;
+    }
+    .dia-mes {
+        font-size: 0.6rem;
+        color: white;
+        margin-top: 0.1rem;
+        opacity: 0.7;
+    }
+    .dia-item.activo .dia-mes {
+        color: white;
+        opacity: 0.9;
+    }
+    .dia-hoy {
+        font-size: 0.55rem;
+        color: white;
+        margin-top: 0.1rem;
+        font-weight: 600;
+    }
+    .dia-item.activo .dia-hoy {
+        color: white;
+    }
 </style>
 
 
 <div class="container" style="max-width: 1400px;">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg); gap: var(--space-md);">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md); gap: var(--space-md);">
         <div>
             <h1 class="card-title text-gradient-primary" style="margin: 0;">🎬 Cartelera</h1>
         </div>
@@ -101,7 +163,6 @@
             </select>
 
             <select name="orden" class="form-select" style="width: 120px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
-                <option value="fecha" {% if filtro_orden == 'fecha' or not filtro_orden %}selected{% endif %}>Por Fecha</option>
                 <option value="precio_asc" {% if filtro_orden == 'precio_asc' %}selected{% endif %}>Mejor Precio</option>
                 <option value="precio_desc" {% if filtro_orden == 'precio_desc' %}selected{% endif %}>Precio más alto</option>
             </select>
@@ -110,12 +171,37 @@
                 Filtrar
             </button>
             
-            {% if filtro_search or filtro_genero or filtro_formato or filtro_fecha %}
+            {% if filtro_search or filtro_genero or filtro_formato or dia_seleccionado %}
             <a href="{% url 'cine:cartelera' %}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.6rem;" title="Limpiar">
                 ✖
             </a>
             {% endif %}
         </form>
+    </div>
+
+    <!-- Lista de Días de la Semana -->
+    <div style="margin-bottom: var(--space-lg); overflow-x: auto; padding: var(--space-xs) 0; display: flex; justify-content: center;">
+        <div style="display: flex; gap: var(--space-xs); min-width: max-content;">
+            {% for dia in dias_semana %}
+                <a href="?dia={{ dia.fecha }}{% if filtro_genero %}&genero={{ filtro_genero }}{% endif %}{% if filtro_formato %}&formato={{ filtro_formato }}{% endif %}{% if filtro_search %}&search={{ filtro_search }}{% endif %}{% if filtro_orden %}&orden={{ filtro_orden }}{% endif %}" 
+                   class="glass-container dia-item{% if dia_seleccionado == dia.fecha %} activo{% endif %}">
+                    <div class="dia-nombre">
+                        {{ dia.dia_nombre }}
+                    </div>
+                    <div class="dia-numero">
+                        {{ dia.dia_numero }}
+                    </div>
+                    <div class="dia-mes">
+                        {{ dia.mes_nombre }}
+                    </div>
+                    {% if dia.es_hoy %}
+                        <div class="dia-hoy">
+                            HOY
+                        </div>
+                    {% endif %}
+                </a>
+            {% endfor %}
+        </div>
     </div>
 
     {% if peliculas_con_funciones %}
@@ -124,13 +210,13 @@
             {% for item in peliculas_con_funciones %}
                     <div class="card glass-container" style="display: flex; gap: var(--space-md); padding: var(--space-md); align-items: flex-start;">
                         
-                        <div style="flex-shrink: 0;">
+                        <div class="pelicula-imagen" style="flex-shrink: 0; cursor: pointer;" data-pelicula-id="{{ item.pelicula.id }}">
                             {% if item.pelicula.imagen_portada %}
                                 <img src="{{ item.pelicula.imagen_portada.url }}" 
                                      alt="{{ item.pelicula.titulo }}"
-                                     style="width: 210px; height: 300px; object-fit: cover; border-radius: var(--radius);">
+                                     style="width: 210px; height: 300px; object-fit: cover; border-radius: var(--radius); transition: transform 0.3s;">
                             {% else %}
-                                <div style="width: 210px; height: 300px; background: linear-gradient(135deg, rgba(74, 144, 226, 0.2), rgba(155, 89, 182, 0.2)); border-radius: var(--radius); display: flex; align-items: center; justify-content: center;">
+                                <div style="width: 210px; height: 300px; background: linear-gradient(135deg, rgba(74, 144, 226, 0.2), rgba(155, 89, 182, 0.2)); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; transition: transform 0.3s;">
                                     <span style="font-size: 4rem;">🎬</span>
                                 </div>
                             {% endif %}
@@ -153,14 +239,14 @@
 
                             <div style="display: grid; grid-template-columns: 1fr; gap: var(--space-sm); margin-bottom: var(--space-md);">
                                 <div>
-                                    <div class="info-label">Fecha</div>
-                                    {% if item.funciones %}
-                                        {% with primera=item.funciones.0 %}
-                                            <div class="info-value">{{ primera.fecha_hora|date:"d/m/Y" }}</div>
-                                        {% endwith %}
-                                    {% else %}
-                                        <div class="info-value">—</div>
-                                    {% endif %}
+                                    <div class="info-label">Lanzamiento</div>
+                                    <div class="info-value">
+                                        {% if item.pelicula.fecha_estreno %}
+                                            {{ item.pelicula.fecha_estreno|date:"d/m/Y" }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </div>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: var(--space-xs);">
                                     <div>
@@ -180,26 +266,40 @@
                                     <div>
                                         <div class="info-label">Formato</div>
                                         <div class="info-value">
-                                            {{ item.pelicula.get_formato_display }}
+                                            {% if item.funciones %}
+                                                {{ item.funciones.0.get_formatos_destacados }}
+                                            {% else %}
+                                                —
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </div>
                             </div>
 
+                            <!-- Indicador de idioma (solo si es subtitulada o nativa) -->
+                            {% if item.funciones.0.idioma == 'SUBTITULADA' or item.funciones.0.idioma == 'NATIVA' %}
+                            <div style="display: inline-block; padding: 0.3rem 0.6rem; background: rgba(155, 89, 182, 0.2); border: 1px solid var(--accent); border-radius: 6px; margin-bottom: var(--space-sm);">
+                                <span style="font-size: 0.75rem; font-weight: 600; color: var(--accent); letter-spacing: 0.5px;">
+                                    {% if item.funciones.0.idioma == 'SUBTITULADA' %}SUB{% else %}ORIGINAL{% endif %}
+                                </span>
+                            </div>
+                            {% endif %}
+
                             <div class="info-label" style="margin-bottom: var(--space-sm);">Horarios</div>
                             <div style="display: flex; flex-wrap: wrap; gap: var(--space-xs);">
                                 {% for funcion in item.funciones %}
                                 <button type="button" 
-                                        class="btn btn-outline"
-                                        title="{{ funcion.fecha_hora|date:'d/m' }} - {{ funcion.get_formato_proyccion_display }}"
-                                        style="display: flex; flex-direction: column; align-items: center; padding: 0.4rem 0.8rem; line-height: 1.2; min-width: 70px;">
-                                    <span style="font-weight: 700; font-size: 1rem; color: var(--primary);">
+                                        class="btn btn-outline horario-btn btn-compra"
+                                        data-pelicula="{{ item.pelicula.titulo|escapejs }}"
+                                        data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
+                                        data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
+                                        data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
+                                        data-funcion-id="{{ funcion.id }}"
+                                        data-clasificacion="{{ item.pelicula.get_clasificacion_display|escapejs }}"
+                                        style="padding: 0.5rem 1rem; min-width: 80px;">
+                                    <span style="font-weight: 700; font-size: 1.1rem; color: var(--primary);">
                                         {{ funcion.fecha_hora|date:"H:i" }}
                                     </span>
-                                    <span class="text-secondary" style="font-size: 0.7rem;">
-                                        {{ funcion.get_formato_proyccion_display }}
-                                    </span>
-                                   
                                 </button>
                                 {% endfor %}
                             </div>
@@ -230,15 +330,235 @@
 </div>
 
 
+<!-- Popup para compra de entrada -->
+<div id="popupCompra" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: linear-gradient(135deg, rgba(26, 11, 46, 0.98), rgba(13, 31, 45, 0.98)); padding: 2.5rem; border-radius: 16px; max-width: 450px; width: 90%; border: 2px solid var(--primary); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+        
+        <!-- Icono de alerta -->
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <div style="width: 80px; height: 80px; margin: 0 auto 1rem; background: linear-gradient(135deg, rgba(56, 239, 125, 0.2), rgba(17, 153, 142, 0.2)); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid var(--primary);">
+                <span style="font-size: 2.5rem;">⚠️</span>
+            </div>
+            <h2 style="color: var(--primary); margin: 0; font-size: 1.5rem; font-weight: 700;">¡Atención!</h2>
+        </div>
+        
+        <!-- Mensaje -->
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <p style="color: var(--text-light); font-size: 1rem; line-height: 1.6; margin-bottom: 1.5rem;">
+                Estás por comprar una entrada para:
+            </p>
+            
+            <div style="background: rgba(56, 239, 125, 0.1); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--primary);">
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 0.5rem;" id="popupPelicula"></div>
+                </div>
+                
+                <div style="display: flex; justify-content: center; gap: 2rem; font-size: 1.1rem;">
+                    <div>
+                        <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.3rem;">FECHA</div>
+                        <div style="font-weight: 700; color: var(--text-light);" id="popupFecha"></div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.3rem;">HORA</div>
+                        <div style="font-weight: 700; color: var(--text-light);" id="popupHora"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Botones -->
+        <div style="display: flex; gap: 1rem;">
+            <button id="btnCancelarCompra" class="btn btn-secondary" style="flex: 1; font-size: 1rem; padding: 0.8rem;">
+                Cancelar
+            </button>
+            <button id="btnContinuarCompra" class="btn btn-primary" style="flex: 1; font-size: 1rem; padding: 0.8rem; font-weight: 700;">
+                Continuar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Popup para detalles de película -->
+<div id="popupDetalles" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; overflow-y: auto; padding: 1rem;">
+    <div style="background: linear-gradient(135deg, rgba(26, 11, 46, 0.98), rgba(13, 31, 45, 0.98)); padding: 1.5rem; border-radius: 12px; max-width: 550px; width: 90%; border: 2px solid var(--primary); box-shadow: 0 10px 40px rgba(0,0,0,0.5); margin: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 style="color: var(--primary); margin: 0; font-size: 1.3rem;">🎬 Detalles</h2>
+            <button id="btnCerrarDetalles" style="background: none; border: none; font-size: 1.3rem; color: var(--text-light); cursor: pointer; padding: 0.3rem;">✖</button>
+        </div>
+        
+        <div id="detallesContenido" style="color: var(--text-light);">
+            <!-- Contenido dinámico -->
+        </div>
+    </div>
+</div>
+
+<script type="application/json" id="peliculasDataJson">
+{
+    {% for item in peliculas_con_funciones %}
+    "{{ item.pelicula.id }}": {
+        "titulo": "{{ item.pelicula.titulo|escapejs }}",
+        "genero": "{{ item.pelicula.get_genero_display|escapejs }}",
+        "clasificacion": "{{ item.pelicula.get_clasificacion_display|escapejs }}",
+        "duracion": "{{ item.pelicula.duracion }}",
+        "fecha_estreno": "{{ item.pelicula.fecha_estreno|date:'d/m/Y'|default:'' }}",
+        "sinopsis": "{{ item.pelicula.sinopsis|escapejs }}",
+        "director": "{{ item.pelicula.director|default:''|escapejs }}",
+        "imagen": "{% if item.pelicula.imagen_portada %}{{ item.pelicula.imagen_portada.url }}{% endif %}",
+        "formato": "{{ item.pelicula.get_formato_display|escapejs }}"
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+}
+</script>
+
 <script>
-    function reservarFuncion(funcionId) {
-        alert(`Reservando función #${funcionId}. Esta funcionalidad se implementará próximamente.`);
-        // window.location.href = `/funciones/${funcionId}/reservar/`;
+    let funcionIdSeleccionada = null;
+    
+    // Cargar datos de películas desde el JSON embebido
+    const peliculasDataElement = document.getElementById('peliculasDataJson');
+    const peliculasData = peliculasDataElement ? JSON.parse(peliculasDataElement.textContent) : {};
+
+    function mostrarPopupCompra(pelicula, formato, fecha, hora, funcionId, clasificacion) {
+        // Solo mostrar película, fecha y hora
+        document.getElementById('popupPelicula').textContent = pelicula;
+        document.getElementById('popupFecha').textContent = fecha;
+        document.getElementById('popupHora').textContent = hora;
+        funcionIdSeleccionada = funcionId;
+        
+        const popup = document.getElementById('popupCompra');
+        popup.style.display = 'flex';
     }
 
+    function cerrarPopupCompra() {
+        document.getElementById('popupCompra').style.display = 'none';
+        funcionIdSeleccionada = null;
+    }
+
+    function comprarEntrada() {
+        if (funcionIdSeleccionada) {
+            // Redirigir a la página de compra (por implementar)
+            window.location.href = `/comprar-entrada/${funcionIdSeleccionada}/`;
+        }
+    }
+
+    function mostrarDetallesPelicula(peliculaId) {
+        const pelicula = peliculasData[peliculaId];
+        if (!pelicula) return;
+        
+        const contenido = `
+            <div style="display: grid; grid-template-columns: 140px 1fr; gap: 1rem; margin-bottom: 1rem;">
+                ${pelicula.imagen ? 
+                    `<img src="${pelicula.imagen}" alt="${pelicula.titulo}" style="width: 100%; border-radius: 6px;">` :
+                    `<div style="width: 140px; height: 210px; background: linear-gradient(135deg, rgba(74, 144, 226, 0.2), rgba(155, 89, 182, 0.2)); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                        <span style="font-size: 2.5rem;">🎬</span>
+                    </div>`
+                }
+                
+                <div>
+                    <h3 style="color: var(--primary); margin-top: 0; margin-bottom: 0.7rem; font-size: 1.2rem;">${pelicula.titulo}</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.85rem;">
+                        <div>
+                            <span style="color: var(--text-secondary);">Género:</span>
+                            <span style="color: var(--text-light);">${pelicula.genero}</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--text-secondary);">Duración:</span>
+                            <span style="color: var(--text-light);">${pelicula.duracion} min</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--text-secondary);">Clasificación:</span>
+                            <span style="color: var(--text-light);">${pelicula.clasificacion}</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--text-secondary);">Formato:</span>
+                            <span style="color: var(--text-light);">${pelicula.formato}</span>
+                        </div>
+                    </div>
+                    
+                    ${pelicula.director ? `
+                    <div style="margin-top: 0.5rem; font-size: 0.85rem;">
+                        <span style="color: var(--text-secondary);">Director:</span>
+                        <span style="color: var(--text-light);">${pelicula.director}</span>
+                    </div>` : ''}
+                    
+                    ${pelicula.fecha_estreno ? `
+                    <div style="margin-top: 0.5rem; font-size: 0.85rem;">
+                        <span style="color: var(--text-secondary);">Estreno:</span>
+                        <span style="color: var(--text-light);">${pelicula.fecha_estreno}</span>
+                    </div>` : ''}
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 1rem;">
+                <div style="color: var(--text-secondary); font-size: 0.75rem; margin-bottom: 0.3rem; text-transform: uppercase; letter-spacing: 0.5px;">Sinopsis</div>
+                <p style="line-height: 1.5; color: var(--text-light); font-size: 0.9rem; margin: 0;">${pelicula.sinopsis || 'No disponible'}</p>
+            </div>
+            
+            <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 6px; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">
+                <span style="font-size: 1.5rem; display: block; margin-bottom: 0.3rem;">🎥</span>
+                <span>Tráiler no disponible</span>
+            </div>
+        `;
+        
+        document.getElementById('detallesContenido').innerHTML = contenido;
+        document.getElementById('popupDetalles').style.display = 'flex';
+    }
+
+    function cerrarPopupDetalles() {
+        document.getElementById('popupDetalles').style.display = 'none';
+    }
+
+    // Cerrar popups al hacer clic fuera
+    document.addEventListener('click', function(e) {
+        if (e.target.id === 'popupCompra') {
+            cerrarPopupCompra();
+        }
+        if (e.target.id === 'popupDetalles') {
+            cerrarPopupDetalles();
+        }
+    });
+
+    // Event listeners para imágenes de películas (mostrar detalles)
+    document.querySelectorAll('.pelicula-imagen').forEach(function(elemento) {
+        elemento.addEventListener('click', function() {
+            const peliculaId = this.getAttribute('data-pelicula-id');
+            mostrarDetallesPelicula(peliculaId);
+        });
+        
+        // Efecto hover
+        elemento.addEventListener('mouseenter', function() {
+            const img = this.querySelector('img, div');
+            if (img) img.style.transform = 'scale(1.05)';
+        });
+        
+        elemento.addEventListener('mouseleave', function() {
+            const img = this.querySelector('img, div');
+            if (img) img.style.transform = 'scale(1)';
+        });
+    });
+
+    // Event listeners para botones de compra
+    document.querySelectorAll('.btn-compra').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const pelicula = this.getAttribute('data-pelicula');
+            const formato = this.getAttribute('data-formato');
+            const fecha = this.getAttribute('data-fecha');
+            const hora = this.getAttribute('data-hora');
+            const funcionId = this.getAttribute('data-funcion-id');
+            const clasificacion = this.getAttribute('data-clasificacion');
+            
+            mostrarPopupCompra(pelicula, formato, fecha, hora, funcionId, clasificacion);
+        });
+    });
+
+    // Event listeners para botones de popups
+    document.getElementById('btnCancelarCompra').addEventListener('click', cerrarPopupCompra);
+    document.getElementById('btnContinuarCompra').addEventListener('click', comprarEntrada);
+    document.getElementById('btnCerrarDetalles').addEventListener('click', cerrarPopupDetalles);
+
+    // Búsqueda expandible
     document.addEventListener('DOMContentLoaded', function() {
         const form = document.getElementById('filtrosForm');
-        
         const searchContainer = document.getElementById('searchContainer');
         const searchBtn = document.getElementById('searchBtn');
         const searchInput = document.getElementById('searchInput');

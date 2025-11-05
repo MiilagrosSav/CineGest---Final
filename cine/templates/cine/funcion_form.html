@@ -332,52 +332,44 @@
                         return;
                     }
                     
-                    // En modo edición, mostrar solo el horario calculado (el primero disponible)
-                    if (esEdicion) {
-                        const horaCalculada = data.horarios[0];
-                        horariosSeleccionados = [horaCalculada];
-                        horariosInput.value = horaCalculada;
-                        
-                        horariosContainer.innerHTML = `
-                            <div style="text-align: center; padding: var(--space-md);">
-                                <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: var(--space-sm);">
-                                    🕐 Horario calculado para esta función:
-                                </p>
-                                <div style="display: inline-block; padding: 1rem 2rem; border: 2px solid var(--primary); 
-                                            background: linear-gradient(135deg, rgba(56, 239, 125, 0.1), rgba(17, 153, 142, 0.1)); 
-                                            border-radius: 12px; font-size: 1.5rem; font-weight: 700; color: var(--primary);">
-                                    ${horaCalculada}
-                                </div>
-                                <p class="text-secondary" style="font-size: 0.8rem; margin-top: var(--space-sm); font-style: italic;">
-                                    💡 El horario se calcula automáticamente según la película, sala y fecha seleccionadas
-                                </p>
-                            </div>
-                        `;
-                        return;
-                    }
+                    // Mostrar horarios como botones - funciona para creación y edición
+                    let mensajeTexto = esEdicion 
+                        ? '🕐 Selecciona el nuevo horario para esta función (' + data.mensaje + '):'
+                        : '✨ Selecciona uno o varios horarios (' + data.mensaje + '):';
                     
-                    // Mostrar horarios como botones minimalistas (solo en modo creación)
-                    let html = '<p class="text-secondary" style="font-size: 0.85rem; margin-bottom: var(--space-sm);">✨ Selecciona uno o varios horarios (' + data.mensaje + '):</p>';
+                    let html = '<p class="text-secondary" style="font-size: 0.85rem; margin-bottom: var(--space-sm);">' + mensajeTexto + '</p>';
                     html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: var(--space-sm);">';
                     
+                    // En modo edición, obtener el horario actual de la función
+                    let horarioActual = null;
+                    if (esEdicion && funcionActual) {
+                        horarioActual = funcionActual.hora;
+                    }
+                    
                     data.horarios.forEach(hora => {
-                        html += `<button type="button" class="horario-btn" data-hora="${hora}" 
-                                style="padding: 0.7rem 0.5rem; 
-                                       border: 2px solid rgba(186, 104, 200, 0.5); 
-                                       background: rgba(26, 11, 46, 0.6); 
-                                       color: var(--text-light); 
-                                       border-radius: 8px; 
-                                       cursor: pointer; 
-                                       transition: all 0.2s ease; 
-                                       font-weight: 600;
-                                       font-size: 1rem;
-                                       text-align: center;">
+                        // Pre-seleccionar el horario actual en modo edición
+                        let esHorarioActual = (esEdicion && hora === horarioActual);
+                        let estiloInicial = esHorarioActual 
+                            ? 'padding: 0.7rem 0.5rem; border: 2px solid #e94560; background: linear-gradient(135deg, #9c27b0, #ba68c8); color: #fff; border-radius: 8px; cursor: pointer; transition: all 0.2s ease; font-weight: 600; font-size: 1rem; text-align: center; transform: scale(1.05); box-shadow: 0 4px 15px rgba(156, 39, 176, 0.4);'
+                            : 'padding: 0.7rem 0.5rem; border: 2px solid rgba(186, 104, 200, 0.5); background: rgba(26, 11, 46, 0.6); color: var(--text-light); border-radius: 8px; cursor: pointer; transition: all 0.2s ease; font-weight: 600; font-size: 1rem; text-align: center;';
+                        
+                        html += `<button type="button" class="horario-btn" data-hora="${hora}" style="${estiloInicial}">
                                 ${hora}
                             </button>`;
+                        
+                        // Si es el horario actual, agregarlo a la selección inicial
+                        if (esHorarioActual) {
+                            horariosSeleccionados = [hora];
+                        }
                     });
                     
                     html += '</div>';
                     horariosContainer.innerHTML = html;
+                    
+                    // Actualizar el input oculto con el horario pre-seleccionado
+                    if (horariosInput && horariosSeleccionados.length > 0) {
+                        horariosInput.value = horariosSeleccionados.join(', ');
+                    }
                     
                     // Función para calcular si dos horarios se solapan
                     function calcularSolapamiento(hora1, hora2, duracionTotal) {
@@ -423,6 +415,7 @@
                         btn.addEventListener('click', function() {
                             const hora = this.getAttribute('data-hora');
                             
+                            // Permitir múltiples selecciones en ambos modos (creación y edición)
                             if (horariosSeleccionados.includes(hora)) {
                                 // Deseleccionar
                                 horariosSeleccionados = horariosSeleccionados.filter(h => h !== hora);
@@ -441,8 +434,10 @@
                                 this.style.boxShadow = '0 4px 15px rgba(156, 39, 176, 0.4)';
                             }
                             
-                            // Actualizar visibilidad de otros botones
-                            actualizarVisibilidadBotones();
+                            // Actualizar visibilidad de otros botones (solo en modo creación para evitar solapamientos)
+                            if (!esEdicion) {
+                                actualizarVisibilidadBotones();
+                            }
                             
                             // Actualizar el input oculto
                             if (horariosInput) {
@@ -477,15 +472,19 @@
         if (salaSelect) salaSelect.addEventListener('change', cargarHorariosDisponibles);
         if (fechaInputAuto) fechaInputAuto.addEventListener('change', cargarHorariosDisponibles);
         
-        // Si es modo edición, cargar el horario inicial
-        if (esEdicion && peliculaSelect && salaSelect && fechaInputAuto) {
-            // Establecer los valores de los campos
-            peliculaSelect.value = funcionActual.pelicula_id;
-            salaSelect.value = funcionActual.sala_id;
-            fechaInputAuto.value = funcionActual.fecha;
+        // Si es modo edición, cargar el horario inicial automáticamente
+        if (esEdicion && peliculaSelect && salaSelect && fechaInputAuto && funcionActual) {
+            // Los valores ya están establecidos por el formulario (initial)
+            // Solo necesitamos disparar la carga de horarios
             
-            // Cargar el horario
-            cargarHorariosDisponibles();
+            // Verificar que todos los campos tengan valores
+            if (peliculaSelect.value && salaSelect.value && fechaInputAuto.value) {
+                // Usar setTimeout para asegurar que el DOM esté completamente cargado
+                setTimeout(function() {
+                    console.log('🔄 Modo edición: Cargando horarios automáticamente...');
+                    cargarHorariosDisponibles();
+                }, 100);
+            }
         }
         
         // --- NUEVO: Lógica para radio buttons de formatos (2D/3D) ---

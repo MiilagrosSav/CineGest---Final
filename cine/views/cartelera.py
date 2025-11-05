@@ -34,12 +34,12 @@ def cartelera_view(request):
     if formato:
         funciones = funciones.filter(formato_proyeccion=formato)
     
-    # Filtro por fecha
-    fecha = request.GET.get('fecha')
-    if fecha:
+    # Filtro por día seleccionado (desde la lista de días de la semana)
+    dia_seleccionado = request.GET.get('dia')
+    if dia_seleccionado:
         try:
             from datetime import datetime
-            fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
+            fecha_obj = datetime.strptime(dia_seleccionado, '%Y-%m-%d').date()
             funciones = funciones.filter(fecha_hora__date=fecha_obj)
         except ValueError:
             pass
@@ -60,29 +60,43 @@ def cartelera_view(request):
     else:  # 'fecha' por defecto
         funciones = funciones.order_by('fecha_hora')
     
-    # Agrupar funciones por película para mejor visualización
+    # Agrupar funciones por película Y fecha para mejor visualización
     peliculas_con_funciones = {}
     for funcion in funciones:
-        pelicula_id = funcion.pelicula.id
-        if pelicula_id not in peliculas_con_funciones:
-            peliculas_con_funciones[pelicula_id] = {
+        # Crear clave única: pelicula_id + fecha
+        fecha_str = funcion.fecha_hora.strftime('%Y-%m-%d')
+        clave = f"{funcion.pelicula.id}_{fecha_str}"
+        
+        if clave not in peliculas_con_funciones:
+            peliculas_con_funciones[clave] = {
                 'pelicula': funcion.pelicula,
+                'fecha': funcion.fecha_hora.date(),
                 'funciones': []
             }
-        peliculas_con_funciones[pelicula_id]['funciones'].append(funcion)
+        peliculas_con_funciones[clave]['funciones'].append(funcion)
     
     # Obtener opciones para los filtros
     generos_disponibles = Pelicula.GENERO_CHOICES
     formatos_disponibles = Funcion.FORMATO_CHOICES
     
-    # Obtener rango de fechas (próximos 7 días)
-
-    fechas_disponibles = []
-    for i in range(7):
-        fecha_dia = date.today() + timedelta(days=i)
-        fechas_disponibles.append({
-            'valor': fecha_dia.strftime('%Y-%m-%d'),
-            'display': fecha_dia.strftime('%d/%m/%Y')
+    # Obtener lista de días de la semana (próximos 14 días)
+    dias_semana = []
+    hoy = date.today()
+    
+    # Nombres de los días en español
+    dias_nombres = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
+    meses_nombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+    
+    for i in range(14):
+        fecha_dia = hoy + timedelta(days=i)
+        dia_semana_num = fecha_dia.weekday()  # 0=Lunes, 6=Domingo
+        
+        dias_semana.append({
+            'fecha': fecha_dia.strftime('%Y-%m-%d'),
+            'dia_nombre': dias_nombres[dia_semana_num],
+            'dia_numero': fecha_dia.day,
+            'mes_nombre': meses_nombres[fecha_dia.month - 1],
+            'es_hoy': i == 0
         })
     
     context = {
@@ -90,11 +104,11 @@ def cartelera_view(request):
         'total_funciones': funciones.count(),
         'generos_disponibles': generos_disponibles,
         'formatos_disponibles': formatos_disponibles,
-        'fechas_disponibles': fechas_disponibles,
+        'dias_semana': dias_semana,
         # Filtros actuales para mantener estado
         'filtro_genero': genero,
         'filtro_formato': formato,
-        'filtro_fecha': fecha,
+        'dia_seleccionado': dia_seleccionado,
         'filtro_search': search,
         'filtro_orden': orden,
     }

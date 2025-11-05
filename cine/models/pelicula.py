@@ -20,6 +20,14 @@ class Pelicula(models.Model):
         ('MUSICAL', 'Musical'),
         ('ANIMACION', 'Animación'),
     ]
+    
+    # Opciones para clasificación
+    CLASIFICACION_CHOICES = [
+        ('ATP', 'Apta para todo público'),
+        ('+13', 'Mayores de 13 años'),
+        ('+16', 'Mayores de 16 años'),
+        ('+18', 'Mayores de 18 años'),
+    ]
 
     titulo = models.CharField(max_length=200, help_text="El título de la película.")
     sinopsis = models.TextField(help_text="Una breve descripción de la trama.")
@@ -27,6 +35,14 @@ class Pelicula(models.Model):
     genero = models.CharField(max_length=50, choices=GENERO_CHOICES, help_text="El género principal.")
     duracion = models.PositiveIntegerField(help_text="La duración en minutos.")
     fecha_estreno = models.DateField(help_text="La fecha de estreno en cines.")
+    
+    # Clasificación por edad
+    clasificacion = models.CharField(
+        max_length=10,
+        choices=CLASIFICACION_CHOICES,
+        default='ATP',
+        help_text="Clasificación por edad de la película."
+    )
     
     # Campo para la imagen de portada
     imagen_portada = models.ImageField(
