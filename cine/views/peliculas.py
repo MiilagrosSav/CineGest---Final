@@ -14,7 +14,41 @@ class PeliculaListView(AdminRequiredMixin, ListView):
     model = Pelicula
     template_name = 'cine/pelicula_list.html'
     context_object_name = 'peliculas'
-    paginate_by = 10 
+    paginate_by = 5 
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        
+        # Filtro de búsqueda por título
+        search = self.request.GET.get('search', '')
+        if search:
+            queryset = queryset.filter(titulo__icontains=search)
+        
+        # Filtro por género
+        genero = self.request.GET.get('genero', '')
+        if genero:
+            queryset = queryset.filter(genero__icontains=genero)
+        
+        # Ordenamiento
+        orden = self.request.GET.get('orden', 'titulo')
+        orden_mapping = {
+            'titulo': 'titulo',
+            'titulo_desc': '-titulo',
+            'duracion': 'duracion',
+            'duracion_desc': '-duracion',
+            'fecha_estreno': 'fecha_estreno',
+            'fecha_estreno_desc': '-fecha_estreno',
+        }
+        queryset = queryset.order_by(orden_mapping.get(orden, 'titulo'))
+        
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['filtro_search'] = self.request.GET.get('search', '')
+        context['filtro_genero'] = self.request.GET.get('genero', '')
+        context['filtro_orden'] = self.request.GET.get('orden', 'titulo')
+        return context 
 
 # CREATE: Vista para mostrar el formulario de creación
 class PeliculaCreateView(AdminRequiredMixin, CreateView):

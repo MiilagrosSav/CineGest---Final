@@ -47,8 +47,14 @@ urlpatterns = [
     # Delete: Página de confirmación para eliminar una función
     path('funciones/<int:pk>/eliminar/', views.FuncionDeleteView.as_view(), name='funcion_delete'),
 
+    # AJAX: Calcular horarios disponibles
+    path('funciones/calcular-horarios/', views.calcular_horarios_disponibles, name='calcular_horarios'),
+
     # --- Cartelera Pública ---
     path('cartelera/', views.cartelera_view, name='cartelera'),
+
+    # --- Configuración del Cine ---
+    path('configuracion/', views.ConfiguracionCineUpdateView.as_view(), name='configuracion'),
 
     # Redirect por defecto a películas
     path('', views.PeliculaListView.as_view(), name='index'),

@@ -89,6 +89,7 @@ class EmployeeCreateView(AdminRequiredMixin, CreateView):
     form_class = EmployeeCreationForm
     template_name = 'accounts/employee_form.html'
     success_url = reverse_lazy('accounts:employee_list')
+    paginate_by = 5
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

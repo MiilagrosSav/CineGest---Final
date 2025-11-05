@@ -1,5 +1,5 @@
 from django import forms
-from .models import Pelicula, Sala, Funcion
+from .models import Pelicula, Sala, Funcion, Formato, FuncionFormato, ConfiguracionCine
 from datetime import date, datetime, timedelta
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -322,17 +322,41 @@ class FuncionForm(forms.ModelForm):
         }
     )
     
-    formato_proyeccion = forms.ChoiceField(
-        label='🎞️ Formato de proyección',
-        choices=Funcion.FORMATO_CHOICES,
-        widget=forms.Select(attrs={
-            'class': 'form-select',
-            'required': True,
-            'title': 'Selecciona el formato en que se proyectará'
-        }),
-        error_messages={
-            'required': 'Debes seleccionar un formato de proyección.'
-        }
+    # Campo agrupado en categorías: una opción por cada categoría
+    formatos_visual = forms.ModelChoiceField(
+        label='1. Formato_Visual',
+        queryset=Formato.objects.filter(nombre__in=['2D', '3D']).order_by('nombre'),
+        widget=forms.RadioSelect,
+        required=True,
+        empty_label=None,
+        error_messages={'required': 'Debes seleccionar un formato visual.'}
+    )
+
+    formatos_pantalla = forms.ModelChoiceField(
+        label='2. Formato_Pantalla',
+        queryset=Formato.objects.filter(nombre__in=['Pantalla Standard', 'IMAX', 'ScreenX']).order_by('nombre'),
+        widget=forms.RadioSelect,
+        required=True,
+        empty_label=None,
+        error_messages={'required': 'Debes seleccionar un formato de pantalla.'}
+    )
+
+    formatos_experiencia = forms.ModelChoiceField(
+        label='3. Formato_Experiencia',
+        queryset=Formato.objects.filter(nombre__in=['Experiencia Standard', '4DX', 'D-BOX']).order_by('nombre'),
+        widget=forms.RadioSelect,
+        required=True,
+        empty_label=None,
+        error_messages={'required': 'Debes seleccionar un formato de experiencia.'}
+    )
+
+    formatos_idioma = forms.ModelChoiceField(
+        label='4. Formato_Idioma',
+        queryset=Formato.objects.filter(nombre__in=['Doblada', 'Subtitulada', 'Original']).order_by('nombre'),
+        widget=forms.RadioSelect,
+        required=True,
+        empty_label=None,
+        error_messages={'required': 'Debes seleccionar un formato de idioma.'}
     )
     
     precio_base = forms.DecimalField(
@@ -357,14 +381,29 @@ class FuncionForm(forms.ModelForm):
 
     class Meta:
         model = Funcion
-        fields = ['pelicula', 'sala', 'fecha_hora', 'formato_proyeccion', 'precio_base']
+        fields = ['pelicula', 'sala', 'fecha_hora', 'precio_base']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Si estamos editando, actualizar el min de fecha_hora dinámicamente
+        # Si estamos editando, cargar los formatos actuales
         if self.instance and self.instance.pk:
-            # Para ediciones, permitir mantener la fecha actual si ya está programada
-            pass
+            # Cargar los formatos ya asignados
+            formatos_actuales = self.instance.formatos_funcion.select_related('formato').all()
+            # Inicializar por categoría (tomando el primer formato que coincida con cada categoría)
+            visual = formatos_actuales.filter(formato__nombre__in=['2D', '3D']).first()
+            pantalla = formatos_actuales.filter(formato__nombre__in=['Pantalla Standard', 'IMAX', 'ScreenX']).first()
+            experiencia = formatos_actuales.filter(formato__nombre__in=['Experiencia Standard', '4DX', 'D-BOX']).first()
+            idioma = formatos_actuales.filter(formato__nombre__in=['Doblada', 'Subtitulada', 'Original']).first()
+            if visual:
+                self.initial['formatos_visual'] = visual.formato_id
+            if pantalla:
+                self.initial['formatos_pantalla'] = pantalla.formato_id
+            if experiencia:
+                self.initial['formatos_experiencia'] = experiencia.formato_id
+            if idioma:
+                self.initial['formatos_idioma'] = idioma.formato_id
+    
+    
     
     def clean_fecha_hora(self):
         """Validación para fecha y hora de la función"""
@@ -392,6 +431,25 @@ class FuncionForm(forms.ModelForm):
         sala = cleaned_data.get('sala')
         pelicula = cleaned_data.get('pelicula')
         fecha_hora = cleaned_data.get('fecha_hora')
+
+        # --- Validación de formatos por categoría (si están presentes en el form) ---
+        visual = cleaned_data.get('formatos_visual')
+        pantalla = cleaned_data.get('formatos_pantalla')
+        experiencia = cleaned_data.get('formatos_experiencia')
+        idioma = cleaned_data.get('formatos_idioma')
+
+        formatos_sel = []
+        for f in (visual, pantalla, experiencia, idioma):
+            if f:
+                formatos_sel.append(f.nombre)
+
+        if formatos_sel:
+            from cine.models.funcion_formato import FORMATOS_INCOMPATIBLES
+            for nombre in formatos_sel:
+                if nombre in FORMATOS_INCOMPATIBLES:
+                    for incompatible in FORMATOS_INCOMPATIBLES[nombre]:
+                        if incompatible in formatos_sel:
+                            raise ValidationError(f'No puedes combinar {nombre} con {incompatible}. Son tecnologías mutuamente excluyentes.')
         
         if sala and pelicula and fecha_hora:
             # Verificar que la sala esté activa
@@ -400,10 +458,15 @@ class FuncionForm(forms.ModelForm):
                     'sala': 'No se pueden programar funciones en salas inactivas.'
                 })
             
+            # Obtener configuración del cine para los minutos de limpieza
+            from cine.models import ConfiguracionCine
+            configuracion = ConfiguracionCine.load()
+            minutos_limpieza = configuracion.minutos_limpieza
+            
             # Verificar solapamiento de funciones
-            # Calcular fin de esta función (duración + 30 min de limpieza)
+            # Calcular fin de esta función (duración + minutos de limpieza configurados)
             from datetime import timedelta
-            duracion_total = timedelta(minutes=pelicula.duracion + 30)
+            duracion_total = timedelta(minutes=pelicula.duracion + minutos_limpieza)
             fin_funcion = fecha_hora + duracion_total
             
             # Buscar funciones que se solapen
@@ -417,7 +480,7 @@ class FuncionForm(forms.ModelForm):
                 funciones_solapadas = funciones_solapadas.exclude(pk=self.instance.pk)
             
             for funcion in funciones_solapadas:
-                duracion_otra = timedelta(minutes=funcion.pelicula.duracion + 30)
+                duracion_otra = timedelta(minutes=funcion.pelicula.duracion + minutos_limpieza)
                 fin_otra = funcion.fecha_hora + duracion_otra
                 
                 # Verificar si hay solapamiento
@@ -425,7 +488,7 @@ class FuncionForm(forms.ModelForm):
                     raise ValidationError({
                         'fecha_hora': f'Esta función se solapa con "{funcion.pelicula.titulo}" '
                                     f'programada a las {funcion.fecha_hora.strftime("%d/%m/%Y %H:%M")} en la misma sala. '
-                                    f'Debe haber al menos 30 minutos de diferencia entre funciones.'
+                                    f'Debe haber al menos {minutos_limpieza} minutos de diferencia entre funciones.'
                     })
         
         return cleaned_data
@@ -459,13 +522,40 @@ class FuncionBatchForm(forms.Form):
         })
     )
     
-    formato_proyeccion = forms.ChoiceField(
-        label='Formato de proyección',
-        choices=Funcion.FORMATO_CHOICES,
-        widget=forms.Select(attrs={
-            'class': 'form-select', 'required': True,
-            'title': 'Selecciona el formato en que se proyectará'
-        })
+    formatos_visual = forms.ModelChoiceField(
+        label='1. Formato_Visual',
+        queryset=Formato.objects.filter(nombre__in=['2D', '3D']).order_by('nombre'),
+        widget=forms.RadioSelect,
+        required=True,
+        empty_label=None,
+        error_messages={'required': 'Debes seleccionar un formato visual.'}
+    )
+
+    formatos_pantalla = forms.ModelChoiceField(
+        label='2. Formato_Pantalla',
+        queryset=Formato.objects.filter(nombre__in=['Pantalla Standard', 'IMAX', 'ScreenX']).order_by('nombre'),
+        widget=forms.RadioSelect,
+        required=True,
+        empty_label=None,
+        error_messages={'required': 'Debes seleccionar un formato de pantalla.'}
+    )
+
+    formatos_experiencia = forms.ModelChoiceField(
+        label='3. Formato_Experiencia',
+        queryset=Formato.objects.filter(nombre__in=['Experiencia Standard', '4DX', 'D-BOX']).order_by('nombre'),
+        widget=forms.RadioSelect,
+        required=True,
+        empty_label=None,
+        error_messages={'required': 'Debes seleccionar un formato de experiencia.'}
+    )
+
+    formatos_idioma = forms.ModelChoiceField(
+        label='4. Formato_Idioma',
+        queryset=Formato.objects.filter(nombre__in=['Doblada', 'Subtitulada', 'Original']).order_by('nombre'),
+        widget=forms.RadioSelect,
+        required=True,
+        empty_label=None,
+        error_messages={'required': 'Debes seleccionar un formato de idioma.'}
     )
     
     precio_base = forms.DecimalField(
@@ -535,6 +625,8 @@ class FuncionBatchForm(forms.Form):
         # ¡Éxito! Retornamos la LISTA de objetos 'time' limpios
         return horarios_obj_lista
     
+    # NOTE: validations for formats will run inside clean()
+    
     def clean(self):
         """
         Validación cruzada para solapamiento de funciones,
@@ -546,6 +638,29 @@ class FuncionBatchForm(forms.Form):
         fecha = cleaned_data.get('fecha')
         horarios = cleaned_data.get('horarios') # Esta es la *lista* de objetos 'time' de clean_horarios
 
+        # --- Validación de formatos por categoría ---
+        formatos_sel = []
+        visual = cleaned_data.get('formatos_visual')
+        pantalla = cleaned_data.get('formatos_pantalla')
+        experiencia = cleaned_data.get('formatos_experiencia')
+        idioma = cleaned_data.get('formatos_idioma')
+
+        if not all([visual, pantalla, experiencia, idioma]):
+            raise ValidationError('Debes seleccionar una opción para cada categoría de formato.')
+
+        # Reunir nombres para validación cruzada
+        for f in (visual, pantalla, experiencia, idioma):
+            if f:
+                formatos_sel.append(f.nombre)
+
+        # Verificar incompatibilidades (2D vs 3D)
+        from cine.models.funcion_formato import FORMATOS_INCOMPATIBLES
+        for nombre in formatos_sel:
+            if nombre in FORMATOS_INCOMPATIBLES:
+                for incompatible in FORMATOS_INCOMPATIBLES[nombre]:
+                    if incompatible in formatos_sel:
+                        raise ValidationError(f'No puedes combinar {nombre} con {incompatible}. Son tecnologías mutuamente excluyentes.')
+
         # Si faltan datos básicos, la validación de campos ya falló, no hacemos nada más
         if not all([sala, pelicula, fecha, horarios]):
             return cleaned_data
@@ -554,58 +669,289 @@ class FuncionBatchForm(forms.Form):
         if not sala.activa:
             raise ValidationError({'sala': 'No se pueden programar funciones en salas inactivas.'})
         
-        # Iterar sobre cada horario que el usuario quiere crear
+        # Obtener configuración del cine para los minutos de limpieza
+        from cine.models import ConfiguracionCine
+        configuracion = ConfiguracionCine.load()
+        minutos_limpieza = configuracion.minutos_limpieza
+        
+        # Primero, verificar que los horarios seleccionados no se solapen ENTRE SÍ
+        horarios_con_duracion = []
         for hora_obj in horarios:
-            
-            # Combinar la fecha y hora propuestas
-            # Usamos 'datetime.combine' para juntar el Date y el Time
             try:
-                # 1. Crear el datetime "naive" (sin zona horaria)
                 fecha_hora_naive = datetime.combine(fecha, hora_obj)
-            
-                # 2. OBTENER LA ZONA HORARIA ACTUAL
                 current_tz = timezone.get_current_timezone()
-            
-                # 3. CONVERTIRLO A "AWARE" (con zona horaria)
-                fecha_hora_propuesta = timezone.make_aware(fecha_hora_naive, current_tz)
-
+                fecha_hora_aware = timezone.make_aware(fecha_hora_naive, current_tz)
+                duracion_total = timedelta(minutes=pelicula.duracion + minutos_limpieza)
+                fin_funcion = fecha_hora_aware + duracion_total
+                horarios_con_duracion.append((fecha_hora_aware, fin_funcion, hora_obj))
             except Exception:
-                raise ValidationError(f"No se pudo combinar la fecha y hora para {hora_obj}.")
-
+                raise ValidationError(f"No se pudo procesar el horario {hora_obj}.")
+        
+        # Verificar solapamiento entre los horarios seleccionados
+        for i, (inicio_i, fin_i, hora_i) in enumerate(horarios_con_duracion):
+            for j, (inicio_j, fin_j, hora_j) in enumerate(horarios_con_duracion):
+                if i != j and inicio_i < fin_j and inicio_j < fin_i:
+                    raise ValidationError({
+                        'horarios': f'Los horarios {hora_i.strftime("%H:%M")} y {hora_j.strftime("%H:%M")} se solapan entre sí. '
+                                   f'Cada función dura {pelicula.duracion} min + {minutos_limpieza} min de limpieza.'
+                    })
+        
+        # Iterar sobre cada horario que el usuario quiere crear
+        for fecha_hora_propuesta, fin_funcion_propuesta, hora_obj in horarios_con_duracion:
+            
             # Validar que no sea en el pasado
-            # (Ahora ambos son "aware" y la comparación funciona)
             if fecha_hora_propuesta < timezone.now():
                 raise ValidationError({'horarios': f'El horario {hora_obj.strftime("%H:%M")} del día {fecha.strftime("%d/%m")} ya pasó.'})
-            # --- Lógica de solapamiento (adaptada de tu FuncionForm) ---
             
-            # Calcular fin de esta función (duración + 30 min de limpieza)
-            duracion_total = timedelta(minutes=pelicula.duracion + 30)
-            fin_funcion_propuesta = fecha_hora_propuesta + duracion_total
-            
-            # [start_A, end_A] es el rango de nuestra función propuesta
-            start_A = fecha_hora_propuesta
-            end_A = fin_funcion_propuesta
-            
-            # Buscar funciones existentes (B) que se solapen
-            # Un solapamiento existe si (start_A < end_B) Y (start_B < end_A)
-            
-            # 1. Buscamos funciones en la misma sala que empiecen ANTES de que la nuestra TERMINE
-            funciones_conflictivas = Funcion.objects.filter(
+            # Buscar SOLO funciones en la misma sala y el MISMO DÍA
+            funciones_existentes = Funcion.objects.filter(
                 sala=sala,
-                fecha_hora__lt=end_A
-            )
+                fecha_hora__date=fecha  # FILTRO POR DÍA ESPECÍFICO
+            ).order_by('fecha_hora')
 
-            # 2. Revisamos cada una para ver si terminan DESPUÉS de que la nuestra EMPIECE
-            for funcion_b in funciones_conflictivas:
-                start_B = funcion_b.fecha_hora
-                end_B = funcion_b.fecha_hora + timedelta(minutes=funcion_b.pelicula.duracion + 30)
+            # Verificar solapamiento con cada función existente
+            for funcion_existente in funciones_existentes:
+                inicio_existente = funcion_existente.fecha_hora
+                fin_existente = inicio_existente + timedelta(minutes=funcion_existente.pelicula.duracion + minutos_limpieza)
                 
-                # La condición de solapamiento
-                if start_B < end_A and start_A < end_B:
+                # Condición de solapamiento: 
+                # Se solapan si la nueva empieza antes de que termine la existente
+                # Y la nueva termina después de que empiece la existente
+                if fecha_hora_propuesta < fin_existente and fin_funcion_propuesta > inicio_existente:
                     raise ValidationError({
-                        'horarios': f'El horario {hora_obj.strftime("%H:%M")} se solapa con "{funcion_b.pelicula.titulo}" '
-                                    f'programada de {start_B.strftime("%H:%M")} a {end_B.strftime("%H:%M")} en la misma sala.'
-                                    f' (Se incluyen 30 min. de limpieza entre funciones).'
+                        'horarios': f'El horario {hora_obj.strftime("%H:%M")} se solapa con "{funcion_existente.pelicula.titulo}" '
+                                    f'programada de {inicio_existente.strftime("%H:%M")} a {fin_existente.strftime("%H:%M")} en la misma sala. '
+                                    f'(Se incluyen {minutos_limpieza} min. de limpieza entre funciones).'
                     })
 
+        return cleaned_data
+
+
+class ConfiguracionCineForm(forms.ModelForm):
+    """
+    Formulario para editar la configuración del cine
+    """
+    
+    nombre = forms.CharField(
+        label='🎬 Nombre del Cine',
+        max_length=200,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej: Cine CineGest',
+            'required': True,
+            'title': 'Nombre comercial del cine'
+        }),
+        error_messages={
+            'required': 'El nombre del cine es obligatorio.'
+        }
+    )
+    
+    razon_social = forms.CharField(
+        label='🏢 Razón Social',
+        max_length=200,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej: CineGest S.A.',
+            'required': True,
+            'title': 'Razón social registrada'
+        }),
+        error_messages={
+            'required': 'La razón social es obligatoria.'
+        }
+    )
+    
+    cuil_cuit = forms.CharField(
+        label='📋 CUIL/CUIT',
+        max_length=13,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'XX-XXXXXXXX-X',
+            'required': True,
+            'pattern': r'\d{2}-\d{8}-\d{1}',
+            'title': 'Formato: XX-XXXXXXXX-X (solo números y guiones)'
+        }),
+        error_messages={
+            'required': 'El CUIL/CUIT es obligatorio.',
+            'invalid': 'Formato inválido. Use XX-XXXXXXXX-X'
+        }
+    )
+    
+    direccion = forms.CharField(
+        label='📍 Dirección',
+        max_length=300,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej: Av. Corrientes 1234, CABA',
+            'required': True,
+            'title': 'Dirección física del cine'
+        }),
+        error_messages={
+            'required': 'La dirección es obligatoria.'
+        }
+    )
+    
+    telefono = forms.CharField(
+        label='📞 Teléfono',
+        max_length=20,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': '+54 11 0000-0000',
+            'required': True,
+            'type': 'tel',
+            'title': 'Número de contacto'
+        }),
+        error_messages={
+            'required': 'El teléfono es obligatorio.'
+        }
+    )
+    
+    email = forms.EmailField(
+        label='📧 Email',
+        widget=forms.EmailInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'contacto@micine.com',
+            'required': True,
+            'type': 'email',
+            'title': 'Email de contacto'
+        }),
+        error_messages={
+            'required': 'El email es obligatorio.',
+            'invalid': 'Ingrese un email válido.'
+        }
+    )
+    
+    descripcion = forms.CharField(
+        label='📝 Descripción',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-input',
+            'placeholder': 'Descripción del cine, servicios, características especiales...',
+            'rows': 4,
+            'title': 'Descripción general del cine'
+        })
+    )
+    
+    horario_apertura = forms.TimeField(
+        label='🕐 Horario de Apertura',
+        widget=forms.TimeInput(attrs={
+            'class': 'form-input',
+            'type': 'time',
+            'required': True,
+            'title': 'Hora de apertura del cine'
+        }),
+        error_messages={
+            'required': 'El horario de apertura es obligatorio.',
+            'invalid': 'Formato de hora inválido.'
+        }
+    )
+    
+    horario_cierre = forms.TimeField(
+        label='🕐 Horario de Cierre',
+        widget=forms.TimeInput(attrs={
+            'class': 'form-input',
+            'type': 'time',
+            'required': True,
+            'title': 'Hora de cierre del cine'
+        }),
+        error_messages={
+            'required': 'El horario de cierre es obligatorio.',
+            'invalid': 'Formato de hora inválido.'
+        }
+    )
+    
+    minutos_limpieza = forms.IntegerField(
+        label='🧹 Minutos de Limpieza',
+        min_value=0,
+        max_value=120,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'placeholder': '30',
+            'required': True,
+            'min': '0',
+            'max': '120',
+            'step': '5',
+            'title': 'Tiempo entre funciones para limpieza (0-120 minutos)'
+        }),
+        help_text='Tiempo entre funciones para limpieza de sala',
+        error_messages={
+            'required': 'Los minutos de limpieza son obligatorios.',
+            'invalid': 'Ingrese un número válido.',
+            'min_value': 'El valor mínimo es 0 minutos.',
+            'max_value': 'El valor máximo es 120 minutos.'
+        }
+    )
+    
+    facebook = forms.URLField(
+        label='📘 Facebook',
+        required=False,
+        widget=forms.URLInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'https://facebook.com/micine',
+            'type': 'url',
+            'title': 'URL de la página de Facebook'
+        })
+    )
+    
+    instagram = forms.URLField(
+        label='📷 Instagram',
+        required=False,
+        widget=forms.URLInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'https://instagram.com/micine',
+            'type': 'url',
+            'title': 'URL del perfil de Instagram'
+        })
+    )
+    
+    twitter = forms.URLField(
+        label='🐦 Twitter/X',
+        required=False,
+        widget=forms.URLInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'https://twitter.com/micine',
+            'type': 'url',
+            'title': 'URL del perfil de Twitter/X'
+        })
+    )
+    
+    logo = forms.ImageField(
+        label='🖼️ Logo del Cine',
+        required=False,
+        widget=forms.FileInput(attrs={
+            'class': 'form-input',
+            'accept': 'image/*',
+            'title': 'Seleccione una imagen para el logo'
+        })
+    )
+    
+    class Meta:
+        model = ConfiguracionCine
+        fields = [
+            'nombre', 'logo', 'razon_social', 'cuil_cuit', 'descripcion',
+            'direccion', 'telefono', 'email',
+            'horario_apertura', 'horario_cierre', 'minutos_limpieza',
+            'facebook', 'instagram', 'twitter'
+        ]
+    
+    def clean_cuil_cuit(self):
+        """Validar formato de CUIL/CUIT"""
+        cuil_cuit = self.cleaned_data.get('cuil_cuit')
+        if cuil_cuit:
+            import re
+            if not re.match(r'^\d{2}-\d{8}-\d{1}$', cuil_cuit):
+                raise ValidationError('El formato debe ser XX-XXXXXXXX-X (ej: 20-12345678-9)')
+        return cuil_cuit
+    
+    def clean(self):
+        """Validar que el horario de cierre sea posterior al de apertura"""
+        cleaned_data = super().clean()
+        apertura = cleaned_data.get('horario_apertura')
+        cierre = cleaned_data.get('horario_cierre')
+        
+        if apertura and cierre:
+            if cierre <= apertura:
+                raise ValidationError({
+                    'horario_cierre': 'El horario de cierre debe ser posterior al de apertura.'
+                })
+        
         return cleaned_data

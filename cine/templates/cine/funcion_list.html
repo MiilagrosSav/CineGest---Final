@@ -3,24 +3,176 @@
 {% block title %}Gestión de Funciones{% endblock %}
 
 {% block content %}
+<style>
+    /* Mejorar el selector de fecha en modo oscuro */
+    input[type="date"] {
+        color-scheme: dark;
+        background: rgba(26, 22, 37, 0.8);
+        color: #ffffff;
+        border: 1px solid rgba(139, 95, 191, 0.3);
+        padding: 0.4rem;
+        border-radius: 6px;
+        font-family: inherit;
+    }
+    
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+        font-size: 1.1rem;
+    }
+    
+    input[type="date"]:hover {
+        border-color: var(--primary);
+    }
+    
+    input[type="date"]:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(139, 95, 191, 0.2);
+    }
+</style>
+
 <div class="container">
     <div class="card glass-container mb-lg">
         <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1 class="card-title text-gradient-primary">🎭 Gestión de Funciones</h1>
+            <h1 class="card-title text-gradient-primary">Gestión de Funciones</h1>
         </div>
     </div>
 
     <div class="card glass-container">
+        <!-- Barra de Filtros -->
+        <div style="padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--glass-border);">
+            <form method="get" id="form-filtros" style="display: flex; gap: var(--space-xs); align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                <!-- Búsqueda Dinámica -->
+                <div style="position: relative; min-width: 180px; max-width: 250px;">
+                    <input type="text" 
+                           name="search" 
+                           id="search-input"
+                           value="{{ filtro_search }}"
+                           placeholder=" Buscar..."
+                           class="form-input"
+                           style="width: 100%; padding: 0.4rem 0.4rem 0.4rem 2rem; font-size: 0.9rem;">
+                    <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
+                </div>
+                
+                <!-- Contenedor derecho para filtros específicos -->
+                <div style="display: flex; gap: var(--space-xs); align-items: center; flex-wrap: wrap;">
+                    <!-- Filtro por Película -->
+                    <select name="pelicula" class="form-select" style="width: 150px; padding: 0.4rem; font-size: 0.9rem;" onchange="this.form.submit()">
+                        <option value="">Peliculas</option>
+                        {% for peli in peliculas %}
+                        <option value="{{ peli.id }}" {% if filtro_pelicula == peli.id|stringformat:"s" %}selected{% endif %}>
+                            {{ peli.titulo|truncatewords:3 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    
+                    <!-- Filtro por Sala -->
+                    <select name="sala" class="form-select" style="width: 110px; padding: 0.4rem; font-size: 0.9rem;" onchange="this.form.submit()">
+                        <option value="">Salas</option>
+                        {% for s in salas %}
+                        <option value="{{ s.id }}" {% if filtro_sala == s.id|stringformat:"s" %}selected{% endif %}>
+                            Sala {{ s.numero }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    
+                    <!-- Filtro por Formato -->
+                    <select name="formato" class="form-select" style="width: 110px; padding: 0.4rem; font-size: 0.9rem;" onchange="this.form.submit()">
+                        <option value="">Formatos</option>
+                        {% for fmt in formatos %}
+                        <option value="{{ fmt.id }}" {% if filtro_formato == fmt.id|stringformat:"s" %}selected{% endif %}>
+                            {{ fmt.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    
+                    <!-- Filtro por Fecha -->
+                    <div style="position: relative;">
+                        <input type="text" 
+                               name="fecha_display" 
+                               id="fecha-display"
+                               value="{{ filtro_fecha_display }}"
+                               class="form-input"
+                               placeholder="DD-MM-AAAA"
+                               readonly
+                               style="width: 140px; padding: 0.4rem 2rem 0.4rem 0.4rem; font-size: 0.9rem; cursor: pointer;"
+                               title="Haz clic para seleccionar fecha">
+                        <input type="date" 
+                               name="fecha" 
+                               id="fecha-filtro"
+                               value="{{ filtro_fecha }}"
+                               style="position: absolute; opacity: 0; pointer-events: none; width: 1px;">
+                        <span onclick="document.getElementById('fecha-filtro').showPicker()" 
+                              style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.1rem; opacity: 0.7;">
+                            📅
+                        </span>
+                    </div>
+                    
+                    {% if filtro_search or filtro_pelicula or filtro_sala or filtro_fecha or filtro_formato %}
+                    <a href="{% url 'cine:funcion_list' %}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                        ✕
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
                     <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <th style="padding: var(--space-sm);">Película</th>
-                        <th style="padding: var(--space-sm);">Sala</th>
+                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('pelicula')" title="Ordenar por película">
+                            Película 
+                            {% if filtro_orden == 'pelicula' %}
+                                <span style="opacity: 0.8;">↑</span>
+                            {% elif filtro_orden == 'pelicula_desc' %}
+                                <span style="opacity: 0.8;">↓</span>
+                            {% else %}
+                                <span style="opacity: 0.5;">⇅</span>
+                            {% endif %}
+                        </th>
+                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('sala')" title="Ordenar por número de sala">
+                            Sala
+                            {% if filtro_orden == 'sala' %}
+                                <span style="opacity: 0.8;">↑</span>
+                            {% elif filtro_orden == 'sala_desc' %}
+                                <span style="opacity: 0.8;">↓</span>
+                            {% else %}
+                                <span style="opacity: 0.5;">⇅</span>
+                            {% endif %}
+                        </th>
                         <th style="padding: var(--space-sm);">Formato</th>
-                        <th style="padding: var(--space-sm);">Fecha y Hora</th>
-                        <th style="padding: var(--space-sm);">Precio</th>
-                        <th style="padding: var(--space-sm);">Duración</th>
+                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('fecha')" title="Ordenar por fecha">
+                            Fecha y Hora
+                            {% if filtro_orden == 'fecha' or not filtro_orden %}
+                                <span style="opacity: 0.8;">↑</span>
+                            {% elif filtro_orden == 'fecha_desc' %}
+                                <span style="opacity: 0.8;">↓</span>
+                            {% else %}
+                                <span style="opacity: 0.5;">⇅</span>
+                            {% endif %}
+                        </th>
+                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('precio')" title="Ordenar por precio">
+                            Precio
+                            {% if filtro_orden == 'precio' %}
+                                <span style="opacity: 0.8;">↑</span>
+                            {% elif filtro_orden == 'precio_desc' %}
+                                <span style="opacity: 0.8;">↓</span>
+                            {% else %}
+                                <span style="opacity: 0.5;">⇅</span>
+                            {% endif %}
+                        </th>
+                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('duracion')" title="Ordenar por duración">
+                            Duración
+                            {% if filtro_orden == 'duracion' %}
+                                <span style="opacity: 0.8;">↑</span>
+                            {% elif filtro_orden == 'duracion_desc' %}
+                                <span style="opacity: 0.8;">↓</span>
+                            {% else %}
+                                <span style="opacity: 0.5;">⇅</span>
+                            {% endif %}
+                        </th>
                     </tr>
                 </thead>
                 <tbody>
@@ -57,8 +209,11 @@
                 </tbody>
             </table>
             
+            <!-- Paginación -->
+            {% include "cine/pagination.html" %}
+            
             <!-- Panel de Acciones ABM -->
-            <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); margin-top: var(--space-lg); padding: var(--space-md);">
+            <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); padding: var(--space-md); border-top: 1px solid var(--glass-border);">
                 <a href="{% url 'cine:funcion_create' %}" class="btn btn-primary" style="min-width: 120px;">
                     ✨ Nueva
                 </a>
@@ -210,5 +365,80 @@
         // Inicializar UI
         updateUI();
     });
+    
+    // Búsqueda dinámica
+    const searchInput = document.getElementById('search-input');
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            document.getElementById('form-filtros').submit();
+        }, 500); // Espera 500ms después de que el usuario deje de escribir
+    });
+    
+    // Mejorar el input de fecha con formato DD-MM-YYYY
+    const fechaInput = document.getElementById('fecha-filtro');
+    const fechaDisplay = document.getElementById('fecha-display');
+    
+    if (fechaInput && fechaDisplay) {
+        // Convertir formato YYYY-MM-DD a DD-MM-YYYY al cargar
+        if (fechaInput.value) {
+            const [year, month, day] = fechaInput.value.split('-');
+            fechaDisplay.value = `${day}-${month}-${year}`;
+        }
+        
+        // Hacer que el input display abra el calendario
+        fechaDisplay.addEventListener('click', function() {
+            try {
+                fechaInput.showPicker();
+            } catch(e) {
+                // Fallback para navegadores que no soportan showPicker
+                fechaInput.click();
+            }
+        });
+        
+        // Cuando cambia la fecha en el input oculto
+        fechaInput.addEventListener('change', function() {
+            if (this.value) {
+                // Convertir YYYY-MM-DD a DD-MM-YYYY
+                const [year, month, day] = this.value.split('-');
+                fechaDisplay.value = `${day}-${month}-${year}`;
+                
+                // Enviar formulario
+                document.getElementById('form-filtros').submit();
+            }
+        });
+        
+        // Permitir limpiar la fecha
+        fechaDisplay.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' || e.key === 'Delete') {
+                e.preventDefault();
+                this.value = '';
+                fechaInput.value = '';
+                document.getElementById('form-filtros').submit();
+            }
+        });
+    }
+    
+    // Función para ordenar por columna
+    function ordenarPor(columna) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ordenActual = urlParams.get('orden');
+        
+        // Determinar nuevo orden (alternar entre ascendente y descendente)
+        let nuevoOrden = columna;
+        if (ordenActual === columna) {
+            nuevoOrden = columna + '_desc';
+        } else if (ordenActual === columna + '_desc') {
+            nuevoOrden = columna;
+        }
+        
+        // Actualizar parámetro de orden
+        urlParams.set('orden', nuevoOrden);
+        
+        // Redirigir con nuevos parámetros
+        window.location.href = '?' + urlParams.toString();
+    }
 </script>
 {% endblock %}

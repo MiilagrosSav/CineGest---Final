@@ -54,7 +54,7 @@
                     {% endfor %}
                 </tbody>
             </table>
-            
+            {% include "cine/pagination.html" %}
             <!-- Panel de Acciones ABM -->
             <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); margin-top: var(--space-lg); padding: var(--space-md);">
                 <a href="{% url 'accounts:create_employee' %}" class="btn btn-primary" style="min-width: 120px;">

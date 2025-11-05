@@ -23,26 +23,89 @@
             {% endif %}
             
             {% for field in form %}
-                <div class="form-group">
-                    <label for="{{ field.id_for_label }}" class="form-label">
-                        {{ field.label }}
-                        {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
-                    </label>
-                    
-                    {{ field }}
-                    
-                    {% if field.help_text %}
-                        <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">
-                            💡 {{ field.help_text }}
-                        </small>
-                    {% endif %}
-                    
-                    {% if field.errors %}
-                        {% for error in field.errors %}
-                            <span class="form-error" role="alert">⚠️ {{ error }}</span>
-                        {% endfor %}
-                    {% endif %}
-                </div>
+                {% if field.name == 'horarios' %}
+                    <!-- Campo especial de horarios con selector automático -->
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}" class="form-label">
+                            {{ field.label }}
+                            {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                        </label>
+                        
+                        <!-- Contenedor para los botones de horarios -->
+                        <div id="horarios-disponibles" style="margin-bottom: var(--space-sm); padding: var(--space-md); background: rgba(255,255,255,0.05); border-radius: var(--radius); min-height: 60px;">
+                            <p class="text-secondary" style="text-align: center; font-size: 0.9rem;">
+                                👆 Selecciona película, sala y fecha para ver los horarios disponibles
+                            </p>
+                        </div>
+                        
+                        <!-- Campo oculto que guarda los horarios seleccionados -->
+                        <div style="display: none;">
+                            {{ field }}
+                        </div>
+                        
+                        {% if field.help_text %}
+                            <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">
+                                💡 {{ field.help_text }}
+                            </small>
+                        {% endif %}
+                        
+                        {% if field.errors %}
+                            {% for error in field.errors %}
+                                <span class="form-error" role="alert">⚠️ {{ error }}</span>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% elif 'formatos_' in field.name %}
+                    <!-- Campos especiales de formatos agrupados por categoría con radio buttons -->
+                    <div class="form-group">
+                        <label class="form-label" style="display: block; margin-bottom: var(--space-sm); font-weight: 600; font-size: 1rem;">
+                            🎞️ {{ field.label }}
+                            {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                        </label>
+                        
+                        <div class="formato-group" style="display: flex; gap: var(--space-sm); padding: var(--space-md); background: rgba(255,255,255,0.05); border-radius: var(--radius); border: 1px solid rgba(139, 95, 191, 0.2); flex-wrap: wrap;">
+                            {% for radio in field %}
+                                <label class="formato-option" data-formato-name="{{ radio.choice_label }}" style="display: flex; align-items: center; gap: 8px; padding: 10px 16px; cursor: pointer; transition: all 0.2s; border-radius: 6px; user-select: none; background: rgba(0,0,0,0.2); border: 2px solid transparent;">
+                                    {{ radio.tag }}
+                                    <span style="font-size: 0.95rem; font-weight: 500;">{{ radio.choice_label }}</span>
+                                </label>
+                            {% endfor %}
+                        </div>
+                        
+                        {% if field.help_text %}
+                            <small class="text-secondary" style="font-size: 0.85rem; opacity: 0.8; display: block; margin-top: var(--space-xs); font-style: italic;">
+                                💡 {{ field.help_text }}
+                            </small>
+                        {% endif %}
+                        
+                        {% if field.errors %}
+                            {% for error in field.errors %}
+                                <span class="form-error" role="alert" style="display: block; margin-top: var(--space-xs);">⚠️ {{ error }}</span>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}" class="form-label">
+                            {{ field.label }}
+                            {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                        </label>
+                        
+                        {{ field }}
+                        
+                        {% if field.help_text %}
+                            <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">
+                                💡 {{ field.help_text }}
+                            </small>
+                        {% endif %}
+                        
+                        {% if field.errors %}
+                            {% for error in field.errors %}
+                                <span class="form-error" role="alert">⚠️ {{ error }}</span>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                {% endif %}
             {% endfor %}
 
             <div style="display: flex; gap: var(--space-md); margin-top: var(--space-lg);">
@@ -56,6 +119,29 @@
         </form>
     </div>
 </div>
+
+{% if es_edicion %}
+<script id="django-data" type="application/json">
+{
+    "esEdicion": true,
+    "funcionActual": {{ funcion_actual|safe }}
+}
+</script>
+{% else %}
+<script id="django-data" type="application/json">
+{
+    "esEdicion": false,
+    "funcionActual": null
+}
+</script>
+{% endif %}
+
+<script>
+    // Leer datos de Django desde el script JSON
+    const djangoData = JSON.parse(document.getElementById('django-data').textContent);
+    const ES_EDICION = djangoData.esEdicion;
+    const FUNCION_ACTUAL = djangoData.funcionActual;
+</script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
@@ -122,9 +208,9 @@
         }
 
         // --- NUEVA VALIDACIÓN para 'horarios' (Solo en CREACIÓN) ---
-        const horariosInput = document.querySelector('input[name="horarios"]');
-        if (horariosInput) {
-            horariosInput.addEventListener('input', function() {
+        const horariosInputValidation = document.querySelector('input[name="horarios"]');
+        if (horariosInputValidation) {
+            horariosInputValidation.addEventListener('input', function() {
                 // Regex simple que valida "HH:MM" o "HH:MM, HH:MM, ..."
                 const regex = /^\s*([0-2]\d:[0-5]\d)(\s*,\s*[0-2]\d:[0-5]\d)*\s*$/;
                 if (!this.value.match(regex) && this.value.length > 0) {
@@ -195,6 +281,271 @@
                     precio.focus();
                     return false;
                 }
+            }
+        });
+
+        // --- NUEVO: Sistema de carga automática de horarios disponibles ---
+        const peliculaSelect = document.querySelector('select[name="pelicula"]');
+        const salaSelect = document.querySelector('select[name="sala"]');
+        const fechaInputAuto = document.querySelector('input[name="fecha"]');
+        const horariosContainer = document.getElementById('horarios-disponibles');
+        const horariosInput = document.querySelector('input[name="horarios"]');
+        
+        // Usar las constantes definidas arriba
+        const esEdicion = ES_EDICION;
+        const funcionActual = FUNCION_ACTUAL;
+        
+        let horariosSeleccionados = [];
+
+        function cargarHorariosDisponibles() {
+            if (!peliculaSelect || !salaSelect || !fechaInputAuto) return;
+            
+            const peliculaId = peliculaSelect.value;
+            const salaId = salaSelect.value;
+            const fecha = fechaInputAuto.value;
+            
+            if (!peliculaId || !salaId || !fecha) {
+                horariosContainer.innerHTML = '<p class="text-secondary" style="text-align: center; font-size: 0.9rem;">👆 Selecciona película, sala y fecha para ver los horarios disponibles</p>';
+                return;
+            }
+            
+            // Mostrar loading
+            horariosContainer.innerHTML = '<p class="text-secondary" style="text-align: center; font-size: 0.9rem;">⏳ Calculando horarios disponibles...</p>';
+            
+            // Construir URL con parámetros, incluyendo funcion_id si estamos en modo edición
+            let url = `{% url 'cine:calcular_horarios' %}?pelicula_id=${peliculaId}&sala_id=${salaId}&fecha=${fecha}`;
+            if (esEdicion && funcionActual && funcionActual.id) {
+                url += `&funcion_id=${funcionActual.id}`;
+            }
+            
+            // Hacer petición AJAX
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        horariosContainer.innerHTML = `<p class="text-secondary" style="text-align: center; font-size: 0.9rem; color: #ff6b6b;">❌ ${data.error}</p>`;
+                        return;
+                    }
+                    
+                    if (data.horarios.length === 0) {
+                        horariosContainer.innerHTML = '<p class="text-secondary" style="text-align: center; font-size: 0.9rem;">😔 No hay horarios disponibles para este día. Intenta con otra fecha.</p>';
+                        return;
+                    }
+                    
+                    // En modo edición, mostrar solo el horario calculado (el primero disponible)
+                    if (esEdicion) {
+                        const horaCalculada = data.horarios[0];
+                        horariosSeleccionados = [horaCalculada];
+                        horariosInput.value = horaCalculada;
+                        
+                        horariosContainer.innerHTML = `
+                            <div style="text-align: center; padding: var(--space-md);">
+                                <p class="text-secondary" style="font-size: 0.85rem; margin-bottom: var(--space-sm);">
+                                    🕐 Horario calculado para esta función:
+                                </p>
+                                <div style="display: inline-block; padding: 1rem 2rem; border: 2px solid var(--primary); 
+                                            background: linear-gradient(135deg, rgba(56, 239, 125, 0.1), rgba(17, 153, 142, 0.1)); 
+                                            border-radius: 12px; font-size: 1.5rem; font-weight: 700; color: var(--primary);">
+                                    ${horaCalculada}
+                                </div>
+                                <p class="text-secondary" style="font-size: 0.8rem; margin-top: var(--space-sm); font-style: italic;">
+                                    💡 El horario se calcula automáticamente según la película, sala y fecha seleccionadas
+                                </p>
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    // Mostrar horarios como botones minimalistas (solo en modo creación)
+                    let html = '<p class="text-secondary" style="font-size: 0.85rem; margin-bottom: var(--space-sm);">✨ Selecciona uno o varios horarios (' + data.mensaje + '):</p>';
+                    html += '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: var(--space-sm);">';
+                    
+                    data.horarios.forEach(hora => {
+                        html += `<button type="button" class="horario-btn" data-hora="${hora}" 
+                                style="padding: 0.7rem 0.5rem; 
+                                       border: 2px solid rgba(186, 104, 200, 0.5); 
+                                       background: rgba(26, 11, 46, 0.6); 
+                                       color: var(--text-light); 
+                                       border-radius: 8px; 
+                                       cursor: pointer; 
+                                       transition: all 0.2s ease; 
+                                       font-weight: 600;
+                                       font-size: 1rem;
+                                       text-align: center;">
+                                ${hora}
+                            </button>`;
+                    });
+                    
+                    html += '</div>';
+                    horariosContainer.innerHTML = html;
+                    
+                    // Función para calcular si dos horarios se solapan
+                    function calcularSolapamiento(hora1, hora2, duracionTotal) {
+                        const [h1, m1] = hora1.split(':').map(Number);
+                        const [h2, m2] = hora2.split(':').map(Number);
+                        
+                        const minutos1 = h1 * 60 + m1;
+                        const minutos2 = h2 * 60 + m2;
+                        
+                        const fin1 = minutos1 + duracionTotal;
+                        const fin2 = minutos2 + duracionTotal;
+                        
+                        // Se solapan si el inicio de uno es antes del fin del otro
+                        return (minutos1 < fin2 && minutos2 < fin1);
+                    }
+                    
+                    // Función para actualizar la visibilidad de los botones
+                    function actualizarVisibilidadBotones() {
+                        document.querySelectorAll('.horario-btn').forEach(btn => {
+                            const hora = btn.getAttribute('data-hora');
+                            let debeOcultar = false;
+                            
+                            // Verificar si este horario se solapa con alguno seleccionado
+                            if (!horariosSeleccionados.includes(hora)) {
+                                for (let horaSeleccionada of horariosSeleccionados) {
+                                    if (calcularSolapamiento(hora, horaSeleccionada, data.duracion_total)) {
+                                        debeOcultar = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            if (debeOcultar) {
+                                btn.style.display = 'none';
+                            } else {
+                                btn.style.display = 'block';
+                            }
+                        });
+                    }
+                    
+                    // Agregar event listeners a los botones
+                    document.querySelectorAll('.horario-btn').forEach(btn => {
+                        btn.addEventListener('click', function() {
+                            const hora = this.getAttribute('data-hora');
+                            
+                            if (horariosSeleccionados.includes(hora)) {
+                                // Deseleccionar
+                                horariosSeleccionados = horariosSeleccionados.filter(h => h !== hora);
+                                this.style.background = 'rgba(26, 11, 46, 0.6)';
+                                this.style.borderColor = 'rgba(186, 104, 200, 0.5)';
+                                this.style.color = 'var(--text-light)';
+                                this.style.transform = 'scale(1)';
+                                this.style.boxShadow = 'none';
+                            } else {
+                                // Seleccionar
+                                horariosSeleccionados.push(hora);
+                                this.style.background = 'linear-gradient(135deg, #9c27b0, #ba68c8)';
+                                this.style.borderColor = '#e94560';
+                                this.style.color = '#fff';
+                                this.style.transform = 'scale(1.05)';
+                                this.style.boxShadow = '0 4px 15px rgba(156, 39, 176, 0.4)';
+                            }
+                            
+                            // Actualizar visibilidad de otros botones
+                            actualizarVisibilidadBotones();
+                            
+                            // Actualizar el input oculto
+                            if (horariosInput) {
+                                horariosInput.value = horariosSeleccionados.join(', ');
+                            }
+                        });
+                        
+                        // Efecto hover
+                        btn.addEventListener('mouseenter', function() {
+                            if (!horariosSeleccionados.includes(this.getAttribute('data-hora'))) {
+                                this.style.borderColor = 'var(--primary)';
+                                this.style.transform = 'scale(1.02)';
+                            }
+                        });
+                        
+                        btn.addEventListener('mouseleave', function() {
+                            if (!horariosSeleccionados.includes(this.getAttribute('data-hora'))) {
+                                this.style.borderColor = 'rgba(186, 104, 200, 0.5)';
+                                this.style.transform = 'scale(1)';
+                            }
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    horariosContainer.innerHTML = '<p class="text-secondary" style="text-align: center; font-size: 0.9rem; color: #ff6b6b;">❌ Error al cargar horarios. Intenta de nuevo.</p>';
+                });
+        }
+        
+        // Event listeners para recargar horarios cuando cambien los campos
+        if (peliculaSelect) peliculaSelect.addEventListener('change', cargarHorariosDisponibles);
+        if (salaSelect) salaSelect.addEventListener('change', cargarHorariosDisponibles);
+        if (fechaInputAuto) fechaInputAuto.addEventListener('change', cargarHorariosDisponibles);
+        
+        // Si es modo edición, cargar el horario inicial
+        if (esEdicion && peliculaSelect && salaSelect && fechaInputAuto) {
+            // Establecer los valores de los campos
+            peliculaSelect.value = funcionActual.pelicula_id;
+            salaSelect.value = funcionActual.sala_id;
+            fechaInputAuto.value = funcionActual.fecha;
+            
+            // Cargar el horario
+            cargarHorariosDisponibles();
+        }
+        
+        // --- NUEVO: Lógica para radio buttons de formatos (2D/3D) ---
+        const formatoVisualRadios = document.querySelectorAll('input[name="formatos_visual"]');
+        
+        formatoVisualRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                const selectedValue = this.value;
+                const selectedLabel = this.parentElement.querySelector('span').textContent;
+                
+                // Si se selecciona 2D, deshabilitar 3D y viceversa ya está manejado por el servidor
+                // Pero podemos agregar feedback visual
+                formatoVisualRadios.forEach(r => {
+                    const label = r.parentElement;
+                    if (r.checked) {
+                        label.style.background = 'linear-gradient(135deg, #9c27b0, #ba68c8)';
+                        label.style.borderColor = '#e94560';
+                        label.style.transform = 'scale(1.05)';
+                        label.style.boxShadow = '0 4px 15px rgba(156, 39, 176, 0.4)';
+                    } else {
+                        label.style.background = 'rgba(0,0,0,0.2)';
+                        label.style.borderColor = 'transparent';
+                        label.style.transform = 'scale(1)';
+                        label.style.boxShadow = 'none';
+                    }
+                });
+            });
+        });
+        
+        // Aplicar estilos a todos los radio buttons de formato
+        const allFormatoRadios = document.querySelectorAll('input[type="radio"][name^="formatos_"]');
+        allFormatoRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                // Obtener todos los radios del mismo grupo
+                const groupName = this.name;
+                const groupRadios = document.querySelectorAll(`input[name="${groupName}"]`);
+                
+                groupRadios.forEach(r => {
+                    const label = r.parentElement;
+                    if (r.checked) {
+                        label.style.background = 'linear-gradient(135deg, #9c27b0, #ba68c8)';
+                        label.style.borderColor = '#e94560';
+                        label.style.transform = 'scale(1.05)';
+                        label.style.boxShadow = '0 4px 15px rgba(156, 39, 176, 0.4)';
+                    } else {
+                        label.style.background = 'rgba(0,0,0,0.2)';
+                        label.style.borderColor = 'transparent';
+                        label.style.transform = 'scale(1)';
+                        label.style.boxShadow = 'none';
+                    }
+                });
+            });
+            
+            // Aplicar estilo inicial a los que ya están seleccionados
+            if (radio.checked) {
+                const label = radio.parentElement;
+                label.style.background = 'linear-gradient(135deg, #9c27b0, #ba68c8)';
+                label.style.borderColor = '#e94560';
+                label.style.transform = 'scale(1.05)';
+                label.style.boxShadow = '0 4px 15px rgba(156, 39, 176, 0.4)';
             }
         });
     });

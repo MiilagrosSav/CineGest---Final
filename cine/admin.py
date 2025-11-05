@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Pelicula, Sala, Butaca
+from .models import Pelicula, Sala, Butaca, Formato, FuncionFormato, ConfiguracionCine
 
 @admin.register(Pelicula)
 class PeliculaAdmin(admin.ModelAdmin):
@@ -26,8 +26,8 @@ class SalaAdmin(admin.ModelAdmin):
     """
     Configuración personalizada para el modelo Sala en el panel de admin.
     """
-    list_display = ('numero', 'nombre', 'tipo', 'capacidad', 'get_status_display')
-    list_filter = ('tipo', 'activa', 'fecha_creacion')
+    list_display = ('numero', 'nombre', 'get_status_display')
+    list_filter = ('activa', 'fecha_creacion')
     search_fields = ('numero', 'nombre', 'observaciones')
     ordering = ('numero',)
     
@@ -36,10 +36,7 @@ class SalaAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('numero', 'nombre', 'tipo')
-        }),
-        ('Capacidad', {
-            'fields': ('capacidad',)
+            'fields': ('numero', 'nombre')
         }),
         ('Estado y Configuración', {
             'fields': ('activa', 'observaciones')
@@ -59,6 +56,27 @@ class SalaAdmin(admin.ModelAdmin):
     get_status_display.short_description = 'Estado'
 
 
+@admin.register(Formato)
+class FormatoAdmin(admin.ModelAdmin):
+    """
+    Administración para el modelo Formato
+    """
+    list_display = ('nombre', 'descripcion')
+    search_fields = ('nombre', 'descripcion')
+    ordering = ('nombre',)
+
+
+@admin.register(FuncionFormato)
+class FuncionFormatoAdmin(admin.ModelAdmin):
+    """
+    Administración para la tabla intermedia Funcion-Formato
+    """
+    list_display = ('funcion', 'formato')
+    list_filter = ('formato',)
+    search_fields = ('funcion__pelicula__titulo', 'formato__nombre')
+    ordering = ('funcion', 'formato')
+
+
 @admin.register(Butaca)
 class ButacaAdmin(admin.ModelAdmin):
     """
@@ -68,4 +86,36 @@ class ButacaAdmin(admin.ModelAdmin):
     list_filter = ('tipo', 'sala')
     search_fields = ('fila', 'numero', 'sala__nombre')
     ordering = ('sala', 'fila', 'numero')
+
+
+@admin.register(ConfiguracionCine)
+class ConfiguracionCineAdmin(admin.ModelAdmin):
+    """
+    Administración para la configuración del cine (Singleton)
+    """
+    list_display = ('nombre', 'cuil_cuit', 'telefono', 'email')
+    
+    fieldsets = (
+        ('Información Básica', {
+            'fields': ('nombre', 'logo', 'razon_social', 'cuil_cuit', 'descripcion')
+        }),
+        ('Información de Contacto', {
+            'fields': ('direccion', 'telefono', 'email')
+        }),
+        ('Horarios', {
+            'fields': ('horario_apertura', 'horario_cierre')
+        }),
+        ('Redes Sociales', {
+            'fields': ('facebook', 'instagram', 'twitter'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def has_add_permission(self, request):
+        # Solo permitir agregar si no existe ninguna configuración
+        return not ConfiguracionCine.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        # No permitir eliminar la configuración
+        return False
 
