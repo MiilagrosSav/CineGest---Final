@@ -659,3 +659,146 @@ margin-left: 0.75em;
 color: #4B5563;
 }
 
+/* ======================================================= */
+/* ESTILOS PARA CHECKBOXES DE FORMATOS */
+/* ======================================================= */
+
+/* Ocultar el checkbox nativo */
+input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(139, 95, 191, 0.4);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+/* Hover del checkbox */
+input[type="checkbox"]:hover {
+  border-color: var(--primary);
+  background: rgba(139, 95, 191, 0.1);
+}
+
+/* Checkbox marcado */
+input[type="checkbox"]:checked {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+/* Checkmark (✓) cuando está marcado */
+input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+/* Estilo para el label que contiene el checkbox */
+label:has(input[type="checkbox"]) {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-xs);
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: var(--radius);
+}
+
+/* Hover del label */
+label:has(input[type="checkbox"]):hover {
+  background: rgba(139, 95, 191, 0.1);
+}
+
+/* Label cuando el checkbox está marcado */
+label:has(input[type="checkbox"]:checked) {
+  background: rgba(139, 95, 191, 0.15);
+}
+
+/* ======================================================= */
+/* RADIO BUTTONS STYLING */
+/* ======================================================= */
+
+/* Ocultar el radio button nativo */
+input[type="radio"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(139, 95, 191, 0.5);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+/* Hover del radio button */
+input[type="radio"]:hover {
+  border-color: var(--primary);
+  background: rgba(139, 95, 191, 0.1);
+}
+
+/* Radio button cuando está seleccionado */
+input[type="radio"]:checked {
+  background: linear-gradient(135deg, #9c27b0, #ba68c8);
+  border-color: #e94560;
+}
+
+/* Punto interno cuando está seleccionado */
+input[type="radio"]:checked::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: white;
+}
+
+/* Estilo para el label que contiene el radio */
+label:has(input[type="radio"]) {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 6px;
+  user-select: none;
+  background: rgba(0,0,0,0.2);
+  border: 2px solid transparent;
+}
+
+/* Hover del label */
+label:has(input[type="radio"]):hover {
+  background: rgba(139, 95, 191, 0.2);
+  border-color: rgba(139, 95, 191, 0.3);
+}
+
+/* Label cuando el radio está seleccionado */
+label:has(input[type="radio"]:checked) {
+  background: linear-gradient(135deg, #9c27b0, #ba68c8);
+  border-color: #e94560;
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(156, 39, 176, 0.4);
+}
+
+/* Texto dentro del label con radio seleccionado */
+label:has(input[type="radio"]:checked) span {
+  color: white;
+  font-weight: 600;
+}
+
+

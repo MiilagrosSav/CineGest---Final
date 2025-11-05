@@ -91,6 +91,9 @@ TEMPLATES = [
                 # ✅ AÑADIR ESTAS LÍNEAS PARA OAUTH
                 'social_django.context_processors.backends',
                 'social_django.context_processors.login_redirect',
+                
+                # ✅ Context processor para configuración del cine
+                'cine.context_processors.configuracion_cine',
             ],
         },
     },
