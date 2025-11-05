@@ -350,13 +350,13 @@ class FuncionForm(forms.ModelForm):
         error_messages={'required': 'Debes seleccionar un formato de experiencia.'}
     )
 
-    formatos_idioma = forms.ModelChoiceField(
-        label='4. Formato_Idioma',
-        queryset=Formato.objects.filter(nombre__in=['Doblada', 'Subtitulada', 'Original']).order_by('nombre'),
+    idioma = forms.ChoiceField(
+        label='4. Idioma',
+        choices=Funcion.IDIOMA_CHOICES,
         widget=forms.RadioSelect,
         required=True,
-        empty_label=None,
-        error_messages={'required': 'Debes seleccionar un formato de idioma.'}
+        initial='DOBLADA',
+        error_messages={'required': 'Debes seleccionar un idioma.'}
     )
     
     precio_base = forms.DecimalField(
@@ -381,7 +381,7 @@ class FuncionForm(forms.ModelForm):
 
     class Meta:
         model = Funcion
-        fields = ['pelicula', 'sala', 'fecha_hora', 'precio_base']
+        fields = ['pelicula', 'sala', 'fecha_hora', 'idioma', 'precio_base']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -393,15 +393,12 @@ class FuncionForm(forms.ModelForm):
             visual = formatos_actuales.filter(formato__nombre__in=['2D', '3D']).first()
             pantalla = formatos_actuales.filter(formato__nombre__in=['Pantalla Standard', 'IMAX', 'ScreenX']).first()
             experiencia = formatos_actuales.filter(formato__nombre__in=['Experiencia Standard', '4DX', 'D-BOX']).first()
-            idioma = formatos_actuales.filter(formato__nombre__in=['Doblada', 'Subtitulada', 'Original']).first()
             if visual:
                 self.initial['formatos_visual'] = visual.formato_id
             if pantalla:
                 self.initial['formatos_pantalla'] = pantalla.formato_id
             if experiencia:
                 self.initial['formatos_experiencia'] = experiencia.formato_id
-            if idioma:
-                self.initial['formatos_idioma'] = idioma.formato_id
     
     
     
@@ -549,13 +546,13 @@ class FuncionBatchForm(forms.Form):
         error_messages={'required': 'Debes seleccionar un formato de experiencia.'}
     )
 
-    formatos_idioma = forms.ModelChoiceField(
-        label='4. Formato_Idioma',
-        queryset=Formato.objects.filter(nombre__in=['Doblada', 'Subtitulada', 'Original']).order_by('nombre'),
+    idioma = forms.ChoiceField(
+        label='4. Idioma',
+        choices=Funcion.IDIOMA_CHOICES,
         widget=forms.RadioSelect,
         required=True,
-        empty_label=None,
-        error_messages={'required': 'Debes seleccionar un formato de idioma.'}
+        initial='DOBLADA',
+        error_messages={'required': 'Debes seleccionar un idioma.'}
     )
     
     precio_base = forms.DecimalField(
@@ -643,13 +640,13 @@ class FuncionBatchForm(forms.Form):
         visual = cleaned_data.get('formatos_visual')
         pantalla = cleaned_data.get('formatos_pantalla')
         experiencia = cleaned_data.get('formatos_experiencia')
-        idioma = cleaned_data.get('formatos_idioma')
+        idioma_valor = cleaned_data.get('idioma')  # Este es un string, no un Formato
 
-        if not all([visual, pantalla, experiencia, idioma]):
+        if not all([visual, pantalla, experiencia, idioma_valor]):
             raise ValidationError('Debes seleccionar una opción para cada categoría de formato.')
 
-        # Reunir nombres para validación cruzada
-        for f in (visual, pantalla, experiencia, idioma):
+        # Reunir nombres para validación cruzada (solo formatos, no idioma)
+        for f in (visual, pantalla, experiencia):
             if f:
                 formatos_sel.append(f.nombre)
 

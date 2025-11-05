@@ -52,6 +52,9 @@ urlpatterns = [
 
     # --- Cartelera Pública ---
     path('cartelera/', views.cartelera_view, name='cartelera'),
+    
+    # --- Compra de Entradas ---
+    path('comprar-entrada/<int:funcion_id>/', views.comprar_entrada_view, name='comprar_entrada'),
 
     # --- Configuración del Cine ---
     path('configuracion/', views.ConfiguracionCineUpdateView.as_view(), name='configuracion'),

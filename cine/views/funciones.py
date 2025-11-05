@@ -5,9 +5,9 @@ from django.views.generic import ListView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.http import JsonResponse 
-import datetime
+from django.views.decorators.csrf import ensure_csrf_cookie
+from datetime import datetime, timedelta, date, time
 import json
-from datetime import timedelta
 from cine.models import Funcion, Pelicula, Sala
 from cine.forms import FuncionForm, FuncionBatchForm
 from cine.mixins import AdminRequiredMixin
@@ -48,7 +48,7 @@ class FuncionListView(AdminRequiredMixin, ListView):
         fecha = self.request.GET.get('fecha', '').strip()
         if fecha:
             try:
-                fecha_obj = datetime.datetime.strptime(fecha, '%Y-%m-%d').date()
+                fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
                 queryset = queryset.filter(fecha_hora__date=fecha_obj)
             except ValueError:
                 pass
@@ -92,7 +92,7 @@ class FuncionListView(AdminRequiredMixin, ListView):
         # Convertir a formato DD-MM-YYYY para mostrar al usuario
         if fecha_filtro:
             try:
-                fecha_obj = datetime.datetime.strptime(fecha_filtro, '%Y-%m-%d').date()
+                fecha_obj = datetime.strptime(fecha_filtro, '%Y-%m-%d').date()
                 context['filtro_fecha_display'] = fecha_obj.strftime('%d-%m-%Y')
             except ValueError:
                 context['filtro_fecha_display'] = ''
@@ -112,12 +112,11 @@ class FuncionListView(AdminRequiredMixin, ListView):
 # CREATE: Vista para mostrar el formulario de creación
 # CAMBIO 2: REEMPLAZO DE 'FuncionCreateView' POR UNA VISTA DE FUNCIÓN (FBV)
 # La 'CreateView' original se reemplaza por esta función
+@ensure_csrf_cookie
 @login_required
 @user_passes_test(lambda u: u.is_authenticated and (u.is_superuser or getattr(u, 'rol', None) == 'admin'), login_url='/accounts/dashboard/')  # Usamos una comprobación inline para evitar referencia temprana a es_admin
 def funcion_create_view(request):
     if request.method == 'POST':
-        # Usamos el nuevo formulario 'FuncionBatchForm'
-        form = FuncionBatchForm(request.POST)
         # Usamos el nuevo formulario 'FuncionBatchForm'
         form = FuncionBatchForm(request.POST)
         
@@ -129,11 +128,11 @@ def funcion_create_view(request):
             sala = form.cleaned_data['sala']
             fecha = form.cleaned_data['fecha']
             precio = form.cleaned_data['precio_base']
+            idioma = form.cleaned_data.get('idioma')  # String: 'DOBLADA', 'SUBTITULADA', etc.
             # Formatos por categoría (un solo objeto por categoría)
             formato_visual = form.cleaned_data.get('formatos_visual')
             formato_pantalla = form.cleaned_data.get('formatos_pantalla')
             formato_experiencia = form.cleaned_data.get('formatos_experiencia')
-            formato_idioma = form.cleaned_data.get('formatos_idioma')
             
             # 2. Obtené la *lista* de objetos 'time' desde el form
             horarios_obj_lista = form.cleaned_data['horarios']
@@ -145,22 +144,23 @@ def funcion_create_view(request):
             for hora_obj in horarios_obj_lista:
                 try:
                     # Combina la fecha (date) y la hora (time)
-                    fecha_y_hora_final_naive = datetime.datetime.combine(fecha, hora_obj)
+                    fecha_y_hora_final_naive = datetime.combine(fecha, hora_obj)
                     
                     # Convierte a datetime "aware" (consciente de zona horaria)
                     fecha_y_hora_final_aware = timezone.make_aware(fecha_y_hora_final_naive, current_tz)
                     
-                    # Crea y guarda el objeto Funcion (sin formato_proyeccion)
+                    # Crea y guarda el objeto Funcion con el campo idioma
                     funcion = Funcion.objects.create(
                         pelicula=pelicula,
                         sala=sala,
                         fecha_hora=fecha_y_hora_final_aware,
-                        precio_base=precio
+                        precio_base=precio,
+                        idioma=idioma  # Guardar el idioma en el modelo
                     )
                     
                     # Crea las relaciones con los formatos en la tabla intermedia
                     from cine.models import FuncionFormato
-                    for formato in (formato_visual, formato_pantalla, formato_experiencia, formato_idioma):
+                    for formato in (formato_visual, formato_pantalla, formato_experiencia):
                         if formato:
                             FuncionFormato.objects.create(
                                 funcion=funcion,
@@ -249,27 +249,29 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         funcion = self.object
         
         # Separar fecha_hora en fecha y horarios
-        initial['pelicula'] = funcion.pelicula
-        initial['sala'] = funcion.sala
+        initial['pelicula'] = funcion.pelicula.id
+        initial['sala'] = funcion.sala.id
         initial['fecha'] = funcion.fecha_hora.date()
-        initial['horarios'] = funcion.fecha_hora.strftime('%H:%M')  # Solo el horario actual
+        # NO establecer horarios aquí - se cargarán automáticamente via AJAX
+        # initial['horarios'] se dejará vacío para que JavaScript lo llene
         initial['precio_base'] = funcion.precio_base
         
-        # Cargar los formatos actuales
+        # Cargar los formatos actuales usando los IDs
         formatos_actuales = funcion.formatos_funcion.select_related('formato').all()
         visual = formatos_actuales.filter(formato__nombre__in=['2D', '3D']).first()
         pantalla = formatos_actuales.filter(formato__nombre__in=['Pantalla Standard', 'IMAX', 'ScreenX']).first()
         experiencia = formatos_actuales.filter(formato__nombre__in=['Experiencia Standard', '4DX', 'D-BOX']).first()
-        idioma = formatos_actuales.filter(formato__nombre__in=['Doblada', 'Subtitulada', 'Original']).first()
         
         if visual:
-            initial['formatos_visual'] = visual.formato
+            initial['formatos_visual'] = visual.formato.id
         if pantalla:
-            initial['formatos_pantalla'] = pantalla.formato
+            initial['formatos_pantalla'] = pantalla.formato.id
         if experiencia:
-            initial['formatos_experiencia'] = experiencia.formato
-        if idioma:
-            initial['formatos_idioma'] = idioma.formato
+            initial['formatos_experiencia'] = experiencia.formato.id
+        
+        # Cargar el idioma desde el campo directo de Funcion (no desde formatos)
+        if funcion.idioma:
+            initial['idioma'] = funcion.idioma
         
         return initial
 
@@ -314,10 +316,14 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         fecha = form.cleaned_data['fecha']
         horarios = form.cleaned_data['horarios']  # Lista de objetos time
         precio_base = form.cleaned_data['precio_base']
+        idioma = form.cleaned_data.get('idioma')  # String: 'DOBLADA', 'SUBTITULADA', 'NATIVA'
         
-        # Como es edición, solo debe haber UN horario (el que se calculó automáticamente)
-        # Si hay más de uno, tomamos el primero
-        horario = horarios[0] if isinstance(horarios, list) else horarios
+        # En edición, tomar el primer horario seleccionado
+        # (Si seleccionaron múltiples, solo se usará el primero para actualizar esta función)
+        if isinstance(horarios, list) and len(horarios) > 0:
+            horario = horarios[0]
+        else:
+            horario = horarios
         
         # Combinar fecha + horario en datetime
         fecha_hora = timezone.make_aware(datetime.combine(fecha, horario))
@@ -327,19 +333,19 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         self.object.sala = sala
         self.object.fecha_hora = fecha_hora
         self.object.precio_base = precio_base
+        self.object.idioma = idioma  # Actualizar el idioma
         self.object.save()
         
-        # Obtener los formatos seleccionados por categoría
+        # Obtener los formatos seleccionados por categoría (solo los 3 formatos reales)
         formato_visual = form.cleaned_data.get('formatos_visual')
         formato_pantalla = form.cleaned_data.get('formatos_pantalla')
         formato_experiencia = form.cleaned_data.get('formatos_experiencia')
-        formato_idioma = form.cleaned_data.get('formatos_idioma')
 
         # Eliminar formatos antiguos
         self.object.formatos_funcion.all().delete()
 
-        # Crear los nuevos formatos (si están presentes)
-        for formato in (formato_visual, formato_pantalla, formato_experiencia, formato_idioma):
+        # Crear los nuevos formatos (solo los 3 formatos, no el idioma)
+        for formato in (formato_visual, formato_pantalla, formato_experiencia):
             if formato:
                 FuncionFormato.objects.create(funcion=self.object, formato=formato)
         
@@ -374,10 +380,10 @@ def calcular_horarios_disponibles(request):
             
             pelicula = Pelicula.objects.get(pk=pelicula_id)
             sala = Sala.objects.get(pk=sala_id)
-            fecha = datetime.datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
             
             # Verificar que la fecha no sea en el pasado
-            if fecha < datetime.date.today():
+            if fecha < date.today():
                 return JsonResponse({'error': 'La fecha no puede ser en el pasado'}, status=400)
             
             # Obtener configuración del cine
@@ -408,8 +414,26 @@ def calcular_horarios_disponibles(request):
             current_tz = timezone.get_current_timezone()
             
             # Crear datetime para el inicio del día
-            hora_actual = datetime.datetime.combine(fecha, hora_inicio)
-            hora_cierre = datetime.datetime.combine(fecha, hora_fin)
+            hora_actual = datetime.combine(fecha, hora_inicio)
+            hora_cierre = datetime.combine(fecha, hora_fin)
+            
+            # IMPORTANTE: Si es HOY, solo mostrar horarios después de la hora actual
+            ahora = timezone.now()
+            if fecha == ahora.date():
+                # Es hoy, necesitamos filtrar horarios pasados
+                hora_minima = ahora + timedelta(minutes=30)  # Al menos 30 min en el futuro
+                hora_minima_naive = hora_minima.replace(tzinfo=None)
+                
+                # Si la hora actual del bucle es menor a la hora mínima, avanzar
+                if hora_actual < hora_minima_naive:
+                    hora_actual = hora_minima_naive
+                    # Redondear al próximo múltiplo de 15 minutos
+                    minutos = hora_actual.minute
+                    minutos_redondeados = ((minutos + 14) // 15) * 15
+                    if minutos_redondeados >= 60:
+                        hora_actual = hora_actual.replace(minute=0) + timedelta(hours=1)
+                    else:
+                        hora_actual = hora_actual.replace(minute=minutos_redondeados)
             
             while hora_actual <= hora_cierre:
                 # Calcular fin de esta posible función (incluyendo limpieza)

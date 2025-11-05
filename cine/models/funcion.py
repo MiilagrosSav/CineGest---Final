@@ -24,6 +24,13 @@ class Funcion(models.Model):
         ('3D_4D', '3D + 4D'),  # Función mixta con asientos 3D y 4D
     ]
     
+    # Opciones para el idioma/audio
+    IDIOMA_CHOICES = [
+        ('DOBLADA', 'Doblada'),
+        ('SUBTITULADA', 'Subtitulada'),
+        ('NATIVA', 'Idioma Original'),
+    ]
+    
     pelicula = models.ForeignKey(
         Pelicula,
         on_delete=models.CASCADE,
@@ -48,11 +55,19 @@ class Funcion(models.Model):
         help_text="Precio base de la entrada para esta función (puede variar del precio de la sala)"
     )
     
+    idioma = models.CharField(
+        max_length=20,
+        choices=IDIOMA_CHOICES,
+        default='DOBLADA',
+        help_text="Idioma/audio de la función"
+    )
+    
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{self.pelicula.titulo} [{self.formato_proyeccion}] - Sala {self.sala.numero} - {self.fecha_hora.strftime('%d/%m/%Y %H:%M')}"
+        formatos = self.get_formatos_destacados()
+        return f"{self.pelicula.titulo} [{formatos}] - Sala {self.sala.numero} - {self.fecha_hora.strftime('%d/%m/%Y %H:%M')}"
     
     def clean(self):
         """
@@ -116,6 +131,36 @@ class Funcion(models.Model):
         # Por ahora retorna la capacidad total de la sala
         # En el futuro, aquí se restaría el número de entradas vendidas
         return self.sala.capacidad
+    
+    def get_formatos_display(self):
+        """Retorna los formatos de la función como string"""
+        formatos = self.formatos_funcion.select_related('formato').all()
+        return ', '.join([ff.formato.nombre for ff in formatos])
+    
+    def get_formatos_dimension(self):
+        """Retorna solo los formatos de dimensión (2D/3D) sin audio ni pantalla"""
+        formatos = self.formatos_funcion.select_related('formato').all()
+        formatos_dimension = []
+        
+        for ff in formatos:
+            nombre = ff.formato.nombre.upper()
+            # Solo incluir formatos que sean 2D, 3D, o combinaciones de dimensión
+            if '2D' in nombre or '3D' in nombre:
+                formatos_dimension.append(ff.formato.nombre)
+        
+        return ' + '.join(formatos_dimension) if formatos_dimension else ''
+    
+    def get_formatos_destacados(self):
+        """Retorna solo formatos VISUAL (2D/3D) y EXPERIENCIA (4DX, 4D, D-BOX)"""
+        formatos = self.formatos_funcion.select_related('formato').all()
+        formatos_destacados = []
+        
+        for ff in formatos:
+            # Solo incluir categorías VISUAL y EXPERIENCIA
+            if ff.formato.categoria in ['VISUAL', 'EXPERIENCIA']:
+                formatos_destacados.append(ff.formato.nombre)
+        
+        return ' + '.join(formatos_destacados) if formatos_destacados else '—'
 
     class Meta:
         verbose_name = "Función"

@@ -57,9 +57,9 @@ INSTALLED_APPS = [
     #app local (puse yo mi app llamada accounts)
     'accounts',
     'cine', #agregado por mi maneja el cine
-    'social_django', # Añade esta línea para la autenticación social
-
-    'widget_tweaks',
+    'ventas', #agregado por mi maneja las ventas
+    'social_django', #  esta línea para la autenticación social
+    'widget_tweaks', #  esta línea para personalizar widgets en templates
 ]
 
 MIDDLEWARE = [
@@ -247,3 +247,9 @@ LOGGING = {
         },
     },
 }
+
+# ============================================
+# MERCADO PAGO CONFIGURATION
+# ============================================
+MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADOPAGO_ACCESS_TOKEN')
+MERCADOPAGO_PUBLIC_KEY = os.getenv('MERCADOPAGO_PUBLIC_KEY')
