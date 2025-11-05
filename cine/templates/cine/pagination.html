@@ -1,0 +1,35 @@
+{% comment %}
+Template reutilizable para paginación
+Uso: {% include "cine/pagination.html" %}
+Requiere: is_paginated y page_obj en el contexto
+{% endcomment %}
+
+{% if is_paginated %}
+<div style="display: flex; justify-content: space-between; align-items: center; padding: var(--space-md); border-top: 1px solid var(--glass-border); margin-top: var(--space-sm);">
+    <div class="text-secondary" style="font-size: 0.85rem;">
+        {{ page_obj.start_index }}-{{ page_obj.end_index }} de {{ page_obj.paginator.count }}
+    </div>
+    
+    <div style="display: flex; gap: var(--space-xs); align-items: center;">
+        {% if page_obj.has_previous %}
+            <a href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.9rem;" title="Primera">⏮️</a>
+            <a href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.9rem;" title="Anterior">◀️</a>
+        {% else %}
+            <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.9rem; opacity: 0.3;" disabled>⏮️</button>
+            <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.9rem; opacity: 0.3;" disabled>◀️</button>
+        {% endif %}
+
+        <span style="padding: 0 var(--space-xs); color: var(--primary); font-weight: 600; font-size: 0.9rem;">
+            {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+        </span>
+
+        {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.9rem;" title="Siguiente">▶️</a>
+            <a href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.9rem;" title="Última">⏭️</a>
+        {% else %}
+            <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.9rem; opacity: 0.3;" disabled>▶️</button>
+            <button class="btn btn-outline" style="padding: 0.3rem 0.6rem; font-size: 0.9rem; opacity: 0.3;" disabled>⏭️</button>
+        {% endif %}
+    </div>
+</div>
+{% endif %}

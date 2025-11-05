@@ -11,13 +11,66 @@
     </div>
 
     <div class="card glass-container">
+        <!-- Barra de Filtros -->
+        <div style="padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--glass-border);">
+            <form method="get" id="form-filtros" style="display: flex; gap: var(--space-xs); align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                <!-- Búsqueda Dinámica -->
+                <div style="position: relative; min-width: 180px; max-width: 300px;">
+                    <input type="text" 
+                           name="search" 
+                           id="search-input"
+                           value="{{ filtro_search }}"
+                           placeholder="Buscar..."
+                           class="form-input"
+                           style="width: 100%; padding: 0.4rem 0.4rem 0.4rem 2rem; font-size: 0.9rem;">
+                    <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
+                </div>
+                
+                <!-- Contenedor derecho para género y limpiar -->
+                <div style="display: flex; gap: var(--space-xs); align-items: center;">
+                    <!-- Filtro por Género -->
+                    <input type="text" 
+                           name="genero" 
+                           value="{{ filtro_genero }}"
+                           placeholder="Género..."
+                           class="form-input"
+                           style="width: 120px; padding: 0.4rem; font-size: 0.9rem;"
+                           onchange="this.form.submit()">
+                    
+                    {% if filtro_search or filtro_genero %}
+                    <a href="{% url 'cine:pelicula_list' %}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                        ✕
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
                     <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <th style="padding: var(--space-sm);">Título</th>
+                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('titulo')" title="Ordenar por título">
+                            Título
+                            {% if filtro_orden == 'titulo' or not filtro_orden %}
+                                <span style="opacity: 0.8;">↑</span>
+                            {% elif filtro_orden == 'titulo_desc' %}
+                                <span style="opacity: 0.8;">↓</span>
+                            {% else %}
+                                <span style="opacity: 0.5;">⇅</span>
+                            {% endif %}
+                        </th>
                         <th style="padding: var(--space-sm);">Género</th>
-                        <th style="padding: var(--space-sm);">Estreno</th>
+                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('fecha_estreno')" title="Ordenar por fecha de estreno">
+                            Estreno
+                            {% if filtro_orden == 'fecha_estreno' %}
+                                <span style="opacity: 0.8;">↑</span>
+                            {% elif filtro_orden == 'fecha_estreno_desc' %}
+                                <span style="opacity: 0.8;">↓</span>
+                            {% else %}
+                                <span style="opacity: 0.5;">⇅</span>
+                            {% endif %}
+                        </th>
                         <th style="padding: var(--space-sm);">Director</th>
                     </tr>
                 </thead>
@@ -38,6 +91,9 @@
                     {% endfor %}
                 </tbody>
             </table>
+            
+            <!-- Paginación -->
+            {% include "cine/pagination.html" %}
             
             <!-- Panel de Acciones ABM -->
             <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); margin-top: var(--space-lg); padding: var(--space-md);">
@@ -150,5 +206,36 @@
         // Inicializar UI
         updateUI();
     });
+    
+    // Búsqueda dinámica
+    const searchInput = document.getElementById('search-input');
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            document.getElementById('form-filtros').submit();
+        }, 500); // Espera 500ms después de que el usuario deje de escribir
+    });
+    
+    // Función para ordenar por columna
+    function ordenarPor(columna) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ordenActual = urlParams.get('orden');
+        
+        // Determinar nuevo orden (alternar entre ascendente y descendente)
+        let nuevoOrden = columna;
+        if (ordenActual === columna) {
+            nuevoOrden = columna + '_desc';
+        } else if (ordenActual === columna + '_desc') {
+            nuevoOrden = columna;
+        }
+        
+        // Actualizar parámetro de orden
+        urlParams.set('orden', nuevoOrden);
+        
+        // Redirigir con nuevos parámetros
+        window.location.href = '?' + urlParams.toString();
+    }
 </script>
 {% endblock %}

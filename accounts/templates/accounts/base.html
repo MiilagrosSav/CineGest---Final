@@ -14,7 +14,9 @@
             <div class="container">
                 <div class="navbar-content">
                     
-                    <a href="{% url 'accounts:dashboard' %}" class="logo">CineGest</a>
+                    <a href="{% url 'accounts:dashboard' %}" class="logo">
+                        {% if configuracion_cine %}{{ configuracion_cine.nombre }}{% else %}CineGest{% endif %}
+                    </a>
                     
                     <ul class="nav-links">
                         <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
@@ -44,9 +46,11 @@
                                 <a href="#" class="dropdown-item">
                                     <span>👤</span> Mi Perfil
                                 </a>
-                                <a href="#" class="dropdown-item">
-                                    <span>⚙️</span> Configuración
+                                {% if user.is_superuser or user.rol == 'admin' %}
+                                <a href="{% url 'cine:configuracion' %}" class="dropdown-item">
+                                    <span>⚙️</span> Configuración del Cine
                                 </a>
+                                {% endif %}
                                 <div class="dropdown-divider"></div>
                                 <a href="{% url 'accounts:logout' %}" class="dropdown-item logout-item">
                                     <span>🚪</span> Cerrar Sesión
@@ -75,7 +79,7 @@
         {% if user.is_authenticated %}
         <footer class="site-footer">
             <div class="container text-center">
-                <h3 class="text-gradient-primary">🎬 CineGest</h3>
+                <h3 class="text-gradient-primary">🎬 {% if configuracion_cine %}{{ configuracion_cine.nombre }}{% else %}CineGest{% endif %}</h3>
             </div>
         </footer>
         {% endif %}

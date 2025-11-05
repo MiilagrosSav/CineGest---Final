@@ -11,14 +11,66 @@
     </div>
 
     <div class="card glass-container">
+        <!-- Barra de Filtros -->
+        <div style="padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--glass-border);">
+            <form method="get" id="form-filtros" style="display: flex; gap: var(--space-xs); align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                <!-- Búsqueda Dinámica -->
+                <div style="position: relative; min-width: 180px; max-width: 300px;">
+                    <input type="text" 
+                           name="search" 
+                           id="search-input"
+                           value="{{ filtro_search }}"
+                           placeholder="Buscar..."
+                           class="form-input"
+                           style="width: 100%; padding: 0.4rem 0.4rem 0.4rem 2rem; font-size: 0.9rem;">
+                    <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
+                </div>
+                
+                <!-- Contenedor derecho para número y limpiar -->
+                <div style="display: flex; gap: var(--space-xs); align-items: center;">
+                    <!-- Filtro por Número -->
+                    <input type="number" 
+                           name="numero" 
+                           value="{{ filtro_numero }}"
+                           placeholder=" Nº..."
+                           class="form-input"
+                           style="width: 90px; padding: 0.4rem; font-size: 0.9rem;"
+                           min="1"
+                           onchange="this.form.submit()">
+                    
+                    {% if filtro_search or filtro_numero %}
+                    <a href="{% url 'cine:sala_list' %}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                        ✕
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
                     <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <th style="padding: var(--space-sm);">Número</th>
-                        <th style="padding: var(--space-sm);">Nombre</th>
-                        <th style="padding: var(--space-sm);">Capacidad</th>
-                        <th style="padding: var(--space-sm);">Tipo</th>
+                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('numero')" title="Ordenar por número">
+                            Número
+                            {% if filtro_orden == 'numero' or not filtro_orden %}
+                                <span style="opacity: 0.8;">↑</span>
+                            {% elif filtro_orden == 'numero_desc' %}
+                                <span style="opacity: 0.8;">↓</span>
+                            {% else %}
+                                <span style="opacity: 0.5;">⇅</span>
+                            {% endif %}
+                        </th>
+                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('nombre')" title="Ordenar por nombre">
+                            Nombre
+                            {% if filtro_orden == 'nombre' %}
+                                <span style="opacity: 0.8;">↑</span>
+                            {% elif filtro_orden == 'nombre_desc' %}
+                                <span style="opacity: 0.8;">↓</span>
+                            {% else %}
+                                <span style="opacity: 0.5;">⇅</span>
+                            {% endif %}
+                        </th>
                         <th style="padding: var(--space-sm);">Estado</th>
                         <th style="padding: var(--space-sm); text-align: center;">Acciones</th>
                     </tr>
@@ -28,8 +80,6 @@
                     <tr class="sala-row" data-id="{{ sala.pk }}" style="border-bottom: 1px solid var(--glass-border);">
                         <td style="padding: var(--space-sm); font-weight: 600; color: var(--primary); cursor: pointer;" class="selectable-cell">{{ sala.numero }}</td>
                         <td style="padding: var(--space-sm); font-weight: 600; cursor: pointer;" class="selectable-cell">{{ sala.nombre }}</td>
-                        <td style="padding: var(--space-sm); cursor: pointer;" class="selectable-cell">{{ sala.capacidad }} asientos</td>
-                        <td style="padding: var(--space-sm); color: var(--text-primary); cursor: pointer;" class="selectable-cell">{{ sala.get_tipo_display_icon }} {{ sala.get_tipo_display }}</td>
                         <td style="padding: var(--space-sm); cursor: pointer;" class="selectable-cell">{{ sala.get_status_display }}</td>
                         <td style="padding: var(--space-sm); text-align: center;">
                             <a href="{% url 'cine:disenar_layout_sala' sala.id %}" 
@@ -37,19 +87,22 @@
                                title="Configurar distribución de asientos"
                                onclick="event.stopPropagation();"
                                style="display: inline-block; padding: 0.4rem 0.8rem; background: rgba(78, 205, 196, 0.2); color: #4ecdc4; border-radius: var(--radius); text-decoration: none; font-size: 0.85rem; transition: all 0.2s ease;">
-                                � Distribución
+                                🪑 Distribución
                             </a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">
-                            No hay salas registradas todavía. ¡Añade la primera!
+                        <td colspan="4" class="text-center text-secondary" style="padding: var(--space-lg);">
+                            No se encontraron salas. 
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            
+            <!-- Paginación -->
+            {% include "cine/pagination.html" %}
             
             <!-- Panel de Acciones ABM -->
             <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); margin-top: var(--space-lg); padding: var(--space-md);">
@@ -172,5 +225,36 @@
         // Inicializar UI
         updateUI();
     });
+    
+    // Búsqueda dinámica
+    const searchInput = document.getElementById('search-input');
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            document.getElementById('form-filtros').submit();
+        }, 500); // Espera 500ms después de que el usuario deje de escribir
+    });
+    
+    // Función para ordenar por columna
+    function ordenarPor(columna) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ordenActual = urlParams.get('orden');
+        
+        // Determinar nuevo orden (alternar entre ascendente y descendente)
+        let nuevoOrden = columna;
+        if (ordenActual === columna) {
+            nuevoOrden = columna + '_desc';
+        } else if (ordenActual === columna + '_desc') {
+            nuevoOrden = columna;
+        }
+        
+        // Actualizar parámetro de orden
+        urlParams.set('orden', nuevoOrden);
+        
+        // Redirigir con nuevos parámetros
+        window.location.href = '?' + urlParams.toString();
+    }
 </script>
 {% endblock %}
