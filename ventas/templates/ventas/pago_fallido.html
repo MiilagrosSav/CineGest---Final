@@ -1,0 +1,59 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Pago Fallido - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 0 auto;">
+    <div class="card glass-container">
+        <div class="card-header" style="text-align: center;">
+            <div style="font-size: 4rem; margin-bottom: var(--space-md);">❌</div>
+            <h1 class="card-title" style="color: #ff6b6b;">Pago Fallido</h1>
+            <p class="card-subtitle">No pudimos procesar tu pago</p>
+        </div>
+
+        <div style="padding: var(--space-lg);">
+            <div style="background: rgba(255, 107, 107, 0.1); padding: var(--space-lg); border-radius: var(--radius); border: 2px solid #ff6b6b; margin-bottom: var(--space-lg); text-align: center;">
+                <p style="font-size: 1.2rem; margin-bottom: var(--space-sm);">
+                    <strong>🎫 Número de venta:</strong> #{{ venta.id_venta }}
+                </p>
+                <p style="font-size: 1.1rem; color: #ff6b6b; margin-top: var(--space-md);">
+                    El pago no pudo ser procesado. Por favor, intenta nuevamente.
+                </p>
+            </div>
+
+            <h3 style="margin-bottom: var(--space-md);">❓ ¿Qué pasó?</h3>
+            
+            <div style="background: rgba(255,255,255,0.05); padding: var(--space-md); border-radius: var(--radius); margin-bottom: var(--space-lg);">
+                <p style="margin-bottom: var(--space-sm);">El pago podría haber fallado por alguna de estas razones:</p>
+                <ul style="margin: var(--space-sm) 0; padding-left: var(--space-lg);">
+                    <li>Fondos insuficientes en tu tarjeta</li>
+                    <li>Datos de tarjeta incorrectos</li>
+                    <li>Límite de compra excedido</li>
+                    <li>Problemas con el banco emisor</li>
+                    <li>Operación cancelada</li>
+                </ul>
+            </div>
+
+            <h3 style="margin-bottom: var(--space-md);">🔄 ¿Qué puedo hacer?</h3>
+            
+            <div style="background: rgba(78, 205, 196, 0.1); padding: var(--space-md); border-radius: var(--radius); margin-bottom: var(--space-lg);">
+                <ul style="margin: 0; padding-left: var(--space-lg);">
+                    <li style="margin-bottom: var(--space-sm);">Verifica que los datos de tu tarjeta sean correctos</li>
+                    <li style="margin-bottom: var(--space-sm);">Asegúrate de tener fondos suficientes</li>
+                    <li style="margin-bottom: var(--space-sm);">Intenta con otro método de pago</li>
+                    <li style="margin-bottom: var(--space-sm);">Contacta a tu banco si el problema persiste</li>
+                </ul>
+            </div>
+
+            <div style="display: flex; gap: var(--space-md); margin-top: var(--space-xl); flex-wrap: wrap;">
+                <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary" style="flex: 1; text-align: center; text-decoration: none;">
+                    🔄 Reintentar pago
+                </a>
+                <a href="{% url 'ventas:mis_ventas' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">
+                    🎫 Ver mis compras
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

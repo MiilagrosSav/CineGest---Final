@@ -71,6 +71,7 @@
                                 <span style="opacity: 0.5;">⇅</span>
                             {% endif %}
                         </th>
+                        <th style="padding: var(--space-sm); text-align: center;">Capacidad</th>
                         <th style="padding: var(--space-sm);">Estado</th>
                         <th style="padding: var(--space-sm); text-align: center;">Acciones</th>
                     </tr>
@@ -80,6 +81,14 @@
                     <tr class="sala-row" data-id="{{ sala.pk }}" style="border-bottom: 1px solid var(--glass-border);">
                         <td style="padding: var(--space-sm); font-weight: 600; color: var(--primary); cursor: pointer;" class="selectable-cell">{{ sala.numero }}</td>
                         <td style="padding: var(--space-sm); font-weight: 600; cursor: pointer;" class="selectable-cell">{{ sala.nombre }}</td>
+                        <td style="padding: var(--space-sm); text-align: center; cursor: pointer;" class="selectable-cell">
+                            {% if sala.butacas.exists %}
+                                <span style="font-weight: 600; color: var(--primary);">{{ sala.capacidad }}</span>
+                                <span style="opacity: 0.7; font-size: 0.85rem;"> asientos</span>
+                            {% else %}
+                                <span style="color: #ff6b6b; font-weight: 600;">⚠️ Sin configurar</span>
+                            {% endif %}
+                        </td>
                         <td style="padding: var(--space-sm); cursor: pointer;" class="selectable-cell">{{ sala.get_status_display }}</td>
                         <td style="padding: var(--space-sm); text-align: center;">
                             <a href="{% url 'cine:disenar_layout_sala' sala.id %}" 
@@ -87,13 +96,17 @@
                                title="Configurar distribución de asientos"
                                onclick="event.stopPropagation();"
                                style="display: inline-block; padding: 0.4rem 0.8rem; background: rgba(78, 205, 196, 0.2); color: #4ecdc4; border-radius: var(--radius); text-decoration: none; font-size: 0.85rem; transition: all 0.2s ease;">
-                                🪑 Distribución
+                                {% if sala.butacas.exists %}
+                                    ✏️ Editar Layout
+                                {% else %}
+                                    ✨ Configurar Layout
+                                {% endif %}
                             </a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="4" class="text-center text-secondary" style="padding: var(--space-lg);">
+                        <td colspan="5" class="text-center text-secondary" style="padding: var(--space-lg);">
                             No se encontraron salas. 
                         </td>
                     </tr>

@@ -33,14 +33,14 @@ class Funcion(models.Model):
     
     pelicula = models.ForeignKey(
         Pelicula,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,  # Proteger película si tiene funciones
         related_name='funciones',
         help_text="La película que se proyectará en esta función"
     )
     
     sala = models.ForeignKey(
         Sala,
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,  # Proteger sala si tiene funciones
         related_name='funciones',
         help_text="La sala donde se proyectará la función"
     )

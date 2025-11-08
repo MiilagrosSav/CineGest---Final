@@ -184,24 +184,8 @@ class SalaForm(forms.ModelForm):
         }
     )
     
-    capacidad = forms.IntegerField(
-        label='👥 Capacidad (asientos)',
-        min_value=10,
-        max_value=500,
-        widget=forms.NumberInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Ej: 150',
-            'required': True,
-            'min': '10',
-            'max': '500',
-            'title': 'Número total de asientos (10-500)'
-        }),
-        error_messages={
-            'required': 'La capacidad es obligatoria.',
-            'min_value': 'La capacidad mínima es de 10 asientos.',
-            'max_value': 'La capacidad máxima es de 500 asientos.'
-        }
-    )
+    # NOTA: El campo 'capacidad' se calcula automáticamente 
+    # contando las butacas, no es un campo del formulario
     
     tipo = forms.ChoiceField(
         label='🎭 Tipo de sala',
@@ -240,7 +224,7 @@ class SalaForm(forms.ModelForm):
 
     class Meta:
         model = Sala
-        fields = ['numero', 'nombre', 'capacidad', 'tipo', 'activa', 'observaciones']
+        fields = ['numero', 'nombre', 'tipo', 'activa', 'observaciones']
 
     def clean_numero(self):
         """Validación para número único de sala"""

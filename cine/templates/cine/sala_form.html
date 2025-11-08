@@ -8,6 +8,16 @@
         <div class="card-header">
             <h1 class="card-title text-gradient-primary">{{ titulo_pagina }}</h1>
             <p class="card-subtitle">Completa la información de la sala con todos los datos requeridos</p>
+            
+            {% if not object.pk %}
+            <div class="message message-info" style="margin-top: var(--space-md); text-align: left;">
+                <strong>ℹ️ Nota importante:</strong>
+                <p style="margin-top: var(--space-xs); font-size: 0.9rem;">
+                    La <strong>capacidad de la sala</strong> se configurará automáticamente cuando diseñes la distribución de butacas. 
+                    Después de crear la sala, haz clic en <strong>"✨ Configurar Layout"</strong> para establecer la disposición de asientos y pasillos.
+                </p>
+            </div>
+            {% endif %}
         </div>
 
         <!-- ✅ FORMULARIO CON VALIDACIONES HTML NATIVAS -->

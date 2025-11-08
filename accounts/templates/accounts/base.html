@@ -31,7 +31,7 @@
                             <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🎭 Películas</a></li>
                         
                         {% elif user.rol == 'cliente' %}
-                            <li><a href="#" class="nav-link">🎫 Mis Compras</a></li>
+                            <li><a href="{% url 'ventas:mis_ventas' %}" class="nav-link">🎫 Mis Compras</a></li>
                             <li><a href="{% url 'cine:cartelera' %}" class="nav-link">🍿 Cartelera</a></li>
                         
                         {% endif %}

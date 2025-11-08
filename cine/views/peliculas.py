@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from cine.models import Pelicula
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.utils import timezone
 
 
 # --- Vistas del CRUD de Películas ---
@@ -81,3 +82,18 @@ class PeliculaDeleteView(AdminRequiredMixin, DeleteView):
     model = Pelicula
     template_name = 'cine/pelicula_confirm_delete.html'
     success_url = reverse_lazy('cine:pelicula_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        pelicula = self.get_object()
+        
+        # Obtener funciones asociadas
+        funciones = pelicula.funciones.all()
+        funciones_futuras = funciones.filter(fecha_hora__gte=timezone.now())
+        
+        context['tiene_funciones'] = funciones.exists()
+        context['total_funciones'] = funciones.count()
+        context['funciones_futuras'] = funciones_futuras.count()
+        context['puede_eliminar'] = not funciones.exists()
+        
+        return context

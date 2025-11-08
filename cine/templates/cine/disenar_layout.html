@@ -8,7 +8,13 @@
     <div class="card glass-container generation-panel">
         <div class="generation-header">
             <h1 class="card-title text-gradient-primary">🎭 Configurar Distribución de Asientos</h1>
-            <p class="card-subtitle">{{ sala.nombre }} - Sala {{ sala.numero }} (Capacidad actual: {{ sala.capacidad }} asientos)</p>
+            <p class="card-subtitle">{{ sala.nombre }} - Sala {{ sala.numero }} 
+                {% if sala.butacas.exists %}
+                    (Capacidad actual: {{ sala.capacidad }} asientos)
+                {% else %}
+                    <span style="color: #ff6b6b; font-weight: 600;">(⚠️ Sin configurar - Define la distribución para establecer la capacidad)</span>
+                {% endif %}
+            </p>
         </div>
         <div class="generation-controls">
             <div>
@@ -58,7 +64,9 @@
                 <div class="instructions-box">
                     <strong>💡 Instrucciones</strong>
                     <ul>
-                        <li><strong>Doble click:</strong> Crea/elimina un pasillo.</li>
+                        <li><strong>Click:</strong> Cambia el tipo de asiento (selecciona el tipo arriba primero).</li>
+                        <li><strong>Doble click:</strong> Convierte un asiento en pasillo (o viceversa).</li>
+                        <li><strong>Capacidad:</strong> Se calcula automáticamente contando solo butacas reales (sin pasillos).</li>
                     </ul>
                 </div>
 
@@ -374,7 +382,15 @@ window.addEventListener('DOMContentLoaded', function() {
                 b.className = 'asiento vacio';
                 b.dataset.tipo = 'vacio';
                 b.textContent = '';
-                distribucionActual = distribucionActual.filter(x => !(x.fila === fila && x.num === numero));
+                
+                // Actualizar en distribucionActual: marcar como pasillo en lugar de eliminar
+                const idx = distribucionActual.findIndex(x => x.fila === fila && x.num === numero);
+                if (idx !== -1) {
+                    distribucionActual[idx].tipo = 'vacio';
+                    distribucionActual[idx].es_pasillo = true;
+                } else {
+                    distribucionActual.push({ fila, num: numero, tipo: 'vacio', es_pasillo: true });
+                }
                 
                 // Renumerar asientos de esta fila
                 renumerarFila(fila);
@@ -388,7 +404,15 @@ window.addEventListener('DOMContentLoaded', function() {
                 }
                 b.dataset.tipo = tipoSel;
                 b.textContent = numero;
-                distribucionActual.push({ fila, num: numero, tipo: tipoSel });
+                
+                // Actualizar en distribucionActual
+                const idx = distribucionActual.findIndex(x => x.fila === fila && x.num === numero);
+                if (idx !== -1) {
+                    distribucionActual[idx].tipo = tipoSel;
+                    distribucionActual[idx].es_pasillo = false;
+                } else {
+                    distribucionActual.push({ fila, num: numero, tipo: tipoSel, es_pasillo: false });
+                }
                 
                 // Renumerar asientos de esta fila
                 renumerarFila(fila);
@@ -505,7 +529,7 @@ window.addEventListener('DOMContentLoaded', function() {
             for (let j = 1; j <= nc; j++) {
                 const b = crearAsiento(letra, j, 'GENERAL');
                 row.appendChild(b);
-                distribucionActual.push({ fila: letra, num: j, tipo: 'GENERAL' });
+                distribucionActual.push({ fila: letra, num: j, tipo: 'GENERAL', es_pasillo: false });
             }
             areaAsientos.appendChild(row);
         }
@@ -537,18 +561,29 @@ window.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        const butacasReales = distribucionActual.filter(b => b.tipo !== 'vacio' && !b.es_pasillo);
+        const pasillos = distribucionActual.filter(b => b.tipo === 'vacio' || b.es_pasillo);
+        
         const tiposCount = {
-            GENERAL: distribucionActual.filter(b => b.tipo === 'GENERAL').length,
-            VIP: distribucionActual.filter(b => b.tipo === 'VIP').length,
-            DISCAPACITADO: distribucionActual.filter(b => b.tipo === 'DISCAPACITADO').length
+            GENERAL: butacasReales.filter(b => b.tipo === 'GENERAL').length,
+            VIP: butacasReales.filter(b => b.tipo === 'VIP').length,
+            DISCAPACITADO: butacasReales.filter(b => b.tipo === 'DISCAPACITADO').length
         };
 
-        const mensaje = `¿Guardar esta distribución?\n\n📊 Total: ${distribucionActual.length} asientos\n🟦 General: ${tiposCount.GENERAL}\n🟨 VIP: ${tiposCount.VIP}\n🟩 Discapacitado: ${tiposCount.DISCAPACITADO}`;
+        const mensaje = `¿Guardar esta distribución?\n\n📊 Total: ${butacasReales.length} asientos\n🟦 General: ${tiposCount.GENERAL}\n🟨 VIP: ${tiposCount.VIP}\n🟩 Discapacitado: ${tiposCount.DISCAPACITADO}\n🚶 Pasillos: ${pasillos.length}`;
 
         if (!confirm(mensaje)) return;
 
         btnGuardar.disabled = true;
         btnGuardar.textContent = '⏳ Guardando...';
+
+        // Log para debugging
+        console.log('📤 Enviando distribución:', {
+            total: distribucionActual.length,
+            butacas: butacasReales.length,
+            pasillos: pasillos.length
+        });
+        console.log('Datos completos:', distribucionActual);
 
         try {
             const res = await fetch("{% url 'cine:api_guardar_layout_sala' sala.id %}", {
@@ -562,11 +597,19 @@ window.addEventListener('DOMContentLoaded', function() {
             const data = await res.json();
 
             if (data.status === 'ok' || res.ok) {
-                mostrarMensaje(`✅ Distribución guardada exitosamente! ${distribucionActual.length} asientos creados.`, 'success');
+                let mensaje = `✅ Distribución guardada exitosamente!\n\n📊 Capacidad: ${data.capacidad} asientos\n🚶 Pasillos: ${data.pasillos}\n📦 Total guardado: ${data.butacas_creadas} posiciones`;
+                if (data.warning) {
+                    mensaje += `\n⚠️ ${data.warning}`;
+                }
+                mostrarMensaje(mensaje, 'success');
                 document.querySelector('.card-subtitle').textContent =
-                    `{{ sala.nombre }} - Sala {{ sala.numero }} (Capacidad actual: ${distribucionActual.length} asientos)`;
+                    `{{ sala.nombre }} - Sala {{ sala.numero }} (Capacidad actual: ${data.capacidad} asientos)`;
             } else {
-                mostrarMensaje('❌ Error: ' + (data.message || 'Error desconocido'), 'error');
+                let mensajeError = '❌ Error: ' + (data.message || 'Error desconocido');
+                if (data.duplicados && data.duplicados.length > 0) {
+                    mensajeError += `\n\nButacas duplicadas: ${data.duplicados.join(', ')}`;
+                }
+                mostrarMensaje(mensajeError, 'error');
             }
         } catch (e) {
             mostrarMensaje('❌ Error de conexión: ' + e.message, 'error');
@@ -602,11 +645,25 @@ window.addEventListener('DOMContentLoaded', function() {
                         const be = butacasExistentes.find(x => x.fila === f && x.numero === j);
                         let b;
                         if (be) {
-                            b = crearAsiento(f, j, be.tipo);
-                            distribucionActual.push({ fila: f, num: j, tipo: be.tipo });
+                            // Existe en BD - agregar a distribucionActual
+                            const esPasillo = be.es_pasillo || be.tipo === 'vacio';
+                            const tipoFinal = esPasillo ? 'vacio' : be.tipo;
+                            b = crearAsiento(f, j, tipoFinal);
+                            if (esPasillo) {
+                                b.textContent = '';
+                            }
+                            distribucionActual.push({ 
+                                fila: f, 
+                                num: j, 
+                                tipo: tipoFinal,
+                                es_pasillo: esPasillo
+                            });
                         } else {
+                            // NO existe en BD - solo renderizar visualmente como vacío
+                            // NO agregar a distribucionActual hasta que el usuario lo convierta
                             b = crearAsiento(f, j, 'vacio');
                             b.textContent = '';
+                            // NO agregamos a distribucionActual - solo es visual
                         }
                         row.appendChild(b);
                     }
@@ -623,7 +680,9 @@ window.addEventListener('DOMContentLoaded', function() {
     }
 
     function actualizarContador() {
-        contador.textContent = distribucionActual.length;
+        // Contar solo butacas reales (sin pasillos)
+        const butacasReales = distribucionActual.filter(b => b.tipo !== 'vacio' && !b.es_pasillo).length;
+        contador.textContent = butacasReales;
     }
 
     // --- INICIALIZACIÓN ---
@@ -680,7 +739,7 @@ function getCookie(name) {
 <script id="butacasData" type="application/json">
 [
 {% for butaca in butacas_existentes %}
-    {"fila": "{{ butaca.fila }}", "numero": {{ butaca.numero }}, "tipo": "{{ butaca.tipo }}"}{% if not forloop.last %},{% endif %}
+    {"fila": "{{ butaca.fila }}", "numero": {{ butaca.numero }}, "tipo": "{{ butaca.tipo }}", "es_pasillo": {{ butaca.es_pasillo|lower }}}{% if not forloop.last %},{% endif %}
 {% endfor %}
 ]
 </script>

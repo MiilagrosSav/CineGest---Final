@@ -1,5 +1,6 @@
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.utils import timezone
 from cine.models import Sala
 from cine.forms import SalaForm
 from cine.mixins import AdminRequiredMixin
@@ -54,12 +55,16 @@ class SalaCreateView(AdminRequiredMixin, CreateView):
     model = Sala
     form_class = SalaForm
     template_name = 'cine/sala_form.html'
-    success_url = reverse_lazy('cine:sala_list')
+    
+    def get_success_url(self):
+        # Redirigir al diseñador de layout después de crear la sala
+        from django.urls import reverse
+        return reverse('cine:disenar_layout_sala', kwargs={'sala_id': self.object.pk})
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo_pagina'] = '🏛️ Añadir Nueva Sala'
-        context['nombre_boton'] = '✨ Crear Sala'
+        context['nombre_boton'] = '✨ Crear Sala y Configurar Layout'
         return context
 
 # UPDATE: Vista para mostrar el formulario de edición
@@ -80,3 +85,18 @@ class SalaDeleteView(AdminRequiredMixin, DeleteView):
     model = Sala
     template_name = 'cine/sala_confirm_delete.html'
     success_url = reverse_lazy('cine:sala_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        sala = self.get_object()
+        
+        # Obtener funciones asociadas
+        funciones = sala.funciones.all()
+        funciones_futuras = funciones.filter(fecha_hora__gte=timezone.now())
+        
+        context['tiene_funciones'] = funciones.exists()
+        context['total_funciones'] = funciones.count()
+        context['funciones_futuras'] = funciones_futuras.count()
+        context['puede_eliminar'] = not funciones.exists()
+        
+        return context

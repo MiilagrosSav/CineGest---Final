@@ -38,10 +38,16 @@
 
             <!-- Botón de Mercado Pago -->
             <div style="text-align: center; margin: var(--space-lg) 0;">
-                <div class="cho-container"></div>
+                <a href="{{ init_point }}" class="btn btn-primary" style="font-size: 1.2rem; padding: var(--space-md) var(--space-xl); text-decoration: none; display: inline-block;">
+                    💳 Pagar con Mercado Pago
+                </a>
                 
                 <p style="margin-top: var(--space-md); font-size: 0.9rem; opacity: 0.7;">
                     🔒 Pago seguro procesado por Mercado Pago
+                </p>
+                
+                <p style="margin-top: var(--space-sm); font-size: 0.85rem; opacity: 0.6;">
+                    Serás redirigido a la plataforma de Mercado Pago para completar el pago
                 </p>
             </div>
 
@@ -53,27 +59,6 @@
         </div>
     </div>
 </div>
-
-<!-- SDK de Mercado Pago -->
-<script src="https://sdk.mercadopago.com/js/v2"></script>
-
-<script>
-    // Inicializar Mercado Pago con tu Public Key
-    const mp = new MercadoPago('{{ public_key }}', {
-        locale: 'es-AR'  // Cambiar según tu país: es-AR, es-MX, pt-BR, etc.
-    });
-
-    // Crear el botón de pago
-    mp.checkout({
-        preference: {
-            id: '{{ preference_id }}'
-        },
-        render: {
-            container: '.cho-container',  // Contenedor donde se renderiza el botón
-            label: 'Pagar con Mercado Pago',  // Texto del botón
-        }
-    });
-</script>
 
 <style>
     /* Estilos personalizados para el botón de Mercado Pago */
