@@ -1,0 +1,141 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Mis Compras - CineGest{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card glass-container">
+        <div class="card-header">
+            <h1 class="card-title text-gradient-primary">🎫 Mis Compras</h1>
+            <p class="card-subtitle">Historial de tus entradas compradas</p>
+        </div>
+
+        <style>
+            .venta-card {
+                background: rgba(255,255,255,0.05);
+                padding: var(--space-lg);
+                border-radius: var(--radius);
+                border-left: 4px solid;
+            }
+            .venta-confirmada { border-left-color: var(--primary); }
+            .venta-pendiente { border-left-color: #ffc107; }
+            .venta-cancelada { border-left-color: #ff6b6b; }
+            
+            .badge-estado {
+                display: inline-block;
+                padding: 0.4rem 1rem;
+                border-radius: 20px;
+                font-size: 0.85rem;
+                font-weight: 600;
+            }
+            .badge-confirmada { background: rgba(78, 205, 196, 0.2); color: var(--primary); }
+            .badge-pendiente { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+            .badge-cancelada { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+        </style>
+
+        <!-- Ventas Pendientes -->
+        {% if ventas_pendientes %}
+        <div style="padding: var(--space-lg); border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <h2 style="margin: 0 0 var(--space-md) 0; color: #ffc107;">⏳ Pagos Pendientes</h2>
+            <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+                {% for venta in ventas_pendientes %}
+                <div class="venta-card venta-pendiente">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-md);">
+                        <div>
+                            <h3 style="margin: 0 0 var(--space-xs) 0;">🎬 Venta #{{ venta.id_venta }}</h3>
+                            <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">📅 {{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <span class="badge-estado badge-pendiente">
+                                {% if venta.estado == 'PENDIENTE' %}⏳ Pendiente
+                                {% else %}⏳ Pendiente de Pago{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-md);">
+                        <div>
+                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Cantidad de entradas</p>
+                            <p style="margin: 4px 0 0 0; font-weight: 600;">{{ venta.cantidad_entradas }}</p>
+                        </div>
+                        <div>
+                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Total a pagar</p>
+                            <p style="margin: 4px 0 0 0; font-weight: 600; color: #ffc107; font-size: 1.1rem;">${{ venta.calcular_total }}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+                        <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary" style="text-decoration: none;">
+                            💳 Pagar Ahora
+                        </a>
+                        <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" class="btn btn-outline" style="text-decoration: none;">
+                            👁️ Ver Detalle
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Historial de Compras -->
+        {% if ventas_historial %}
+        <div style="padding: var(--space-lg);">
+            <h2 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">📚 Historial de Compras</h2>
+            <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+                {% for venta in ventas_historial %}
+                <div class="venta-card {% if venta.estado == 'CONFIRMADA' %}venta-confirmada{% elif venta.estado == 'PENDIENTE' or venta.estado == 'PENDIENTE_PAGO' %}venta-pendiente{% else %}venta-cancelada{% endif %}">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-md);">
+                        <div>
+                            <h3 style="margin: 0 0 var(--space-xs) 0;">🎬 Venta #{{ venta.id_venta }}</h3>
+                            <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">📅 {{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <span class="badge-estado {% if venta.estado == 'CONFIRMADA' %}badge-confirmada{% elif venta.estado == 'PENDIENTE' or venta.estado == 'PENDIENTE_PAGO' %}badge-pendiente{% else %}badge-cancelada{% endif %}">
+                                {% if venta.estado == 'CONFIRMADA' %}✅ Confirmada
+                                {% elif venta.estado == 'PENDIENTE' %}⏳ Pendiente
+                                {% elif venta.estado == 'PENDIENTE_PAGO' %}⏳ Pendiente de Pago
+                                {% else %}❌ Cancelada{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-md);">
+                        <div>
+                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Tipo de venta</p>
+                            <p style="margin: 4px 0 0 0; font-weight: 600;">{{ venta.tipo_venta }}</p>
+                        </div>
+                        <div>
+                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Cantidad de entradas</p>
+                            <p style="margin: 4px 0 0 0; font-weight: 600;">{{ venta.cantidad_entradas }}</p>
+                        </div>
+                        <div>
+                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Total</p>
+                            <p style="margin: 4px 0 0 0; font-weight: 600; color: var(--primary); font-size: 1.1rem;">${{ venta.calcular_total }}</p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+                        <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" class="btn btn-outline" style="text-decoration: none;">
+                            👁️ Ver Detalle
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Mensaje si no hay ventas -->
+        {% if not ventas_pendientes and not ventas_historial %}
+        <div style="text-align: center; padding: var(--space-xl);">
+            <div style="font-size: 4rem; margin-bottom: var(--space-md);">🎟️</div>
+            <p style="font-size: 1.2rem; margin-bottom: var(--space-md);">No tienes compras registradas</p>
+            <a href="{% url 'cine:cartelera' %}" class="btn btn-primary" style="text-decoration: none;">
+                🎬 Explorar Cartelera
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

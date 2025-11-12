@@ -6,26 +6,60 @@
 <div class="container-narrow">
     <div class="card glass-container text-center">
         <div class="card-header">
-            <h1 class="card-title text-gradient-secondary">🗑️ ¿Estás seguro?</h1>
-            <p class="card-subtitle">
-                Estás a punto de eliminar permanentemente la película:
-                <strong style="display: block; font-size: 1.2rem; margin-top: var(--space-sm);">"{{ object.titulo }}"</strong>
-            </p>
+            {% if puede_eliminar %}
+                <h1 class="card-title text-gradient-secondary">🗑️ ¿Estás seguro?</h1>
+                <p class="card-subtitle">
+                    Estás a punto de eliminar permanentemente la película:
+                    <strong style="display: block; font-size: 1.2rem; margin-top: var(--space-sm);">"{{ object.titulo }}"</strong>
+                </p>
+            {% else %}
+                <h1 class="card-title" style="color: #ff6b6b;">⚠️ No se puede eliminar</h1>
+                <p class="card-subtitle">
+                    La película <strong>"{{ object.titulo }}"</strong> no puede ser eliminada.
+                </p>
+            {% endif %}
         </div>
 
-        <p class="text-secondary">Esta acción no se puede deshacer.</p>
+        {% if puede_eliminar %}
+            <p class="text-secondary">Esta acción no se puede deshacer.</p>
 
-        <form method="post">
-            {% csrf_token %}
-            <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-lg);">
-                <button type="submit" class="btn btn-secondary" style="flex-grow: 1;">
-                    Sí, Eliminar
-                </button>
-                <a href="{% url 'cine:pelicula_list' %}" class="btn btn-outline" style="flex-grow: 1;">
-                    No, Cancelar
+            <form method="post">
+                {% csrf_token %}
+                <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-lg);">
+                    <button type="submit" class="btn btn-secondary" style="flex-grow: 1;">
+                        Sí, Eliminar
+                    </button>
+                    <a href="{% url 'cine:pelicula_list' %}" class="btn btn-outline" style="flex-grow: 1;">
+                        No, Cancelar
+                    </a>
+                </div>
+            </form>
+        {% else %}
+            <div class="message message-error" style="margin: var(--space-lg) 0; text-align: left;">
+                <strong>🚫 Razones por las que no se puede eliminar:</strong>
+                <ul style="margin-top: var(--space-sm); padding-left: var(--space-lg);">
+                    <li>Esta película tiene <strong>{{ total_funciones }}</strong> función(es) asociada(s)</li>
+                    {% if funciones_futuras > 0 %}
+                        <li>De las cuales <strong>{{ funciones_futuras }}</strong> son funciones futuras programadas</li>
+                    {% endif %}
+                    <li>Eliminar la película causaría pérdida de información histórica y de ventas</li>
+                </ul>
+            </div>
+
+            <div class="message message-info" style="margin: var(--space-lg) 0; text-align: left;">
+                <strong>💡 Alternativas:</strong>
+                <ul style="margin-top: var(--space-sm); padding-left: var(--space-lg);">
+                    <li><strong>Ocultar de cartelera:</strong> Las películas solo aparecen en cartelera si tienen funciones futuras activas.</li>
+                    <li><strong>Eliminar funciones futuras:</strong> Primero elimina las funciones programadas de esta película, luego podrás eliminarla.</li>
+                </ul>
+            </div>
+
+            <div style="margin-top: var(--space-lg);">
+                <a href="{% url 'cine:pelicula_list' %}" class="btn btn-primary" style="width: 100%;">
+                    🔙 Volver a la lista de películas
                 </a>
             </div>
-        </form>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

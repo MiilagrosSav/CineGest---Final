@@ -17,6 +17,7 @@ class Butaca(models.Model):
         ('VIP', 'VIP'),
         ('DISCAPACITADO', 'Discapacitado'),
         ('4D', '4D'),
+        ('PASILLO', 'Pasillo'),  # Nueva opción para pasillos
     ]
 
     sala = models.ForeignKey(
@@ -40,6 +41,11 @@ class Butaca(models.Model):
         choices=TIPO_CHOICES,
         default='GENERAL',
         help_text="Tipo de butaca"
+    )
+    
+    es_pasillo = models.BooleanField(
+        default=False,
+        help_text="Marca si esta posición es un pasillo (no seleccionable)"
     )
 
     fecha_creacion = models.DateTimeField(auto_now_add=True)

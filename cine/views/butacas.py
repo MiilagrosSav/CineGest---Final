@@ -22,7 +22,7 @@ def disenar_layout_sala(request, sala_id):
     Solo accesible para administradores.
     """
     sala = get_object_or_404(Sala, id=sala_id)
-    butacas = list(sala.butacas.all().order_by('fila', 'numero').values('fila', 'numero', 'tipo'))
+    butacas = list(sala.butacas.all().order_by('fila', 'numero').values('fila', 'numero', 'tipo', 'es_pasillo'))
     context = {
         'sala': sala,
         'butacas_existentes': butacas
@@ -35,8 +35,9 @@ def disenar_layout_sala(request, sala_id):
 @user_passes_test(es_admin, login_url='/accounts/dashboard/')
 def api_guardar_layout_sala(request, sala_id):
     """
-    Recibe un JSON con el nuevo layout, borra las butacas antiguas
-    y crea las nuevas. Solo accesible para administradores.
+    Recibe un JSON con el nuevo layout (incluyendo pasillos), 
+    borra las butacas antiguas y crea las nuevas.
+    Solo accesible para administradores.
     """
     try:
         sala = get_object_or_404(Sala, id=sala_id)
@@ -45,23 +46,77 @@ def api_guardar_layout_sala(request, sala_id):
         # Borrar butacas antiguas
         sala.butacas.all().delete()
 
-        # Preparar nuevas
+        # Preparar nuevas (incluyendo pasillos)
         nuevas = []
+        seen = set()  # Para detectar duplicados
+        duplicados = []
+        
         for item in data:
             fila = item.get('fila')
             num = item.get('num')
             tipo = item.get('tipo', 'GENERAL')
-            if not fila or not num:
+            es_pasillo = item.get('es_pasillo', False)
+            
+            if not fila or num is None:
                 continue
-            nuevas.append(Butaca(sala=sala, fila=fila, numero=num, tipo=tipo))
+            
+            # Verificar duplicados
+            clave = (fila, num)
+            if clave in seen:
+                duplicados.append(f"{fila}{num}")
+                continue  # Saltar duplicados
+            seen.add(clave)
+            
+            # Si es pasillo (tipo 'vacio'), marcar es_pasillo=True
+            if tipo == 'vacio':
+                es_pasillo = True
+                tipo = 'GENERAL'  # Los pasillos son tipo GENERAL pero con flag es_pasillo
+            
+            nuevas.append(Butaca(
+                sala=sala, 
+                fila=fila, 
+                numero=num, 
+                tipo=tipo,
+                es_pasillo=es_pasillo
+            ))
 
         if nuevas:
-            Butaca.objects.bulk_create(nuevas)
+            try:
+                Butaca.objects.bulk_create(nuevas)
+            except Exception as e:
+                error_msg = str(e)
+                # Detectar el tipo de error
+                if 'unique' in error_msg.lower() or 'duplicate' in error_msg.lower():
+                    error_msg = f'Error de duplicados: Una o más butacas ya existen en esta combinación sala-fila-número. {error_msg}'
+                else:
+                    error_msg = f'Error al crear butacas: {error_msg}'
+                    
+                return JsonResponse({
+                    'status': 'error', 
+                    'message': error_msg,
+                    'duplicados_detectados': duplicados if duplicados else [],
+                    'total_enviado': len(data),
+                    'total_procesado': len(nuevas)
+                }, status=400)
 
-        sala.capacidad = sala.butacas.count()
-        sala.save()
+        # Calcular capacidad real (solo butacas, sin pasillos)
+        capacidad_real = sala.butacas.filter(es_pasillo=False).count()
+        
+        # Contar pasillos en la lista de nuevas antes de bulk_create
+        total_pasillos = sum(1 for b in nuevas if b.es_pasillo)
 
-        return JsonResponse({'status': 'ok', 'butacas_creadas': len(nuevas), 'capacidad': sala.capacidad})
+        respuesta = {
+            'status': 'ok', 
+            'butacas_creadas': len(nuevas),
+            'capacidad': capacidad_real,
+            'pasillos': total_pasillos
+        }
+        
+        if duplicados:
+            respuesta['warning'] = f'{len(duplicados)} butacas duplicadas fueron ignoradas'
+            respuesta['duplicados'] = duplicados
+        
+        return JsonResponse(respuesta)
     except json.JSONDecodeError:
         return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)
     except Exception as e:

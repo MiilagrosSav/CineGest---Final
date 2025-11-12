@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from cine.models import Pelicula
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.utils import timezone
 
 
 # --- Vistas del CRUD de Películas ---
@@ -50,6 +51,14 @@ class PeliculaListView(AdminRequiredMixin, ListView):
         context['filtro_orden'] = self.request.GET.get('orden', 'titulo')
         return context 
 
+    def render_to_response(self, context, **response_kwargs):
+        """If AJAX request, return the table partial only."""
+        request = self.request
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            from django.shortcuts import render
+            return render(request, 'cine/_pelicula_table.html', context)
+        return super().render_to_response(context, **response_kwargs)
+
 # CREATE: Vista para mostrar el formulario de creación
 class PeliculaCreateView(AdminRequiredMixin, CreateView):
     model = Pelicula
@@ -81,3 +90,18 @@ class PeliculaDeleteView(AdminRequiredMixin, DeleteView):
     model = Pelicula
     template_name = 'cine/pelicula_confirm_delete.html'
     success_url = reverse_lazy('cine:pelicula_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        pelicula = self.get_object()
+        
+        # Obtener funciones asociadas
+        funciones = pelicula.funciones.all()
+        funciones_futuras = funciones.filter(fecha_hora__gte=timezone.now())
+        
+        context['tiene_funciones'] = funciones.exists()
+        context['total_funciones'] = funciones.count()
+        context['funciones_futuras'] = funciones_futuras.count()
+        context['puede_eliminar'] = not funciones.exists()
+        
+        return context

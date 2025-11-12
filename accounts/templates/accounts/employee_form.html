@@ -3,15 +3,16 @@
 {% block title %}{{ titulo_pagina }} - CineGest{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="card glass-container">
-        <div class="card-header">
-            <h1 class="card-title text-gradient-primary">{{ titulo_pagina }}</h1>
-            <p class="card-subtitle">Complete todos los campos obligatorios para continuar</p>
-        </div>
+<div class="container" style="max-width: var(--form-max-width, 768px);">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">{{ titulo_pagina }}</h1>
+        <p class="card-subtitle">Complete todos los campos obligatorios para continuar</p>
+    </div>
 
-        <!-- ✅ FORMULARIO SIN NOVALIDATE PARA VALIDACIONES HTML NATIVAS -->
-        <form method="post">
+    <div class="card glass-container">
+
+        <form method="post" style="padding: var(--space-lg);">
             {% csrf_token %}
             
             {% if form.non_field_errors %}
@@ -27,7 +28,6 @@
                         {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
                     </label>
                     
-                    <!-- ✅ RENDERIZADO AUTOMÁTICO CON VALIDACIONES HTML -->
                     {{ field }}
                     
                     {% if field.help_text %}
@@ -55,4 +55,73 @@
         </form>
     </div>
 </div>
+
+<style>
+    /* --- (NUEVO) PANEL DE CONTROL DE TAMAÑOS --- */
+    :root {
+        --form-max-width: 768px; /* Ancho máximo del formulario */
+        --form-label-size: 1rem; /* Tamaño de la etiqueta del formulario */
+        --form-input-size: 1rem; /* Tamaño de los campos de entrada del formulario */
+        --form-chip-size: 1rem; /* Tamaño de los chips del formulario */
+        /*letra dentro del boton centrado*/
+        --btn-main-size: 0.1rem center; /* Tamaño del botón principal */
+        --btn-main-radius: 9999px; /* Radio del botón principal */
+    }
+    /* --- FIN DEL PANEL DE CONTROL --- */
+
+    form .form-label {
+        font-size: var(--form-label-size);
+        margin-bottom: var(--space-sm);
+        font-weight: 600;
+    }
+    form .form-input,
+    form .form-select {
+        font-size: var(--form-input-size);
+        padding: 0.8rem 1rem;
+    }
+    form .btn {
+        padding: 0.8rem 1.5rem;
+        font-size: var(--btn-main-size);
+        font-weight: 600;
+        border-radius: var(--btn-main-radius);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .formato-option span {
+        font-size: var(--form-chip-size);
+        font-weight: 500;
+        line-height: 1;
+    }
+    .formato-option {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem 1.15rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        border-radius: 6px;
+        user-select: none;
+        background: transparent;
+        border: 2px solid rgba(139, 95, 191, 0.4);
+        color: var(--text-light);
+    }
+    .formato-option:hover {
+        border-color: var(--primary);
+        background: rgba(var(--primary-rgb), 0.1);
+    }
+    .formato-option input[type="radio"] {
+        appearance: auto !important;
+        -webkit-appearance: auto !important;
+        -moz-appearance: auto !important;
+        opacity: 1 !important;
+        width: 1.1em !important;
+        height: 1.1em !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        flex-shrink: 0;
+        accent-color: var(--primary);
+        cursor: pointer;
+    }
+</style>
+
 {% endblock %}

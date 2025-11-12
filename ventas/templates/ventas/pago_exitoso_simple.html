@@ -1,0 +1,81 @@
+{% extends 'accounts/base.html' %}
+{% load static %}
+
+{% block title %}Compra Exitosa - CineGest{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Header minimalista -->
+    <div class="text-center mb-5">
+        <div class="success-icon mb-3">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#28a745" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M9 12l2 2 4-4"></path>
+            </svg>
+        </div>
+        <h2 class="mb-2">¡Compra exitosa!</h2>
+        <p class="text-muted">Tu pago ha sido procesado correctamente</p>
+    </div>
+
+    <!-- Información de la compra -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <small class="text-muted d-block">N° de Orden</small>
+                    <strong>#{{ venta.id_venta }}</strong>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted d-block">Total Pagado</small>
+                    {# Mostrar el monto del pago si existe, si no usar el total calculado de la venta #}
+                    <strong>${{ pago.monto|default:venta.calcular_total }}</strong>
+                </div>
+                <div class="col-md-4">
+                    <small class="text-muted d-block">Fecha</small>
+                    <strong>{{ venta.fecha_compra|date:"d/m/Y H:i" }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entradas con QR -->
+    <div class="row g-3 mb-4">
+        {% for entrada in venta.entradas.all %}
+        <div class="col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center p-4">
+                    <h6 class="mb-3">{{ entrada.id_funcion.pelicula.titulo }}</h6>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=CINEGEST-{{ entrada.id }}-{{ venta.id_venta }}" 
+                         alt="QR Entrada" class="mb-3">
+                    <div class="small text-muted">
+                        <div>Sala {{ entrada.id_sala.numero }} - Butaca {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}</div>
+                        <div>{{ entrada.id_funcion.fecha_hora|date:"d/m/Y H:i" }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="text-center mb-5">
+        <a id="misComprasBtn" href="{% url 'ventas:mis_ventas' %}" class="btn btn-primary btn-lg px-5">Ver mis compras</a>
+        <p style="margin-top:12px; opacity:0.85;">Tu pago fue acreditado. Puedes volver a "Mis Compras" cuando quieras.</p>
+    </div>
+</div>
+
+<style>
+.success-icon {
+    animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes scaleIn {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+}
+
+@media print {
+    .btn, nav, footer { display: none; }
+}
+</style>
+{% endblock %}

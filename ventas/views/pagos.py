@@ -19,7 +19,7 @@ from ventas.mercadopago_service import MercadoPagoService
 def iniciar_pago(request, venta_id):
     """
     Iniciar el proceso de pago con Mercado Pago
-    Crea una preferencia y redirige al checkout
+    Muestra página con botón oficial de MP
     """
     # Obtener la venta
     venta = get_object_or_404(Venta, id_venta=venta_id, id_cliente__usuario=request.user)
@@ -36,48 +36,77 @@ def iniciar_pago(request, venta_id):
         # Crear la preferencia de pago
         preference_response = mp_service.crear_preferencia_pago(venta, request)
         
-        if preference_response['status'] == 201:
-            # Preferencia creada exitosamente
+        if preference_response.get('status') == 201:
             preference_id = preference_response['response']['id']
-            init_point = preference_response['response']['init_point']  # URL del checkout
+            init_point = preference_response['response']['init_point']
             
-            # Guardar el preference_id en la venta o en el pago (opcional)
-            # venta.preference_id = preference_id
-            # venta.save()
+            print(f"✅ Preferencia creada: {preference_id}")
             
-            context = {
+            # Renderizar template con botón oficial de MP
+            return render(request, 'ventas/iniciar_pago.html', {
                 'venta': venta,
                 'preference_id': preference_id,
-                'public_key': settings.MERCADOPAGO_PUBLIC_KEY,
                 'init_point': init_point,
-            }
-            
-            return render(request, 'ventas/iniciar_pago.html', context)
+                'mercadopago_public_key': settings.MERCADOPAGO_PUBLIC_KEY,
+            })
         else:
             # Error al crear la preferencia
-            messages.error(request, '❌ Error al procesar el pago. Intenta nuevamente.')
-            return redirect('ventas:detalle_venta', venta_id=venta_id)
+            error_msg = preference_response.get('response', {}).get('message', 'Error desconocido')
+            print("Error en preferencia:", error_msg)
+            messages.error(request, f'❌ Error al procesar el pago: {error_msg}')
+            return redirect('ventas:mis_ventas')
             
     except Exception as e:
+        print("Excepción al crear preferencia:", str(e))
+        import traceback
+        traceback.print_exc()
         messages.error(request, f'❌ Error al procesar el pago: {str(e)}')
-        return redirect('ventas:detalle_venta', venta_id=venta_id)
+        return redirect('ventas:mis_ventas')
 
 
 @login_required
 def pago_exitoso(request):
     """Vista cuando el pago fue exitoso"""
+    # Debug: imprimir todos los parámetros recibidos
+    print("=" * 50)
+    print("PAGO EXITOSO - Parámetros recibidos:")
+    print("GET params:", dict(request.GET))
+    print("=" * 50)
+    
     # Mercado Pago envía estos parámetros en la URL
-    payment_id = request.GET.get('payment_id')
-    status = request.GET.get('status')
-    external_reference = request.GET.get('external_reference')  # ID de la venta
+    payment_id = request.GET.get('payment_id') or request.GET.get('collection_id')
+    status = request.GET.get('status') or request.GET.get('collection_status')
+    
+    # Priorizar venta_id que pasamos nosotros en la URL
+    venta_id = request.GET.get('venta_id')
+    external_reference = request.GET.get('external_reference') or request.GET.get('preference_id') or venta_id
+    
+    print(f"🔍 Buscando venta: venta_id={venta_id}, external_reference={external_reference}")
+    
+    # Si no hay referencia, buscar la última venta pendiente del usuario
+    if not external_reference:
+        print("⚠️ No se recibió external_reference, buscando última venta pendiente del usuario...")
+        try:
+            venta = Venta.objects.filter(
+                id_cliente__usuario=request.user,
+                estado='PENDIENTE'
+            ).latest('fecha_compra')
+            external_reference = venta.id_venta
+            print(f"✅ Encontrada venta pendiente: #{venta.id_venta}")
+        except Venta.DoesNotExist:
+            print("❌ No se encontró ninguna venta pendiente")
+            messages.warning(request, '⚠️ No se pudo identificar la venta. Verifica tu historial de compras.')
+            return redirect('ventas:mis_ventas')
     
     if external_reference:
         try:
             venta = Venta.objects.get(id_venta=external_reference)
+            print(f"📦 Procesando venta #{venta.id_venta} - Estado actual: {venta.estado}")
             
             # Actualizar el estado de la venta
             venta.estado = 'CONFIRMADA'
             venta.save()
+            print(f"✅ Venta actualizada a CONFIRMADA")
             
             # Crear o actualizar el registro de pago
             metodo_pago, _ = MetodoPago.objects.get_or_create(
@@ -90,32 +119,37 @@ def pago_exitoso(request):
                 defaults={
                     'monto': venta.calcular_total(),
                     'estado': 'COMPLETADO',
-                    'nro_transaccion': payment_id,
+                    'nro_transaccion': payment_id or f'MP-{venta.id_venta}',
                     'id_metodo_pago': metodo_pago
                 }
             )
             
             if not created:
                 pago.estado = 'COMPLETADO'
-                pago.nro_transaccion = payment_id
+                pago.nro_transaccion = payment_id or f'MP-{venta.id_venta}'
                 pago.save()
             
+            print(f"💳 Pago registrado: {pago.nro_transaccion}")
+            
             # Actualizar el estado de las entradas
-            venta.entradas.all().update(estado='VENDIDA')
+            entradas_actualizadas = venta.entradas.all().update(estado='VENDIDA')
+            print(f"🎟️ {entradas_actualizadas} entradas actualizadas a VENDIDA")
             
             messages.success(request, '✅ ¡Pago procesado exitosamente! Tu compra ha sido confirmada.')
             
             context = {
                 'venta': venta,
                 'pago': pago,
-                'payment_id': payment_id,
+                'payment_id': payment_id or f'MP-{venta.id_venta}',
             }
             
-            return render(request, 'ventas/pago_exitoso.html', context)
+            return render(request, 'ventas/pago_exitoso_simple.html', context)
             
         except Venta.DoesNotExist:
+            print(f"❌ No se encontró la venta con ID: {external_reference}")
             messages.error(request, '❌ No se encontró la venta.')
     
+    print("⚠️ Redirigiendo a mis_ventas (no se procesó el pago)")
     return redirect('ventas:mis_ventas')
 
 

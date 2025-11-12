@@ -1,0 +1,30 @@
+<div id="salaTableInner">
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <th style="padding: var(--space-sm);">Nombre</th>
+                    <th style="padding: var(--space-sm);">Número</th>
+                    <th style="padding: var(--space-sm);">Capacidad</th>
+                    <th style="padding: var(--space-sm);">Activa</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sala in salas %}
+                <tr class="sala-row" data-id="{{ sala.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                    <td style="padding: var(--space-sm); font-weight: 600;">{{ sala.nombre }}</td>
+                    <td style="padding: var(--space-sm);">{{ sala.numero }}</td>
+                    <td style="padding: var(--space-sm);">{{ sala.capacidad|default:"--" }}</td>
+                    <td style="padding: var(--space-sm);">{{ sala.activa|yesno:"Sí,No" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-secondary" style="padding: var(--space-lg);">No hay salas registradas todavía.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% include "cine/pagination.html" %}        
+    </div>
+</div>

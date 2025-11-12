@@ -1,0 +1,65 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Pago Pendiente - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 0 auto;">
+    <div class="card glass-container">
+        <div class="card-header" style="text-align: center;">
+            <div style="font-size: 4rem; margin-bottom: var(--space-md);">⏳</div>
+            <h1 class="card-title" style="color: #ffc107;">Pago Pendiente</h1>
+            <p class="card-subtitle">Tu pago está siendo procesado</p>
+        </div>
+
+        <div style="padding: var(--space-lg);">
+            <div style="background: rgba(255, 193, 7, 0.1); padding: var(--space-lg); border-radius: var(--radius); border: 2px solid #ffc107; margin-bottom: var(--space-lg); text-align: center;">
+                <p style="font-size: 1.2rem; margin-bottom: var(--space-sm);">
+                    <strong>🎫 Número de venta:</strong> #{{ venta.id_venta }}
+                </p>
+                <p style="font-size: 1.1rem; color: #ffc107; margin-top: var(--space-md);">
+                    Estamos esperando la confirmación del pago.
+                </p>
+            </div>
+
+            <h3 style="margin-bottom: var(--space-md);">⏱️ ¿Qué significa esto?</h3>
+            
+            <div style="background: rgba(255,255,255,0.05); padding: var(--space-md); border-radius: var(--radius); margin-bottom: var(--space-lg);">
+                <p style="margin-bottom: var(--space-sm);">Tu pago está pendiente de confirmación. Esto puede suceder en los siguientes casos:</p>
+                <ul style="margin: var(--space-sm) 0; padding-left: var(--space-lg);">
+                    <li>Pago con transferencia bancaria (tarda hasta 48 horas)</li>
+                    <li>Pago en efectivo en puntos autorizados</li>
+                    <li>El banco está procesando la transacción</li>
+                    <li>Se requiere verificación adicional</li>
+                </ul>
+            </div>
+
+            <h3 style="margin-bottom: var(--space-md);">📧 Te mantendremos informado</h3>
+            
+            <div style="background: rgba(78, 205, 196, 0.1); padding: var(--space-md); border-radius: var(--radius); margin-bottom: var(--space-lg);">
+                <p style="margin: 0;">
+                    Te enviaremos un correo electrónico a <strong>{{ venta.id_cliente.usuario.email }}</strong> 
+                    cuando tu pago sea confirmado. También puedes verificar el estado de tu compra en cualquier momento 
+                    desde la sección "Mis Compras".
+                </p>
+            </div>
+
+            <div style="background: rgba(255, 193, 7, 0.1); padding: var(--space-md); border-radius: var(--radius); border-left: 4px solid #ffc107; margin: var(--space-lg) 0;">
+                <p style="margin: 0; font-size: 0.95rem;">
+                    <strong>⚠️ Importante:</strong><br>
+                    No cierres esta página si acabas de realizar un pago con transferencia o en efectivo. 
+                    Guarda el número de venta <strong>#{{ venta.id_venta }}</strong> para futuras consultas.
+                </p>
+            </div>
+
+            <div style="display: flex; gap: var(--space-md); margin-top: var(--space-xl); flex-wrap: wrap;">
+                <a href="{% url 'ventas:mis_ventas' %}" class="btn btn-primary" style="flex: 1; text-align: center; text-decoration: none;">
+                    🎫 Ver mis compras
+                </a>
+                <a href="{% url 'cine:cartelera' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">
+                    🎬 Volver a la cartelera
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

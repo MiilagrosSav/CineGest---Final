@@ -109,6 +109,14 @@ class FuncionListView(AdminRequiredMixin, ListView):
         
         return context
 
+    def render_to_response(self, context, **response_kwargs):
+        """Return only the table fragment for AJAX requests."""
+        request = self.request
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            from django.shortcuts import render
+            return render(request, 'cine/_funcion_table.html', context)
+        return super().render_to_response(context, **response_kwargs)
+
 # CREATE: Vista para mostrar el formulario de creación
 # CAMBIO 2: REEMPLAZO DE 'FuncionCreateView' POR UNA VISTA DE FUNCIÓN (FBV)
 # La 'CreateView' original se reemplaza por esta función
@@ -197,7 +205,6 @@ def funcion_create_view(request):
     }
     return render(request, 'cine/funcion_form.html', context)
 
-# FIN DEL CAMBIO 2
 
 # UPDATE: Vista para mostrar el formulario de edición
 class FuncionUpdateView(AdminRequiredMixin, UpdateView):
@@ -272,7 +279,27 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         # Cargar el idioma desde el campo directo de Funcion (no desde formatos)
         if funcion.idioma:
             initial['idioma'] = funcion.idioma
-        
+
+        # Fallbacks: si no encontró formatos, elegir una opción 'standard' por categoría
+        try:
+            from cine.models.formato import Formato
+            if not initial.get('formatos_visual'):
+                fallback = Formato.objects.filter(nombre__in=['2D', '2D Standard']).first() or Formato.objects.filter(categoria='VISUAL').order_by('nombre').first()
+                if fallback:
+                    initial['formatos_visual'] = fallback.id
+
+            if not initial.get('formatos_pantalla'):
+                fallback = Formato.objects.filter(nombre__icontains='Standard', categoria='PANTALLA').first() or Formato.objects.filter(categoria='PANTALLA').order_by('nombre').first()
+                if fallback:
+                    initial['formatos_pantalla'] = fallback.id
+
+            if not initial.get('formatos_experiencia'):
+                fallback = Formato.objects.filter(nombre__icontains='Standard', categoria='EXPERIENCIA').first() or Formato.objects.filter(categoria='EXPERIENCIA').order_by('nombre').first()
+                if fallback:
+                    initial['formatos_experiencia'] = fallback.id
+        except Exception:
+            pass
+
         return initial
 
     def get_context_data(self, **kwargs):

@@ -3,6 +3,9 @@
 {% block title %}Procesar Pago - CineGest{% endblock %}
 
 {% block content %}
+<!-- SDK de Mercado Pago -->
+<script src="https://sdk.mercadopago.com/js/v2"></script>
+
 <div class="container" style="max-width: 800px; margin: 0 auto;">
     <div class="card glass-container">
         <div class="card-header">
@@ -36,9 +39,9 @@
                 </p>
             </div>
 
-            <!-- Botón de Mercado Pago -->
+            <!-- Botón oficial de Mercado Pago generado por el SDK -->
             <div style="text-align: center; margin: var(--space-lg) 0;">
-                <div class="cho-container"></div>
+                <div id="wallet_container"></div>
                 
                 <p style="margin-top: var(--space-md); font-size: 0.9rem; opacity: 0.7;">
                     🔒 Pago seguro procesado por Mercado Pago
@@ -46,38 +49,74 @@
             </div>
 
             <div style="text-align: center; margin-top: var(--space-lg);">
-                <a href="{% url 'ventas:mis_ventas' %}" class="btn btn-outline">
-                    🔙 Volver a mis compras
-                </a>
+                <!-- Solo el botón oficial inyectado por el SDK debe mostrarse aquí -->
             </div>
         </div>
     </div>
 </div>
 
-<!-- SDK de Mercado Pago -->
-<script src="https://sdk.mercadopago.com/js/v2"></script>
-
 <script>
-    // Inicializar Mercado Pago con tu Public Key
-    const mp = new MercadoPago('{{ public_key }}', {
-        locale: 'es-AR'  // Cambiar según tu país: es-AR, es-MX, pt-BR, etc.
+    // Inicializar Mercado Pago con la Public Key
+    const mp = new MercadoPago('{{ mercadopago_public_key }}', {
+        locale: 'es-AR'
     });
-
-    // Crear el botón de pago
+    
+    // Crear el botón de pago oficial (amarillo)
     mp.checkout({
         preference: {
             id: '{{ preference_id }}'
         },
         render: {
-            container: '.cho-container',  // Contenedor donde se renderiza el botón
-            label: 'Pagar con Mercado Pago',  // Texto del botón
+            container: '#wallet_container',
+            label: 'Pagar con Mercado Pago',
+        },
+        theme: {
+            elementsColor: '#009ee3',
+            headerColor: '#009ee3',
         }
     });
+    
+    // Loguear init_point para debugging
+    console.log('init_point:', '{{ init_point }}');
+
+    // Intentar ajustar el botón inyectado por el SDK para que abra el init_point
+    // en una nueva pestaña (comportamiento equivalente a "Pagar en nueva pestaña").
+    // Si el SDK inyecta un <a>, le ponemos target="_blank" y href=init_point.
+    // Si inyecta un <button>, le añadimos un listener click que abre init_point en nueva pestaña.
+    setTimeout(() => {
+        console.log('Buscando botón inyectado por Mercado Pago...');
+        const container = document.getElementById('wallet_container');
+        if (!container) return;
+        // Buscar <a>
+        const anchor = container.querySelector('a');
+        if (anchor && '{{ init_point }}') {
+            anchor.setAttribute('href', '{{ init_point }}');
+            anchor.setAttribute('target', '_blank');
+            anchor.setAttribute('rel', 'noopener noreferrer');
+            console.log('SDK button ajustado: ancla -> abrir en nueva pestaña');
+            return;
+        }
+
+        // Buscar <button>
+        const btn = container.querySelector('button');
+        if (btn && '{{ init_point }}') {
+            // Remover handlers previos si los hubiera
+            try { btn.replaceWith(btn.cloneNode(true)); } catch (e) {}
+            const fresh = container.querySelector('button');
+            if (fresh) {
+                fresh.addEventListener('click', function (ev) {
+                    ev.preventDefault();
+                    window.open('{{ init_point }}', '_blank', 'noopener');
+                });
+                console.log('SDK button ajustado: botón -> abrir en nueva pestaña');
+            }
+        }
+    }, 700);
 </script>
 
 <style>
-    /* Estilos personalizados para el botón de Mercado Pago */
-    .cho-container {
+    /* Estilos para el contenedor del botón */
+    #wallet_container {
         min-height: 60px;
         display: flex;
         justify-content: center;

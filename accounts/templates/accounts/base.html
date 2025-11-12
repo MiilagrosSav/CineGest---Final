@@ -22,16 +22,16 @@
                         <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
                         
                         {% if user.is_superuser or user.rol == 'admin' %}
-                            <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">Gestión de Películas</a></li>
-                            <li><a href="{% url 'cine:sala_list' %}" class="nav-link">Gestión de Salas</a></li>
-                            <li><a href="{% url 'cine:funcion_list' %}" class="nav-link">Gestión de Funciones</a></li>
-                            <li><a href="{% url 'accounts:employee_list' %}" class="nav-link">Gestión de Empleados</a></li>
+                            <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">Películas</a></li>
+                            <li><a href="{% url 'cine:sala_list' %}" class="nav-link">Salas</a></li>
+                            <li><a href="{% url 'cine:funcion_list' %}" class="nav-link">Funciones</a></li>
+                            <li><a href="{% url 'accounts:employee_list' %}" class="nav-link">Empleados</a></li>
                         
                         {% elif user.rol == 'empleado' %}
                             <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🎭 Películas</a></li>
                         
                         {% elif user.rol == 'cliente' %}
-                            <li><a href="#" class="nav-link">🎫 Mis Compras</a></li>
+                            <li><a href="{% url 'ventas:mis_ventas' %}" class="nav-link">🎫 Mis Compras</a></li>
                             <li><a href="{% url 'cine:cartelera' %}" class="nav-link">🍿 Cartelera</a></li>
                         
                         {% endif %}

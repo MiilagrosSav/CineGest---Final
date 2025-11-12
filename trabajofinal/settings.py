@@ -30,14 +30,23 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-default-key-for-developmen
 DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 # ✅ CONFIGURACIÓN PARA DESARROLLO LOCAL
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost', '127.0.0.1:8000', 'localhost:8000']
+ALLOWED_HOSTS = [
+    '127.0.0.1', 
+    'localhost', 
+    '127.0.0.1:8000', 
+    'localhost:8000',
+    'uncategorized-noncommodiously-floy.ngrok-free.dev',
+    '*.ngrok-free.dev',
+]
 
 # ✅ CONFIGURACIÓN CSRF PARA EVITAR ERRORES 403
 CSRF_TRUSTED_ORIGINS = [
     'http://127.0.0.1:8000',
     'http://localhost:8000',
     'https://127.0.0.1:8000',
-    'https://localhost:8000'
+    'https://localhost:8000',
+    'https://uncategorized-noncommodiously-floy.ngrok-free.dev',
+    'https://*.ngrok-free.dev',
 ]
 
 # ✅ CONFIGURACIONES ADICIONALES CSRF PARA ADMIN
@@ -251,5 +260,7 @@ LOGGING = {
 # ============================================
 # MERCADO PAGO CONFIGURATION
 # ============================================
-MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADOPAGO_ACCESS_TOKEN')
-MERCADOPAGO_PUBLIC_KEY = os.getenv('MERCADOPAGO_PUBLIC_KEY')
+# Credenciales de prueba de Mercado Pago (TEST)
+# Para producción, configura las variables de entorno
+MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADOPAGO_ACCESS_TOKEN', 'TEST-3982445163869315-110521-a4d3f3f6e1e0b3c5e5c5c5c5c5c5c5c5-1234567890')
+MERCADOPAGO_PUBLIC_KEY = os.getenv('MERCADOPAGO_PUBLIC_KEY', 'TEST-c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3')

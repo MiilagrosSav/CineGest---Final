@@ -13,7 +13,11 @@ class MercadoPagoService:
     
     def __init__(self):
         """Inicializar SDK de Mercado Pago con el access token"""
-        self.sdk = mercadopago.SDK(settings.MERCADOPAGO_ACCESS_TOKEN)
+        access_token = settings.MERCADOPAGO_ACCESS_TOKEN
+        if not access_token or access_token == settings.MERCADOPAGO_ACCESS_TOKEN:
+            print("⚠️ ADVERTENCIA: Usando credenciales de prueba de Mercado Pago")
+            print("⚠️ Para producción, configura MERCADOPAGO_ACCESS_TOKEN en las variables de entorno")
+        self.sdk = mercadopago.SDK(access_token)
     
     def crear_preferencia_pago(self, venta, request):
         """
@@ -26,13 +30,8 @@ class MercadoPagoService:
         Returns:
             dict: Respuesta de Mercado Pago con la preferencia creada
         """
-        # URLs de retorno (debes crear estas vistas después)
-        success_url = request.build_absolute_uri(reverse('ventas:pago_exitoso'))
-        failure_url = request.build_absolute_uri(reverse('ventas:pago_fallido'))
-        pending_url = request.build_absolute_uri(reverse('ventas:pago_pendiente'))
-        
         # Calcular el monto total de la venta
-        total = venta.calcular_total()  # Deberás implementar este método en el modelo Venta
+        total = venta.calcular_total()
         
         # Crear los items de la preferencia
         items = []
@@ -45,12 +44,22 @@ class MercadoPagoService:
                 "currency_id": "ARS"  # Cambiar según tu país
             })
         
+        # URLs de retorno - construir manualmente para asegurar que funcionen
+        # Forzar HTTPS para ngrok (Mercado Pago requiere HTTPS)
+        host = request.get_host()
+        scheme = "https" if "ngrok" in host else request.scheme
+        base_url = f"{scheme}://{host}"
+        # Agregar external_reference en la URL como parámetro para asegurar que llegue
+        success_url = f"{base_url}{reverse('ventas:pago_exitoso')}?venta_id={venta.id_venta}"
+        failure_url = f"{base_url}{reverse('ventas:pago_fallido')}?venta_id={venta.id_venta}"
+        pending_url = f"{base_url}{reverse('ventas:pago_pendiente')}?venta_id={venta.id_venta}"
+        
         # Datos de la preferencia
         preference_data = {
             "items": items,
             "payer": {
-                "name": venta.id_cliente.usuario.first_name,
-                "surname": venta.id_cliente.usuario.last_name,
+                "name": venta.id_cliente.usuario.first_name or "Cliente",
+                "surname": venta.id_cliente.usuario.last_name or "CineGest",
                 "email": venta.id_cliente.usuario.email,
             },
             "back_urls": {
@@ -58,17 +67,30 @@ class MercadoPagoService:
                 "failure": failure_url,
                 "pending": pending_url
             },
-            "auto_return": "approved",  # Retorno automático cuando se aprueba el pago
+            "auto_return": "approved",  # Redirigir automáticamente después del pago exitoso
             "external_reference": str(venta.id_venta),  # ID de tu venta para identificarla
-            "notification_url": request.build_absolute_uri(reverse('ventas:webhook_mercadopago')),  # Para notificaciones IPN
             "statement_descriptor": "CINEGEST",  # Nombre que aparece en el resumen de tarjeta
+            "binary_mode": True,  # Solo estados: aprobado o rechazado (no pendiente)
+            
+            # Habilitar tarjetas de crédito/débito para pruebas
+            "payment_methods": {
+                "excluded_payment_methods": [],  # No excluir ningún método
+                "excluded_payment_types": [],    # No excluir ningún tipo
+                "installments": 12,              # Hasta 12 cuotas
+            }
         }
+        
+        print(f"📦 Creando preferencia para venta #{venta.id_venta} - Total: ${total}")
+        print(f"🔗 Back URLs configuradas:")
+        print(f"   ✅ Success: {success_url}")
+        print(f"   ❌ Failure: {failure_url}")
+        print(f"   ⏳ Pending: {pending_url}")
         
         # Crear la preferencia en Mercado Pago
         preference_response = self.sdk.preference().create(preference_data)
         
         return preference_response
-    
+
     def obtener_pago(self, payment_id):
         """
         Obtener información de un pago específico

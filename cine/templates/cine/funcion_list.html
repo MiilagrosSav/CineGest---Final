@@ -3,47 +3,17 @@
 {% block title %}Gestión de Funciones{% endblock %}
 
 {% block content %}
-<style>
-    /* Mejorar el selector de fecha en modo oscuro */
-    input[type="date"] {
-        color-scheme: dark;
-        background: rgba(26, 22, 37, 0.8);
-        color: #ffffff;
-        border: 1px solid rgba(139, 95, 191, 0.3);
-        padding: 0.4rem;
-        border-radius: 6px;
-        font-family: inherit;
-    }
-    
-    input[type="date"]::-webkit-calendar-picker-indicator {
-        filter: invert(1);
-        cursor: pointer;
-        font-size: 1.1rem;
-    }
-    
-    input[type="date"]:hover {
-        border-color: var(--primary);
-    }
-    
-    input[type="date"]:focus {
-        outline: none;
-        border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(139, 95, 191, 0.2);
-    }
-</style>
-
 <div class="container">
-    <div class="card glass-container mb-lg">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1 class="card-title text-gradient-primary">Gestión de Funciones</h1>
-        </div>
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🕒 Gestión de Funciones</h1>
     </div>
 
     <div class="card glass-container">
-        <!-- Barra de Filtros -->
+        
         <div style="padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--glass-border);">
             <form method="get" id="form-filtros" style="display: flex; gap: var(--space-xs); align-items: center; justify-content: space-between; flex-wrap: wrap;">
-                <!-- Búsqueda Dinámica -->
+                
                 <div style="position: relative; min-width: 180px; max-width: 250px;">
                     <input type="text" 
                            name="search" 
@@ -55,9 +25,8 @@
                     <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
                 </div>
                 
-                <!-- Contenedor derecho para filtros específicos -->
                 <div style="display: flex; gap: var(--space-xs); align-items: center; flex-wrap: wrap;">
-                    <!-- Filtro por Película -->
+                    
                     <select name="pelicula" class="form-select" style="width: 150px; padding: 0.4rem; font-size: 0.9rem;" onchange="this.form.submit()">
                         <option value="">Peliculas</option>
                         {% for peli in peliculas %}
@@ -67,7 +36,6 @@
                         {% endfor %}
                     </select>
                     
-                    <!-- Filtro por Sala -->
                     <select name="sala" class="form-select" style="width: 110px; padding: 0.4rem; font-size: 0.9rem;" onchange="this.form.submit()">
                         <option value="">Salas</option>
                         {% for s in salas %}
@@ -77,7 +45,6 @@
                         {% endfor %}
                     </select>
                     
-                    <!-- Filtro por Formato -->
                     <select name="formato" class="form-select" style="width: 110px; padding: 0.4rem; font-size: 0.9rem;" onchange="this.form.submit()">
                         <option value="">Formatos</option>
                         {% for fmt in formatos %}
@@ -87,7 +54,6 @@
                         {% endfor %}
                     </select>
                     
-                    <!-- Filtro por Fecha -->
                     <div style="position: relative;">
                         <input type="text" 
                                name="fecha_display" 
@@ -118,117 +84,107 @@
             </form>
         </div>
 
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                <thead>
-                    <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('pelicula')" title="Ordenar por película">
-                            Película 
-                            {% if filtro_orden == 'pelicula' %}
-                                <span style="opacity: 0.8;">↑</span>
-                            {% elif filtro_orden == 'pelicula_desc' %}
-                                <span style="opacity: 0.8;">↓</span>
-                            {% else %}
-                                <span style="opacity: 0.5;">⇅</span>
-                            {% endif %}
-                        </th>
-                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('sala')" title="Ordenar por número de sala">
-                            Sala
-                            {% if filtro_orden == 'sala' %}
-                                <span style="opacity: 0.8;">↑</span>
-                            {% elif filtro_orden == 'sala_desc' %}
-                                <span style="opacity: 0.8;">↓</span>
-                            {% else %}
-                                <span style="opacity: 0.5;">⇅</span>
-                            {% endif %}
-                        </th>
-                        <th style="padding: var(--space-sm);">Formato</th>
-                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('fecha')" title="Ordenar por fecha">
-                            Fecha y Hora
-                            {% if filtro_orden == 'fecha' or not filtro_orden %}
-                                <span style="opacity: 0.8;">↑</span>
-                            {% elif filtro_orden == 'fecha_desc' %}
-                                <span style="opacity: 0.8;">↓</span>
-                            {% else %}
-                                <span style="opacity: 0.5;">⇅</span>
-                            {% endif %}
-                        </th>
-                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('precio')" title="Ordenar por precio">
-                            Precio
-                            {% if filtro_orden == 'precio' %}
-                                <span style="opacity: 0.8;">↑</span>
-                            {% elif filtro_orden == 'precio_desc' %}
-                                <span style="opacity: 0.8;">↓</span>
-                            {% else %}
-                                <span style="opacity: 0.5;">⇅</span>
-                            {% endif %}
-                        </th>
-                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('duracion')" title="Ordenar por duración">
-                            Duración
-                            {% if filtro_orden == 'duracion' %}
-                                <span style="opacity: 0.8;">↑</span>
-                            {% elif filtro_orden == 'duracion_desc' %}
-                                <span style="opacity: 0.8;">↓</span>
-                            {% else %}
-                                <span style="opacity: 0.5;">⇅</span>
-                            {% endif %}
-                        </th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for funcion in funciones %}
-                    <tr class="funcion-row" data-id="{{ funcion.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
-                        <td style="padding: var(--space-sm); font-weight: 600;">{{ funcion.pelicula.titulo }}</td>
-                        <td style="padding: var(--space-sm);">
-                            <span title="{{ funcion.sala.nombre }}">
-                                Sala {{ funcion.sala.numero }}
-                            </span>
-                        </td>
-                        <td style="padding: var(--space-sm);">
-                            <span class="formato-badge">
-                                {{ funcion.get_formatos_destacados }}
-                            </span>
-                        </td>
-                        <td style="padding: var(--space-sm);">
-                            {{ funcion.fecha_hora|date:"d/m/Y H:i" }}
-                        </td>
-                        <td style="padding: var(--space-sm);">
-                            ${{ funcion.precio_base|floatformat:2 }}
-                        </td>
-                        <td style="padding: var(--space-sm); color: var(--text-secondary);">
-                            {{ funcion.pelicula.duracion }} min
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">
-                            No hay funciones programadas todavía. ¡Programa la primera!
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div id="funcionTableContainer">
+            {% include 'cine/_funcion_table.html' %}
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-md); padding: var(--space-md); border-top: 1px solid var(--glass-border);">
             
-            <!-- Paginación -->
-            {% include "cine/pagination.html" %}
-            
-            <!-- Panel de Acciones ABM -->
-            <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); padding: var(--space-md); border-top: 1px solid var(--glass-border);">
-                <a href="{% url 'cine:funcion_create' %}" class="btn btn-primary" style="min-width: 120px;">
-                    ✨ Nueva
+            <div>
+                <a href="{% url 'cine:funcion_create' %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                    ✚ Crear Nueva Función
                 </a>
-                <button id="btn-modificar" class="btn btn-outline" style="min-width: 120px;" disabled>
+            </div>
+            
+            <div style="display: flex; gap: var(--space-sm);">
+                <button id="btn-modificar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
                     ✏️ Modificar
                 </button>
-                <button id="btn-eliminar" class="btn btn-secondary" style="min-width: 120px;" disabled>
+                <button id="btn-eliminar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
                     🗑️ Eliminar
                 </button>
             </div>
         </div>
+
     </div>
 </div>
 
 <style>
+    /* --- Estilos para la Barra de Botones de la Lista (Ahora como en Películas) --- */
+    /* Apunta a los botones que están después del contenedor de la tabla de funciones */
+    #funcionTableContainer + div .btn,
+    #funcionTableContainer + div .btn-primary,
+    #funcionTableContainer + div .btn-outline {
+        padding: 0.7rem 1.3rem;
+        font-size: 0.9rem; 
+        font-weight: 600;
+        border-radius: 9999px; /* Forma de píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease-in-out;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    /* Hover para el botón PRIMARIO (Ahora el de "Nueva Función") */
+    #funcionTableContainer + div .btn-primary:hover {
+        background: rgb(77, 19, 92); /* <- El estilo de hover que estaba en tu pelicula_list.html */
+        color: white;
+        border: none;
+    }
+
+    /* Hover para botones OUTLINE (Modificar/Eliminar) */
+    #funcionTableContainer + div .btn-outline:not(:disabled):hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
+    }
+
+    /* Estado DESHABILITADO */
+    #funcionTableContainer + div .btn-outline:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background: transparent;
+        border-color: var(--glass-border);
+        color: var(--text-secondary);
+        transform: none;
+        box-shadow: none;
+    }
+    .btn:disabled,
+    .btn-outline:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* --- Tus otros estilos (sin cambios, ya que no son de botones) --- */
+    
+    /* Selector de fecha */
+    input[type="date"] {
+        color-scheme: dark;
+        background: rgba(26, 22, 37, 0.8);
+        color: #ffffff;
+        border: 1px solid rgba(139, 95, 191, 0.3);
+        padding: 0.4rem;
+        border-radius: 6px;
+        font-family: inherit;
+    }
+    input[type="date"]::-webkit-calendar-picker-indicator {
+        filter: invert(1);
+        cursor: pointer;
+        font-size: 1.1rem;
+    }
+    input[type="date"]:hover {
+        border-color: var(--primary);
+    }
+    input[type="date"]:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(139, 95, 191, 0.2);
+    }
+
+    /* Estilos de Fila */
     .funcion-row {
         transition: background-color 0.2s ease;
     }
@@ -249,196 +205,209 @@
         font-weight: 600;
         white-space: nowrap;
     }
-    
-    /* Formatos individuales */
-    .formato-2D {
-        background: linear-gradient(135deg, #4A90E2, #357ABD);
-        color: white;
-    }
-    .formato-3D {
-        background: linear-gradient(135deg, #9B59B6, #8E44AD);
-        color: white;
-    }
-    .formato-4D {
-        background: linear-gradient(135deg, #7ED321, #5FA518);
-        color: white;
-    }
-    .formato-IMAX {
-        background: linear-gradient(135deg, #E74C3C, #C0392B);
-        color: white;
-    }
-    
-    /* Formatos combinados */
-    .formato-2D_3D {
-        background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #9B59B6 50%, #9B59B6 100%);
-        color: white;
-    }
-    .formato-2D_4D {
-        background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #7ED321 50%, #7ED321 100%);
-        color: white;
-    }
-    .formato-3D_4D {
-        background: linear-gradient(135deg, #9B59B6 0%, #9B59B6 50%, #7ED321 50%, #7ED321 100%);
-        color: white;
-    }
+    .formato-2D { background: linear-gradient(135deg, #4A90E2, #357ABD); color: white; }
+    .formato-3D { background: linear-gradient(135deg, #9B59B6, #8E44AD); color: white; }
+    .formato-4D { background: linear-gradient(135deg, #7ED321, #5FA518); color: white; }
+    .formato-IMAX { background: linear-gradient(135deg, #E74C3C, #C0392B); color: white; }
+    .formato-2D_3D { background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #9B59B6 50%, #9B59B6 100%); color: white; }
+    .formato-2D_4D { background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #7ED321 50%, #7ED321 100%); color: white; }
+    .formato-3D_4D { background: linear-gradient(135deg, #9B59B6 0%, #9B59B6 50%, #7ED321 50%, #7ED321 100%); color: white; }
 </style>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const rows = document.querySelectorAll('.funcion-row');
-        const btnModificar = document.getElementById('btn-modificar');
-        const btnEliminar = document.getElementById('btn-eliminar');
-        
-        // Variable para almacenar la selección actual
-        let selectedRows = [];
-        
-        // Función para actualizar la interfaz según la selección
-        function updateUI() {
-            // Actualizar estado de botones
-            btnModificar.disabled = selectedRows.length !== 1;
-            btnEliminar.disabled = selectedRows.length === 0;
-            
-            // Actualizar texto del botón eliminar con contador
-            if (selectedRows.length > 0) {
-                btnEliminar.textContent = `🗑️ Eliminar ${selectedRows.length > 1 ? `(${selectedRows.length})` : ''}`;
-            } else {
-                btnEliminar.textContent = '🗑️ Eliminar';
-            }
-        }
-        
-        // Función para seleccionar/deseleccionar una fila
-        function toggleRowSelection(row) {
-            const rowId = row.dataset.id;
-            
-            if (row.classList.contains('selected')) {
-                // Deseleccionar
-                row.classList.remove('selected');
-                selectedRows = selectedRows.filter(id => id !== rowId);
-            } else {
-                // Seleccionar
-                row.classList.add('selected');
-                selectedRows.push(rowId);
-            }
-            
-            updateUI();
-        }
-        
-        // Evento para el clic en fila
-        rows.forEach(row => {
-            row.addEventListener('click', function(event) {
-                // Si se mantiene presionada la tecla Ctrl, permite selección múltiple
-                if (!event.ctrlKey && !event.metaKey) {
-                    // Si no se presiona Ctrl/Cmd, deseleccionar todas las demás
-                    rows.forEach(r => {
-                        if (r !== this && r.classList.contains('selected')) {
-                            r.classList.remove('selected');
-                        }
-                    });
-                    selectedRows = [];
-                }
-                
-                toggleRowSelection(this);
-            });
-        });
-        
-        // Evento para botón modificar
-        btnModificar.addEventListener('click', function() {
-            if (selectedRows.length === 1) {
-                window.location.href = `/funciones/${selectedRows[0]}/editar/`;
-            }
-        });
-        
-        // Evento para botón eliminar
-        btnEliminar.addEventListener('click', function() {
-            if (selectedRows.length === 0) return;
-            
-            if (selectedRows.length === 1) {
-                window.location.href = `/funciones/${selectedRows[0]}/eliminar/`;
-            } else {
-                if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} funciones seleccionadas?`)) {
-                    // Aquí implementaríamos la eliminación masiva
-                    alert('Función de eliminación masiva en desarrollo');
-                }
-            }
-        });
-        
-        // Inicializar UI
-        updateUI();
-    });
-    
-    // Búsqueda dinámica
-    const searchInput = document.getElementById('search-input');
-    let searchTimeout;
-    
-    searchInput.addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            document.getElementById('form-filtros').submit();
-        }, 500); // Espera 500ms después de que el usuario deje de escribir
-    });
-    
-    // Mejorar el input de fecha con formato DD-MM-YYYY
-    const fechaInput = document.getElementById('fecha-filtro');
-    const fechaDisplay = document.getElementById('fecha-display');
-    
-    if (fechaInput && fechaDisplay) {
-        // Convertir formato YYYY-MM-DD a DD-MM-YYYY al cargar
-        if (fechaInput.value) {
-            const [year, month, day] = fechaInput.value.split('-');
-            fechaDisplay.value = `${day}-${month}-${year}`;
-        }
-        
-        // Hacer que el input display abra el calendario
-        fechaDisplay.addEventListener('click', function() {
-            try {
-                fechaInput.showPicker();
-            } catch(e) {
-                // Fallback para navegadores que no soportan showPicker
-                fechaInput.click();
-            }
-        });
-        
-        // Cuando cambia la fecha en el input oculto
-        fechaInput.addEventListener('change', function() {
-            if (this.value) {
-                // Convertir YYYY-MM-DD a DD-MM-YYYY
-                const [year, month, day] = this.value.split('-');
-                fechaDisplay.value = `${day}-${month}-${year}`;
-                
-                // Enviar formulario
-                document.getElementById('form-filtros').submit();
-            }
-        });
-        
-        // Permitir limpiar la fecha
-        fechaDisplay.addEventListener('keydown', function(e) {
-            if (e.key === 'Backspace' || e.key === 'Delete') {
-                e.preventDefault();
-                this.value = '';
-                fechaInput.value = '';
-                document.getElementById('form-filtros').submit();
-            }
-        });
-    }
-    
-    // Función para ordenar por columna
+    var selectedRows = [];
+    var btnModificar = null;
+    var btnEliminar = null;
+
+    /**
+     * Función para ordenar por columna
+     */
     function ordenarPor(columna) {
         const urlParams = new URLSearchParams(window.location.search);
         const ordenActual = urlParams.get('orden');
-        
-        // Determinar nuevo orden (alternar entre ascendente y descendente)
         let nuevoOrden = columna;
-        if (ordenActual === columna) {
-            nuevoOrden = columna + '_desc';
-        } else if (ordenActual === columna + '_desc') {
-            nuevoOrden = columna;
+        if (ordenActual === columna) nuevoOrden = columna + '_desc';
+        else if (ordenActual === columna + '_desc') nuevoOrden = columna;
+        urlParams.set('orden', nuevoOrden);
+        window.location.href = '?' + urlParams.toString();
+    }
+
+    /**
+     * Actualiza la UI de los botones (habilitado/deshabilitado y texto)
+     */
+    function updateUI() {
+        if (!btnModificar || !btnEliminar) return;
+        btnModificar.disabled = selectedRows.length !== 1;
+        btnEliminar.disabled = selectedRows.length === 0;
+        if (selectedRows.length > 0) btnEliminar.textContent = `🗑️ Eliminar ${selectedRows.length > 1 ? `(${selectedRows.length})` : ''}`;
+        else btnEliminar.textContent = '🗑️ Eliminar';
+    }
+
+    /**
+     * Adjunta los listeners de click a las filas de la tabla.
+     * Esta función DEBE llamarse cada vez que la tabla se recarga (inicial y AJAX).
+     */
+    function attachRowListeners(container) {
+        if (!container) return;
+        const rows = container.querySelectorAll('.funcion-row');
+        rows.forEach(row => {
+            row.addEventListener('click', function(event) {
+                if (!event.ctrlKey && !event.metaKey) {
+                    rows.forEach(r => { if (r !== row && r.classList.contains('selected')) r.classList.remove('selected'); });
+                    if (!row.classList.contains('selected')) selectedRows = [];
+                }
+                const rowId = row.dataset.id;
+                if (row.classList.contains('selected')) {
+                    row.classList.remove('selected');
+                    selectedRows = selectedRows.filter(id => id !== rowId);
+                } else {
+                    row.classList.add('selected');
+                    if (!selectedRows.includes(rowId)) selectedRows.push(rowId);
+                }
+                updateUI();
+            });
+        });
+    }
+
+    /**
+     * Lógica de Carga Inicial (se ejecuta 1 vez)
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Encontrar los botones (son estáticos)
+        btnModificar = document.getElementById('btn-modificar');
+        btnEliminar = document.getElementById('btn-eliminar');
+        
+        // 2. Adjuntar listeners a los botones
+        if(btnModificar) btnModificar.addEventListener('click', function() {
+            if (selectedRows.length === 1) window.location.href = `/funciones/${selectedRows[0]}/editar/`;
+        });
+        if(btnEliminar) btnEliminar.addEventListener('click', function() {
+            if (selectedRows.length === 0) return;
+            if (selectedRows.length === 1) {
+                const url = `/funciones/${selectedRows[0]}/eliminar/`;
+                // Asumiendo que tenés la función openDeleteModal
+                if (window.openDeleteModal) openDeleteModal(url);
+                else window.location.href = url; // Fallback
+            } else if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} funciones seleccionadas?`)) {
+                alert('Función de eliminación masiva en desarrollo');
+            }
+        });
+
+        // 3. Adjuntar listeners a los filtros (son estáticos)
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            let searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => { document.getElementById('form-filtros').submit(); }, 500);
+            });
         }
         
-        // Actualizar parámetro de orden
-        urlParams.set('orden', nuevoOrden);
+        const fechaInput = document.getElementById('fecha-filtro');
+        const fechaDisplay = document.getElementById('fecha-display');
+        if (fechaInput && fechaDisplay) {
+            if (fechaInput.value) {
+                const [year, month, day] = fechaInput.value.split('-');
+                fechaDisplay.value = `${day}-${month}-${year}`;
+            }
+            fechaDisplay.addEventListener('click', function() {
+                try { fechaInput.showPicker(); } catch(e) { fechaInput.click(); }
+            });
+            fechaInput.addEventListener('change', function() {
+                if (this.value) {
+                    const [year, month, day] = this.value.split('-');
+                    fechaDisplay.value = `${day}-${month}-${year}`;
+                    document.getElementById('form-filtros').submit();
+                }
+            });
+            fechaDisplay.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace' || e.key === 'Delete') {
+                    e.preventDefault();
+                    this.value = '';
+                    fechaInput.value = '';
+                    document.getElementById('form-filtros').submit();
+                }
+            });
+        }
+
+        // 4. Adjuntar listeners a las filas de la tabla cargada inicialmente
+        attachRowListeners(document.getElementById('funcionTableContainer'));
         
-        // Redirigir con nuevos parámetros
-        window.location.href = '?' + urlParams.toString();
+        // 5. Inicializar estado de botones
+        updateUI();
+    });
+    
+    /**
+     * Lógica de Paginación AJAX (se ejecuta 1 vez)
+     */
+    (function(){
+        const container = document.getElementById('funcionTableContainer');
+        if (!container) return;
+
+        // Listener para paginación y ordenamiento
+        container.addEventListener('click', function(e){
+            const a = e.target.closest('a');
+            if (!a || (!a.href.includes('page=') && !a.href.includes('orden=')) || !container.contains(a)) return;
+            
+            e.preventDefault();
+            const href = a.getAttribute('href');
+            container.style.opacity = '0.6';
+
+            fetch(href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => { if (!r.ok) throw new Error('Network response not ok'); return r.text(); })
+                .then(html => {
+                    container.innerHTML = html;
+                    attachRowListeners(container); // Re-adjuntar listeners a las nuevas filas
+                    selectedRows = [];             // Resetear selección
+                    updateUI();                    // Actualizar botones (se deshabilitarán)
+                    history.pushState(null, '', href);
+                })
+                .catch(err => { console.error('AJAX error', err); })
+                .finally(()=>{ container.style.opacity = ''; });
+        });
+
+        // Delegación: abrir modal (si existe en el partial)
+        container.addEventListener('click', function(e){
+            const btn = e.target.closest('.row-delete');
+            if (!btn) return;
+            e.stopPropagation();
+            e.preventDefault();
+            const url = btn.getAttribute('data-url');
+            if (url && window.openDeleteModal) openDeleteModal(url);
+        });
+
+        // Listener para botones de historial del navegador
+        window.addEventListener('popstate', function(){
+             fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => r.text())
+                .then(html => { 
+                    container.innerHTML = html; 
+                    attachRowListeners(container);
+                    selectedRows = [];
+                    updateUI();
+                });
+        });
+    })();
+
+    /*
+     * Helpers to open delete modal
+     */
+    function getCookie(name) {
+        const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return v ? decodeURIComponent(v.pop()) : '';
+    }
+
+    function openDeleteModal(url) {
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => { if (!r.ok) throw new Error('Network response not ok'); return r.text(); })
+            .then(html => {
+                const tmp = document.createElement('div'); tmp.innerHTML = html;
+                const overlay = tmp.querySelector('#deleteModalOverlay') || tmp.firstElementChild;
+                if (!overlay) { console.error('No modal fragment returned'); window.location.href = url; return; }
+                document.body.appendChild(overlay);
+                if (window.initDeleteModal) window.initDeleteModal();
+            })
+            .catch(err => { console.error('Error loading delete modal', err); window.location.href = url; });
     }
 </script>
 {% endblock %}

@@ -1,0 +1,332 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Seleccionar Butacas - CineGest{% endblock %}
+
+{% block content %}
+<div id="precio-data" data-precio="{{ precio }}" style="display:none;"></div>
+
+<style>
+    .pantalla {
+        background: linear-gradient(180deg, rgba(78, 205, 196, 0.3), rgba(78, 205, 196, 0.1));
+        border-radius: 50% 50% 0 0;
+        padding: 1rem;
+        text-align: center;
+        margin-bottom: 2rem;
+        border: 2px solid var(--primary);
+        box-shadow: 0 4px 15px rgba(78, 205, 196, 0.3);
+    }
+    
+    .mapa-butacas {
+        display: flex;
+        flex-direction: column;
+        gap: 0.8rem;
+        max-width: 900px;
+        margin: 0 auto;
+        padding: var(--space-lg);
+        background: rgba(0,0,0,0.3);
+        border-radius: var(--radius);
+    }
+    
+    .fila-butacas {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        justify-content: center;
+    }
+    
+    .fila-label {
+        font-weight: 600;
+        width: 30px;
+        text-align: center;
+        color: var(--accent);
+        font-size: 1.1rem;
+    }
+    
+    .butaca {
+        width: 45px;
+        height: 45px;
+        border: 2px solid rgba(139, 95, 191, 0.5);
+        border-radius: 8px 8px 2px 2px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+        position: relative;
+        background: linear-gradient(135deg, rgba(139, 95, 191, 0.2), rgba(78, 205, 196, 0.1));
+    }
+    
+    .butaca:hover:not(.ocupada):not(.vip) {
+        transform: scale(1.1);
+        border-color: var(--primary);
+        background: linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(139, 95, 191, 0.2));
+        box-shadow: 0 4px 12px rgba(78, 205, 196, 0.4);
+    }
+    
+    .butaca.seleccionada {
+        background: linear-gradient(135deg, var(--primary), var(--accent));
+        border-color: var(--primary);
+        color: white;
+        transform: scale(1.05);
+        box-shadow: 0 4px 15px rgba(78, 205, 196, 0.5);
+    }
+    
+    .butaca.ocupada {
+        background: rgba(255, 107, 107, 0.3);
+        border-color: #ff6b6b;
+        cursor: not-allowed;
+        opacity: 0.6;
+    }
+    
+    .butaca.vip {
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.3), rgba(255, 152, 0, 0.2));
+        border-color: #ffc107;
+    }
+    
+    .butaca.vip.seleccionada {
+        background: linear-gradient(135deg, #ffc107, #ff9800);
+        border-color: #ffc107;
+    }
+    
+    .butaca.pasillo {
+        background: transparent;
+        border: none;
+        cursor: default;
+        pointer-events: none;
+        visibility: hidden;
+    }
+    
+    .leyenda {
+        display: flex;
+        gap: var(--space-lg);
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: var(--space-lg);
+        padding: var(--space-md);
+        background: rgba(255,255,255,0.05);
+        border-radius: var(--radius);
+    }
+    
+    .leyenda-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .leyenda-cuadro {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+        border: 2px solid;
+    }
+    
+    .resumen-compra {
+        position: sticky;
+        top: var(--space-lg);
+        background: linear-gradient(135deg, rgba(139, 95, 191, 0.2), rgba(78, 205, 196, 0.1));
+        padding: var(--space-lg);
+        border-radius: var(--radius);
+        border: 2px solid var(--primary);
+        box-shadow: 0 4px 15px rgba(78, 205, 196, 0.2);
+    }
+    
+    .info-label {
+        font-size: 0.8rem;
+        color: var(--text-secondary);
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .info-value {
+        font-size: 0.9rem;
+        color: var(--text-light);
+        font-weight: 600;
+    }
+</style>
+
+<div class="container">
+    <div class="card glass-container" style="margin-bottom: var(--space-lg);">
+        <div class="card-header">
+            <h1 class="card-title text-gradient-primary">🎬 {{ funcion.pelicula.titulo }}</h1>
+            <p class="card-subtitle">Selecciona tus butacas para la función</p>
+        </div>
+        
+        <div style="padding: var(--space-md); display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
+            <div>
+                <p class="info-label">📅 Fecha</p>
+                <p class="info-value">{{ funcion.fecha_hora|date:"d/m/Y" }}</p>
+            </div>
+            <div>
+                <p class="info-label">🕐 Hora</p>
+                <p class="info-value">{{ funcion.fecha_hora|date:"H:i" }}</p>
+            </div>
+            <div>
+                <p class="info-label">🏛️ Sala</p>
+                <p class="info-value">Sala {{ sala.numero }}</p>
+            </div>
+            <div>
+                <p class="info-label">💵 Precio por entrada</p>
+                <p class="info-value">${{ precio }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div style="display: grid; grid-template-columns: 1fr 350px; gap: var(--space-lg);">
+        <div class="card glass-container">
+            <div class="pantalla">
+                <h3 style="margin: 0; color: var(--primary); font-size: 1.2rem;">🎥 PANTALLA</h3>
+            </div>
+            
+            <form id="formButacas" method="post" action="{% url 'ventas:procesar_compra' funcion.id %}">
+                {% csrf_token %}
+                
+                <div class="mapa-butacas">
+                    {% for fila, butacas in butacas_por_fila %}
+                    <div class="fila-butacas">
+                        <span class="fila-label">{{ fila }}</span>
+                        {% for butaca in butacas %}
+                        <div class="butaca 
+                             {% if butaca.es_pasillo %}pasillo{% endif %}
+                             {% if butaca.ocupada and not butaca.es_pasillo %}ocupada{% endif %} 
+                             {% if butaca.tipo == 'VIP' and not butaca.es_pasillo %}vip{% endif %}"
+                             data-butaca-id="{{ butaca.id }}"
+                             data-fila="{{ fila }}"
+                             data-numero="{{ butaca.numero }}"
+                             {% if not butaca.ocupada and not butaca.es_pasillo %}onclick="toggleButaca(this)"{% endif %}>
+                            {% if not butaca.es_pasillo %}{{ butaca.numero }}{% endif %}
+                        </div>
+                        {% endfor %}
+                        <span class="fila-label">{{ fila }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="leyenda">
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: linear-gradient(135deg, rgba(139, 95, 191, 0.2), rgba(78, 205, 196, 0.1)); border-color: rgba(139, 95, 191, 0.5);"></div>
+                        <span>Disponible</span>
+                    </div>
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: linear-gradient(135deg, var(--primary), var(--accent)); border-color: var(--primary);"></div>
+                        <span>Seleccionada</span>
+                    </div>
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: rgba(255, 107, 107, 0.3); border-color: #ff6b6b;"></div>
+                        <span>Ocupada</span>
+                    </div>
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: linear-gradient(135deg, rgba(255, 193, 7, 0.3), rgba(255, 152, 0, 0.2)); border-color: #ffc107;"></div>
+                        <span>VIP</span>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <div>
+            <div class="resumen-compra">
+                <h3 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">📋 Resumen de Compra</h3>
+                
+                <div id="butacasSeleccionadas" style="margin-bottom: var(--space-md); min-height: 100px;">
+                    <p style="opacity: 0.7; text-align: center; padding: var(--space-lg) 0;">
+                        Selecciona tus butacas en el mapa
+                    </p>
+                </div>
+                
+                <hr style="border-color: rgba(255,255,255,0.1); margin: var(--space-md) 0;">
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-sm);">
+                    <span>Cantidad:</span>
+                    <strong id="cantidadButacas">0</strong>
+                </div>
+                
+                <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-sm);">
+                    <span>Precio unitario:</span>
+                    <span>${{ precio }}</span>
+                </div>
+                
+                <hr style="border-color: rgba(255,255,255,0.2); margin: var(--space-md) 0;">
+                
+                <div style="display: flex; justify-content: space-between; font-size: 1.3rem; font-weight: 600;">
+                    <span>Total:</span>
+                    <span style="color: var(--primary);" id="totalCompra">$0</span>
+                </div>
+                
+                <button type="submit" form="formButacas" class="btn btn-primary" id="btnConfirmar" style="width: 100%; margin-top: var(--space-lg);" disabled>
+                    🎫 Confirmar y Pagar
+                </button>
+                
+                <a href="{% url 'cine:cartelera' %}" class="btn btn-outline" style="width: 100%; margin-top: var(--space-md); text-align: center; text-decoration: none;">
+                    🔙 Volver a cartelera
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // @ts-nocheck
+    const precioUnitario = parseFloat(document.getElementById('precio-data').getAttribute('data-precio'));
+    let butacasSeleccionadas = [];
+    
+    console.log('Script cargado. Precio unitario:', precioUnitario);
+    
+    function toggleButaca(elemento) {
+        console.log('Toggle butaca clickeada:', elemento);
+        const butacaId = elemento.getAttribute('data-butaca-id');
+        const fila = elemento.getAttribute('data-fila');
+        const numero = elemento.getAttribute('data-numero');
+        
+        console.log('Butaca ID:', butacaId, 'Fila:', fila, 'Numero:', numero);
+        
+        if (elemento.classList.contains('seleccionada')) {
+            console.log('Deseleccionando butaca');
+            elemento.classList.remove('seleccionada');
+            butacasSeleccionadas = butacasSeleccionadas.filter(b => b.id !== butacaId);
+            const input = document.querySelector(`input[value="${butacaId}"]`);
+            if (input) input.remove();
+        } else {
+            console.log('Seleccionando butaca');
+            elemento.classList.add('seleccionada');
+            butacasSeleccionadas.push({ id: butacaId, fila: fila, numero: numero });
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'butacas[]';
+            input.value = butacaId;
+            document.getElementById('formButacas').appendChild(input);
+        }
+        console.log('Butacas seleccionadas:', butacasSeleccionadas);
+        actualizarResumen();
+    }
+    
+    function actualizarResumen() {
+        const cantidad = butacasSeleccionadas.length;
+        const total = cantidad * precioUnitario;
+        console.log('Actualizando resumen. Cantidad:', cantidad, 'Total:', total);
+        
+        document.getElementById('cantidadButacas').textContent = cantidad;
+        document.getElementById('totalCompra').textContent = `$${total.toFixed(2)}`;
+        
+        const contenedor = document.getElementById('butacasSeleccionadas');
+        if (cantidad === 0) {
+            contenedor.innerHTML = '<p style="opacity: 0.7; text-align: center; padding: var(--space-lg) 0;">Selecciona tus butacas en el mapa</p>';
+            document.getElementById('btnConfirmar').disabled = true;
+            console.log('Sin butacas seleccionadas, botón deshabilitado');
+        } else {
+            let html = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
+            butacasSeleccionadas.forEach(butaca => {
+                html += `<div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>💺 Butaca ${butaca.fila}${butaca.numero}</span>
+                    <span style="color: var(--primary);">$${precioUnitario.toFixed(2)}</span>
+                </div>`;
+            });
+            html += '</div>';
+            contenedor.innerHTML = html;
+            document.getElementById('btnConfirmar').disabled = false;
+            console.log('Butacas seleccionadas, botón habilitado');
+        }
+    }
+</script>
+{% endblock %}
