@@ -3,34 +3,32 @@
 {% block title %}Confirmar Eliminación{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 500px; text-align: center;">
-    
-    <div class="mb-lg">
-        <h1 class="card-title text-gradient-secondary" style="margin-bottom: 0;">🗑️ ¿Estás seguro?</h1>
-        <p class="card-subtitle">
-            Estás a punto de eliminar permanentemente la función:
-        </p>
-    </div>
-
+<div class="container-narrow">
     <div class="card glass-container text-center">
-        <form method="post" style="padding: var(--space-lg);">
+        <div class="card-header">
+            <h1 class="card-title text-gradient-secondary">🗑️ ¿Estás seguro?</h1>
+            <p class="card-subtitle">
+                Estás a punto de eliminar permanentemente la función:
+            </p>
+        </div>
+        
+        <div style="margin: var(--space-md) 0;">
+            <p style="font-size: 1.2rem; font-weight: 600; margin-bottom: var(--space-sm);">
+                🎬 {{ object.pelicula.titulo }}
+            </p>
+            <p style="color: var(--text-secondary); margin-bottom: var(--space-sm); font-size: 1rem;">
+                🏛️ Sala {{ object.sala.numero }} - {{ object.sala.nombre }}
+            </p>
+            <p style="color: var(--text-secondary); font-size: 1rem;">
+                📅 {{ object.fecha_hora|date:"d/m/Y H:i" }}
+            </p>
+        </div>
+
+        <p class="text-secondary">Esta acción no se puede deshacer.</p>
+
+        <form method="post">
             {% csrf_token %}
-
-            <div style="margin-bottom: var(--space-lg);">
-                <p style="font-size: 1.2rem; font-weight: 600; margin-bottom: var(--space-sm);">
-                    🎬 {{ object.pelicula.titulo }}
-                </p>
-                <p style="color: var(--text-secondary); margin-bottom: var(--space-sm); font-size: 1rem;">
-                    🏛️ Sala {{ object.sala.numero }} - {{ object.sala.nombre }}
-                </p>
-                <p style="color: var(--text-secondary); font-size: 1rem;">
-                    📅 {{ object.fecha_hora|date:"d/m/Y H:i" }}
-                </p>
-            </div>
-
-            <p class="text-secondary" style="font-weight: 600;">Esta acción no se puede deshacer.</p>
-
-            <div style="display: flex; gap: var(--space-md); margin-top: var(--space-lg); justify-content: center; flex-wrap: wrap;">
+            <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-lg); justify-content: center; flex-wrap: wrap;">
                 <button type="submit" class="btn btn-secondary">
                     Sí, Eliminar
                 </button>
@@ -43,7 +41,24 @@
 </div>
 
 <style>
-    /* Aplicar estilos base a los botones de esta página */
+    
+    .container-narrow {
+        max-width: 600px;
+        width: 100%;
+        margin: 0 auto;
+        padding: 0 var(--space-md);
+        min-height: 1vh;              /* altura completa para centrar verticalmente */
+        display: flex;
+        align-items: center;            /* centrado vertical */
+        justify-content: center;        /* centrado horizontal */
+    }
+
+    /* Asegurar que el card ocupe el ancho permitido */
+    .card {
+        width: 100%;
+    }
+
+    .card .btn-primary,
     .card .btn-secondary,
     .card .btn-outline {
         padding: 0.8rem 1.5rem;
@@ -54,22 +69,28 @@
         letter-spacing: 0.5px;
         border-width: 2px;
         transition: all 0.3s ease;
-        min-width: 180px; /* Ancho mínimo */
+        min-width: 180px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
     }
-
-    /* Botón "No, Cancelar" (Outline) */
+    .card .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        color: white;
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
+    }
     .card .btn-outline:hover {
         background: rgba(var(--primary-rgb), 0.25);
         border-color: var(--primary);
         color: var(--primary);
         transform: translateY(-1px);
     }
-
-    /* Botón "Sí, Eliminar" (Secondary/Danger) */
     .card .btn-secondary {
         --danger-color: #ff6b6b;
         --danger-rgb: 255, 107, 107;
-        
         background-color: var(--danger-color);
         border-color: var(--danger-color);
         color: #FFF;

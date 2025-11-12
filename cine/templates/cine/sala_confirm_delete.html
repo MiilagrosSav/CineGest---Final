@@ -25,11 +25,11 @@
 
             <form method="post">
                 {% csrf_token %}
-                <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-lg);">
-                    <button type="submit" class="btn btn-secondary" style="flex-grow: 1;">
+                <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-lg); justify-content: center; flex-wrap: wrap;">
+                    <button type="submit" class="btn btn-secondary">
                         Sí, Eliminar
                     </button>
-                    <a href="{% url 'cine:sala_list' %}" class="btn btn-outline" style="flex-grow: 1;">
+                    <a href="{% url 'cine:sala_list' %}" class="btn btn-outline">
                         No, Cancelar
                     </a>
                 </div>
@@ -62,4 +62,60 @@
         {% endif %}
     </div>
 </div>
+
+<style>
+    /* Estilos base para los botones de esta página */
+    .card .btn-primary,
+    .card .btn-secondary,
+    .card .btn-outline {
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 9999px; /* ¡Píldora! */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease;
+        min-width: 180px; /* Ancho mínimo */
+        text-decoration: none; 
+        display: inline-flex; 
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Botón "Volver" (Primary) */
+    .card .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        color: white;
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
+    }
+    
+    /* Botón "No, Cancelar" (Outline) */
+    .card .btn-outline:hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
+    }
+
+    /* Botón "Sí, Eliminar" (Secondary/Danger) */
+    .card .btn-secondary {
+        --danger-color: #ff6b6b;
+        --danger-rgb: 255, 107, 107;
+        
+        background-color: var(--danger-color);
+        border-color: var(--danger-color);
+        color: #FFF;
+    }
+    .card .btn-secondary:hover {
+        background-color: transparent;
+        border-color: var(--danger-color);
+        color: var(--danger-color);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 15px rgba(var(--danger-rgb), 0.4);
+    }
+</style>
 {% endblock %}

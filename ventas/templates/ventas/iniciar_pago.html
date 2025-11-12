@@ -3,54 +3,86 @@
 {% block title %}Procesar Pago - CineGest{% endblock %}
 
 {% block content %}
-<!-- SDK de Mercado Pago -->
 <script src="https://sdk.mercadopago.com/js/v2"></script>
 
-<div class="container" style="max-width: 800px; margin: 0 auto;">
-    <div class="card glass-container">
-        <div class="card-header">
-            <h1 class="card-title text-gradient-primary">💳 Procesar Pago</h1>
-            <p class="card-subtitle">Completa tu compra de forma segura con Mercado Pago</p>
-        </div>
+<div class="container" style="max-width: 768px;">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">💳 Procesar Pago</h1>
+        <p class="card-subtitle">Completa tu compra de forma segura con Mercado Pago</p>
+    </div>
 
+    <div class="card glass-container">
+        
         <div style="padding: var(--space-lg);">
             <h3 style="margin-bottom: var(--space-md);">📋 Resumen de tu compra</h3>
             
-            <div style="background: rgba(255,255,255,0.05); padding: var(--space-md); border-radius: var(--radius); margin-bottom: var(--space-lg);">
-                <p><strong>🎫 Número de venta:</strong> #{{ venta.id_venta }}</p>
-                <p><strong>📅 Fecha:</strong> {{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
-                <p><strong>🎬 Entradas:</strong> {{ venta.entradas.count }}</p>
-                <hr style="margin: var(--space-md) 0; border-color: rgba(255,255,255,0.1);">
-                
-                {% for entrada in venta.entradas.all %}
-                <div style="margin: var(--space-sm) 0; padding: var(--space-sm); background: rgba(0,0,0,0.2); border-radius: 6px;">
-                    <p style="margin: 4px 0;"><strong>{{ entrada.id_funcion.pelicula.titulo }}</strong></p>
-                    <p style="margin: 4px 0; font-size: 0.9rem; opacity: 0.8;">
-                        🏛️ Sala {{ entrada.id_sala.numero }} - 
-                        💺 Butaca {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }} - 
-                        ${{ entrada.id_funcion.precio_base }}
-                    </p>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">🎫 Número de venta</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">#{{ venta.id_venta }}</p>
                 </div>
-                {% endfor %}
-                
-                <hr style="margin: var(--space-md) 0; border-color: rgba(255,255,255,0.1);">
-                <p style="font-size: 1.5rem; font-weight: 600; color: var(--primary);">
-                    <strong>💰 Total:</strong> ${{ venta.calcular_total }}
-                </p>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">📅 Fecha</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">{{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">🎬 Total Entradas</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">{{ venta.entradas.count }}</p>
+                </div>
             </div>
 
-            <!-- Botón oficial de Mercado Pago generado por el SDK -->
-            <div style="text-align: center; margin: var(--space-lg) 0;">
-                <div id="wallet_container"></div>
+            <hr style="margin: var(--space-lg) 0; border-color: rgba(255,255,255,0.1);">
+            
+            {% if venta.entradas.all %}
+                {% with primera_entrada=venta.entradas.all.0 %}
                 
-                <p style="margin-top: var(--space-md); font-size: 0.9rem; opacity: 0.7;">
-                    🔒 Pago seguro procesado por Mercado Pago
+                <h4 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">
+                    🎬 {{ primera_entrada.id_pelicula.titulo }}
+                </h4>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
+                    <div>
+                        <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">📅 Fecha</p>
+                        <p style="margin: 2px 0 0 0; font-weight: 500;">{{ primera_entrada.id_funcion.fecha_hora|date:"d/m/Y" }}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">🕐 Hora</p>
+                        <p style="margin: 2px 0 0 0; font-weight: 500;">{{ primera_entrada.id_funcion.fecha_hora|date:"H:i" }}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">🏛️ Sala</p>
+                        <p style="margin: 2px 0 0 0; font-weight: 500;">{{ primera_entrada.id_sala.numero }}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">💵 Precio c/u</p>
+                        <p style="margin: 2px 0 0 0; font-weight: 500;">${{ primera_entrada.id_funcion.precio_base|floatformat:2 }}</p>
+                    </div>
+                </div>
+                <p style="margin: 0 0 var(--space-sm) 0; opacity: 0.7; font-size: 0.9rem;">
+                    💺 Butacas Adquiridas ({{ venta.entradas.all|length }}):
                 </p>
-            </div>
-
-            <div style="text-align: center; margin-top: var(--space-lg);">
-                <!-- Solo el botón oficial inyectado por el SDK debe mostrarse aquí -->
-            </div>
+                <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm); margin-bottom: var(--space-lg);">
+                    {% for entrada in venta.entradas.all %}
+                        <span class="butaca-badge">
+                            {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}
+                        </span>
+                    {% endfor %}
+                </div>
+                {% endwith %}
+            {% endif %}
+            
+            <hr style="margin: var(--space-lg) 0; border-color: rgba(255,255,255,0.1);">
+            <p style="font-size: 1.5rem; font-weight: 600; color: var(--primary); text-align: right;">
+                <strong>💰 Total:</strong> ${{ venta.calcular_total }}
+            </p>
+            
+        </div> <div class="card-footer" style="padding: var(--space-lg); border-top: 1px solid var(--glass-border); text-align: center;">
+            <div id="wallet_container">
+                </div>
+            <p style="margin-top: var(--space-md); font-size: 0.9rem; opacity: 0.7; margin-bottom: 0;">
+                🔒 Pago seguro procesado por Mercado Pago
+            </p>
         </div>
     </div>
 </div>
@@ -61,7 +93,7 @@
         locale: 'es-AR'
     });
     
-    // Crear el botón de pago oficial (amarillo)
+    // Crear el botón de pago oficial
     mp.checkout({
         preference: {
             id: '{{ preference_id }}'
@@ -76,18 +108,12 @@
         }
     });
     
-    // Loguear init_point para debugging
+    // (Tu script de 'setTimeout' para 'init_point' va aquí, sin cambios)
     console.log('init_point:', '{{ init_point }}');
-
-    // Intentar ajustar el botón inyectado por el SDK para que abra el init_point
-    // en una nueva pestaña (comportamiento equivalente a "Pagar en nueva pestaña").
-    // Si el SDK inyecta un <a>, le ponemos target="_blank" y href=init_point.
-    // Si inyecta un <button>, le añadimos un listener click que abre init_point en nueva pestaña.
     setTimeout(() => {
         console.log('Buscando botón inyectado por Mercado Pago...');
         const container = document.getElementById('wallet_container');
         if (!container) return;
-        // Buscar <a>
         const anchor = container.querySelector('a');
         if (anchor && '{{ init_point }}') {
             anchor.setAttribute('href', '{{ init_point }}');
@@ -96,11 +122,8 @@
             console.log('SDK button ajustado: ancla -> abrir en nueva pestaña');
             return;
         }
-
-        // Buscar <button>
         const btn = container.querySelector('button');
         if (btn && '{{ init_point }}') {
-            // Remover handlers previos si los hubiera
             try { btn.replaceWith(btn.cloneNode(true)); } catch (e) {}
             const fresh = container.querySelector('button');
             if (fresh) {
@@ -115,9 +138,21 @@
 </script>
 
 <style>
-    /* Estilos para el contenedor del botón */
+    /* Estilo para el "chip" de la butaca */
+    .butaca-badge {
+        background: rgba(var(--primary-rgb), 0.15);
+        border: 1px solid var(--primary);
+        color: var(--text-light);
+        padding: 0.3rem 0.7rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+
+    /* Estilos para el contenedor del botón de MP */
     #wallet_container {
-        min-height: 60px;
+        min-height: 45px; /* Altura estándar del botón de MP */
         display: flex;
         justify-content: center;
         align-items: center;

@@ -4,11 +4,12 @@
 
 {% block content %}
 <div class="container">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🎫 Mis Compras</h1>
+    </div>
+
     <div class="card glass-container">
-        <div class="card-header">
-            <h1 class="card-title text-gradient-primary">🎫 Mis Compras</h1>
-            <p class="card-subtitle">Historial de tus entradas compradas</p>
-        </div>
 
         <style>
             .venta-card {
@@ -16,6 +17,11 @@
                 padding: var(--space-lg);
                 border-radius: var(--radius);
                 border-left: 4px solid;
+                transition: all 0.2s ease;
+            }
+            .venta-card:hover {
+                background: rgba(255,255,255,0.1);
+                transform: translateY(-2px);
             }
             .venta-confirmada { border-left-color: var(--primary); }
             .venta-pendiente { border-left-color: #ffc107; }
@@ -28,21 +34,24 @@
                 font-size: 0.85rem;
                 font-weight: 600;
             }
-            .badge-confirmada { background: rgba(78, 205, 196, 0.2); color: var(--primary); }
+            .badge-confirmada { color: var(--primary); }
             .badge-pendiente { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
             .badge-cancelada { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+
+            .with-divider {
+                border-bottom: 1px solid var(--glass-border);
+            }
         </style>
 
-        <!-- Ventas Pendientes -->
         {% if ventas_pendientes %}
-        <div style="padding: var(--space-lg); border-bottom: 1px solid rgba(255,255,255,0.1);">
+        <div class="ventas-pendientes {% if ventas_historial %}with-divider{% endif %}" style="padding: var(--space-lg);">
             <h2 style="margin: 0 0 var(--space-md) 0; color: #ffc107;">⏳ Pagos Pendientes</h2>
             <div style="display: flex; flex-direction: column; gap: var(--space-md);">
                 {% for venta in ventas_pendientes %}
                 <div class="venta-card venta-pendiente">
                     <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-md);">
                         <div>
-                            <h3 style="margin: 0 0 var(--space-xs) 0;">🎬 Venta #{{ venta.id_venta }}</h3>
+                            <h3 style="margin: 0 0 var(--space-xs) 0;">🎬 Compra #{{ venta.id_venta }}</h3>
                             <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">📅 {{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
                         </div>
                         <div style="text-align: right;">
@@ -64,11 +73,11 @@
                         </div>
                     </div>
                     
-                    <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+                    <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap; justify-content: space-between; align-items: center;">
                         <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary" style="text-decoration: none;">
                             💳 Pagar Ahora
                         </a>
-                        <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" class="btn btn-outline" style="text-decoration: none;">
+                        <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" class="btn-ver-detalle" style="text-decoration: none;">
                             👁️ Ver Detalle
                         </a>
                     </div>
@@ -78,55 +87,42 @@
         </div>
         {% endif %}
 
-        <!-- Historial de Compras -->
         {% if ventas_historial %}
         <div style="padding: var(--space-lg);">
             <h2 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">📚 Historial de Compras</h2>
-            <div style="display: flex; flex-direction: column; gap: var(--space-md);">
-                {% for venta in ventas_historial %}
-                <div class="venta-card {% if venta.estado == 'CONFIRMADA' %}venta-confirmada{% elif venta.estado == 'PENDIENTE' or venta.estado == 'PENDIENTE_PAGO' %}venta-pendiente{% else %}venta-cancelada{% endif %}">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-md);">
-                        <div>
-                            <h3 style="margin: 0 0 var(--space-xs) 0;">🎬 Venta #{{ venta.id_venta }}</h3>
-                            <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">📅 {{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
-                        </div>
-                        <div style="text-align: right;">
-                            <span class="badge-estado {% if venta.estado == 'CONFIRMADA' %}badge-confirmada{% elif venta.estado == 'PENDIENTE' or venta.estado == 'PENDIENTE_PAGO' %}badge-pendiente{% else %}badge-cancelada{% endif %}">
-                                {% if venta.estado == 'CONFIRMADA' %}✅ Confirmada
-                                {% elif venta.estado == 'PENDIENTE' %}⏳ Pendiente
-                                {% elif venta.estado == 'PENDIENTE_PAGO' %}⏳ Pendiente de Pago
-                                {% else %}❌ Cancelada{% endif %}
-                            </span>
-                        </div>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-md);">
-                        <div>
-                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Tipo de venta</p>
-                            <p style="margin: 4px 0 0 0; font-weight: 600;">{{ venta.tipo_venta }}</p>
-                        </div>
-                        <div>
-                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Cantidad de entradas</p>
-                            <p style="margin: 4px 0 0 0; font-weight: 600;">{{ venta.cantidad_entradas }}</p>
-                        </div>
-                        <div>
-                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Total</p>
-                            <p style="margin: 4px 0 0 0; font-weight: 600; color: var(--primary); font-size: 1.1rem;">${{ venta.calcular_total }}</p>
-                        </div>
-                    </div>
-                    
-                    <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
-                        <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" class="btn btn-outline" style="text-decoration: none;">
-                            👁️ Ver Detalle
-                        </a>
-                    </div>
-                </div>
-                {% endfor %}
+            <div id="ventasHistorialContainer">
+                {% include 'ventas/_ventas_historial.html' %}
             </div>
+
+            <script>
+                (function(){
+                    const container = document.getElementById('ventasHistorialContainer');
+                    if (!container) return;
+
+                    container.addEventListener('click', function(e){
+                        const a = e.target.closest('a');
+                        if (!a) return;
+                        const href = a.getAttribute('href') || '';
+                        if (!href.includes('page=')) return;
+
+                        e.preventDefault();
+                        const url = a.href;
+                        container.style.opacity = '0.6';
+
+                        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                            .then(r => { if (!r.ok) throw new Error('Network response not ok'); return r.text(); })
+                            .then(html => {
+                                container.innerHTML = html;
+                                try { history.pushState(null, '', url); } catch (e) {}
+                            })
+                            .catch(err => { console.error('AJAX error fetching ventas page', err); })
+                            .finally(()=>{ container.style.opacity = ''; });
+                    });
+                })();
+            </script>
         </div>
         {% endif %}
 
-        <!-- Mensaje si no hay ventas -->
         {% if not ventas_pendientes and not ventas_historial %}
         <div style="text-align: center; padding: var(--space-xl);">
             <div style="font-size: 4rem; margin-bottom: var(--space-md);">🎟️</div>
@@ -138,4 +134,102 @@
         {% endif %}
     </div>
 </div>
+
+<style>
+    /* Estilos para Botones GRANDES (Pagar, Explorar) */
+    .card .btn-primary,
+    .card .btn-outline {
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 9999px; /* Píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease;
+        min-width: 180px; 
+        text-decoration: none; 
+        display: inline-flex; 
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .card .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        color: white;
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
+    }
+    
+    .card .btn-outline:hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-1px);
+    }
+
+    /* Estilo para Botón PEQUEÑO "Ver Detalle" */
+    .btn-ver-detalle {
+        padding: 0.4rem 0.9rem; /* Más pequeño */
+        font-size: 0.85rem; /* Letra más chica */
+        font-weight: 600;
+        border-radius: 9999px; /* Píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: 2px solid var(--glass-border); /* Borde sutil */
+        color: var(--text-secondary); /* Color sutil */
+        text-decoration: none;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+    }
+    .btn-ver-detalle:hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-1px);
+    }
+
+    /* --- (NUEVO) Estilos para Paginación Minimalista --- */
+
+    /* Esto apunta específicamente a los botones 'Anterior/Siguiente' 
+    que están DENTRO de tu 'ventas-pagination'.
+    */
+    .ventas-pagination .btn-outline {
+        padding: 0.5rem 1rem;       /* Padding más chico */
+        font-size: 0.9rem;          /* Letra más chica */
+        font-weight: 600;
+        border-radius: 9999px;      /* Píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.2s ease;
+        min-width: 120px; /* Ancho mínimo más chico */
+        
+        /* Importante: Reseteamos los estilos que no queremos heredar */
+        display: inline-flex; 
+        align-items: center;
+        justify-content: center;
+        text-decoration: none; 
+    }
+
+    /* Hover (igual que los otros 'outline') */
+    .ventas-pagination .btn-outline:not([style*="opacity"]):hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-1px);
+    }
+
+    /* Estado deshabilitado (cuando estás en la pág 1 o la última) */
+    .ventas-pagination .btn-outline[style*="opacity"] {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background: transparent;
+        border-color: var(--glass-border);
+        color: var(--text-secondary);
+    }
+
+</style>
 {% endblock %}

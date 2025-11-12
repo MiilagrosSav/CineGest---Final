@@ -81,7 +81,8 @@ def dashboard_view(request):
     elif user.rol == 'empleado':
         return render(request, 'accounts/dashboard_empleado.html')
     else: # user.rol == 'cliente'
-        return render(request, 'accounts/dashboard_cliente.html')
+        # Redirigir clientes directamente a la cartelera pública
+        return redirect('cine:cartelera')
 
 # --- Vista para Crear Empleados (Actualizada) ---
 class EmployeeCreateView(AdminRequiredMixin, CreateView):

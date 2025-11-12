@@ -4,11 +4,11 @@
 {% block title %}Compra Exitosa - CineGest{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <!-- Header minimalista -->
+<div class="container" style="max-width: 900px;">
+    
     <div class="text-center mb-5">
         <div class="success-icon mb-3">
-            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="#28a745" stroke-width="2">
+            <svg width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="1.5">
                 <circle cx="12" cy="12" r="10"></circle>
                 <path d="M9 12l2 2 4-4"></path>
             </svg>
@@ -17,65 +17,119 @@
         <p class="text-muted">Tu pago ha sido procesado correctamente</p>
     </div>
 
-    <!-- Información de la compra -->
-    <div class="card border-0 shadow-sm mb-4">
-        <div class="card-body p-4">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <small class="text-muted d-block">N° de Orden</small>
-                    <strong>#{{ venta.id_venta }}</strong>
+    <div class="card glass-container">
+        
+        <div style="padding: var(--space-lg); border-bottom: 1px solid var(--glass-border);">
+            <h3 style="margin-bottom: var(--space-md);">📋 Resumen de tu Compra</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
+                <div>
+                    <small class="text-muted d-block" style="opacity: 0.7; font-size: 0.9rem;">N° de Orden</small>
+                    <strong style="font-size: 1.1rem;">#{{ venta.id_venta }}</strong>
                 </div>
-                <div class="col-md-4">
-                    <small class="text-muted d-block">Total Pagado</small>
-                    {# Mostrar el monto del pago si existe, si no usar el total calculado de la venta #}
-                    <strong>${{ pago.monto|default:venta.calcular_total }}</strong>
+                <div>
+                    <small class="text-muted d-block" style="opacity: 0.7; font-size: 0.9rem;">Total Pagado</small>
+                    <strong style="font-size: 1.1rem; color: var(--primary);">
+                        ${{ pago.monto|default:venta.calcular_total }}
+                    </strong>
                 </div>
-                <div class="col-md-4">
-                    <small class="text-muted d-block">Fecha</small>
-                    <strong>{{ venta.fecha_compra|date:"d/m/Y H:i" }}</strong>
+                <div>
+                    <small class="text-muted d-block" style="opacity: 0.7; font-size: 0.9rem;">Fecha</small>
+                    <strong style="font-size: 1.1rem;">{{ venta.fecha_compra|date:"d/m/Y H:i" }}</strong>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Entradas con QR -->
-    <div class="row g-3 mb-4">
-        {% for entrada in venta.entradas.all %}
-        <div class="col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body text-center p-4">
-                    <h6 class="mb-3">{{ entrada.id_funcion.pelicula.titulo }}</h6>
+        <div style="padding: var(--space-lg);">
+            <h3 class="mb-4">🎟️ Tus Entradas ({{ venta.entradas.all|length }})</h3>
+            
+            <div class="ticket-carousel">
+                {% for entrada in venta.entradas.all %}
+                <div class="ticket-item" style="background: rgba(255,255,255,0.05); border-radius: var(--radius); padding: var(--space-lg); text-align: center;">
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=CINEGEST-{{ entrada.id }}-{{ venta.id_venta }}" 
-                         alt="QR Entrada" class="mb-3">
-                    <div class="small text-muted">
-                        <div>Sala {{ entrada.id_sala.numero }} - Butaca {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}</div>
+                         alt="QR Entrada" class="mb-3" style="border-radius: var(--radius);">
+                    
+                    <h5 class="mb-2" style="color: var(--primary);">{{ entrada.id_funcion.pelicula.titulo }}</h5>
+                    
+                    <div classs="small text-muted" style="opacity: 0.8; line-height: 1.6; font-size: 0.9rem;">
+                        <div>Sala {{ entrada.id_sala.numero }} - <strong>Butaca {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}</strong></div>
                         <div>{{ entrada.id_funcion.fecha_hora|date:"d/m/Y H:i" }}</div>
                     </div>
                 </div>
+                {% endfor %}
             </div>
         </div>
-        {% endfor %}
-    </div>
 
-    <!-- Botones de acción -->
-    <div class="text-center mb-5">
-        <a id="misComprasBtn" href="{% url 'ventas:mis_ventas' %}" class="btn btn-primary btn-lg px-5">Ver mis compras</a>
-        <p style="margin-top:12px; opacity:0.85;">Tu pago fue acreditado. Puedes volver a "Mis Compras" cuando quieras.</p>
+        <div class="card-footer" style="padding: var(--space-lg); border-top: 1px solid var(--glass-border); text-align: center;">
+            <a id="misComprasBtn" href="{% url 'ventas:mis_ventas' %}" class="btn btn-primary">Ver mis compras</a>
+            <p style="margin-top:12px; opacity:0.85; margin-bottom: 0;">Tu pago fue acreditado.</p>
+        </div>
     </div>
 </div>
 
 <style>
-.success-icon {
-    animation: scaleIn 0.5s ease-out;
-}
+    .success-icon {
+        animation: scaleIn 0.5s ease-out;
+    }
 
-@keyframes scaleIn {
-    from { transform: scale(0); }
-    to { transform: scale(1); }
-}
+    @keyframes scaleIn {
+        from { transform: scale(0); }
+        to { transform: scale(1); }
+    }
 
-@media print {
-    .btn, nav, footer { display: none; }
-}
+    @media print {
+        .btn, nav, footer, .card-footer { display: none; }
+        .card { background: none !important; box-shadow: none !important; }
+        .card-body, div[style*="padding"] { padding: 0 !important; }
+    }
+
+    /* --- Estilos para el Carrusel de Tickets --- */
+    .ticket-carousel {
+        display: flex;
+        overflow-x: auto; /* ¡Magia! Habilita el scroll horizontal */
+        gap: var(--space-md);
+        padding: 0 4px var(--space-md) 4px; /* Pequeño padding para que se vea la sombra */
+        
+        /* Ocultar scrollbar pero permitir scroll */
+        -ms-overflow-style: none;  /* IE y Edge */
+        scrollbar-width: none;  /* Firefox */
+    }
+    .ticket-carousel::-webkit-scrollbar {
+        display: none; /* Chrome, Safari y Opera */
+    }
+    
+    .ticket-item {
+        flex: 0 0 300px; /* Cada ticket tendrá 300px de ancho */
+        transition: all 0.2s ease;
+    }
+    .ticket-item:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+    /* --- Fin Estilos Carrusel --- */
+
+
+    /* --- Estilos para el botón del footer --- */
+    .card-footer .btn-primary {
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 9999px; /* Píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease;
+        min-width: 180px; 
+        text-decoration: none; 
+        display: inline-flex; 
+        align-items: center;
+        justify-content: center;
+    }
+    .card-footer .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        color: white;
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
+    }
 </style>
 {% endblock %}
