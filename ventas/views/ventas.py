@@ -5,6 +5,7 @@ Vistas para gestionar ventas
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from ventas.models import Venta
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 
 
 @login_required
@@ -17,14 +18,30 @@ def mis_ventas(request):
     
     # Separar ventas pendientes y confirmadas
     ventas_pendientes = ventas_todas.filter(estado__in=['PENDIENTE', 'PENDIENTE_PAGO'])
-    ventas_historial = ventas_todas.filter(estado__in=['CONFIRMADA', 'CANCELADA'])
+    ventas_historial_qs = ventas_todas.filter(estado__in=['CONFIRMADA', 'CANCELADA'])
+
+    # Paginación para el historial (evita cargar muchas ventas en memoria)
+    page_number = request.GET.get('page', 1)
+    page_size = 3  # items por página — ajustalo si querés
+    paginator = Paginator(ventas_historial_qs, page_size)
+    try:
+        ventas_page = paginator.page(page_number)
+    except PageNotAnInteger:
+        ventas_page = paginator.page(1)
+    except EmptyPage:
+        ventas_page = paginator.page(paginator.num_pages)
     
     context = {
         'ventas': ventas_todas,
         'ventas_pendientes': ventas_pendientes,
-        'ventas_historial': ventas_historial,
+        'ventas_historial': ventas_historial_qs,
+        'ventas_page': ventas_page,
     }
     
+    # Si la petición es AJAX, devolvemos solo el partial del historial
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return render(request, 'ventas/_ventas_historial.html', context)
+
     return render(request, 'ventas/mis_ventas.html', context)
 
 

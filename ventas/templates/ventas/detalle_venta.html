@@ -7,47 +7,24 @@
 
     <div class="mb-lg">
         <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🎫 Detalle de Compra #{{ venta.id_venta }}</h1>
-        
-        <div class="estado-badge {% if venta.estado == 'CONFIRMADA' %}estado-confirmada{% elif venta.estado == 'PENDIENTE' or venta.estado == 'PENDIENTE_PAGO' %}estado-pendiente{% else %}estado-cancelada{% endif %}">
-            <p style="margin: 0;">
-                {% if venta.estado == 'CONFIRMADA' %}✅ Confirmada
-                {% elif venta.estado == 'PENDIENTE' %}⏳ Pendiente
-                {% elif venta.estado == 'PENDIENTE_PAGO' %}⏳ Pendiente de Pago
-                {% else %}❌ Cancelada{% endif %}
-            </p>
-        </div>
     </div>
 
-    <style>
-        .estado-badge {
-            /* padding: var(--space-lg); */ /* Quitado */
-            padding: 0.4rem 1rem; /* Modificado */
-            border-radius: var(--radius);
-            border: 2px solid;
-            /* margin-bottom: var(--space-lg); */ /* Quitado */
-            margin-top: var(--space-md); /* Añadido */
-            display: inline-block; /* Añadido */
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        .estado-confirmada {
-            background: rgba(78, 205, 196, 0.1);
-            border-color: var(--primary);
-        }
-        .estado-pendiente {
-            background: rgba(255, 193, 7, 0.1);
-            border-color: #ffc107;
-        }
-        .estado-cancelada {
-            background: rgba(255, 107, 107, 0.1);
-            border-color: #ff6b6b;
-        }
-    </style>
-
     <div class="card glass-container">
+        
         <div style="padding: var(--space-lg);">
             
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-xl);">
+            <div class="estado-badge {% if venta.estado == 'CONFIRMADA' %}estado-confirmada{% elif venta.estado == 'PENDIENTE' or venta.estado == 'PENDIENTE_PAGO' %}estado-pendiente{% else %}estado-cancelada{% endif %}">
+                <p style="margin: 0;">
+                    {% if venta.estado == 'CONFIRMADA' %}✅ Confirmada
+                    {% elif venta.estado == 'PENDIENTE' %}⏳ Pendiente
+                    {% elif venta.estado == 'PENDIENTE_PAGO' %}⏳ Pendiente de Pago
+                    {% else %}❌ Cancelada{% endif %}
+                </p>
+            </div>
+
+            <div style="border-top: 1px solid var(--glass-border); margin: var(--space-lg) 0;"></div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-xl);">
             
                 <div>
                     <h3 style="margin-bottom: var(--space-md);">📋 Información de la Venta</h3>
@@ -71,7 +48,7 @@
                     </div>
 
                     {% if venta.pago %}
-                    <h3 style="margin-bottom: var(--space-md);">💳 Información de Pago</h3>
+                    <h3 style="margin-top: var(--space-lg); margin-bottom: var(--space-md);">💳 Información de Pago</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
                         <div>
                             <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">💰 Monto</p>
@@ -95,45 +72,130 @@
 
                 <div>
                     <h3 style="margin-bottom: var(--space-md);">🎟️ Tus Entradas</h3>
-                    <div style="display: flex; flex-direction: column; gap: var(--space-md);">
-                        {% for entrada in venta.entradas.all %}
-                        <div style="background: rgba(255,255,255,0.05); padding: var(--space-lg); border-radius: var(--radius); border-left: 4px solid var(--primary);">
-                            <h4 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">🎬 {{ entrada.id_pelicula.titulo }}</h4>
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: var(--space-sm);">
+                    
+                    {% if venta.entradas.all %}
+                        {% with primera_entrada=venta.entradas.all.0 %}
+                        <div style="background: rgba(255,255,255,0.05); border-radius: var(--radius); padding: var(--space-lg);">
+                            
+                            <h4 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">🎬 {{ primera_entrada.id_pelicula.titulo }}</h4>
+                            
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
                                 <div>
-                                    <p style="margin: 0; opacity: 0.7; font-size: 0.8rem;">📅 Fecha</p>
-                                    <p style="margin: 2px 0 0 0; font-weight: 600;">{{ entrada.id_funcion.fecha_hora|date:"d/m/Y" }}</p>
+                                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">📅 Fecha</p>
+                                    <p style="margin: 2px 0 0 0; font-weight: 500;">{{ primera_entrada.id_funcion.fecha_hora|date:"d/m/Y" }}</p>
                                 </div>
                                 <div>
-                                    <p style="margin: 0; opacity: 0.7; font-size: 0.8rem;">🕐 Hora</p>
-                                    <p style="margin: 2px 0 0 0; font-weight: 600;">{{ entrada.id_funcion.fecha_hora|date:"H:i" }}</p>
+                                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">🕐 Hora</p>
+                                    <p style="margin: 2px 0 0 0; font-weight: 500;">{{ primera_entrada.id_funcion.fecha_hora|date:"H:i" }}</p>
                                 </div>
                                 <div>
-                                    <p style="margin: 0; opacity: 0.7; font-size: 0.8rem;">🏛️ Sala</p>
-                                    <p style="margin: 2px 0 0 0; font-weight: 600;">{{ entrada.id_sala.numero }}</p>
-                                </div>
-                                <div>
-                                    <p style="margin: 0; opacity: 0.7; font-size: 0.8rem;">💺 Butaca</p>
-                                    <p style="margin: 2px 0 0 0; font-weight: 600;">{{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}</p>
+                                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">🏛️ Sala</p>
+                                    <p style="margin: 2px 0 0 0; font-weight: 500;">{{ primera_entrada.id_sala.numero }}</p>
                                 </div>
                             </div>
+
+                            <hr style="border-color: var(--glass-border); margin: 0 0 var(--space-md) 0;">
+
+                            <p style="margin: 0 0 var(--space-sm) 0; opacity: 0.7; font-size: 0.9rem;">
+                                💺 Butacas Adquiridas ({{ venta.entradas.all|length }}):
+                            </p>
+                            
+                            <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm);">
+                                {% for entrada in venta.entradas.all %}
+                                    <span class="butaca-badge">
+                                        {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}
+                                    </span>
+                                {% endfor %}
+                            </div>
+
                         </div>
-                        {% endfor %}
-                    </div>
+                        {% endwith %}
+                    {% else %}
+                        <div style="background: rgba(255,255,255,0.05); border-radius: var(--radius); padding: var(--space-lg); text-align: center; opacity: 0.7;">
+                            <p style="margin: 0;">No hay entradas asociadas a esta compra.</p>
+                        </div>
+                    {% endif %}
                 </div>
 
-            </div> <div style="display: flex; gap: var(--space-md); flex-wrap: wrap; margin-top: var(--space-lg); border-top: 1px solid rgba(255,255,255,0.1); padding-top: var(--space-lg);">
-                {% if venta.estado == 'PENDIENTE' %}
-                <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary" style="flex: 1; text-align: center; text-decoration: none;">
-                    💳 Pagar Ahora
-                </a>
-                {% endif %}
-                <a href="{% url 'ventas:mis_ventas' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">
-                    🔙 Volver
-                </a>
-            </div>
-
+            </div> </div> <div class="card-footer" style="padding: var(--space-lg); border-top: 1px solid var(--glass-border); display: flex; justify-content: center; gap: var(--space-md); flex-wrap: wrap;">
+            {% if venta.estado == 'PENDIENTE' %}
+            <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary">
+                💳 Pagar Ahora
+            </a>
+            {% endif %}
+            <a href="{% url 'ventas:mis_ventas' %}" class="btn btn-outline">
+                Volver
+            </a>
         </div>
+
     </div>
 </div>
+
+<style>
+    /* Estilos del Badge */
+    .estado-badge {
+        padding: 0.4rem 1rem;
+        border-radius: var(--radius);
+        border: 2px solid;
+        display: inline-block;
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 0.5px;
+    }
+    .estado-confirmada {
+        background: rgba(78, 205, 196, 0.1);
+        border-color: var(--primary);
+    }
+    .estado-pendiente {
+        background: rgba(255, 193, 7, 0.1);
+        border-color: #ffc107;
+    }
+    .estado-cancelada {
+        background: rgba(255, 107, 107, 0.1);
+        border-color: #ff6b6b;
+    }
+
+    /* Estilo para el "chip" de la butaca */
+    .butaca-badge {
+        background: rgba(var(--primary-rgb), 0.15);
+        border: 1px solid var(--primary);
+        color: var(--text-light);
+        padding: 0.3rem 0.7rem;
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        white-space: nowrap;
+    }
+
+    /* Estilos de Botones */
+    .card-footer .btn-primary,
+    .card-footer .btn-outline {
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 9999px; /* Píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease;
+        min-width: 180px; 
+        text-decoration: none; 
+        display: inline-flex; 
+        align-items: center;
+        justify-content: center;
+    }
+    .card-footer .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        color: white;
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
+    }
+    .card-footer .btn-outline:hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-1px);
+    }
+</style>
 {% endblock %}

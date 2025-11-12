@@ -1,0 +1,64 @@
+{# Partial: historial de ventas paginado. Devuelto para requests AJAX o incluido en la página completa. #}
+<div id="ventasHistorialInner">
+    <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+        {% for venta in ventas_page %}
+        <div class="venta-card {% if venta.estado == 'CONFIRMADA' %}venta-confirmada{% elif venta.estado == 'PENDIENTE' or venta.estado == 'PENDIENTE_PAGO' %}venta-pendiente{% else %}venta-cancelada{% endif %}">
+            
+            <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-md);">
+                <div>
+                    <h3 style="margin: 0 0 var(--space-xs) 0;">🎬 Compra #{{ venta.id_venta }}</h3>
+                    <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">📅 {{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
+                </div>
+                <div style="text-align: right;">
+                    <span class="badge-estado {% if venta.estado == 'CONFIRMADA' %}badge-confirmada{% elif venta.estado == 'PENDIENTE' or venta.estado == 'PENDIENTE_PAGO' %}badge-pendiente{% else %}badge-cancelada{% endif %}">
+                        {% if venta.estado == 'CONFIRMADA' %}✅ Confirmada
+                        {% elif venta.estado == 'PENDIENTE' %}⏳ Pendiente
+                        {% elif venta.estado == 'PENDIENTE_PAGO' %}⏳ Pendiente de Pago
+                        {% else %}❌ Cancelada{% endif %}
+                    </span>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--space-md); align-items: end;">
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Tipo de venta</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 600;">{{ venta.tipo_venta }}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Cantidad de entradas</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 600;">{{ venta.cantidad_entradas }}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Total</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 600; color: var(--primary); font-size: 1.1rem;">${{ venta.calcular_total }}</p>
+                </div>
+                <div style="text-align: right;">
+                    <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" class="btn-ver-detalle" style="text-decoration: none;">
+                        👁️ Ver Detalle
+                    </a>
+                </div>
+            </div>
+            
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Controles de paginación #}
+    {% if ventas_page.has_other_pages %}
+    <nav class="ventas-pagination" style="margin-top:1rem; display:flex; gap:.5rem; align-items:center; justify-content:center;">
+        {% if ventas_page.has_previous %}
+            <a class="btn btn-outline" href="?page={{ ventas_page.previous_page_number }}" aria-label="Anterior">« Anterior</a>
+        {% else %}
+            <span class="btn btn-outline" style="opacity:.5; pointer-events:none;">« Anterior</span>
+        {% endif %}
+
+        <span style="padding:.4rem .8rem;">Página {{ ventas_page.number }} de {{ ventas_page.paginator.num_pages }}</span>
+
+        {% if ventas_page.has_next %}
+            <a class="btn btn-outline" href="?page={{ ventas_page.next_page_number }}" aria-label="Siguiente">Siguiente »</a>
+        {% else %}
+            <span class="btn btn-outline" style="opacity:.5; pointer-events:none;">Siguiente »</span>
+        {% endif %}
+    </nav>
+    {% endif %}
+</div>

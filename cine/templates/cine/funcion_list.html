@@ -283,11 +283,12 @@
         });
         if(btnEliminar) btnEliminar.addEventListener('click', function() {
             if (selectedRows.length === 0) return;
+            
             if (selectedRows.length === 1) {
                 const url = `/funciones/${selectedRows[0]}/eliminar/`;
-                // Asumiendo que tenés la función openDeleteModal
-                if (window.openDeleteModal) openDeleteModal(url);
-                else window.location.href = url; // Fallback
+                // Simplemente redirigimos a la página de confirmación
+                window.location.href = url; 
+            
             } else if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} funciones seleccionadas?`)) {
                 alert('Función de eliminación masiva en desarrollo');
             }
