@@ -77,6 +77,10 @@ def procesar_compra(request, funcion_id):
     except Exception as e:
         messages.error(request, f'❌ Error al procesar la compra: {str(e)}')
         return redirect('ventas:seleccionar_butacas', funcion_id=funcion_id)
+            
+    except Exception as e:
+        messages.error(request, f'❌ Error al procesar la compra: {str(e)}')
+        return redirect('ventas:seleccionar_butacas', funcion_id=funcion_id)
 
 
 @login_required

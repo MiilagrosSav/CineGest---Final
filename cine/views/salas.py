@@ -50,6 +50,14 @@ class SalaListView(AdminRequiredMixin, ListView):
         context['filtro_orden'] = self.request.GET.get('orden', 'numero')
         return context
 
+    def render_to_response(self, context, **response_kwargs):
+        """Return only the table fragment for AJAX requests."""
+        request = self.request
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            from django.shortcuts import render
+            return render(request, 'cine/_sala_table.html', context)
+        return super().render_to_response(context, **response_kwargs)
+
 # CREATE: Vista para mostrar el formulario de creación
 class SalaCreateView(AdminRequiredMixin, CreateView):
     model = Sala

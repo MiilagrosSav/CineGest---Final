@@ -11,13 +11,7 @@ class Sala(models.Model):
     Cada sala tiene una capacidad específica y puede proyectar películas.
     """
     # Opciones para el tipo de sala
-    TIPO_CHOICES = [
-        ('NORMAL', 'Sala Normal'),
-        ('VIP', 'Sala VIP'),
-        ('IMAX', 'Sala IMAX'),
-        ('4DX', 'Sala 4DX'),
-        ('DOLBY_ATMOS', 'Dolby Atmos'),
-    ]
+   
 
     numero = models.PositiveIntegerField(
         unique=True,
@@ -59,4 +53,4 @@ class Sala(models.Model):
         verbose_name = "Sala"
         verbose_name_plural = "Salas"
         ordering = ['numero']
-        db_table = "salas"  # 🏛️ Nombre personalizado de la tabla
+        db_table = "sala"  # 🏛️ Nombre personalizado de la tabla

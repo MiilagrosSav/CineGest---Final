@@ -4,93 +4,74 @@
 
 {% block content %}
 <div class="container">
-    <!-- Encabezado Simple -->
-    <div class="card glass-container mb-lg">
-        <div class="card-header">
-            <h1 class="card-title">Panel de Administrador</h1>
-            <p class="card-subtitle">
-                Bienvenido, <strong>{{ user.first_name|default:user.username|title }}</strong>
-            </p>
-        </div>
-    </div>
-
-    <!-- Gestión de Películas -->
-    <div class="card">
-        <h3 class="mb-md">Gestión de Películas</h3>
-        <p class="mb-md">
-            Administra las películas de la cartelera.
-        </p>
-        <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
-            <a href="{% url 'cine:pelicula_list' %}" class="btn btn-primary">
-                Ver Películas
-            </a>
-            <a href="{% url 'cine:pelicula_create' %}" class="btn btn-outline">
-                Agregar Película
-            </a>
-        </div>
-    </div>
-
-    <!-- Gestión de Salas -->
-    <div class="card mt-md">
-        <h3 class="mb-md">Gestión de Salas</h3>
-        <p class="mb-md">
-            Administra las salas del cine y su configuración.
-        </p>
-        <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
-            <a href="{% url 'cine:sala_list' %}" class="btn btn-primary">
-                Ver Salas
-            </a>
-            <a href="{% url 'cine:sala_create' %}" class="btn btn-outline">
-                Agregar Sala
-            </a>
-        </div>
-    </div>
-
-    <!-- Gestión de Funciones -->
-    <div class="card mt-md">
-        <h3 class="mb-md"> Gestión de Funciones</h3>
-        <p class="mb-md">
-            Programa las funciones y horarios de proyección.
-        </p>
-        <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
-            <a href="{% url 'cine:funcion_list' %}" class="btn btn-primary">
-                Ver Funciones
-            </a>
-            <a href="{% url 'cine:funcion_create' %}" class="btn btn-outline">
-                Programar Función
-            </a>
-        </div>
-    </div>
     
-    <!-- Gestión de Empleados -->
-    <div class="card mt-md">
-        <h3 class="mb-md">Gestión de Empleados</h3>
-        <p class="mb-md">
-            Administra los empleados del cine.
+    <div class="mb-lg">
+        <h1 class="card-title" style="margin-bottom: 0;">🚀 Panel de Administrador</h1>
+        <p class="card-subtitle">
+            Bienvenido, <strong>{{ user.first_name|default:user.username|title }}</strong>
         </p>
-        <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
-            <a href="{% url 'accounts:employee_list' %}" class="btn btn-primary">
-                Ver Empleados
-            </a>
-            <a href="{% url 'accounts:create_employee' %}" class="btn btn-outline">
-                Crear Empleado
-            </a>
-        </div>
     </div>
 
-    <!-- Información Básica del Sistema -->
-    <div class="card glass-container mt-lg">
-        <h3 class="mb-md">Estado del Sistema</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
-            <div>
-                <strong>Servidor:</strong>
-                <p style="color: #38ef7d;">✅ Online</p>
-            </div>
-            <div>
-                <strong>Base de Datos:</strong>
-                <p style="color: #38ef7d;">✅ Conectada</p>
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-lg, 2rem);">
+
+        <div class="card" style="display: flex; flex-direction: column;">
+            <h3 class="mb-md">🎬 Gestión de Películas</h3>
+            <p class="mb-md">
+                Administra las películas de la cartelera.
+            </p>
+            <div style="display: flex; gap: var(--space-sm, 0.5rem); margin-top: auto;">
+                <a href="{% url 'cine:pelicula_list' %}" class="btn btn-primary">
+                    Ver 
+                </a>
+                <a href="{% url 'cine:pelicula_create' %}" class="btn btn-outline">
+                    + Agregar
+                </a>
             </div>
         </div>
-    </div>
+
+        <div class="card" style="display: flex; flex-direction: column;">
+            <h3 class="mb-md">🎟️ Gestión de Salas</h3>
+            <p class="mb-md">
+                Administra las salas del cine y su configuración.
+            </p>
+            <div style="display: flex; gap: var(--space-sm, 0.5rem); margin-top: auto;">
+                <a href="{% url 'cine:sala_list' %}" class="btn btn-primary">
+                    Ver 
+                </a>
+                <a href="{% url 'cine:sala_create' %}" class="btn btn-outline">
+                    + Agregar
+                </a>
+            </div>
+        </div>
+
+        <div class="card" style="display: flex; flex-direction: column;">
+            <h3 class="mb-md">🕒 Gestión de Funciones</h3>
+            <p class="mb-md">
+                Programa las funciones y horarios de proyección.
+            </p>
+            <div style="display: flex; gap: var(--space-sm, 0.5rem); margin-top: auto;">
+                <a href="{% url 'cine:funcion_list' %}" class="btn btn-primary">
+                    Ver 
+                </a>
+                <a href="{% url 'cine:funcion_create' %}" class="btn btn-outline">
+                    + Agregar
+                </a>
+            </div>
+        </div>
+
+        <div class="card" style="display: flex; flex-direction: column;">
+            <h3 class="mb-md">👥 Gestión de Empleados</h3>
+            <p class="mb-md">
+                Administra los empleados del cine.
+            </p>
+            <div style="display: flex; gap: var(--space-sm, 0.5rem); margin-top: auto;">
+                <a href="{% url 'accounts:employee_list' %}" class="btn btn-primary">
+                    Ver 
+                </a>
+                <a href="{% url 'accounts:create_employee' %}" class="btn btn-outline">
+                    + Agregar
+                </a>
+            </div>
+        </div>
 </div>
 {% endblock %}

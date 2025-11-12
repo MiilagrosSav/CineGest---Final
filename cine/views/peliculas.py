@@ -51,6 +51,14 @@ class PeliculaListView(AdminRequiredMixin, ListView):
         context['filtro_orden'] = self.request.GET.get('orden', 'titulo')
         return context 
 
+    def render_to_response(self, context, **response_kwargs):
+        """If AJAX request, return the table partial only."""
+        request = self.request
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            from django.shortcuts import render
+            return render(request, 'cine/_pelicula_table.html', context)
+        return super().render_to_response(context, **response_kwargs)
+
 # CREATE: Vista para mostrar el formulario de creación
 class PeliculaCreateView(AdminRequiredMixin, CreateView):
     model = Pelicula

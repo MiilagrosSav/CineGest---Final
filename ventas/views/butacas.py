@@ -5,6 +5,7 @@ Vista para seleccionar butacas
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.conf import settings
 from cine.models import Funcion, Butaca
 from ventas.models import Entrada
 
@@ -45,6 +46,7 @@ def seleccionar_butacas(request, funcion_id):
         'sala': sala,
         'butacas_por_fila': filas_ordenadas,
         'precio': funcion.precio_base,
+        'mercadopago_public_key': settings.MERCADOPAGO_PUBLIC_KEY,
     }
     
     return render(request, 'ventas/seleccionar_butacas.html', context)

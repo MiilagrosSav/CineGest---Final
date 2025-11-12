@@ -187,18 +187,7 @@ class SalaForm(forms.ModelForm):
     # NOTA: El campo 'capacidad' se calcula automáticamente 
     # contando las butacas, no es un campo del formulario
     
-    tipo = forms.ChoiceField(
-        label='🎭 Tipo de sala',
-        choices=[('', 'Selecciona un tipo de sala...')] + Sala.TIPO_CHOICES,
-        widget=forms.Select(attrs={
-            'class': 'form-select',
-            'required': True,
-            'title': 'Selecciona el tipo de experiencia'
-        }),
-        error_messages={
-            'required': 'Debes seleccionar un tipo de sala.'
-        }
-    )
+   
     
     activa = forms.BooleanField(
         label='✅ Sala activa',
@@ -224,7 +213,8 @@ class SalaForm(forms.ModelForm):
 
     class Meta:
         model = Sala
-        fields = ['numero', 'nombre', 'tipo', 'activa', 'observaciones']
+        # 'tipo' fue eliminado del modelo; no incluirlo en el formulario
+        fields = ['numero', 'nombre', 'activa', 'observaciones']
 
     def clean_numero(self):
         """Validación para número único de sala"""
@@ -246,14 +236,8 @@ class SalaForm(forms.ModelForm):
             raise forms.ValidationError('El nombre debe tener al menos 3 caracteres.')
         return nombre.strip()
     
-    def clean_capacidad(self):
-        """Validación adicional para capacidad"""
-        capacidad = self.cleaned_data['capacidad']
-        if capacidad < 10:
-            raise forms.ValidationError('La capacidad mínima es de 10 asientos.')
-        if capacidad > 500:
-            raise forms.ValidationError('La capacidad máxima es de 500 asientos.')
-        return capacidad
+    # Nota: la capacidad se calcula dinámicamente en el modelo `Sala.capacidad`
+    # y no es un campo del formulario, por eso se eliminó la validación clean_capacidad.
 
 
 class FuncionForm(forms.ModelForm):
@@ -383,6 +367,22 @@ class FuncionForm(forms.ModelForm):
                 self.initial['formatos_pantalla'] = pantalla.formato_id
             if experiencia:
                 self.initial['formatos_experiencia'] = experiencia.formato_id
+        else:
+            # Si es creación nueva, preseleccionar las opciones 'standard' cuando sea posible
+            try:
+                visual_default = Formato.objects.filter(nombre__in=['2D', '2D Standard']).first() or Formato.objects.filter(categoria='VISUAL').order_by('nombre').first()
+                if visual_default:
+                    self.initial.setdefault('formatos_visual', visual_default.id)
+
+                pantalla_default = Formato.objects.filter(nombre__icontains='Standard', categoria='PANTALLA').first() or Formato.objects.filter(categoria='PANTALLA').order_by('nombre').first()
+                if pantalla_default:
+                    self.initial.setdefault('formatos_pantalla', pantalla_default.id)
+
+                experiencia_default = Formato.objects.filter(nombre__icontains='Standard', categoria='EXPERIENCIA').first() or Formato.objects.filter(categoria='EXPERIENCIA').order_by('nombre').first()
+                if experiencia_default:
+                    self.initial.setdefault('formatos_experiencia', experiencia_default.id)
+            except Exception:
+                pass
     
     
     
@@ -605,6 +605,29 @@ class FuncionBatchForm(forms.Form):
 
         # ¡Éxito! Retornamos la LISTA de objetos 'time' limpios
         return horarios_obj_lista
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Ensure sensible defaults for formatos when creating a new batch
+        try:
+            # If no initial provided for formatos, pick reasonable 'standard' defaults
+            if not self.initial.get('formatos_visual'):
+                visual_default = Formato.objects.filter(nombre__in=['2D', '2D Standard', '2D/Standard']).first() or Formato.objects.filter(categoria='VISUAL').order_by('nombre').first()
+                if visual_default:
+                    self.initial['formatos_visual'] = visual_default.id
+
+            if not self.initial.get('formatos_pantalla'):
+                pantalla_default = Formato.objects.filter(nombre__icontains='Standard', categoria='PANTALLA').first() or Formato.objects.filter(categoria='PANTALLA').order_by('nombre').first()
+                if pantalla_default:
+                    self.initial['formatos_pantalla'] = pantalla_default.id
+
+            if not self.initial.get('formatos_experiencia'):
+                experiencia_default = Formato.objects.filter(nombre__icontains='Standard', categoria='EXPERIENCIA').first() or Formato.objects.filter(categoria='EXPERIENCIA').order_by('nombre').first()
+                if experiencia_default:
+                    self.initial['formatos_experiencia'] = experiencia_default.id
+        except Exception:
+            # Don't fail form construction if DB is not ready; defaults are best-effort
+            pass
     
     # NOTE: validations for formats will run inside clean()
     

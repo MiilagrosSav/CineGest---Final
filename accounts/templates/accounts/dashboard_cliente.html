@@ -4,93 +4,58 @@
 
 {% block content %}
 <div class="container">
-    <!-- Bienvenida VIP -->
-    <div class="card glass-container mb-lg">
-        <div class="card-header">
-            <h1 class="card-title text-gradient-primary">🎭 Mi Cuenta VIP</h1>
-            <p class="card-subtitle">
-                Bienvenido <strong>{{ user.first_name|default:user.username|title }}</strong>, 
-                disfruta de la mejor experiencia cinematográfica con CineGest.
-            </p>
-        </div>
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🎭 Mi Cuenta</h1>
+        <p class="card-subtitle">
+            Bienvenido <strong>{{ user.first_name|default:user.username|title }}</strong>, 
+            disfruta de la mejor experiencia cinematográfica con CineGest.
+        </p>
     </div>
 
-    <!-- Opciones del Cliente -->
-    <div class="dashboard-grid">
-        <div class="card glass-container">
+    <div class="dashboard-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-lg, 2rem);">
+
+        <div class="card glass-container" style="display: flex; flex-direction: column;">
             <h3 class="mb-md text-gradient-accent">🎫 Mis Reservas</h3>
             <p class="text-secondary mb-md">
                 Consulta tus entradas compradas, próximas funciones y historial completo.
             </p>
-            <a href="#" class="btn btn-primary">
-                📱 Ver Mis Reservas
-            </a>
+            <div style="margin-top: auto;">
+                <a href="#" class="btn btn-primary">
+                    📱 Ver Mis Reservas
+                </a>
+            </div>
         </div>
 
-        <div class="card glass-container">
+        <div class="card glass-container" style="display: flex; flex-direction: column;">
             <h3 class="mb-md text-gradient-accent">🎬 Cartelera</h3>
             <p class="text-secondary mb-md">
                 Explora las películas disponibles, horarios y reserva tus entradas favoritas.
             </p>
-            <a href="{% url 'cine:cartelera' %}" class="btn btn-outline">
-                🍿 Ver Cartelera
-            </a>
+            <div style="margin-top: auto;">
+                <a href="{% url 'cine:cartelera' %}" class="btn btn-outline">
+                    🍿 Ver Cartelera
+                </a>
+            </div>
         </div>
 
-        <div class="card glass-container">
+        <div class="card glass-container" style="display: flex; flex-direction: column;">
             <h3 class="mb-md text-gradient-accent">👤 Mi Perfil</h3>
             <p class="text-secondary mb-md">
                 Actualiza tu información personal, preferencias y configuración de cuenta.
             </p>
-            <a href="#" class="btn btn-outline">
-                ⚙️ Editar Perfil
-            </a>
+            <div style="margin-top: auto;">
+                <a href="#" class="btn btn-outline">
+                    ⚙️ Editar Perfil
+                </a>
+            </div>
         </div>
-    </div>
+        
+        <div class="card glass-container">
+            </div>
 
-    <!-- Actividad Reciente -->
-    <div class="card glass-container mt-lg">
-        <h3 class="mb-md text-gradient-primary">📊 Mi Actividad Reciente</h3>
-        <div class="text-secondary">
-            <p class="mb-sm" style="display: flex; align-items: center; gap: 12px;">
-                <span style="color: #38ef7d;">🎫</span> 
-                <strong>Reserva confirmada:</strong> "Spider-Man: No Way Home" - Sala 2 - 15:30
-            </p>
-            <p class="mb-sm" style="display: flex; align-items: center; gap: 12px;">
-                <span style="color: #00f2fe;">👤</span> 
-                <strong>Perfil actualizado:</strong> hace 3 días
-            </p>
-            <p class="mb-sm" style="display: flex; align-items: center; gap: 12px;">
-                <span style="color: #f093fb;">🎬</span> 
-                <strong>Entrada comprada:</strong> "Avatar: The Way of Water" - Sala 1 - 20:00
-            </p>
-            <p style="display: flex; align-items: center; gap: 12px;">
-                <span style="color: #764ba2;">⭐</span> 
-                <strong>Reseña enviada:</strong> "Dune" - ⭐⭐⭐⭐⭐
-            </p>
-        </div>
-    </div>
+        <div class="card glass-container">
+            </div>
 
-    <!-- Recomendaciones -->
-    <div class="card glass-container mt-lg">
-        <h3 class="mb-md text-gradient-accent">🎯 Recomendado Para Ti</h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
-            <div style="text-align: center;">
-                <div style="color: #f093fb; font-size: 2rem; margin-bottom: 8px;">🦸‍♂️</div>
-                <strong>The Batman</strong>
-                <p class="text-secondary" style="font-size: 0.9rem;">Acción • Drama</p>
-            </div>
-            <div style="text-align: center;">
-                <div style="color: #00f2fe; font-size: 2rem; margin-bottom: 8px;">🚀</div>
-                <strong>Top Gun: Maverick</strong>
-                <p class="text-secondary" style="font-size: 0.9rem;">Acción • Aventura</p>
-            </div>
-            <div style="text-align: center;">
-                <div style="color: #38ef7d; font-size: 2rem; margin-bottom: 8px;">🦖</div>
-                <strong>Jurassic World</strong>
-                <p class="text-secondary" style="font-size: 0.9rem;">Aventura • Sci-Fi</p>
-            </div>
-        </div>
-    </div>
-</div>
+    </div> </div>
 {% endblock %}

@@ -19,7 +19,7 @@ from ventas.mercadopago_service import MercadoPagoService
 def iniciar_pago(request, venta_id):
     """
     Iniciar el proceso de pago con Mercado Pago
-    Redirige directamente al checkout de Mercado Pago
+    Muestra página con botón oficial de MP
     """
     # Obtener la venta
     venta = get_object_or_404(Venta, id_venta=venta_id, id_cliente__usuario=request.user)
@@ -37,10 +37,18 @@ def iniciar_pago(request, venta_id):
         preference_response = mp_service.crear_preferencia_pago(venta, request)
         
         if preference_response.get('status') == 201:
-            # Preferencia creada exitosamente - redirigir directamente a Mercado Pago
+            preference_id = preference_response['response']['id']
             init_point = preference_response['response']['init_point']
-            print(f"✅ Redirigiendo a Mercado Pago: {init_point}")
-            return redirect(init_point)
+            
+            print(f"✅ Preferencia creada: {preference_id}")
+            
+            # Renderizar template con botón oficial de MP
+            return render(request, 'ventas/iniciar_pago.html', {
+                'venta': venta,
+                'preference_id': preference_id,
+                'init_point': init_point,
+                'mercadopago_public_key': settings.MERCADOPAGO_PUBLIC_KEY,
+            })
         else:
             # Error al crear la preferencia
             error_msg = preference_response.get('response', {}).get('message', 'Error desconocido')

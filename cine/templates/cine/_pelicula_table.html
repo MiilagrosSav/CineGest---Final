@@ -1,0 +1,32 @@
+<div id="peliculaTableInner">
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('titulo')" title="Ordenar por título">Título</th>
+                    <th style="padding: var(--space-sm);">Género</th>
+                    <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('fecha_estreno')" title="Ordenar por fecha de estreno">Estreno</th>
+                    <th style="padding: var(--space-sm);">Director</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pelicula in peliculas %}
+                <tr class="pelicula-row" data-id="{{ pelicula.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                    <td style="padding: var(--space-sm); font-weight: 600;">{{ pelicula.titulo }}</td>
+                    <td style="padding: var(--space-sm);">{{ pelicula.get_genero_display|default:"--" }}</td>
+                    <td style="padding: var(--space-sm);">{{ pelicula.fecha_estreno|date:"d/m/Y" }}</td>
+                    <td style="padding: var(--space-sm);">{{ pelicula.director }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-secondary" style="padding: var(--space-lg);">No hay películas registradas todavía. ¡Añade la primera!</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Paginación -->
+        {% include "cine/pagination.html" %}
+
+    </div>
+</div>

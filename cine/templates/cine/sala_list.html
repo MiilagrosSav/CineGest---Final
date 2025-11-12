@@ -4,17 +4,15 @@
 
 {% block content %}
 <div class="container">
-    <div class="card glass-container mb-lg">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1 class="card-title text-gradient-primary">🏛️ Gestión de Salas</h1>
-        </div>
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🏛️ Gestión de Salas</h1>
     </div>
 
     <div class="card glass-container">
-        <!-- Barra de Filtros -->
+        
         <div style="padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--glass-border);">
             <form method="get" id="form-filtros" style="display: flex; gap: var(--space-xs); align-items: center; justify-content: space-between; flex-wrap: wrap;">
-                <!-- Búsqueda Dinámica -->
                 <div style="position: relative; min-width: 180px; max-width: 300px;">
                     <input type="text" 
                            name="search" 
@@ -26,9 +24,7 @@
                     <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
                 </div>
                 
-                <!-- Contenedor derecho para número y limpiar -->
                 <div style="display: flex; gap: var(--space-xs); align-items: center;">
-                    <!-- Filtro por Número -->
                     <input type="number" 
                            name="numero" 
                            value="{{ filtro_numero }}"
@@ -47,93 +43,80 @@
             </form>
         </div>
 
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left;">
-                <thead>
-                    <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('numero')" title="Ordenar por número">
-                            Número
-                            {% if filtro_orden == 'numero' or not filtro_orden %}
-                                <span style="opacity: 0.8;">↑</span>
-                            {% elif filtro_orden == 'numero_desc' %}
-                                <span style="opacity: 0.8;">↓</span>
-                            {% else %}
-                                <span style="opacity: 0.5;">⇅</span>
-                            {% endif %}
-                        </th>
-                        <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('nombre')" title="Ordenar por nombre">
-                            Nombre
-                            {% if filtro_orden == 'nombre' %}
-                                <span style="opacity: 0.8;">↑</span>
-                            {% elif filtro_orden == 'nombre_desc' %}
-                                <span style="opacity: 0.8;">↓</span>
-                            {% else %}
-                                <span style="opacity: 0.5;">⇅</span>
-                            {% endif %}
-                        </th>
-                        <th style="padding: var(--space-sm); text-align: center;">Capacidad</th>
-                        <th style="padding: var(--space-sm);">Estado</th>
-                        <th style="padding: var(--space-sm); text-align: center;">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for sala in salas %}
-                    <tr class="sala-row" data-id="{{ sala.pk }}" style="border-bottom: 1px solid var(--glass-border);">
-                        <td style="padding: var(--space-sm); font-weight: 600; color: var(--primary); cursor: pointer;" class="selectable-cell">{{ sala.numero }}</td>
-                        <td style="padding: var(--space-sm); font-weight: 600; cursor: pointer;" class="selectable-cell">{{ sala.nombre }}</td>
-                        <td style="padding: var(--space-sm); text-align: center; cursor: pointer;" class="selectable-cell">
-                            {% if sala.butacas.exists %}
-                                <span style="font-weight: 600; color: var(--primary);">{{ sala.capacidad }}</span>
-                                <span style="opacity: 0.7; font-size: 0.85rem;"> asientos</span>
-                            {% else %}
-                                <span style="color: #ff6b6b; font-weight: 600;">⚠️ Sin configurar</span>
-                            {% endif %}
-                        </td>
-                        <td style="padding: var(--space-sm); cursor: pointer;" class="selectable-cell">{{ sala.get_status_display }}</td>
-                        <td style="padding: var(--space-sm); text-align: center;">
-                            <a href="{% url 'cine:disenar_layout_sala' sala.id %}" 
-                               class="btn-layout" 
-                               title="Configurar distribución de asientos"
-                               onclick="event.stopPropagation();"
-                               style="display: inline-block; padding: 0.4rem 0.8rem; background: rgba(78, 205, 196, 0.2); color: #4ecdc4; border-radius: var(--radius); text-decoration: none; font-size: 0.85rem; transition: all 0.2s ease;">
-                                {% if sala.butacas.exists %}
-                                    ✏️ Editar Layout
-                                {% else %}
-                                    ✨ Configurar Layout
-                                {% endif %}
-                            </a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="text-center text-secondary" style="padding: var(--space-lg);">
-                            No se encontraron salas. 
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div id="salaTableContainer">
+            {% include 'cine/_sala_table.html' %}
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-md); padding: var(--space-md); border-top: 1px solid var(--glass-border);">
             
-            <!-- Paginación -->
-            {% include "cine/pagination.html" %}
-            
-            <!-- Panel de Acciones ABM -->
-            <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); margin-top: var(--space-lg); padding: var(--space-md);">
-                <a href="{% url 'cine:sala_create' %}" class="btn btn-primary" style="min-width: 120px;">
-                    ✨ Nueva
+            <div>
+                <a href="{% url 'cine:sala_create' %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                    ✚ Crear Nueva Sala
                 </a>
-                <button id="btn-modificar" class="btn btn-outline" style="min-width: 120px;" disabled>
+            </div>
+            
+            <div style="display: flex; gap: var(--space-sm);">
+                <button id="btn-modificar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
                     ✏️ Modificar
                 </button>
-                <button id="btn-eliminar" class="btn btn-secondary" style="min-width: 120px;" disabled>
+                <button id="btn-eliminar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
                     🗑️ Eliminar
                 </button>
             </div>
         </div>
+
     </div>
 </div>
 
 <style>
+    /* --- Estilos para la Barra de Botones de la Lista --- */
+    #salaTableContainer + div .btn,
+    #salaTableContainer + div .btn-primary,
+    #salaTableContainer + div .btn-outline {
+        padding: 0.7rem 1.3rem;
+        font-size: 0.9rem; 
+        font-weight: 600;
+        border-radius: 9999px; /* Forma de píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease-in-out;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Hover para el botón PRIMARIO */
+    #salaTableContainer + div .btn-primary:hover {
+        background: rgb(77, 19, 92); /* El estilo que te gusta */
+        color: white;
+        border: none;
+    }
+
+    /* Hover para botones OUTLINE (activos) */
+    #salaTableContainer + div .btn-outline:not(:disabled):hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
+    }
+
+    /* Estado DESHABILITADO */
+    #salaTableContainer + div .btn-outline:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background: transparent;
+        border-color: var(--glass-border);
+        color: var(--text-secondary);
+        transform: none;
+        box-shadow: none;
+    }
+    .btn:disabled,
+    .btn-outline:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* --- Tus estilos de fila (adaptados) --- */
     .sala-row {
         transition: background-color 0.2s ease;
     }
@@ -144,6 +127,8 @@
         background-color: rgba(var(--primary-rgb), 0.15);
         border-left: 3px solid var(--primary);
     }
+    
+    /* (Estilo .btn-layout de tu CSS original) */
     .btn-layout:hover {
         background: rgba(78, 205, 196, 0.3) !important;
         transform: translateY(-2px);
@@ -152,122 +137,169 @@
 </style>
 
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const rows = document.querySelectorAll('.sala-row');
-        const btnModificar = document.getElementById('btn-modificar');
-        const btnEliminar = document.getElementById('btn-eliminar');
+    var selectedRows = [];
+    var btnModificar = null;
+    var btnEliminar = null;
+
+    /**
+     * Función para ordenar por columna
+     */
+    function ordenarPor(columna) {
+        const urlParams = new URLSearchParams(window.location.search);
+        const ordenActual = urlParams.get('orden');
+        let nuevoOrden = columna;
+        if (ordenActual === columna) nuevoOrden = columna + '_desc';
+        else if (ordenActual === columna + '_desc') nuevoOrden = columna;
+        urlParams.set('orden', nuevoOrden);
+        window.location.href = '?' + urlParams.toString();
+    }
+
+    /**
+     * Actualiza la UI de los botones
+     */
+    function updateUI() {
+        if (!btnModificar || !btnEliminar) return;
+        btnModificar.disabled = selectedRows.length !== 1;
+        btnEliminar.disabled = selectedRows.length === 0;
+        if (selectedRows.length > 0) btnEliminar.textContent = `🗑️ Eliminar ${selectedRows.length > 1 ? `(${selectedRows.length})` : ''}`;
+        else btnEliminar.textContent = '🗑️ Eliminar';
+    }
+
+    /**
+     * Adjunta los listeners de click a las filas de la tabla.
+     */
+    function attachRowListeners(container) {
+        if (!container) return;
+        const rows = container.querySelectorAll('.sala-row'); // <- Apunta a .sala-row
         
-        // Variable para almacenar la selección actual
-        let selectedRows = [];
-        
-        // Función para actualizar la interfaz según la selección
-        function updateUI() {
-            // Actualizar estado de botones
-            btnModificar.disabled = selectedRows.length !== 1;
-            btnEliminar.disabled = selectedRows.length === 0;
-            
-            // Actualizar texto del botón eliminar con contador
-            if (selectedRows.length > 0) {
-                btnEliminar.textContent = `🗑️ Eliminar ${selectedRows.length > 1 ? `(${selectedRows.length})` : ''}`;
-            } else {
-                btnEliminar.textContent = '🗑️ Eliminar';
-            }
-        }
-        
-        // Función para seleccionar/deseleccionar una fila
-        function toggleRowSelection(row) {
-            const rowId = row.dataset.id;
-            
-            if (row.classList.contains('selected')) {
-                // Deseleccionar
-                row.classList.remove('selected');
-                selectedRows = selectedRows.filter(id => id !== rowId);
-            } else {
-                // Seleccionar
-                row.classList.add('selected');
-                selectedRows.push(rowId);
-            }
-            
-            updateUI();
-        }
-        
-        // Evento para el clic en fila
         rows.forEach(row => {
             row.addEventListener('click', function(event) {
-                // Solo permitir selección en celdas seleccionables
-                if (!event.target.classList.contains('selectable-cell')) {
-                    return;
+                // Tu script original tenía esta lógica 'selectable-cell', la restauro
+                if (event.target.classList.contains('btn-layout')) {
+                    // Si se hizo clic en el botón de layout, no seleccionar la fila
+                    return; 
                 }
                 
-                // Si se mantiene presionada la tecla Ctrl, permite selección múltiple
                 if (!event.ctrlKey && !event.metaKey) {
-                    // Si no se presiona Ctrl/Cmd, deseleccionar todas las demás
-                    rows.forEach(r => {
-                        if (r !== this && r.classList.contains('selected')) {
-                            r.classList.remove('selected');
-                        }
-                    });
-                    selectedRows = [];
+                    rows.forEach(r => { if (r !== row && r.classList.contains('selected')) r.classList.remove('selected'); });
+                    if (!row.classList.contains('selected')) selectedRows = [];
                 }
-                
-                toggleRowSelection(this);
+                const rowId = row.dataset.id;
+                if (row.classList.contains('selected')) {
+                    row.classList.remove('selected');
+                    selectedRows = selectedRows.filter(id => id !== rowId);
+                } else {
+                    row.classList.add('selected');
+                    if (!selectedRows.includes(rowId)) selectedRows.push(rowId);
+                }
+                updateUI();
             });
         });
+    }
+
+    /**
+     * Lógica de Carga Inicial (se ejecuta 1 vez)
+     */
+    document.addEventListener('DOMContentLoaded', function() {
+        // 1. Encontrar los botones (son estáticos)
+        btnModificar = document.getElementById('btn-modificar');
+        btnEliminar = document.getElementById('btn-eliminar');
         
-        // Evento para botón modificar
-        btnModificar.addEventListener('click', function() {
+        // 2. Adjuntar listeners a los botones (apuntando a URLs de SALAS)
+        if(btnModificar) btnModificar.addEventListener('click', function() {
             if (selectedRows.length === 1) {
-                window.location.href = `/salas/${selectedRows[0]}/editar/`;
+                window.location.href = `/salas/${selectedRows[0]}/editar/`; // <- URL de Sala
             }
         });
-        
-        // Evento para botón eliminar
-        btnEliminar.addEventListener('click', function() {
+        if(btnEliminar) btnEliminar.addEventListener('click', function() {
             if (selectedRows.length === 0) return;
-            
             if (selectedRows.length === 1) {
-                window.location.href = `/salas/${selectedRows[0]}/eliminar/`;
+                window.location.href = `/salas/${selectedRows[0]}/eliminar/`; // <- URL de Sala
             } else {
                 if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} salas seleccionadas?`)) {
-                    // Aquí implementaríamos la eliminación masiva
                     alert('Función de eliminación masiva en desarrollo');
                 }
             }
         });
+
+        // 3. Adjuntar listeners a los filtros (son estáticos)
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            let searchTimeout;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(searchTimeout);
+                searchTimeout = setTimeout(() => { document.getElementById('form-filtros').submit(); }, 500);
+            });
+        }
+
+        // 4. Adjuntar listeners a las filas de la tabla cargada inicialmente
+        attachRowListeners(document.getElementById('salaTableContainer'));
         
-        // Inicializar UI
+        // 5. Inicializar estado de botones
         updateUI();
     });
     
-    // Búsqueda dinámica
-    const searchInput = document.getElementById('search-input');
-    let searchTimeout;
-    
-    searchInput.addEventListener('input', function() {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => {
-            document.getElementById('form-filtros').submit();
-        }, 500); // Espera 500ms después de que el usuario deje de escribir
-    });
-    
-    // Función para ordenar por columna
-    function ordenarPor(columna) {
-        const urlParams = new URLSearchParams(window.location.search);
-        const ordenActual = urlParams.get('orden');
-        
-        // Determinar nuevo orden (alternar entre ascendente y descendente)
-        let nuevoOrden = columna;
-        if (ordenActual === columna) {
-            nuevoOrden = columna + '_desc';
-        } else if (ordenActual === columna + '_desc') {
-            nuevoOrden = columna;
-        }
-        
-        // Actualizar parámetro de orden
-        urlParams.set('orden', nuevoOrden);
-        
-        // Redirigir con nuevos parámetros
-        window.location.href = '?' + urlParams.toString();
+    /**
+     * Lógica de Paginación AJAX (se ejecuta 1 vez)
+     */
+    (function(){
+        const container = document.getElementById('salaTableContainer');
+        if (!container) return;
+
+        // Listener para paginación y ordenamiento
+        container.addEventListener('click', function(e){
+            const a = e.target.closest('a');
+            if (!a) return;
+            const href = a.getAttribute('href');
+            // Asegurarse que el link sea de paginación u orden
+            if (!href || (!a.href.includes('page=') && !a.href.includes('orden=')) || !container.contains(a)) return;
+            
+            e.preventDefault();
+            container.style.opacity = '0.6';
+
+            fetch(href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => { if (!r.ok) throw new Error('Network response not ok'); return r.text(); })
+                .then(html => {
+                    container.innerHTML = html;
+                    attachRowListeners(container); // Re-adjuntar listeners a las nuevas filas
+                    selectedRows = [];             // Resetear selección
+                    updateUI();                    // Actualizar botones
+                    history.pushState(null, '', href);
+                })
+                .catch(err => { console.error('AJAX error', err); })
+                .finally(()=>{ container.style.opacity = ''; });
+        });
+
+        // Listener para botones de historial del navegador
+        window.addEventListener('popstate', function(){
+             fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => r.text())
+                .then(html => { 
+                    container.innerHTML = html; 
+                    attachRowListeners(container);
+                    selectedRows = [];
+                    updateUI();
+                });
+        });
+    })();
+
+    /* (Funciones de Modal - copiadas de Funciones) */
+    function getCookie(name) {
+        const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+        return v ? decodeURIComponent(v.pop()) : '';
+    }
+
+    function openDeleteModal(url) {
+        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            .then(r => { if (!r.ok) throw new Error('Network response not ok'); return r.text(); })
+            .then(html => {
+                const tmp = document.createElement('div'); tmp.innerHTML = html;
+                const overlay = tmp.querySelector('#deleteModalOverlay') || tmp.firstElementChild;
+                if (!overlay) { console.error('No modal fragment returned'); window.location.href = url; return; }
+                document.body.appendChild(overlay);
+                if (window.initDeleteModal) window.initDeleteModal();
+            })
+            .catch(err => { console.error('Error loading delete modal', err); window.location.href = url; });
     }
 </script>
 {% endblock %}

@@ -4,13 +4,13 @@
 
 {% block content %}
 <div class="container">
-    <div class="card glass-container mb-lg">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-            <h1 class="card-title text-gradient-primary">👥 Gestión de Empleados</h1>
-        </div>
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">👥 Gestión de Empleados</h1>
     </div>
 
     <div class="card glass-container">
+        
         <div style="overflow-x: auto;">
             <table style="width: 100%; border-collapse: collapse; text-align: left;">
                 <thead>
@@ -39,10 +39,8 @@
                         </td>
                         <td style="padding: var(--space-sm);">
                             {% if employee.is_active %}
-                                <span style="color: #38ef7d; font-weight: 500;">✓ Activo</span>
-                            {% else %}
-                                <span style="color: #ef4444; font-weight: 500;">✗ Inactivo</span>
-                            {% endif %}
+                                <span style="color: #38ef7d; font-weight: 500;">🟢 Activo</span> {% else %}
+                                <span style="color: #ef4444; font-weight: 500;">🔴 Inactivo</span> {% endif %}
                         </td>
                     </tr>
                     {% empty %}
@@ -54,16 +52,22 @@
                     {% endfor %}
                 </tbody>
             </table>
+
             {% include "cine/pagination.html" %}
-            <!-- Panel de Acciones ABM -->
-            <div class="abm-panel" style="display: flex; justify-content: center; gap: var(--space-md); margin-top: var(--space-lg); padding: var(--space-md);">
-                <a href="{% url 'accounts:create_employee' %}" class="btn btn-primary" style="min-width: 120px;">
-                    ✨ Nuevo
+            
+            </div>
+        
+        <div class="abm-panel" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-md); padding: var(--space-md); border-top: 1px solid var(--glass-border);">
+            <div>
+                <a href="{% url 'accounts:create_employee' %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                    ✚ Crear Nuevo Empleado
                 </a>
-                <button id="btn-modificar" class="btn btn-outline" style="min-width: 120px;" disabled>
+            </div>
+            <div style="display: flex; gap: var(--space-sm);">
+                <button id="btn-modificar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
                     ✏️ Modificar
                 </button>
-                <button id="btn-eliminar" class="btn btn-secondary" style="min-width: 120px;" disabled>
+                <button id="btn-eliminar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
                     🗑️ Eliminar
                 </button>
             </div>
@@ -72,6 +76,69 @@
 </div>
 
 <style>
+    /* --- Estilos para la Barra de Botones de la Lista --- */
+    /* Apunta a los botones dentro del 'abm-panel' */
+    .abm-panel .btn,
+    .abm-panel .btn-primary,
+    .abm-panel .btn-outline,
+    .abm-panel .btn-secondary {
+        padding: 0.7rem 1.3rem;
+        font-size: 0.9rem; 
+        font-weight: 600;
+        border-radius: 9999px; /* Forma de píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease-in-out;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Hover para el botón PRIMARIO (Nuevo) */
+    .abm-panel .btn-primary:hover {
+        background: rgb(77, 19, 92); /* El estilo que te gusta */
+        color: white;
+        border: none;
+    }
+
+    /* Hover para botones OUTLINE (Modificar) */
+    .abm-panel .btn-outline:not(:disabled):hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
+    }
+    
+    /* Hover para botones SECONDARY (Eliminar) */
+    .abm-panel .btn-secondary:not(:disabled):hover {
+        --danger-color: #ff6b6b;
+        --danger-rgb: 255, 107, 107;
+        background: transparent;
+        border-color: var(--danger-color);
+        color: var(--danger-color);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 10px rgba(var(--danger-rgb), 0.2);
+    }
+
+    /* Estado DESHABILITADO */
+    .abm-panel .btn-outline:disabled,
+    .abm-panel .btn-secondary:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background: transparent;
+        border-color: var(--glass-border);
+        color: var(--text-secondary);
+        transform: none;
+        box-shadow: none;
+    }
+    .btn:disabled,
+    .btn-outline:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* --- Tus estilos de fila (sin cambios) --- */
     .employee-row {
         transition: background-color 0.2s ease;
     }
@@ -82,7 +149,6 @@
         background-color: rgba(var(--primary-rgb), 0.15);
         border-left: 3px solid var(--primary);
     }
-    /* Para mostrar el total de seleccionados */
     .selection-info {
         display: inline-block;
         margin-left: 10px;
@@ -93,6 +159,7 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Apunta a las filas DENTRO del 'overflow-x' div
         const rows = document.querySelectorAll('.employee-row');
         const btnModificar = document.getElementById('btn-modificar');
         const btnEliminar = document.getElementById('btn-eliminar');
@@ -102,6 +169,9 @@
         
         // Función para actualizar la interfaz según la selección
         function updateUI() {
+            // Chequeo de seguridad por si los botones no existen
+            if (!btnModificar || !btnEliminar) return;
+            
             // Actualizar estado de botones
             btnModificar.disabled = selectedRows.length !== 1;
             btnEliminar.disabled = selectedRows.length === 0;
@@ -133,7 +203,8 @@
         
         // Evento para el clic en fila
         rows.forEach(row => {
-            row.addEventListener('click', function() {
+            row.addEventListener('click', function(event) { // 'event' añadido
+
                 // Si se mantiene presionada la tecla Ctrl, permite selección múltiple
                 if (!event.ctrlKey && !event.metaKey) {
                     // Si no se presiona Ctrl/Cmd, deseleccionar todas las demás
@@ -150,14 +221,14 @@
         });
         
         // Evento para botón modificar
-        btnModificar.addEventListener('click', function() {
+        if(btnModificar) btnModificar.addEventListener('click', function() {
             if (selectedRows.length === 1) {
                 window.location.href = `/accounts/employees/${selectedRows[0]}/edit/`;
             }
         });
         
         // Evento para botón eliminar
-        btnEliminar.addEventListener('click', function() {
+        if(btnEliminar) btnEliminar.addEventListener('click', function() {
             if (selectedRows.length === 0) return;
             
             if (selectedRows.length === 1) {
@@ -170,8 +241,10 @@
             }
         });
         
-        // Inicializar UI
-        updateUI();
+        // Inicializar UI (si los botones existen)
+        if(btnModificar && btnEliminar) {
+            updateUI();
+        }
     });
 </script>
 {% endblock %}

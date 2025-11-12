@@ -31,9 +31,9 @@ class UsuarioAdmin(DjangoUserAdmin):
         ('Información Adicional', {'fields': ('dni', 'telefono', 'rol')}),
     )
     
-    # Campos que se piden al CREAR un usuario
+    # Campos que se piden al CREAR un usuario con email
     add_fieldsets = DjangoUserAdmin.add_fieldsets + (
-        ('Información Adicional', {'fields': ('dni', 'telefono', 'rol')}),
+        ('Información Adicional', {'fields': ('dni', 'email', 'telefono', 'rol')}),
     )
     
     # Lista de inlines
