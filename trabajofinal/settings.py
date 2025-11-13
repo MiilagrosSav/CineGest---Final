@@ -69,6 +69,10 @@ INSTALLED_APPS = [
     'ventas', #agregado por mi maneja las ventas
     'social_django', #  esta línea para la autenticación social
     'widget_tweaks', #  esta línea para personalizar widgets en templates
+
+    'simple_history', # esta línea para el historial de cambios en modelos
+    # App para mostrar auditoría consolidada en Admin
+    'auditoria.apps.AuditoriaConfig',
 ]
 
 MIDDLEWARE = [
@@ -77,6 +81,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'simple_history.middleware.HistoryRequestMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     

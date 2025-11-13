@@ -5,6 +5,7 @@ Modelo Venta - Representa una compra/venta completa
 from django.db import models
 from django.utils import timezone
 from accounts.models import Cliente, Empleado
+from simple_history.models import HistoricalRecords
 
 
 class Venta(models.Model):
@@ -72,3 +73,6 @@ class Venta(models.Model):
     def cantidad_entradas(self):
         """Retorna la cantidad de entradas de esta venta"""
         return self.entradas.count()
+
+    # historial de cambios
+    history = HistoricalRecords()

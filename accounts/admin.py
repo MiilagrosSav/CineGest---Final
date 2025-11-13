@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from simple_history.admin import SimpleHistoryAdmin
 from .models import Usuario, Administrador, Empleado, Cliente
 
 # Estos "inlines" permiten editar el perfil DENTRO del admin del Usuario
@@ -22,7 +23,7 @@ class ClienteInline(admin.StackedInline):
     fk_name = 'usuario'
 
 @admin.register(Usuario)
-class UsuarioAdmin(DjangoUserAdmin):
+class UsuarioAdmin(SimpleHistoryAdmin, DjangoUserAdmin):
     # Campos que se muestran en la lista de usuarios
     list_display = ('username', 'email', 'first_name', 'last_name', 'rol', 'is_staff', 'is_active')
     

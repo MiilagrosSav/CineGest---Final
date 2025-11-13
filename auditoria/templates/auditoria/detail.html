@@ -1,0 +1,78 @@
+{% extends 'accounts/base.html' %}
+{% load static %}
+
+{% block title %}Detalle Auditoría{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card glass-container" style="max-width: 1200px; margin: 2rem auto;">
+        <div style="padding: var(--space-lg);">
+            <h1 class="text-gradient-primary" style="margin-bottom: var(--space-lg);">🔍 Detalle de Auditoría</h1>
+            
+            <div class="audit-detail-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
+                <div class="detail-item">
+                    <strong style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.3rem;">📅 Fecha</strong>
+                    <span>{{ entry.history_date|date:"d/m/Y H:i:s" }}</span>
+                </div>
+                
+                <div class="detail-item">
+                    <strong style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.3rem;">⚡ Tipo</strong>
+                    <span class="badge-tipo 
+                        {% if entry.history_type == '+' %}tipo-c{% endif %}
+                        {% if entry.history_type == '~' %}tipo-u{% endif %}
+                        {% if entry.history_type == '-' %}tipo-d{% endif %}">
+                        {{ entry.get_history_type_display }}
+                    </span>
+                </div>
+                
+                <div class="detail-item">
+                    <strong style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.3rem;">📦 Modelo</strong>
+                    <span style="font-family: monospace; background: rgba(var(--primary-rgb), 0.1); padding: 0.2rem 0.5rem; border-radius: 4px;">{{ entry.model_name }}</span>
+                </div>
+                
+                <div class="detail-item">
+                    <strong style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.3rem;">🎯 Objeto</strong>
+                    <span>{{ entry.object_repr|default:"N/A" }}</span>
+                </div>
+                
+                <div class="detail-item">
+                    <strong style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.3rem;">👤 Usuario</strong>
+                    <span>{{ entry.history_user.get_full_name|default:entry.history_user.username|default:"Sistema" }}</span>
+                </div>
+                
+                {% if entry.history_change_reason %}
+                <div class="detail-item" style="grid-column: 1 / -1;">
+                    <strong style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.3rem;">💬 Motivo del Cambio</strong>
+                    <span>{{ entry.history_change_reason }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <hr style="border: none; border-top: 1px solid var(--glass-border); margin: var(--space-lg) 0;">
+
+            <h3 style="margin-bottom: var(--space-md);">📊 Snapshot Completo</h3>
+            <div class="snapshot" style="background: rgba(0,0,0,0.2); padding: var(--space-md); border-radius: var(--radius); overflow-x: auto;">
+                <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5;">{{ snapshot_pretty }}</pre>
+            </div>
+
+            <div style="margin-top: var(--space-lg); text-align: center;">
+                <a href="{% url 'auditoria:list' %}" class="btn btn-outline" style="padding: 0.6rem 2rem;">← Volver a la lista</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .badge-tipo {
+        display: inline-block;
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+    .tipo-c { background: rgba(78, 205, 196, 0.2); color: #4ecdc4; }
+    .tipo-u { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+    .tipo-d { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+</style>
+{% endblock %}

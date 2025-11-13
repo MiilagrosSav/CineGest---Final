@@ -1,8 +1,9 @@
 from django.contrib import admin
 from .models import Pelicula, Sala, Butaca, Formato, FuncionFormato, ConfiguracionCine
+from simple_history.admin import SimpleHistoryAdmin
 
 @admin.register(Pelicula)
-class PeliculaAdmin(admin.ModelAdmin):
+class PeliculaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
     """
     Configuración personalizada para el modelo Pelicula en el panel de admin.
     """
@@ -22,7 +23,7 @@ class PeliculaAdmin(admin.ModelAdmin):
 
 
 @admin.register(Sala)
-class SalaAdmin(admin.ModelAdmin):
+class SalaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
     """
     Configuración personalizada para el modelo Sala en el panel de admin.
     """

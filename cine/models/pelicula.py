@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from datetime import date
+from simple_history.models import HistoricalRecords
 
 
 
@@ -79,6 +80,9 @@ class Pelicula(models.Model):
         """
         self.clean()
         super().save(*args, **kwargs)
+
+    # historial de cambios
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = "Película"
