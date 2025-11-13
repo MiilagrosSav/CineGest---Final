@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from cine.models.pelicula import Pelicula
 from cine.models.sala import Sala
+from simple_history.models import HistoricalRecords
 #----------------------------------------------------------------------------------------------
 #--------------------------------creamos la clase FUNCION---------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -161,6 +162,9 @@ class Funcion(models.Model):
                 formatos_destacados.append(ff.formato.nombre)
         
         return ' + '.join(formatos_destacados) if formatos_destacados else '—'
+
+    # historial de cambios
+    history = HistoricalRecords()
 
     class Meta:
         verbose_name = "Función"

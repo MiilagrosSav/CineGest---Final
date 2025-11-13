@@ -3,6 +3,7 @@ Modelo Entrada - Representa cada entrada/butaca vendida
 """
 
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 
 class Entrada(models.Model):
@@ -63,3 +64,6 @@ class Entrada(models.Model):
     
     def __str__(self):
         return f"Entrada #{self.id_entrada} - {self.id_pelicula.titulo} - Butaca {self.id_butaca.fila}{self.id_butaca.numero}"
+
+    # historial de cambios
+    history = HistoricalRecords()

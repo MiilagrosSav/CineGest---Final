@@ -4,6 +4,7 @@ Configuración del admin para los modelos de ventas
 
 from django.contrib import admin
 from ventas.models import Venta, Entrada, MetodoPago, Pago, Reembolso
+from simple_history.admin import SimpleHistoryAdmin
 
 
 @admin.register(MetodoPago)
@@ -26,7 +27,7 @@ class PagoInline(admin.StackedInline):
 
 
 @admin.register(Venta)
-class VentaAdmin(admin.ModelAdmin):
+class VentaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
     list_display = ['id_venta', 'id_cliente', 'fecha_compra', 'tipo_venta', 'estado', 'cantidad_entradas', 'calcular_total']
     list_filter = ['estado', 'tipo_venta', 'fecha_compra']
     search_fields = ['id_venta', 'id_cliente__usuario__username', 'id_cliente__usuario__email']
@@ -44,7 +45,7 @@ class VentaAdmin(admin.ModelAdmin):
 
 
 @admin.register(Entrada)
-class EntradaAdmin(admin.ModelAdmin):
+class EntradaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
     list_display = ['id_entrada', 'id_venta', 'id_pelicula', 'id_funcion', 'id_sala', 'id_butaca', 'estado']
     list_filter = ['estado', 'id_pelicula', 'id_sala']
     search_fields = ['id_entrada', 'id_venta__id_venta']

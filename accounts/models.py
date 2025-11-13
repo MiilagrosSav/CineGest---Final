@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from simple_history.models import HistoricalRecords
 
 # 1. Este es el modelo de Usuario principal
 # ---------------------------------------------
@@ -57,10 +58,40 @@ class Usuario(AbstractUser):
 
     def save(self, *args, **kwargs):
         """
-        Ejecutar validaciones antes de guardar
+        Ejecutar validaciones antes de guardar y gestionar permisos según rol.
         """
         self.clean()
+        
+        # Gestionar is_staff según el rol
+        if self.rol == 'admin':
+            self.is_staff = True
+        elif self.rol in ['empleado', 'cliente'] and not self.is_superuser:
+            # Solo quitar is_staff si no es superuser
+            self.is_staff = False
+
+        # Guardar primero para que el usuario tenga PK
+        is_new = self.pk is None
         super().save(*args, **kwargs)
+
+        # Asignar permisos de auditoría solo si es admin y no es la primera creación
+        # (en la primera creación las migraciones podrían no estar completas)
+        if not is_new and self.rol == 'admin':
+            try:
+                from django.contrib.auth.models import Permission
+                from django.contrib.contenttypes.models import ContentType
+                
+                # Intentar obtener el permiso de auditoría
+                ct = ContentType.objects.filter(app_label='auditoria', model='auditentry').first()
+                if ct:
+                    perm = Permission.objects.filter(content_type=ct, codename='view_auditentry').first()
+                    if perm and not self.user_permissions.filter(pk=perm.pk).exists():
+                        self.user_permissions.add(perm)
+            except Exception:
+                # Silenciar errores de permisos (ej: durante migraciones iniciales)
+                pass
+
+    # historial de cambios
+    history = HistoricalRecords()
 
     class Meta:
         db_table = "usuarios"  # 👤 Tabla personalizada

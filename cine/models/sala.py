@@ -1,4 +1,5 @@
 from django.db import models
+from simple_history.models import HistoricalRecords
 
 
 
@@ -54,3 +55,6 @@ class Sala(models.Model):
         verbose_name_plural = "Salas"
         ordering = ['numero']
         db_table = "sala"  # 🏛️ Nombre personalizado de la tabla
+
+    # historial de cambios
+    history = HistoricalRecords()
