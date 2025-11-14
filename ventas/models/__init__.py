@@ -7,6 +7,7 @@ from .entrada import Entrada
 from .metodo_pago import MetodoPago
 from .pago import Pago
 from .reembolso import Reembolso
+from .politica_reembolso import PoliticaReembolso
 
 __all__ = [
     'Venta',
@@ -14,4 +15,5 @@ __all__ = [
     'MetodoPago',
     'Pago',
     'Reembolso',
+    'PoliticaReembolso',
 ]

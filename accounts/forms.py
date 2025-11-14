@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.db import transaction
 from .models import Usuario, Cliente, Empleado
+from ventas.models import PoliticaReembolso
 
 # --- Formulario de Registro de Clientes ---
 class CustomUserCreationForm(UserCreationForm):
@@ -231,4 +232,22 @@ class EmployeeUpdateForm(forms.ModelForm):
             'dni': '🆔 DNI',
             'telefono': '📱 Teléfono',
             'is_active': '✅ Usuario activo'
+        }
+
+# --- Formulario para Politica de Reembolso (Admin) ---
+class PoliticaReembolsoForm(forms.ModelForm):
+    class Meta:
+        model = PoliticaReembolso
+        fields = ['nombre', 'horas_minimas_antes_evento', 'porcentaje_reembolso', 'is_active']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'horas_minimas_antes_evento': forms.NumberInput(attrs={'class': 'form-control'}),
+            'porcentaje_reembolso': forms.NumberInput(attrs={'class': 'form-control'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'nombre': 'Nombre de la Política',
+            'horas_minimas_antes_evento': 'Horas Mínimas Antes del Evento',
+            'porcentaje_reembolso': 'Porcentaje a Reembolsar (%)',
+            'is_active': 'Activa',
         }
