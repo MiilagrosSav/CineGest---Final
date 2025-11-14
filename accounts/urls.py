@@ -1,5 +1,11 @@
 from django.urls import path
 from . import views
+from .politicas_views import (
+    PoliticaReembolsoListView,
+    PoliticaReembolsoCreateView,
+    PoliticaReembolsoUpdateView,
+    PoliticaReembolsoDeleteView,
+)
 
 app_name = 'accounts'
 
@@ -13,6 +19,11 @@ urlpatterns = [
     path('employees/create/', views.EmployeeCreateView.as_view(), name='create_employee'),
     path('employees/<int:pk>/edit/', views.EmployeeUpdateView.as_view(), name='edit_employee'),
     path('employees/<int:pk>/delete/', views.EmployeeDeleteView.as_view(), name='delete_employee'),
+    # Rutas para gestión de políticas de reembolso
+    path('politicas/', PoliticaReembolsoListView.as_view(), name='lista_politicas'),
+    path('politicas/crear/', PoliticaReembolsoCreateView.as_view(), name='crear_politica'),
+    path('politicas/<int:pk>/editar/', PoliticaReembolsoUpdateView.as_view(), name='editar_politica'),
+    path('politicas/<int:pk>/eliminar/', PoliticaReembolsoDeleteView.as_view(), name='eliminar_politica'),
     
     # ✅ PÁGINAS REQUERIDAS POR GOOGLE OAUTH
     path('privacy/', views.privacy_policy_view, name='privacy_policy'),
