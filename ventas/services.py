@@ -56,24 +56,4 @@ def compras_cantidad_entradas(compra):
         return 0
 
 
-def calcular_porcentaje_reembolso(fecha_evento):
-    """Devuelve el porcentaje de reembolso según las políticas configuradas.
-
-    Args:
-        fecha_evento (datetime): fecha y hora del evento (función)
-
-    Returns:
-        int: porcentaje a reembolsar (0-100)
-    """
-    if not fecha_evento:
-        return 0
-
-    ahora = timezone.now()
-    # Si el evento ya pasó, no hay reembolso
-    diferencia = fecha_evento - ahora
-    horas_restantes = diferencia.total_seconds() / 3600.0
-    if horas_restantes <= 0:
-        return 0
-
-    # Refund policies were removed; default to 0
-    return 0
+# calcular_porcentaje_reembolso eliminada - funcionalidad reemplazada por sistema de intercambio

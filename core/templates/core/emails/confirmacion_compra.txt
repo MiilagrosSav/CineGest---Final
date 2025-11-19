@@ -1,0 +1,48 @@
+================================================
+    🎬 CONFIRMACIÓN DE COMPRA - CINEGEST
+================================================
+
+✅ COMPRA CONFIRMADA
+
+¡Gracias por tu compra, {{ usuario.first_name|default:usuario.username }}!
+
+Tu compra ha sido procesada exitosamente. A continuación encontrarás los detalles de tu pedido:
+
+
+PEDIDO #{{ venta.id_venta }}
+================================================
+
+{% with primera_entrada=entradas.first %}
+📋 DETALLES DE LA FUNCIÓN
+--------------------------------------------------
+🎬 Película:    {{ primera_entrada.id_funcion.id_pelicula.titulo }}
+📅 Fecha:       {{ primera_entrada.id_funcion.fecha|date:"d/m/Y" }}
+🕐 Hora:        {{ primera_entrada.id_funcion.hora_inicio|time:"H:i" }}h
+🏛️ Sala:        {{ primera_entrada.id_funcion.id_sala.nombre }}
+🎟️ Cantidad:    {{ cantidad }} entrada{{ cantidad|pluralize }}
+{% endwith %}
+
+
+🪑 TUS BUTACAS RESERVADAS
+--------------------------------------------------
+{% for entrada in entradas %}{{ entrada.id_butaca.numero }}{% if not forloop.last %}, {% endif %}{% endfor %}
+
+
+TOTAL PAGADO: ${{ total }}
+================================================
+
+
+ℹ️ INFORMACIÓN IMPORTANTE
+--------------------------------------------------
+• Llega al cine con 15 minutos de anticipación
+• Presenta este email o tu DNI en la entrada
+• Puedes intercambiar tus entradas hasta 24 horas antes de la función
+• Recuerda que una vez iniciada la función no se permiten intercambios
+
+
+¡Disfruta tu película! 🍿🎬
+
+
+--------------------------------------------------
+CineGest
+Este es un email automático, por favor no respondas a este mensaje.

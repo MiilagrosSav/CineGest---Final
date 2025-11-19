@@ -13,6 +13,7 @@ import json
 
 from ventas.models import Venta, Pago, MetodoPago
 from ventas.mercadopago_service import MercadoPagoService
+from core.services import notificacion_service
 
 
 @login_required
@@ -137,12 +138,18 @@ def pago_exitoso(request):
             
             messages.success(request, '✅ ¡Pago procesado exitosamente! Tu compra ha sido confirmada.')
             
+            # Enviar email de confirmación (incluir QR por entrada)
+            try:
+                notificacion_service.enviar_confirmacion_compra(venta, request)
+            except Exception as e:
+                print(f"Error enviando email de confirmación: {e}")
+
             context = {
                 'venta': venta,
                 'pago': pago,
                 'payment_id': payment_id or f'MP-{venta.id_venta}',
             }
-            
+
             return render(request, 'ventas/pago_exitoso_simple.html', context)
             
         except Venta.DoesNotExist:
@@ -257,6 +264,11 @@ def webhook_mercadopago(request):
                     
                     # Actualizar entradas
                     venta.entradas.all().update(estado='VENDIDA')
+                    # Enviar email de confirmación desde webhook (no hay request)
+                    try:
+                        notificacion_service.enviar_confirmacion_compra(venta, None)
+                    except Exception as e:
+                        print(f"Error enviando email (webhook): {e}")
                     
                 elif payment_status == 'pending':
                     venta.estado = 'PENDIENTE_PAGO'

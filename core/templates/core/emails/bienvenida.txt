@@ -1,0 +1,29 @@
+================================================
+    🎬 BIENVENIDO A CINEGEST 🎬
+================================================
+
+¡Hola {{ nombre_completo }}!
+
+Nos alegra mucho que te hayas unido a CineGest, tu plataforma de confianza para reservar entradas de cine.
+
+Tu cuenta ha sido creada exitosamente y ya puedes comenzar a disfrutar de todas nuestras funcionalidades.
+
+
+¿QUÉ PUEDES HACER CON CINEGEST?
+--------------------------------------------------
+
+🎟️  Comprar entradas para tus películas favoritas
+🔄  Intercambiar entradas si tus planes cambian
+🪑  Seleccionar tus butacas preferidas
+📧  Recibir confirmaciones instantáneas por email
+📱  Gestionar tus reservas desde cualquier lugar
+
+
+Si tienes alguna pregunta o necesitas ayuda, no dudes en contactarnos. Estamos aquí para ayudarte.
+
+¡Que disfrutes de grandes películas! 🍿🎬
+
+
+--------------------------------------------------
+{{ site_name }}
+Este es un email automático, por favor no respondas a este mensaje.

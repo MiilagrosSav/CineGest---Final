@@ -1,0 +1,51 @@
+================================================
+    🎬 CONFIRMACIÓN DE INTERCAMBIO - CINEGEST
+================================================
+
+✅ INTERCAMBIO CONFIRMADO
+
+¡Tu intercambio se procesó exitosamente!
+
+Hola {{ usuario.get_full_name|default:usuario.username }},
+
+Te confirmamos que tu intercambio de entradas se ha realizado correctamente.
+
+
+📋 DETALLES DEL INTERCAMBIO
+================================================
+Número de Venta:      #{{ venta.id_venta }}
+Fecha de Intercambio: {{ intercambio.fecha_intercambio|date:"d/m/Y H:i" }}
+Cantidad de Entradas: {{ intercambio.cantidad_entradas }}
+
+
+❌ FUNCIÓN ORIGINAL (CANCELADA)
+================================================
+Película:     {{ funcion_origen.pelicula.titulo }}
+Fecha y Hora: {{ funcion_origen.fecha_hora|date:"d/m/Y H:i" }}
+Sala:         {{ funcion_origen.sala.nombre }}
+
+
+✅ NUEVA FUNCIÓN (CONFIRMADA)
+================================================
+Película:     {{ funcion_destino.pelicula.titulo }}
+Fecha y Hora: {{ funcion_destino.fecha_hora|date:"d/m/Y H:i" }}
+Sala:         {{ funcion_destino.sala.nombre }}
+Precio:       ${{ funcion_destino.precio_base }}
+
+
+🎫 TUS NUEVAS BUTACAS
+================================================
+{% for entrada in entradas_nuevas %}{{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}{% if not forloop.last %}, {% endif %}{% endfor %}
+
+
+⚠️ INFORMACIÓN IMPORTANTE
+================================================
+• Presenta este email o tu número de venta en la entrada del cine.
+• Llega 15 minutos antes del inicio de la función.
+• Las entradas originales han sido canceladas automáticamente.
+
+
+--------------------------------------------------
+CineGest - Tu experiencia cinematográfica
+Si tienes alguna pregunta, contáctanos respondiendo a este email.
+Este es un email automático, por favor no respondas directamente.
