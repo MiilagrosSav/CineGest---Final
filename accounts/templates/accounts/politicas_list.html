@@ -1,0 +1,192 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Políticas de Reembolso{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1000px;">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">📋 Políticas de Reembolso</h1>
+        <p class="card-subtitle">Listado rápido de las políticas y sus tramos. Desde aquí podés editar la política.</p>
+    </div>
+
+    <div class="card glass-container">
+        
+        <div id="politicasTableContainer" style="overflow-x: auto; padding: var(--space-md);">
+            <table style="width:100%; border-collapse: collapse; text-align: left;">
+                <thead>
+                    <tr style="border-bottom: 1px solid var(--glass-border);">
+                        <th style="padding: var(--space-sm);">Nombre</th>
+                        <th style="padding: var(--space-sm);">Horas Mínimas Antes</th>
+                        <th style="padding: var(--space-sm);">Porcentaje %</th>
+                        <th style="padding: var(--space-sm);">Activa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for politica in politicas %}
+                    <tr class="politica-row" data-id="{{ politica.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                        <td style="padding: var(--space-sm); font-weight: 600;">{{ politica.nombre }}</td>
+                        <td style="padding: var(--space-sm);">{{ politica.horas_minimas_antes_evento }}</td>
+                        <td style="padding: var(--space-sm);">{{ politica.porcentaje_reembolso }}%</td>
+                        <td style="padding: var(--space-sm);">
+                            {% if politica.is_active %}
+                                <span style="color: #38ef7d; font-weight: 600;">Sí</span>
+                            {% else %}
+                                <span style="color: #ef4444; font-weight: 600;">No</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-secondary" style="padding: var(--space-lg);">No hay políticas definidas.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="abm-panel" style="display:flex; justify-content: space-between; padding: var(--space-md); border-top: 1px solid var(--glass-border);">
+            <div>
+                <a href="{% url 'accounts:crear_politica' %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                    ✚ Crear Política
+                </a>
+            </div>
+            <div style="display: flex; gap: var(--space-sm);">
+                <button id="btn-modificar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
+                    ✏️ Modificar
+                </button>
+                <button id="btn-eliminar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
+                    🗑️ Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* --- Estilos para la Barra de Botones de la Lista --- */
+    #politicasTableContainer + div .btn,
+    #politicasTableContainer + div .btn-primary,
+    #politicasTableContainer + div .btn-outline {
+        padding: 0.7rem 1.3rem;
+        font-size: 0.9rem; 
+        font-weight: 600;
+        border-radius: 9999px; /* Forma de píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease-in-out;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    #politicasTableContainer + div .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        color: white;
+        border: none;
+    }
+    #politicasTableContainer + div .btn-outline:not(:disabled):hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
+    }
+    #politicasTableContainer + div .btn-outline:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background: transparent;
+        border-color: var(--glass-border);
+        color: var(--text-secondary);
+        transform: none;
+        box-shadow: none;
+    }
+    .btn:disabled,
+    .btn-outline:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* --- Estilos de Fila (Nuevos) --- */
+    .politica-row {
+        transition: background-color 0.2s ease;
+    }
+    .politica-row:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    .politica-row.selected {
+        background-color: rgba(var(--primary-rgb), 0.15);
+        border-left: 3px solid var(--primary);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const rows = document.querySelectorAll('.politica-row');
+        const btnModificar = document.getElementById('btn-modificar');
+        const btnEliminar = document.getElementById('btn-eliminar');
+        
+        let selectedRows = [];
+        
+        function updateUI() {
+            if (!btnModificar || !btnEliminar) return;
+            btnModificar.disabled = selectedRows.length !== 1;
+            btnEliminar.disabled = selectedRows.length === 0;
+            
+            if (selectedRows.length > 0) {
+                btnEliminar.textContent = `🗑️ Eliminar ${selectedRows.length > 1 ? `(${selectedRows.length})` : ''}`;
+            } else {
+                btnEliminar.textContent = '🗑️ Eliminar';
+            }
+        }
+        
+        function toggleRowSelection(row) {
+            const rowId = row.dataset.id;
+            if (row.classList.contains('selected')) {
+                row.classList.remove('selected');
+                selectedRows = selectedRows.filter(id => id !== rowId);
+            } else {
+                row.classList.add('selected');
+                selectedRows.push(rowId);
+            }
+            updateUI();
+        }
+        
+        rows.forEach(row => {
+            row.addEventListener('click', function(event) {
+                if (!event.ctrlKey && !event.metaKey) {
+                    rows.forEach(r => {
+                        if (r !== this && r.classList.contains('selected')) {
+                            r.classList.remove('selected');
+                        }
+                    });
+                    selectedRows = [];
+                }
+                toggleRowSelection(this);
+            });
+        });
+        
+        // Adaptar URLs a las de políticas
+        if(btnModificar) btnModificar.addEventListener('click', function() {
+            if (selectedRows.length === 1) {
+                window.location.href = `/accounts/politicas/${selectedRows[0]}/editar/`;
+            }
+        });
+        
+        if(btnEliminar) btnEliminar.addEventListener('click', function() {
+            if (selectedRows.length === 0) return;
+            
+            if (selectedRows.length === 1) {
+                window.location.href = `/accounts/politicas/${selectedRows[0]}/eliminar/`;
+            } else {
+                if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} políticas seleccionadas?`)) {
+                    alert('Función de eliminación masiva en desarrollo');
+                }
+            }
+        });
+        
+        // Inicializar UI
+        updateUI();
+    });
+</script>
+{% endblock %}

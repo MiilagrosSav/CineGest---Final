@@ -1,0 +1,59 @@
+{# Partial: sección de pendientes paginada. Devuelto para requests AJAX o incluido en la página completa. #}
+<div id="ventasPendientesInner">
+    <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+        {% for venta in ventas_pendientes_page %}
+        <div class="venta-card venta-pendiente" style="display: block;"> <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-md);">
+                <div>
+                    <h3 style="margin: 0 0 var(--space-xs) 0;">🎬 Compra #{{ venta.id_venta }}</h3>
+                    <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">📅 {{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
+                </div>
+                <div style="text-align: right;">
+                    <span class="badge-estado badge-pendiente">
+                        {% if venta.estado == 'PENDIENTE' %}⏳ Pendiente
+                        {% else %}⏳ Pendiente de Pago{% endif %}
+                    </span>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-md);">
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Cantidad de entradas</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 600;">{{ venta.cantidad_entradas }}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Total a pagar</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 600; color: #ffc107; font-size: 1.1rem;">${{ venta.calcular_total }}</p>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap; justify-content: space-between; align-items: center;">
+                <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary" style="text-decoration: none;">
+                    💳 Pagar Ahora
+                </a>
+                <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" class="btn-ver-detalle" style="text-decoration: none;">
+                    👁️ Ver Detalle
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# Paginación para pendientes #}
+    {% if ventas_pendientes_page.has_other_pages %}
+    <nav class="ventas-pendientes-pagination" style="margin-top:1rem; display:flex; gap:.5rem; align-items:center; justify-content:center;">
+        {% if ventas_pendientes_page.has_previous %}
+            <a class="btn btn-outline" href="?pending_page={{ ventas_pendientes_page.previous_page_number }}&filter=pendientes" aria-label="Anterior">« Anterior</a>
+        {% else %}
+            <span class="btn btn-outline" style="opacity:.5; pointer-events:none;">« Anterior</span>
+        {% endif %}
+
+        <span style="padding:.4rem .8rem;">Página {{ ventas_pendientes_page.number }} de {{ ventas_pendientes_page.paginator.num_pages }}</span>
+
+        {% if ventas_pendientes_page.has_next %}
+            <a class="btn btn-outline" href="?pending_page={{ ventas_pendientes_page.next_page_number }}&filter=pendientes" aria-label="Siguiente">Siguiente »</a>
+        {% else %}
+            <span class="btn btn-outline" style="opacity:.5; pointer-events:none;">Siguiente »</span>
+        {% endif %}
+    </nav>
+    {% endif %}
+</div>

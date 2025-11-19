@@ -72,9 +72,23 @@
 
                 <div>
                     <h3 style="margin-bottom: var(--space-md);">🎟️ Tus Entradas</h3>
-                    
-                    {% if venta.entradas.all %}
-                        {% with primera_entrada=venta.entradas.all.0 %}
+
+                    {% if entradas_canceladas and entradas_canceladas|length > 0 %}
+                    <div style="background: rgba(255,107,107,0.04); border-radius: var(--radius); padding: var(--space-lg); margin-bottom: var(--space-md);">
+                        <h4 style="margin:0 0 .5rem 0; color:#ff6b6b;">🚫 Entradas Canceladas (antes)</h4>
+                        <p style="margin:0 0 .5rem 0; opacity:0.8;">Estas butacas fueron canceladas al realizar un intercambio.</p>
+                        <div style="display:flex; gap: .5rem; flex-wrap:wrap;">
+                            {% for e in entradas_canceladas %}
+                                <span class="butaca-badge" style="background: rgba(255,107,107,0.12); border-color:#ff6b6b; color:#ff6b6b;">
+                                    {{ e.id_butaca.fila }}{{ e.id_butaca.numero }} — {{ e.id_funcion.fecha_hora|date:"d/m H:i" }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if entradas_activas and entradas_activas|length > 0 %}
+                        {% with primera_entrada=entradas_activas.0 %}
                         <div style="background: rgba(255,255,255,0.05); border-radius: var(--radius); padding: var(--space-lg);">
                             
                             <h4 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">🎬 {{ primera_entrada.id_pelicula.titulo }}</h4>
@@ -97,22 +111,21 @@
                             <hr style="border-color: var(--glass-border); margin: 0 0 var(--space-md) 0;">
 
                             <p style="margin: 0 0 var(--space-sm) 0; opacity: 0.7; font-size: 0.9rem;">
-                                💺 Butacas Adquiridas ({{ venta.entradas.all|length }}):
+                                💺 Butacas Adquiridas ({{ entradas_activas|length }}):
                             </p>
                             
                             <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm);">
-                                {% for entrada in venta.entradas.all %}
+                                {% for entrada in entradas_activas %}
                                     <span class="butaca-badge">
                                         {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}
                                     </span>
                                 {% endfor %}
                             </div>
-
                         </div>
                         {% endwith %}
                     {% else %}
                         <div style="background: rgba(255,255,255,0.05); border-radius: var(--radius); padding: var(--space-lg); text-align: center; opacity: 0.7;">
-                            <p style="margin: 0;">No hay entradas asociadas a esta compra.</p>
+                            <p style="margin: 0;">No hay entradas activas asociadas a esta compra.</p>
                         </div>
                     {% endif %}
                 </div>
@@ -121,6 +134,10 @@
             {% if venta.estado == 'PENDIENTE' %}
             <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary">
                 💳 Pagar Ahora
+            </a>
+            {% elif puede_intercambiar %}
+            <a href="{% url 'cine:cartelera' %}?intercambio_for={{ venta.id_venta }}" class="btn btn-secondary" style="background:#6c757d; color:white; border:none;">
+                🔁 Intercambiar Entrada
             </a>
             {% endif %}
             <a href="{% url 'ventas:mis_ventas' %}" class="btn btn-outline">

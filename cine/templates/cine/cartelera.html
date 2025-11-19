@@ -412,6 +412,7 @@
 
 <script>
     let funcionIdSeleccionada = null;
+    const intercambioVentaId = '{{ intercambio_for|default:"" }}';
     
     // Cargar datos de películas desde el JSON embebido
     const peliculasDataElement = document.getElementById('peliculasDataJson');
@@ -435,7 +436,12 @@
 
     function comprarEntrada() {
         if (funcionIdSeleccionada) {
-            // Redirigir a la página de selección de butacas
+            // Si estamos en modo intercambio (se pasó intercambio_for), redirigir al selector en modo intercambio
+            if (intercambioVentaId && intercambioVentaId.length > 0) {
+                window.location.href = `/ventas/seleccionar-butacas/intercambio/${intercambioVentaId}/${funcionIdSeleccionada}/`;
+                return;
+            }
+            // Redirigir a la página de selección de butacas (compra normal)
             window.location.href = `/ventas/seleccionar-butacas/${funcionIdSeleccionada}/`;
         }
     }

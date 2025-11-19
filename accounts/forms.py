@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.db import transaction
 from .models import Usuario, Cliente, Empleado
+from ventas.models import PoliticaReembolso
 
 # --- Formulario de Registro de Clientes ---
 class CustomUserCreationForm(UserCreationForm):
@@ -231,4 +232,26 @@ class EmployeeUpdateForm(forms.ModelForm):
             'dni': '🆔 DNI',
             'telefono': '📱 Teléfono',
             'is_active': '✅ Usuario activo'
+        }
+
+# --- Formulario para Politica de Reembolso (Admin) ---
+class PoliticaReembolsoForm(forms.ModelForm):
+    class Meta:
+        model = PoliticaReembolso
+        fields = ['nombre', 'permitir_intercambio', 'dias_antes_minimo', 'penalidad_percent', 'max_cambios_por_compra', 'activo']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'permitir_intercambio': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'dias_antes_minimo': forms.NumberInput(attrs={'class': 'form-control'}),
+            'penalidad_percent': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'max_cambios_por_compra': forms.NumberInput(attrs={'class': 'form-control'}),
+            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+        labels = {
+            'nombre': 'Nombre de la Política',
+            'permitir_intercambio': 'Permitir intercambio',
+            'dias_antes_minimo': 'Días mínimos antes del evento',
+            'penalidad_percent': 'Penalidad (%)',
+            'max_cambios_por_compra': 'Máximo de cambios por compra (0 = ilimitado)',
+            'activo': 'Activa',
         }

@@ -1,9 +1,14 @@
 from datetime import date, timedelta
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from cine.models import Funcion, Pelicula
 from django.utils import timezone
 from datetime import timedelta
+
+# Cuando la cartelera se abre en modo 'intercambio' recibirá ?intercambio_for=<venta_id>
+# y mostrará únicamente las funciones candidatas a intercambio para esa venta.
+from ventas.services import obtener_funciones_candidatas
+from ventas.models import Venta
 
 # --- Vista de Cartelera Pública para Clientes ---
 @login_required
@@ -15,14 +20,25 @@ def cartelera_view(request):
     """
     # Obtener funciones futuras (desde hoy en adelante)
     ahora = timezone.now()
-    
-    # Filtrar funciones futuras
-    funciones = Funcion.objects.filter(
-        fecha_hora__gte=ahora,
-        sala__activa=True
-    ).select_related(
-        'pelicula', 'sala'
-    )
+
+    # Soporte para modo intercambio: si se pasa intercambio_for, calculamos candidatas solamente
+    intercambio_for = request.GET.get('intercambio_for')
+    intercambio_venta = None
+    if intercambio_for:
+        try:
+            intercambio_venta = Venta.objects.get(id_venta=int(intercambio_for), id_cliente__usuario=request.user)
+            funciones = obtener_funciones_candidatas(intercambio_venta).select_related('pelicula', 'sala')
+        except Exception:
+            intercambio_venta = None
+            funciones = Funcion.objects.filter(fecha_hora__gte=ahora, sala__activa=True).select_related('pelicula', 'sala')
+    else:
+        # Filtrar funciones futuras
+        funciones = Funcion.objects.filter(
+            fecha_hora__gte=ahora,
+            sala__activa=True
+        ).select_related(
+            'pelicula', 'sala'
+        )
     
     # Filtro por género
     genero = request.GET.get('genero')
@@ -111,6 +127,9 @@ def cartelera_view(request):
         'dia_seleccionado': dia_seleccionado,
         'filtro_search': search,
         'filtro_orden': orden,
+        # Soporte para modo intercambio: ?intercambio_for=<venta_id>
+        'intercambio_for': intercambio_for if intercambio_for else None,
+        'intercambio_venta': intercambio_venta,
     }
     
     return render(request, 'cine/cartelera.html', context)

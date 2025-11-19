@@ -49,6 +49,11 @@ CSRF_TRUSTED_ORIGINS = [
     'https://*.ngrok-free.dev',
 ]
 
+# Si tu app está detrás de un proxy/terminador TLS (ej: ngrok),
+# habilita esta cabecera para que Django detecte esquema https correctamente.
+# Esto ayuda a que social-auth y Django construyan `https://` en URLs absolutas.
+#SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 # ✅ CONFIGURACIONES ADICIONALES CSRF PARA ADMIN
 CSRF_COOKIE_SECURE = False  # Para desarrollo HTTP (no HTTPS)
 CSRF_COOKIE_HTTPONLY = False  # Permitir acceso por JavaScript si es necesario
@@ -215,11 +220,11 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',    # Obtiene detalles del usuario
     'social_core.pipeline.social_auth.social_uid',        # Obtiene ID único de Google
     'social_core.pipeline.social_auth.auth_allowed',      # Verifica si puede autenticarse
-    'accounts.pipeline.custom_social_user',               # 🆕 Busca asociación social existente
+    'accounts.pipeline.custom_social_user',               # Busca asociación social existente
     'social_core.pipeline.user.get_username',             # Genera username único
-    'accounts.pipeline.associate_by_email',               # 🆕 Asocia por email si existe usuario
+    'accounts.pipeline.associate_by_email',               # Asocia por email si existe usuario
     'social_core.pipeline.user.create_user',              # Crea usuario si no existe
-    'social_core.pipeline.social_auth.associate_user',    # ✅ CRÍTICO: Crea la asociación UserSocialAuth
+    'social_core.pipeline.social_auth.associate_user',    # CRÍTICO: Crea la asociación UserSocialAuth
     'accounts.pipeline.setup_user_profile',               # Función personalizada para perfil
     'social_core.pipeline.social_auth.load_extra_data',   # Carga datos extra
     'social_core.pipeline.user.user_details',             # Actualiza detalles del usuario
@@ -230,7 +235,9 @@ SOCIAL_AUTH_SESSION_EXPIRATION = False  # Las sesiones no expiran automáticamen
 
 # ✅ CONFIGURACIÓN ADICIONAL PARA DEBUG Y SEGURIDAD
 SOCIAL_AUTH_RAISE_EXCEPTIONS = False   # No lanzar excepciones, redirigir en caso de error
-SOCIAL_AUTH_REDIRECT_IS_HTTPS = False  # Para desarrollo local
+# Forzar que los redirect_uris construidos por social-auth sean HTTPS
+# Útil en desarrollo cuando expones el servidor con ngrok / proxy TLS.
+#SOCIAL_AUTH_REDIRECT_IS_HTTPS = os.getenv('SOCIAL_AUTH_REDIRECT_IS_HTTPS', 'True') == 'True' este sirve por si falla ngrok
 SOCIAL_AUTH_URL_NAMESPACE = 'social'   # Namespace para las URLs
 
 # Configuración adicional que puede ayudar con errores 403
@@ -267,5 +274,6 @@ LOGGING = {
 # ============================================
 # Credenciales de prueba de Mercado Pago (TEST)
 # Para producción, configura las variables de entorno
-MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADOPAGO_ACCESS_TOKEN', 'TEST-3982445163869315-110521-a4d3f3f6e1e0b3c5e5c5c5c5c5c5c5c5-1234567890')
-MERCADOPAGO_PUBLIC_KEY = os.getenv('MERCADOPAGO_PUBLIC_KEY', 'TEST-c3c3c3c3-c3c3-c3c3-c3c3-c3c3c3c3c3c3')
+MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADOPAGO_ACCESS_TOKEN')
+MERCADOPAGO_PUBLIC_KEY = os.getenv('MERCADOPAGO_PUBLIC_KEY')
+

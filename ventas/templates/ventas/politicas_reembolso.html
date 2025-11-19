@@ -1,0 +1,191 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Políticas de Reembolso - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 900px;">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">💰 Políticas de Reembolso</h1>
+        <p class="card-subtitle">Consulta las condiciones para solicitar reembolsos de tus entradas</p>
+    </div>
+
+    <div class="card glass-container">
+        
+        <div style="padding: var(--space-lg);">
+            
+            <h3 style="margin: 0 0 var(--space-md) 0;">📋 Información de tu Compra</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">🎫 Venta</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 600;">#{{ venta.id_venta }}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">🎬 Película</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 600;">{{ primera_entrada.id_pelicula.titulo }}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">📅 Fecha del Evento</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 600;">{{ fecha_evento|date:"d/m/Y H:i" }}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">💵 Monto Pagado</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 600; color: var(--primary);">${{ monto_total }}</p>
+                </div>
+            </div>
+
+            <hr style="border-color: var(--glass-border); margin: var(--space-lg) 0;">
+
+            <h3 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">
+                ⭐ Política Aplicable a Tu Compra
+            </h3>
+            
+            {% if porcentaje_aplicable > 0 %}
+                <p style="margin: 0 0 8px 0; font-size: 1.1rem; font-weight: 600; color: #4CAF50;">
+                    ✅ Tu compra es elegible para reembolso
+                </p>
+                <p style="margin: 0 0 var(--space-md) 0; font-size: 0.95rem; line-height: 1.6;">
+                    Faltan <strong>{{ horas_restantes }} horas</strong> para el evento.
+                    Recibirás el <strong style="color: #4CAF50; font-size: 1.2rem;">{{ porcentaje_aplicable }}%</strong> del monto pagado.
+                </p>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); 
+                            background: rgba(76,175,80,0.05); 
+                            padding: var(--space-md); 
+                            border-radius: 8px;">
+                    <div>
+                        <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">Monto Original</p>
+                        <p style="margin: 4px 0 0 0; font-size: 1.2rem; font-weight: 600;">${{ monto_total }}</p>
+                    </div>
+                    <div>
+                        <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">Monto a Reembolsar</p>
+                        <p style="margin: 4px 0 0 0; font-size: 1.3rem; font-weight: 700; color: #4CAF50;">
+                            ${{ monto_a_reembolsar }}
+                        </p>
+                    </div>
+                </div>
+            {% else %}
+                <div style="background: rgba(244,67,54,0.1); 
+                            border-left: 4px solid #F44336; 
+                            padding: var(--space-md); 
+                            border-radius: 8px;">
+                    <p style="margin: 0 0 8px 0; font-size: 1.1rem; font-weight: 600; color: #F44336;">
+                        ❌ Esta compra no es elegible para reembolso
+                    </p>
+                    <p style="margin: 0; font-size: 0.95rem; line-height: 1.6;">
+                        Faltan <strong>{{ horas_restantes }} horas</strong> para el evento.
+                        No hay políticas de reembolso aplicables para este plazo.
+                    </p>
+                </div>
+            {% endif %}
+
+            <hr style="border-color: var(--glass-border); margin: var(--space-lg) 0;">
+        </div>
+        
+        <div class="card-footer" style="padding: var(--space-lg); border-top: 1px solid var(--glass-border); text-align: center;">
+            <div style="display: flex; gap: var(--space-md); justify-content: center; flex-wrap: wrap;">
+                <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" 
+                   class="btn btn-secondary" 
+                   style="min-width: 150px;">
+                    Volver
+                </a>
+                
+                {% if can_request_refund %}
+                    <form method="POST" action="{% url 'ventas:solicitar_reembolso' venta.id_venta %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" 
+                                class="btn btn-primary" 
+                                style="min-width: 180px;"
+                                onclick="return confirm('¿Confirmas que deseas solicitar el reembolso de ${{ monto_a_reembolsar }} ({{ porcentaje_aplicable }}%)?');">
+                            💰 Solicitar Reembolso
+                        </button>
+                    </form>
+                {% elif venta.estado == 'REEMBOLSADO' or venta.pago and venta.pago.estado == 'REEMBOLSADO' %}
+                    <button class="btn btn-secondary" 
+                            style="min-width: 180px; opacity: 0.8; cursor: default;" 
+                            disabled>
+                        ✅ Reembolso Ya Procesado
+                    </button>
+                {% elif porcentaje_aplicable > 0 %}
+                    <button class="btn btn-secondary" 
+                            style="min-width: 180px; opacity: 0.6; cursor: not-allowed;" 
+                            disabled>
+                        ⚠️ No puedes solicitar el reembolso en este momento
+                    </button>
+                {% else %}
+                    <button class="btn btn-secondary" 
+                            style="min-width: 180px; opacity: 0.5; cursor: not-allowed;" 
+                            disabled>
+                        ❌ No Elegible
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<style>
+    .politica-item.highlight {
+        /* Estilo sutil para resaltar la política activa */
+        background: rgba(var(--primary-rgb), 0.05);
+        border-radius: 8px;
+    }
+
+    /* CAMBIO 5: Estilos de botones (consistentes)
+    */
+    .card-footer .btn-primary,
+    .card-footer .btn-secondary,
+    .card-footer .btn-outline {
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 9999px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .card-footer .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: 2px solid var(--primary);
+    }
+    .card-footer .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
+    }
+
+    /* (Usando 'btn-secondary' como el 'btn-outline' de otras pantallas) */
+    .card-footer .btn-secondary {
+        background: transparent;
+        color: var(--text-light);
+        border: 2px solid rgba(255,255,255,0.2);
+    }
+    .card-footer .btn-secondary:hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-1px);
+    }
+    .card-footer .btn-secondary:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background: var(--glass-border);
+        border-color: var(--glass-border);
+        color: var(--text-secondary);
+        transform: none;
+        box-shadow: none;
+    }
+</style>
+
+{% endblock %}

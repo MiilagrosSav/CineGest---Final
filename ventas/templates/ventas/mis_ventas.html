@@ -7,6 +7,7 @@
     
     <div class="mb-lg">
         <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🎫 Mis Compras</h1>
+        <p class="card-subtitle">Historial de tus entradas compradas</p>
     </div>
 
     <div class="card glass-container">
@@ -18,6 +19,7 @@
                 border-radius: var(--radius);
                 border-left: 4px solid;
                 transition: all 0.2s ease;
+                /* display: none; */ /* JS lo maneja */
             }
             .venta-card:hover {
                 background: rgba(255,255,255,0.1);
@@ -37,19 +39,37 @@
             .badge-confirmada { color: var(--primary); }
             .badge-pendiente { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
             .badge-cancelada { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+            /* badge for refunds removed */
 
             .with-divider {
                 border-bottom: 1px solid var(--glass-border);
             }
         </style>
 
+        <div class="filter-group-container" style="padding: var(--space-md); border-bottom: 1px solid var(--glass-border);">
+            <div class="filter-group" style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
+                <button class="filter-btn active" data-filter="confirmadas">
+                    Confirmadas
+                </button>
+                <button class="filter-btn" data-filter="pendientes" data-count="{{ ventas_pendientes.count|default:"0" }}">
+                    Pendientes
+                    {% if ventas_pendientes.count > 0 %}
+                    <span class="notification-badge">{{ ventas_pendientes.count }}</span>
+                    {% endif %}
+                </button>
+                <button class="filter-btn" data-filter="canceladas">
+                    Canceladas
+                </button>
+                {# Reembolsadas filter removed; refunds deprecated #}
+            </div>
+        </div>
+
+        
         {% if ventas_pendientes %}
-        <div class="ventas-pendientes {% if ventas_historial %}with-divider{% endif %}" style="padding: var(--space-lg);">
-            <h2 style="margin: 0 0 var(--space-md) 0; color: #ffc107;">⏳ Pagos Pendientes</h2>
+        <div class="ventas-pendientes" style="padding: var(--space-lg); display: none;"> <h2 style="margin: 0 0 var(--space-md) 0; color: #ffc107;">⏳ Pagos Pendientes</h2>
             <div style="display: flex; flex-direction: column; gap: var(--space-md);">
-                {% for venta in ventas_pendientes %}
-                <div class="venta-card venta-pendiente">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-md);">
+                {% for venta in ventas_pendientes_page %}
+                <div class="venta-card venta-pendiente" style="display: block;"> <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-md);">
                         <div>
                             <h3 style="margin: 0 0 var(--space-xs) 0;">🎬 Compra #{{ venta.id_venta }}</h3>
                             <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">📅 {{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
@@ -84,47 +104,39 @@
                 </div>
                 {% endfor %}
             </div>
+
+            {# Paginación para pendientes #}
+            {% if ventas_pendientes_page.has_other_pages %}
+            <nav class="ventas-pendientes-pagination" style="margin-top:1rem; display:flex; gap:.5rem; align-items:center; justify-content:center;">
+                {% if ventas_pendientes_page.has_previous %}
+                    <a class="btn btn-outline" href="?pending_page={{ ventas_pendientes_page.previous_page_number }}&filter=pendientes" aria-label="Anterior">« Anterior</a>
+                {% else %}
+                    <span class="btn btn-outline" style="opacity:.5; pointer-events:none;">« Anterior</span>
+                {% endif %}
+
+                <span style="padding:.4rem .8rem;">Página {{ ventas_pendientes_page.number }} de {{ ventas_pendientes_page.paginator.num_pages }}</span>
+
+                {% if ventas_pendientes_page.has_next %}
+                    <a class="btn btn-outline" href="?pending_page={{ ventas_pendientes_page.next_page_number }}&filter=pendientes" aria-label="Siguiente">Siguiente »</a>
+                {% else %}
+                    <span class="btn btn-outline" style="opacity:.5; pointer-events:none;">Siguiente »</span>
+                {% endif %}
+            </nav>
+            {% endif %}
         </div>
         {% endif %}
 
         {% if ventas_historial %}
-        <div style="padding: var(--space-lg);">
-            <h2 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">📚 Historial de Compras</h2>
+        <div class="ventas-historial" style="padding: var(--space-lg); display: none;"> <h2 id="historial-titulo" style="margin: 0 0 var(--space-md) 0; color: var(--primary);">📚 Historial de Compras</h2>
             <div id="ventasHistorialContainer">
                 {% include 'ventas/_ventas_historial.html' %}
             </div>
-
-            <script>
-                (function(){
-                    const container = document.getElementById('ventasHistorialContainer');
-                    if (!container) return;
-
-                    container.addEventListener('click', function(e){
-                        const a = e.target.closest('a');
-                        if (!a) return;
-                        const href = a.getAttribute('href') || '';
-                        if (!href.includes('page=')) return;
-
-                        e.preventDefault();
-                        const url = a.href;
-                        container.style.opacity = '0.6';
-
-                        fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                            .then(r => { if (!r.ok) throw new Error('Network response not ok'); return r.text(); })
-                            .then(html => {
-                                container.innerHTML = html;
-                                try { history.pushState(null, '', url); } catch (e) {}
-                            })
-                            .catch(err => { console.error('AJAX error fetching ventas page', err); })
-                            .finally(()=>{ container.style.opacity = ''; });
-                    });
-                })();
-            </script>
-        </div>
+            
+            </div>
         {% endif %}
 
         {% if not ventas_pendientes and not ventas_historial %}
-        <div style="text-align: center; padding: var(--space-xl);">
+        <div class="ventas-ninguna" style="text-align: center; padding: var(--space-xl);">
             <div style="font-size: 4rem; margin-bottom: var(--space-md);">🎟️</div>
             <p style="font-size: 1.2rem; margin-bottom: var(--space-md);">No tienes compras registradas</p>
             <a href="{% url 'cine:cartelera' %}" class="btn btn-primary" style="text-decoration: none;">
@@ -132,11 +144,15 @@
             </a>
         </div>
         {% endif %}
+        
+        <div id="ventasNoResults" style="display:none; padding: var(--space-lg); text-align:center; opacity:0.85;">
+            <p style="margin:0; font-weight:700; font-size:1.05rem;">No existen compras en esta categoría.</p>
+        </div>
     </div>
 </div>
 
 <style>
-    /* Estilos para Botones GRANDES (Pagar, Explorar) */
+    /* ... (tus estilos .btn-primary, .btn-outline, .btn-ver-detalle van aquí) ... */
     .card .btn-primary,
     .card .btn-outline {
         padding: 0.8rem 1.5rem;
@@ -153,7 +169,6 @@
         align-items: center;
         justify-content: center;
     }
-    
     .card .btn-primary:hover {
         background: rgb(77, 19, 92);
         color: white;
@@ -161,15 +176,12 @@
         transform: translateY(-1px) scale(1.01);
         box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
     }
-    
     .card .btn-outline:hover {
         background: rgba(var(--primary-rgb), 0.25);
         border-color: var(--primary);
         color: var(--primary);
         transform: translateY(-1px);
     }
-
-    /* Estilo para Botón PEQUEÑO "Ver Detalle" */
     .btn-ver-detalle {
         padding: 0.4rem 0.9rem; /* Más pequeño */
         font-size: 0.85rem; /* Letra más chica */
@@ -191,45 +203,194 @@
         transform: translateY(-1px);
     }
 
-    /* --- (NUEVO) Estilos para Paginación Minimalista --- */
-
-    /* Esto apunta específicamente a los botones 'Anterior/Siguiente' 
-    que están DENTRO de tu 'ventas-pagination'.
-    */
-    .ventas-pagination .btn-outline {
-        padding: 0.5rem 1rem;       /* Padding más chico */
-        font-size: 0.9rem;          /* Letra más chica */
-        font-weight: 600;
-        border-radius: 9999px;      /* Píldora */
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-width: 2px;
-        transition: all 0.2s ease;
-        min-width: 120px; /* Ancho mínimo más chico */
-        
-        /* Importante: Reseteamos los estilos que no queremos heredar */
-        display: inline-flex; 
+    /* Estilos de Paginación (del ejemplo anterior) */
+    .pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.5rem; 
+        padding: var(--space-md) 0;
+        list-style: none;
+        margin-top: var(--space-lg);
+        border-top: 1px solid var(--glass-border);
+    }
+    .page-item .page-link {
+        display: inline-flex;
         align-items: center;
         justify-content: center;
-        text-decoration: none; 
+        padding: 0.5rem 0.9rem;
+        border-radius: var(--radius, 8px); 
+        border: 2px solid transparent;
+        background: transparent;
+        color: var(--text-secondary);
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s ease;
     }
-
-    /* Hover (igual que los otros 'outline') */
-    .ventas-pagination .btn-outline:not([style*="opacity"]):hover {
-        background: rgba(var(--primary-rgb), 0.25);
+    .page-item:not(.active) .page-link:hover {
         border-color: var(--primary);
         color: var(--primary);
-        transform: translateY(-1px);
+        background: rgba(var(--primary-rgb), 0.1);
     }
-
-    /* Estado deshabilitado (cuando estás en la pág 1 o la última) */
-    .ventas-pagination .btn-outline[style*="opacity"] {
-        opacity: 0.4;
+    .page-item.active .page-link {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #FFF;
+        font-weight: 700;
+    }
+    .page-item.disabled .page-link {
+        opacity: 0.3;
         cursor: not-allowed;
-        background: transparent;
-        border-color: var(--glass-border);
-        color: var(--text-secondary);
     }
 
+    /* Estilos para Filtros de Pestaña */
+    .filter-btn {
+        padding: 0.6rem 1.2rem;
+        font-size: 0.9rem;
+        font-weight: 600;
+        border-radius: 9999px; /* Píldora */
+        border: 2px solid var(--glass-border);
+        background: transparent;
+        color: var(--text-light);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .filter-btn:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(var(--primary-rgb), 0.1);
+    }
+    .filter-btn.active {
+        background: var(--primary);
+        color: white;
+        border-color: var(--primary);
+    }
+    
+    .notification-badge {
+        background: #ffc107;
+        color: #000;
+        font-size: 0.8rem;
+        font-weight: 700;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
 </style>
+
+<script>
+    (function(){
+        const buttons = document.querySelectorAll('.filter-btn');
+        if (!buttons || buttons.length === 0) return;
+
+        // Seleccionar las SECCIONES
+        const pendingSection = document.querySelector('.ventas-pendientes');
+        const historySection = document.querySelector('.ventas-historial');
+
+        const historyContainer = document.getElementById('ventasHistorialContainer');
+        const pendingContainer = document.querySelector('.ventas-pendientes');
+
+        const historyTitle = document.getElementById('historial-titulo');
+        const noResultsDiv = document.getElementById('ventasNoResults');
+        const noSalesDiv = document.querySelector('.ventas-ninguna');
+
+        // Aplica sólo la visibilidad (las tarjetas son renderizadas por el servidor)
+        function applyFilterVisibility(filter){
+            if(pendingSection) pendingSection.style.display = 'none';
+            if(historySection) historySection.style.display = 'none';
+            if(noResultsDiv) noResultsDiv.style.display = 'none';
+
+            if(filter === 'pendientes'){
+                if(pendingSection) pendingSection.style.display = 'block';
+            } else {
+                if(historySection) historySection.style.display = 'block';
+                if(historyTitle){
+                    if(filter === 'confirmadas') historyTitle.innerText = '📚 Historial de Compras';
+                    else if(filter === 'canceladas') historyTitle.innerText = '🚫 Compras Canceladas';
+                }
+            }
+        }
+
+        // Fetch partial (historial or pendientes) via AJAX and replace the corresponding container
+        function fetchPartial(filter, page){
+            const url = new URL(window.location.pathname, window.location.origin);
+            if(filter === 'pendientes'){
+                url.searchParams.set('filter', 'pendientes');
+                url.searchParams.set('pending_page', page || 1);
+            } else {
+                url.searchParams.set('filter', filter || 'confirmadas');
+                url.searchParams.set('page', page || 1);
+            }
+
+            return fetch(url.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).then(resp => {
+                if (!resp.ok) throw new Error('Network response was not ok');
+                return resp.text();
+            }).then(html => {
+                if(filter === 'pendientes'){
+                    // Replace pending container
+                    if(pendingContainer) pendingContainer.innerHTML = html;
+                } else {
+                    if(historyContainer) historyContainer.innerHTML = html;
+                }
+
+                // Update URL
+                const newUrl = url.toString();
+                window.history.pushState({filter: filter, page: page}, '', newUrl);
+
+                // Ensure visibility and re-bind handlers
+                applyFilterVisibility(filter);
+            }).catch(err => {
+                console.error('Error fetching partial:', err);
+            });
+        }
+
+        // Delegated click handler for pagination links
+        document.addEventListener('click', function(e){
+            const a = e.target.closest('.ventas-pagination a, .ventas-pendientes-pagination a');
+            if(!a) return;
+            e.preventDefault();
+            const href = a.getAttribute('href');
+            if(!href) return;
+            const parsed = new URL(href, window.location.origin);
+            const params = parsed.searchParams;
+            const filter = params.get('filter') || '{{ current_filter }}';
+            if(filter === 'pendientes'){
+                const p = params.get('pending_page') || 1;
+                fetchPartial('pendientes', p);
+            } else {
+                const p = params.get('page') || 1;
+                fetchPartial(filter, p);
+            }
+        });
+
+        // Click on filter buttons: fetch page 1 of that filter via AJAX
+        buttons.forEach(btn => {
+            btn.addEventListener('click', function(){
+                const filter = this.dataset.filter;
+                buttons.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                fetchPartial(filter, 1).then(() => applyFilterVisibility(filter));
+            });
+        });
+
+        // Initialize: load the server-provided filter content (server already rendered it), then apply visibility
+        const initialFilter = "{{ current_filter }}";
+        applyFilterVisibility(initialFilter);
+
+        // Handle back/forward navigation
+        window.addEventListener('popstate', function(ev){
+            const state = ev.state || {};
+            const filter = state.filter || new URL(window.location.href).searchParams.get('filter') || '{{ current_filter }}';
+            const page = state.page || new URL(window.location.href).searchParams.get('page') || new URL(window.location.href).searchParams.get('pending_page') || 1;
+            fetchPartial(filter, page);
+        });
+    })();
+</script>
 {% endblock %}
