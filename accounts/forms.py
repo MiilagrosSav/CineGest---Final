@@ -238,16 +238,20 @@ class EmployeeUpdateForm(forms.ModelForm):
 class PoliticaReembolsoForm(forms.ModelForm):
     class Meta:
         model = PoliticaReembolso
-        fields = ['nombre', 'horas_minimas_antes_evento', 'porcentaje_reembolso', 'is_active']
+        fields = ['nombre', 'permitir_intercambio', 'dias_antes_minimo', 'penalidad_percent', 'max_cambios_por_compra', 'activo']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
-            'horas_minimas_antes_evento': forms.NumberInput(attrs={'class': 'form-control'}),
-            'porcentaje_reembolso': forms.NumberInput(attrs={'class': 'form-control'}),
-            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'permitir_intercambio': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'dias_antes_minimo': forms.NumberInput(attrs={'class': 'form-control'}),
+            'penalidad_percent': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'max_cambios_por_compra': forms.NumberInput(attrs={'class': 'form-control'}),
+            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'nombre': 'Nombre de la Política',
-            'horas_minimas_antes_evento': 'Horas Mínimas Antes del Evento',
-            'porcentaje_reembolso': 'Porcentaje a Reembolsar (%)',
-            'is_active': 'Activa',
+            'permitir_intercambio': 'Permitir intercambio',
+            'dias_antes_minimo': 'Días mínimos antes del evento',
+            'penalidad_percent': 'Penalidad (%)',
+            'max_cambios_por_compra': 'Máximo de cambios por compra (0 = ilimitado)',
+            'activo': 'Activa',
         }

@@ -223,9 +223,11 @@
                 <h3 style="margin: 0; color: var(--primary); font-size: 1.2rem;">🎥 PANTALLA</h3>
             </div>
             
-            <form id="formButacas" method="post" action="{% url 'ventas:procesar_compra' funcion.id %}">
+            <form id="formButacas" method="post" action="{% if form_action_name %}{% if venta_id %}{% url form_action_name venta_id funcion.id %}{% else %}{% url form_action_name funcion.id %}{% endif %}{% else %}{% url 'ventas:procesar_compra' funcion.id %}{% endif %}">
                 {% csrf_token %}
-                
+                {% if venta_id %}
+                    <input type="hidden" name="venta_id" value="{{ venta_id }}">
+                {% endif %}
                 <div class="mapa-butacas">
                     {% for fila, butacas in butacas_por_fila %}
                     <div class="fila-butacas">
@@ -312,6 +314,8 @@
 <script>
     // @ts-nocheck
     const precioUnitario = parseFloat(document.getElementById('precio-data').getAttribute('data-precio'));
+    const cantidadNecesariaEl = document.getElementById('cantidad-data');
+    const cantidadNecesaria = cantidadNecesariaEl ? parseInt(cantidadNecesariaEl.getAttribute('data-cantidad')) : null;
     let butacasSeleccionadas = [];
     
     console.log('Script cargado. Precio unitario:', precioUnitario);
@@ -331,6 +335,12 @@
             const input = document.querySelector(`input[value="${butacaId}"]`);
             if (input) input.remove();
         } else {
+            // Si existe una cantidad necesaria (modo intercambio), limitar selección a esa cantidad exacta
+            if (cantidadNecesaria && butacasSeleccionadas.length >= cantidadNecesaria) {
+                // Opcional: mostrar feedback breve
+                console.log('Ya seleccionaste la cantidad necesaria:', cantidadNecesaria);
+                return;
+            }
             console.log('Seleccionando butaca');
             elemento.classList.add('seleccionada');
             butacasSeleccionadas.push({ id: butacaId, fila: fila, numero: numero });
@@ -367,9 +377,17 @@
             });
             html += '</div>';
             contenedor.innerHTML = html;
-            document.getElementById('btnConfirmar').disabled = false;
+            // Si se requiere una cantidad exacta, habilitar sólo cuando se alcanza
+            if (cantidadNecesaria) {
+                document.getElementById('btnConfirmar').disabled = cantidad !== cantidadNecesaria;
+            } else {
+                document.getElementById('btnConfirmar').disabled = false;
+            }
             console.log('Butacas seleccionadas, botón habilitado');
         }
     }
 </script>
+{% if cantidad_requerida %}
+<div id="cantidad-data" data-cantidad="{{ cantidad_requerida }}" style="display:none"></div>
+{% endif %}
 {% endblock %}

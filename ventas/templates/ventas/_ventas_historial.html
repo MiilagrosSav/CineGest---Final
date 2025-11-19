@@ -47,7 +47,7 @@
     {% if ventas_page.has_other_pages %}
     <nav class="ventas-pagination" style="margin-top:1rem; display:flex; gap:.5rem; align-items:center; justify-content:center;">
         {% if ventas_page.has_previous %}
-            <a class="btn btn-outline" href="?page={{ ventas_page.previous_page_number }}" aria-label="Anterior">« Anterior</a>
+            <a class="btn btn-outline" href="?page={{ ventas_page.previous_page_number }}&filter={{ current_filter }}" aria-label="Anterior">« Anterior</a>
         {% else %}
             <span class="btn btn-outline" style="opacity:.5; pointer-events:none;">« Anterior</span>
         {% endif %}
@@ -55,7 +55,7 @@
         <span style="padding:.4rem .8rem;">Página {{ ventas_page.number }} de {{ ventas_page.paginator.num_pages }}</span>
 
         {% if ventas_page.has_next %}
-            <a class="btn btn-outline" href="?page={{ ventas_page.next_page_number }}" aria-label="Siguiente">Siguiente »</a>
+            <a class="btn btn-outline" href="?page={{ ventas_page.next_page_number }}&filter={{ current_filter }}" aria-label="Siguiente">Siguiente »</a>
         {% else %}
             <span class="btn btn-outline" style="opacity:.5; pointer-events:none;">Siguiente »</span>
         {% endif %}

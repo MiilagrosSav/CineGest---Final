@@ -3,7 +3,8 @@ Configuración del admin para los modelos de ventas
 """
 
 from django.contrib import admin
-from ventas.models import Venta, Entrada, MetodoPago, Pago, Reembolso
+from ventas.models import Venta, Entrada, MetodoPago, Pago
+from ventas.models import PoliticaReembolso
 from simple_history.admin import SimpleHistoryAdmin
 
 
@@ -42,6 +43,20 @@ class VentaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
             'fields': ('calcular_total',)
         }),
     )
+class PoliticaReembolsoAdmin(admin.ModelAdmin):
+    list_display = ['id', 'nombre', 'permitir_intercambio', 'dias_antes_minimo', 'penalidad_percent', 'activo']
+    list_filter = ['activo', 'permitir_intercambio']
+    search_fields = ['nombre']
+    readonly_fields = ['created_at', 'updated_at']
+
+
+# Registrar el admin sólo si no está ya registrado (evita errores en autoreload)
+try:
+    if PoliticaReembolso not in admin.site._registry:
+        admin.site.register(PoliticaReembolso, PoliticaReembolsoAdmin)
+except Exception:
+    # En entornos de autoreload durante desarrollo puede fallar; ignoramos
+    pass
 
 
 @admin.register(Entrada)
@@ -60,9 +75,5 @@ class PagoAdmin(admin.ModelAdmin):
     readonly_fields = ['fecha_pago']
 
 
-@admin.register(Reembolso)
-class ReembolsoAdmin(admin.ModelAdmin):
-    list_display = ['id_reembolso', 'id_venta', 'id_pelicula', 'monto_reembolso', 'fecha_reembolso']
-    list_filter = ['fecha_reembolso', 'id_pelicula']
-    search_fields = ['id_reembolso', 'id_venta__id_venta']
-    readonly_fields = ['fecha_reembolso']
+# Reembolso model and admin registration removed as refund functionality
+# was deprecated and replaced by the 'Intercambio de Entradas' flow.

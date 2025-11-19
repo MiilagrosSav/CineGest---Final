@@ -1,48 +1,40 @@
-"""
-Modelo Reembolso - Representa reembolsos de ventas
-"""
-
 from django.db import models
+from django.conf import settings
 from django.utils import timezone
 
 
 class Reembolso(models.Model):
-    """Representa un reembolso asociado a una venta"""
-    
-    id_reembolso = models.AutoField(primary_key=True)
-    id_venta = models.ForeignKey(
-        'Venta',
-        on_delete=models.CASCADE,
-        related_name='reembolsos',
-        verbose_name='Venta'
+    """Registro de intentos de reembolso y respuesta del proveedor."""
+    venta = models.ForeignKey(
+        'Venta', on_delete=models.CASCADE, related_name='reembolsos', verbose_name='Venta'
     )
-    id_pelicula = models.ForeignKey(
-        'cine.Pelicula',
-        on_delete=models.PROTECT,
-        related_name='reembolsos',
-        verbose_name='Película',
-        help_text='Película relacionada con el reembolso'
+
+    pago = models.ForeignKey(
+        'Pago', on_delete=models.SET_NULL, null=True, blank=True, related_name='reembolsos', verbose_name='Pago'
     )
-    monto_reembolso = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        verbose_name='Monto del Reembolso'
+
+    solicitado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, verbose_name='Solicitado por'
     )
-    fecha_reembolso = models.DateTimeField(
-        default=timezone.now,
-        verbose_name='Fecha de Reembolso'
-    )
-    motivo = models.TextField(
-        blank=True,
-        verbose_name='Motivo',
-        help_text='Razón del reembolso'
-    )
-    
+
+    porcentaje = models.PositiveIntegerField(verbose_name='Porcentaje aplicado')
+
+    monto_solicitado = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Monto solicitado')
+    monto_reembolsado = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Monto reembolsado')
+
+    provider_payment_id = models.CharField(max_length=200, null=True, blank=True, verbose_name='ID de pago en proveedor')
+    provider_response = models.JSONField(null=True, blank=True, verbose_name='Respuesta del proveedor')
+
+    ok = models.BooleanField(default=False, verbose_name='OK')
+    status_code = models.CharField(max_length=50, null=True, blank=True, verbose_name='Código de estado')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
-        db_table = 'Reembolso'
         verbose_name = 'Reembolso'
         verbose_name_plural = 'Reembolsos'
-        ordering = ['-fecha_reembolso']
-    
+        ordering = ['-created_at']
+
     def __str__(self):
-        return f"Reembolso #{self.id_reembolso} - Venta #{self.id_venta.id_venta} - ${self.monto_reembolso}"
+        return f"Reembolso #{self.pk} - Venta #{getattr(self.venta, 'id_venta', self.venta_id)} - {self.monto_solicitado}"
