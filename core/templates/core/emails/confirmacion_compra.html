@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Confirmación de Compra</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #27ae60;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #e74c3c;
+            margin: 0;
+        }
+        .success-badge {
+            background-color: #27ae60;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: inline-block;
+            margin: 10px 0;
+        }
+        h2 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+        .order-number {
+            font-size: 24px;
+            color: #e74c3c;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .ticket-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #27ae60;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .ticket-detail {
+            margin: 15px 0;
+            padding: 10px;
+            border-bottom: 1px dashed #ddd;
+        }
+        .ticket-detail:last-child {
+            border-bottom: none;
+        }
+        .label {
+            font-weight: bold;
+            color: #555;
+            display: inline-block;
+            width: 120px;
+        }
+        .value {
+            color: #333;
+        }
+        .seats-list {
+            background-color: #fff;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .seat {
+            display: inline-block;
+            background-color: #e74c3c;
+            color: white;
+            padding: 5px 10px;
+            margin: 5px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .total-section {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .total-amount {
+            font-size: 32px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        .important-info {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1 class="logo">🎬 CineGest</h1>
+            <div class="success-badge">✅ COMPRA CONFIRMADA</div>
+        </div>
+        
+        <h2>¡Gracias por tu compra, {{ usuario.first_name|default:usuario.username }}!</h2>
+        
+        <p>Tu compra ha sido procesada exitosamente. A continuación encontrarás los detalles de tu pedido:</p>
+        
+        <div class="order-number">
+            Pedido #{{ venta.id_venta }}
+        </div>
+        
+        <div class="ticket-info">
+            <h3 style="margin-top: 0; color: #27ae60;">📋 Detalles de la Función</h3>
+            
+            {% with primera_entrada=entradas.first %}
+            <div class="ticket-detail">
+                <span class="label">🎬 Película:</span>
+                <span class="value">{{ primera_entrada.id_funcion.id_pelicula.titulo }}</span>
+            </div>
+            
+            <div class="ticket-detail">
+                <span class="label">📅 Fecha:</span>
+                <span class="value">{{ primera_entrada.id_funcion.fecha|date:"d/m/Y" }}</span>
+            </div>
+            
+            <div class="ticket-detail">
+                <span class="label">🕐 Hora:</span>
+                <span class="value">{{ primera_entrada.id_funcion.hora_inicio|time:"H:i" }}h</span>
+            </div>
+            
+            <div class="ticket-detail">
+                <span class="label">🏛️ Sala:</span>
+                <span class="value">{{ primera_entrada.id_funcion.id_sala.nombre }}</span>
+            </div>
+            {% endwith %}
+            
+            <div class="ticket-detail">
+                <span class="label">🎟️ Cantidad:</span>
+                <span class="value">{{ cantidad }} entrada{{ cantidad|pluralize }}</span>
+            </div>
+        </div>
+        
+        <h3>🪑 Tus Butacas Reservadas:</h3>
+        <div class="seats-list">
+            {% for ticket in tickets %}
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+                <img src="{{ ticket.qr_src }}" alt="QR Entrada" width="120" height="120" style="border-radius:6px; border:1px solid #e0e0e0;">
+                <div>
+                    <div style="font-weight:700;">Butaca: {{ ticket.entrada.id_butaca.fila }}{{ ticket.entrada.id_butaca.numero }}</div>
+                    <div style="color:#666; font-size:0.95rem;">{{ ticket.entrada.id_funcion.pelicula.titulo }} — {{ ticket.entrada.id_funcion.fecha_hora|date:"d/m/Y H:i" }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="total-section">
+            <div>TOTAL PAGADO</div>
+            <div class="total-amount">${{ total }}</div>
+        </div>
+        
+        <div class="important-info">
+            <strong>ℹ️ Información Importante:</strong>
+            <ul style="margin: 10px 0; padding-left: 20px;">
+                <li>Llega al cine con <strong>15 minutos de anticipación</strong></li>
+                <li>Presenta este email o tu DNI en la entrada</li>
+                <li>Puedes intercambiar tus entradas hasta <strong>24 horas antes</strong> de la función</li>
+                <li>Recuerda que una vez iniciada la función no se permiten intercambios</li>
+            </ul>
+        </div>
+        
+        <p style="text-align: center; margin: 30px 0;">
+            <strong>¡Disfruta tu película! 🍿🎬</strong>
+        </p>
+        
+        <div class="footer">
+            <p><strong>CineGest</strong></p>
+            <p>Este es un email automático, por favor no respondas a este mensaje.</p>
+        </div>
+    </div>
+</body>
+</html>

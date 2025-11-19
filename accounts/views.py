@@ -6,6 +6,7 @@ from django.views.generic import UpdateView, DeleteView, ListView, CreateView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from .forms import CustomUserCreationForm, CustomAuthenticationForm, EmployeeCreationForm, EmployeeUpdateForm
+from core.services import notificacion_service
 from .models import Empleado # Importamos Empleado para la lista
 
 # Obtenemos nuestro modelo de Usuario personalizado
@@ -33,7 +34,13 @@ def register_view(request):
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             # El método .save() del form ahora crea el Usuario Y el Cliente
-            form.save() 
+            usuario = form.save()
+            # Enviar email de bienvenida (no bloquear el flujo por errores de email)
+            try:
+                notificacion_service.enviar_bienvenida(usuario)
+            except Exception:
+                # Logging opcional ya que el servicio maneja logs
+                pass
             messages.success(request, 'Registro exitoso. Ya puedes iniciar sesión.')
             return redirect('accounts:login')
         else:

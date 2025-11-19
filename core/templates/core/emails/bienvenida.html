@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Bienvenido a CineGest!</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #e74c3c;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 32px;
+            font-weight: bold;
+            color: #e74c3c;
+            margin: 0;
+        }
+        .welcome-message {
+            font-size: 24px;
+            color: #2c3e50;
+            margin-bottom: 20px;
+        }
+        .content {
+            font-size: 16px;
+            color: #555;
+            margin-bottom: 20px;
+        }
+        .benefits {
+            background-color: #f8f9fa;
+            border-left: 4px solid #e74c3c;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .benefits h3 {
+            margin-top: 0;
+            color: #e74c3c;
+        }
+        .benefits ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .benefits li {
+            margin: 8px 0;
+        }
+        .cta-button {
+            display: inline-block;
+            background-color: #e74c3c;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            font-weight: bold;
+            margin: 20px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            text-align: center;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <h1 class="logo">🎬 CineGest</h1>
+        </div>
+        
+        <h2 class="welcome-message">¡Bienvenido, {{ nombre_completo }}! 🎉</h2>
+        
+        <div class="content">
+            <p>Nos alegra mucho que te hayas unido a <strong>CineGest</strong>, tu plataforma de confianza para reservar entradas de cine.</p>
+            
+            <p>Tu cuenta ha sido creada exitosamente y ya puedes comenzar a disfrutar de todas nuestras funcionalidades.</p>
+        </div>
+        
+        <div class="benefits">
+            <h3>¿Qué puedes hacer con CineGest?</h3>
+            <ul>
+                <li>🎟️ <strong>Comprar entradas</strong> para tus películas favoritas</li>
+                <li>🔄 <strong>Intercambiar entradas</strong> si tus planes cambian</li>
+                <li>🪑 <strong>Seleccionar tus butacas</strong> preferidas</li>
+                <li>📧 <strong>Recibir confirmaciones</strong> instantáneas por email</li>
+                <li>📱 <strong>Gestionar tus reservas</strong> desde cualquier lugar</li>
+            </ul>
+        </div>
+        
+        <div class="content">
+            <p>Si tienes alguna pregunta o necesitas ayuda, no dudes en contactarnos. Estamos aquí para ayudarte.</p>
+            
+            <p>¡Que disfrutes de grandes películas! 🍿🎬</p>
+        </div>
+        
+        <div class="footer">
+            <p><strong>{{ site_name }}</strong></p>
+            <p>Este es un email automático, por favor no respondas a este mensaje.</p>
+        </div>
+    </div>
+</body>
+</html>

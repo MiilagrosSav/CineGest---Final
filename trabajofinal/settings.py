@@ -72,6 +72,7 @@ INSTALLED_APPS = [
     'accounts',
     'cine', #agregado por mi maneja el cine
     'ventas', #agregado por mi maneja las ventas
+    'core', # ✅ App core para notificaciones y servicios compartidos
     'social_django', #  esta línea para la autenticación social
     'widget_tweaks', #  esta línea para personalizar widgets en templates
 
@@ -268,6 +269,31 @@ LOGGING = {
         },
     },
 }
+
+# ============================================
+# EMAIL CONFIGURATION
+# ============================================
+# MailCrab para desarrollo (servidor SMTP de prueba)
+# Ver: https://tweedegolf.nl/en/blog/104/mailcrab-an-email-test-server-for-development
+if DEBUG:
+    # MailCrab corre en localhost:1025 por defecto
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost')
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '1025'))
+    EMAIL_USE_TLS = False
+    EMAIL_USE_SSL = False
+    EMAIL_HOST_USER = ''
+    EMAIL_HOST_PASSWORD = ''
+    DEFAULT_FROM_EMAIL = 'CineGest <noreply@cinegest.local>'
+else:
+    # Configuración para producción (ejemplo con Gmail/SendGrid/etc)
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+    EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+    EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+    EMAIL_USE_TLS = True
+    EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+    EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+    DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@cinegest.com')
 
 # ============================================
 # MERCADO PAGO CONFIGURATION

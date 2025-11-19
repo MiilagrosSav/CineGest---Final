@@ -15,7 +15,6 @@ from ventas.services import obtener_funciones_candidatas
 from ventas.models import PoliticaReembolso
 from django.utils import timezone
 from django.db.models import Q
-import ventas.views.reembolsos
 
 
 @login_required
