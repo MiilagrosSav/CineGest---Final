@@ -5,9 +5,14 @@ from django.contrib import messages
 from django.views.generic import UpdateView, DeleteView, ListView, CreateView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from .forms import CustomUserCreationForm, CustomAuthenticationForm, EmployeeCreationForm, EmployeeUpdateForm
+from .forms import CustomUserCreationForm, CustomAuthenticationForm, EmployeeCreationForm, EmployeeUpdateForm, ClienteProfileForm, AdminProfileForm
 from core.services import notificacion_service
 from .models import Empleado # Importamos Empleado para la lista
+from django.http import JsonResponse, HttpResponseForbidden
+from django.views.generic.edit import UpdateView
+from django.contrib.auth.views import PasswordChangeView, PasswordChangeDoneView
+from django.utils import timezone
+from .models import Cliente
 
 # Obtenemos nuestro modelo de Usuario personalizado
 Usuario = get_user_model()
@@ -60,6 +65,17 @@ def login_view(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
+            # Si es cliente y no aceptó marketing, activar prompt en sesión (no intrusivo)
+            try:
+                if getattr(user, 'rol', None) == 'cliente':
+                    cliente = getattr(user, 'cliente', None)
+                    if cliente and not getattr(cliente, 'acepta_marketing', False):
+                        # Solo mostrar una vez por sesión
+                        if not request.session.get('marketing_prompt_dismissed'):
+                            request.session['show_marketing_optin'] = True
+            except Exception:
+                pass
+
             messages.success(request, f'Bienvenido, {user.username}!')
             return redirect('accounts:dashboard')
         else:
@@ -90,6 +106,73 @@ def dashboard_view(request):
     else: # user.rol == 'cliente'
         # Redirigir clientes directamente a la cartelera pública
         return redirect('cine:cartelera')
+
+
+@login_required
+def set_marketing_optin(request):
+    if request.method != 'POST':
+        return HttpResponseForbidden()
+    user = request.user
+    if getattr(user, 'rol', None) != 'cliente':
+        return HttpResponseForbidden()
+    try:
+        cliente = user.cliente
+        cliente.acepta_marketing = True
+        cliente.save()
+        # clear session prompt
+        request.session.pop('show_marketing_optin', None)
+        request.session['marketing_prompt_dismissed'] = True
+        return JsonResponse({'ok': True})
+    except Exception:
+        return JsonResponse({'ok': False}, status=500)
+
+
+@login_required
+def dismiss_marketing_prompt(request):
+    if request.method != 'POST':
+        return HttpResponseForbidden()
+    # Mark as dismissed for this session only
+    request.session['marketing_prompt_dismissed'] = True
+    request.session.pop('show_marketing_optin', None)
+    return JsonResponse({'ok': True})
+
+
+class ProfileUpdateView(LoginRequiredMixin, UpdateView):
+    """Vista para editar perfil - detecta automáticamente si es cliente o admin"""
+    template_name = 'accounts/profile_form.html'
+    success_url = reverse_lazy('accounts:dashboard')
+
+    def get_object(self, queryset=None):
+        user = self.request.user
+        # Si es cliente y tiene perfil de cliente, retornar el objeto Cliente
+        if user.rol == 'cliente' and hasattr(user, 'cliente'):
+            return user.cliente
+        # Si es admin o empleado (o cliente sin perfil), retornar el Usuario
+        return user
+    
+    def get_form_class(self):
+        # Determinar qué formulario usar según el rol
+        if self.request.user.rol == 'cliente' and hasattr(self.request.user, 'cliente'):
+            return ClienteProfileForm
+        return AdminProfileForm
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Editar Perfil'
+        return context
+    
+    def form_valid(self, form):
+        messages.success(self.request, '✓ Perfil actualizado correctamente')
+        return super().form_valid(form)
+
+
+class MyPasswordChangeView(PasswordChangeView):
+    template_name = 'accounts/password_change_form.html'
+    success_url = reverse_lazy('accounts:password_change_done')
+
+
+class MyPasswordChangeDoneView(PasswordChangeDoneView):
+    template_name = 'accounts/password_change_done.html'
 
 # --- Vista para Crear Empleados (Actualizada) ---
 class EmployeeCreateView(AdminRequiredMixin, CreateView):

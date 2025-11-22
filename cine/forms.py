@@ -892,6 +892,28 @@ class ConfiguracionCineForm(forms.ModelForm):
         }
     )
     
+    reserva_tiempo_espera = forms.IntegerField(
+        label='⏰ Tiempo de Espera para Reservas (minutos)',
+        min_value=1,
+        max_value=60,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'placeholder': '10',
+            'required': True,
+            'min': '1',
+            'max': '60',
+            'step': '1',
+            'title': 'Tiempo que el cliente tiene para completar la compra después de seleccionar butacas (1-60 minutos)'
+        }),
+        help_text='Tiempo máximo que un cliente tiene para completar su compra después de seleccionar butacas',
+        error_messages={
+            'required': 'El tiempo de espera para reservas es obligatorio.',
+            'invalid': 'Ingrese un número válido.',
+            'min_value': 'El valor mínimo es 1 minuto.',
+            'max_value': 'El valor máximo es 60 minutos.'
+        }
+    )
+    
     facebook = forms.URLField(
         label='📘 Facebook',
         required=False,
@@ -941,6 +963,7 @@ class ConfiguracionCineForm(forms.ModelForm):
             'nombre', 'logo', 'razon_social', 'cuil_cuit', 'descripcion',
             'direccion', 'telefono', 'email',
             'horario_apertura', 'horario_cierre', 'minutos_limpieza',
+            'reserva_tiempo_espera',
             'facebook', 'instagram', 'twitter'
         ]
     

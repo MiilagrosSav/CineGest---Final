@@ -7,14 +7,15 @@ from ventas.models import PoliticaReembolso
 # --- Formulario de Registro de Clientes ---
 class CustomUserCreationForm(UserCreationForm):
     # Campos del perfil Cliente
-    direccion = forms.CharField(
-        label='🏠 Dirección', 
-        max_length=255, 
+    acepta_marketing = forms.BooleanField(
+        label='Deseo recibir novedades y promociones exclusivas',
         required=False,
-        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Tu dirección'})
+        help_text='Te enviaremos promociones y novedades por correo. Puedes darte de baja en cualquier momento desde tu perfil.',
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
     fecha_nacimiento = forms.DateField(
-        label='🎂 Fecha de Nacimiento', 
+        label='Fecha de Nacimiento', 
         required=False, 
         widget=forms.DateInput(attrs={'class': 'form-input', 'type': 'date'})
     )
@@ -25,7 +26,7 @@ class CustomUserCreationForm(UserCreationForm):
 
     class Meta(UserCreationForm.Meta):
         model = Usuario
-        fields = ('username', 'email', 'first_name', 'last_name', 'dni', 'telefono') # Campos del Usuario
+        fields = ('username', 'email', 'first_name', 'last_name', 'dni', 'telefono', 'acepta_marketing') # Campos del Usuario
 
     def clean_email(self):
         """Validación personalizada para email único"""
@@ -58,7 +59,7 @@ class CustomUserCreationForm(UserCreationForm):
         # 3. Crea y guarda el objeto Cliente enlazado
         cliente = Cliente(
             usuario=user,
-            direccion=self.cleaned_data.get('direccion'),
+            acepta_marketing=bool(self.cleaned_data.get('acepta_marketing', False)),
             fecha_nacimiento=self.cleaned_data.get('fecha_nacimiento')
         )
         if commit:
@@ -110,22 +111,22 @@ class EmployeeCreationForm(UserCreationForm):
                 self.fields[field_name].widget.attrs['class'] = 'form-input'
         
         # Personalizar labels y placeholders
-        self.fields['username'].label = '👤 Nombre de usuario'
+        self.fields['username'].label = 'Nombre de usuario'
         self.fields['username'].widget.attrs['placeholder'] = 'Ej: jperez'
         
-        self.fields['email'].label = '📧 Email address'
+        self.fields['email'].label = 'Email'
         self.fields['email'].widget.attrs['placeholder'] = 'Ej: empleado@cinegest.com'
         
-        self.fields['first_name'].label = '📝 Nombre'
+        self.fields['first_name'].label = 'Nombre*'
         self.fields['first_name'].widget.attrs['placeholder'] = 'Ej: Juan'
         
-        self.fields['last_name'].label = '📝 Apellidos'
+        self.fields['last_name'].label = 'Apellido*'
         self.fields['last_name'].widget.attrs['placeholder'] = 'Ej: Pérez'
         
-        self.fields['password1'].label = '🔒 Contraseña'
+        self.fields['password1'].label = 'Contraseña'
         self.fields['password1'].widget.attrs['placeholder'] = '••••••••'
         
-        self.fields['password2'].label = '🔒 Confirmar contraseña'
+        self.fields['password2'].label = 'Confirmar contraseña'
         self.fields['password2'].widget.attrs['placeholder'] = '••••••••'
 
     def clean_dni(self):
@@ -255,3 +256,175 @@ class PoliticaReembolsoForm(forms.ModelForm):
             'max_cambios_por_compra': 'Máximo de cambios por compra (0 = ilimitado)',
             'activo': 'Activa',
         }
+
+
+# --- Formulario para Editar Perfil de Cliente ---
+class ClienteProfileForm(forms.ModelForm):
+    """Formulario para que clientes editen su perfil"""
+    first_name = forms.CharField(
+        label='Nombre',
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Tu nombre'
+        })
+    )
+    last_name = forms.CharField(
+        label='Apellido',
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Tu apellido'
+        })
+    )
+    email = forms.EmailField(
+        label='Email',
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'tu@email.com'
+        })
+    )
+    telefono = forms.CharField(
+        label='Teléfono',
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': '+54 9 11 1234-5678'
+        })
+    )
+    dni = forms.CharField(
+        label='DNI',
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': '12345678'
+        })
+    )
+    fecha_nacimiento = forms.DateField(
+        label='Fecha de Nacimiento',
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-input',
+            'type': 'date'
+        })
+    )
+    acepta_marketing = forms.BooleanField(
+        label='Deseo recibir novedades y promociones',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    
+    class Meta:
+        model = Cliente
+        fields = ['fecha_nacimiento', 'acepta_marketing']
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Inicializar campos del usuario
+        if self.instance and self.instance.usuario:
+            self.fields['first_name'].initial = self.instance.usuario.first_name
+            self.fields['last_name'].initial = self.instance.usuario.last_name
+            self.fields['email'].initial = self.instance.usuario.email
+            self.fields['telefono'].initial = self.instance.usuario.telefono
+            self.fields['dni'].initial = self.instance.usuario.dni
+    
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        # Verificar que el email no esté en uso por otro usuario
+        if Usuario.objects.filter(email=email).exclude(pk=self.instance.usuario.pk).exists():
+            raise forms.ValidationError('Este email ya está en uso.')
+        return email
+    
+    def clean_dni(self):
+        dni = self.cleaned_data.get('dni')
+        if dni and Usuario.objects.filter(dni=dni).exclude(pk=self.instance.usuario.pk).exists():
+            raise forms.ValidationError('Este DNI ya está en uso.')
+        return dni
+    
+    @transaction.atomic
+    def save(self, commit=True):
+        # Actualizar datos del usuario
+        usuario = self.instance.usuario
+        usuario.first_name = self.cleaned_data['first_name']
+        usuario.last_name = self.cleaned_data['last_name']
+        usuario.email = self.cleaned_data['email']
+        usuario.telefono = self.cleaned_data.get('telefono', '')
+        usuario.dni = self.cleaned_data.get('dni', '')
+        if commit:
+            usuario.save()
+        
+        # Actualizar datos del cliente
+        cliente = super().save(commit=False)
+        if commit:
+            cliente.save()
+        return cliente
+
+
+# --- Formulario para Editar Perfil de Administrador ---
+class AdminProfileForm(forms.ModelForm):
+    """Formulario para que administradores editen su perfil"""
+    first_name = forms.CharField(
+        label='Nombre',
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Tu nombre'
+        })
+    )
+    last_name = forms.CharField(
+        label='Apellido',
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Tu apellido'
+        })
+    )
+    email = forms.EmailField(
+        label='Email',
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'admin@cinegest.com'
+        })
+    )
+    telefono = forms.CharField(
+        label='Teléfono',
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': '+54 9 11 1234-5678'
+        })
+    )
+    dni = forms.CharField(
+        label='DNI',
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': '12345678'
+        })
+    )
+    
+    class Meta:
+        model = Usuario
+        fields = ['first_name', 'last_name', 'email', 'telefono', 'dni']
+    
+    def clean_email(self):
+        email = self.cleaned_data['email']
+        if Usuario.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError('Este email ya está en uso.')
+        return email
+    
+    def clean_dni(self):
+        dni = self.cleaned_data.get('dni')
+        if dni and Usuario.objects.filter(dni=dni).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError('Este DNI ya está en uso.')
+        return dni

@@ -77,6 +77,12 @@ class ConfiguracionCine(models.Model):
         verbose_name="Minutos de Limpieza",
         help_text="Tiempo entre funciones para limpieza de sala (en minutos)"
     )
+
+    reserva_tiempo_espera = models.PositiveIntegerField(
+        default=10,
+        verbose_name="Tiempo de Reserva (min)",
+        help_text="Minutos que una butaca permanece reservada antes de liberarse automáticamente si no se completa el pago."
+    )
     
     # Redes sociales (opcionales)
     facebook = models.URLField(
@@ -147,6 +153,7 @@ class ConfiguracionCine(models.Model):
                 'horario_apertura': '10:00',
                 'horario_cierre': '23:00',
                 'minutos_limpieza': 30,
+                'reserva_tiempo_espera': 10,
             }
         )
         return obj

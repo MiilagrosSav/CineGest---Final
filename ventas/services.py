@@ -1,4 +1,43 @@
 from django.utils import timezone
+from datetime import timedelta
+
+from cine.models.configuracion_cine import ConfiguracionCine
+from ventas.models import Entrada
+
+
+def liberar_reservas_expiradas():
+    """Libera entradas en estado PENDIENTE o RESERVADA cuya fecha_creacion
+    sea anterior al umbral definido por ConfiguracionCine.load().reserva_tiempo_espera.
+
+    Retorna el número de entradas liberadas (marcadas como CANCELADA).
+    """
+    try:
+        minutos = ConfiguracionCine.load().reserva_tiempo_espera
+    except Exception:
+        minutos = 10
+
+    threshold = timezone.now() - timedelta(minutes=int(minutos))
+
+    estados_objetivo = ['PENDIENTE', 'RESERVADA']
+    qs = Entrada.objects.filter(estado__in=estados_objetivo, fecha_creacion__lt=threshold)
+
+    total = qs.count()
+    if total == 0:
+        return 0
+
+    liberadas = 0
+    for entrada in qs.select_related('id_butaca', 'id_funcion'):
+        try:
+            entrada.estado = 'CANCELADA'
+            entrada.reservado_por = None
+            entrada.save()
+            liberadas += 1
+        except Exception:
+            # continuar con las siguientes entradas si hay error individual
+            continue
+
+    return liberadas
+from django.utils import timezone
 from django.db.models import Count, Q, F
 from django.db.models.functions import Coalesce
 from cine.models.funcion import Funcion
