@@ -1,0 +1,184 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Promociones - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1200px; margin: 2rem auto;">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🎯 Panel de Promociones</h1>
+        <p class="card-subtitle">Gestiona descuentos y políticas de marketing automático</p>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 2rem; margin-bottom: 3rem;">
+        
+        <div class="card glass-container" style="display: flex; flex-direction: column; padding: var(--space-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                <div>
+                    <h3 style="margin: 0;">📊 Promociones</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
+                        Códigos y descuentos manuales (%, 2x1).
+                    </p>
+                </div>
+                <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary); line-height: 1;">
+                    {{ promociones_count }}
+                </div>
+            </div>
+            
+            <div style="margin-top: auto; display: flex; gap: var(--space-sm);">
+                <a href="{% url 'promociones:promocion_list' %}" class="btn btn-primary" style="flex: 1;">Ver Todas</a>
+                <a href="{% url 'promociones:promocion_create' %}" class="btn btn-outline" style="flex: 1;">+ Crear</a>
+            </div>
+        </div>
+
+        <div class="card glass-container" style="display: flex; flex-direction: column; padding: var(--space-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                <div>
+                    <h3 style="margin: 0;">⚙️ Políticas Automáticas</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
+                        Reglas de envío automático por liberación de butacas.
+                    </p>
+                </div>
+                <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary); line-height: 1;">
+                    {{ politicas_count }}
+                </div>
+            </div>
+            
+            <div style="margin-top: auto; display: flex; gap: var(--space-sm);">
+                <a href="{% url 'promociones:politica_list' %}" class="btn btn-primary" style="flex: 1;">Ver Todas</a>
+                <a href="{% url 'promociones:politica_create' %}" class="btn btn-outline" style="flex: 1;">+ Crear</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="card glass-container">
+        <div style="padding: var(--space-lg);">
+            <h3 style="margin-bottom: var(--space-md);">🎟️ Cupones Generados Recientemente</h3>
+            
+            {% if cupones_recientes %}
+            <div class="table-responsive">
+                <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--glass-border);">
+                            <th style="padding: var(--space-sm);">Cliente</th>
+                            <th style="padding: var(--space-sm);">Token</th>
+                            <th style="padding: var(--space-sm);">Política</th>
+                            <th style="padding: var(--space-sm);">Estado</th>
+                            <th style="padding: var(--space-sm);">Fecha</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cupon in cupones_recientes %}
+                        <tr class="cupon-row" style="border-bottom: 1px solid var(--glass-border);">
+                            <td style="padding: var(--space-sm); font-weight: 500;">{{ cupon.cliente.usuario.email }}</td>
+                            <td style="padding: var(--space-sm);">
+                                <span class="token-badge">{{ cupon.token }}</span>
+                            </td>
+                            <td style="padding: var(--space-sm);">{{ cupon.politica_origen.nombre }}</td>
+                            <td style="padding: var(--space-sm);">
+                                {% if cupon.usado %}
+                                    <span class="estado-badge estado-usado">✓ Usado</span>
+                                {% else %}
+                                    <span class="estado-badge estado-disponible">○ Disponible</span>
+                                {% endif %}
+                            </td>
+                            <td style="padding: var(--space-sm); color: var(--text-secondary); font-size: 0.9rem;">
+                                {{ cupon.creado_en|date:"d/m/Y H:i" }}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 3rem; color: var(--text-secondary); opacity: 0.8;">
+                <p style="font-size: 1.1rem; margin-bottom: 0.5rem;">No hay cupones generados aún.</p>
+                <p style="font-size: 0.9rem;">Los cupones se crean automáticamente cuando se liberan butacas según las políticas activas.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    /* --- Estilos de Tabla --- */
+    .table-responsive { overflow-x: auto; }
+    .table th {
+        padding: 1rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        opacity: 0.8;
+    }
+    .table td { padding: 1rem; color: var(--text-light); }
+    
+    .cupon-row { transition: background-color 0.2s ease; }
+    .cupon-row:hover { background-color: rgba(255, 255, 255, 0.05); }
+
+    /* --- Badges y Tokens --- */
+    .token-badge {
+        font-family: 'Courier New', monospace;
+        background: rgba(98, 0, 234, 0.15);
+        border: 1px solid rgba(98, 0, 234, 0.3);
+        color: #b388ff;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.9rem;
+        letter-spacing: 1px;
+    }
+
+    .estado-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    .estado-usado { background: rgba(76, 175, 80, 0.15); color: #81c784; }
+    .estado-disponible { background: rgba(255, 193, 7, 0.15); color: #ffb74d; }
+
+    /* --- CAMBIO: Botones más pequeños y con borde --- */
+    .btn {
+        /* Padding reducido para hacerlos más chicos */
+        padding: 0.5rem 1rem; 
+        /* Letra un poco más chica */
+        font-size: 0.85rem; 
+        font-weight: 600;
+        border-radius: 9999px; /* Píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease-in-out;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    /* Botón Lleno */
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: 2px solid var(--primary);
+    }
+    .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px) scale(1.02);
+        box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4);
+    }
+
+    /* Botón Outline (Borde visible y de color) */
+    .btn-outline {
+        background: transparent;
+        color: var(--primary); /* Texto de color */
+        border: 2px solid var(--primary); /* Borde sólido del color primario */
+    }
+    .btn-outline:hover {
+        background: var(--primary); /* Se llena al pasar el mouse */
+        color: white;
+        transform: translateY(-1px) scale(1.02);
+        box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+    }
+</style>
+{% endblock %}

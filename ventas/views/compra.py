@@ -13,6 +13,7 @@ from ventas.models import Venta, Entrada
 from accounts.models import Cliente
 from ventas.intercambio_service import intercambio_service
 from ventas.constants import MotivoIntercambio
+from promociones.services import calcular_precio_final
 
 logger = logging.getLogger(__name__)
 
@@ -107,14 +108,18 @@ def confirmar_compra(request, funcion_id):
     butacas = Butaca.objects.filter(id__in=butacas_ids)
     
     # Calcular el total
-    total = len(butacas_ids) * funcion.precio_base
-    
+    total, promo_aplicada, detalle = calcular_precio_final(funcion, len(butacas_ids))
+
+    precio_unitario_final = detalle.get('precio_unitario_final')
     context = {
         'funcion': funcion,
         'butacas': butacas,
         'cantidad': len(butacas_ids),
         'precio_unitario': funcion.precio_base,
+        'precio_unitario_final': precio_unitario_final,
         'total': total,
+        'promocion_aplicada': promo_aplicada,
+        'detalle_promocion': detalle,
         'butacas_ids': butacas_ids,
     }
     

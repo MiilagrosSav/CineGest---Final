@@ -84,5 +84,13 @@
                 <a href="{% url 'accounts:crear_politica' %}" class="btn btn-outline">+ Agregar</a>
             </div>
         </div>
+        
+        <div class="card" style="display: flex; flex-direction: column;">
+            <h3 class="mb-md">🎯 Promociones</h3>
+            <p class="mb-md">Gestiona promociones, descuentos y políticas de marketing automático.</p>
+            <div style="display:flex; gap: var(--space-sm, 0.5rem); margin-top: auto;">
+                <a href="{% url 'promociones:dashboard' %}" class="btn btn-primary">Ver Panel</a>
+            </div>
+        </div>
 </div>
 {% endblock %}

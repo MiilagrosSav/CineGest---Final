@@ -299,6 +299,14 @@ class IntercambioService:
                     self.logger.error(f"Error enviando email para intercambio {intercambio.id_intercambio}: {e}")
                     # No fallar el intercambio por error de email
                 
+                # Después del envío de confirmación, procesar butacas liberadas para marketing de recupero
+                try:
+                    from promociones.services import procesar_butaca_liberada
+                    # cliente_excluido: el cliente de la venta que liberó las butacas
+                    procesar_butaca_liberada(funcion_origen, cliente_excluido=venta.id_cliente)
+                except Exception as e:
+                    self.logger.error(f"Error procesando butaca liberada para marketing: {e}")
+
                 return (True, 'Intercambio realizado con éxito.', intercambio)
             
             except IntegrityError as e:

@@ -1,0 +1,14 @@
+Hola {{ usuario.get_full_name|default:usuario.username }},
+
+Tenemos una oferta por tiempo limitado: {{ promocion.nombre }}
+
+{{ promocion.descripcion }}
+
+Cupón: {{ cupon.token }}
+Canjealo aquí: {{ link }}
+
+{% if funcion %}La oferta aplica para la función: {{ funcion.pelicula.titulo }} — {{ funcion.fecha_hora }}
+{% endif %}
+
+Saludos,
+El equipo de {{ site_name }}

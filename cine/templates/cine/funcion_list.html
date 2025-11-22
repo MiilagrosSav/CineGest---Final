@@ -19,15 +19,20 @@
                            name="search" 
                            id="search-input"
                            value="{{ filtro_search }}"
-                           placeholder=" Buscar..."
+                           placeholder=" Película, sala o formato..."
+                           title="Buscar por película, sala, número de sala o formato"
                            class="form-input"
                            style="width: 100%; padding: 0.4rem 0.4rem 0.4rem 2rem; font-size: 0.9rem;">
                     <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
                 </div>
                 
                 <div style="display: flex; gap: var(--space-xs); align-items: center; flex-wrap: wrap;">
-                    
-                    <select name="pelicula" class="form-select" style="width: 150px; padding: 0.4rem; font-size: 0.9rem;" onchange="this.form.submit()">
+                    <select name="estado" class="form-select" style="width: 160px; padding: 0.4rem; font-size: 0.9rem;">
+                        <option value="activas" {% if filtro_estado == 'activas' %}selected{% endif %}>Activas</option>
+                        <option value="inactivas" {% if filtro_estado == 'inactivas' %}selected{% endif %}>Inactivas (Historial)</option>
+                    </select>
+
+                    <select name="pelicula" class="form-select" style="width: 150px; padding: 0.4rem; font-size: 0.9rem;">
                         <option value="">Peliculas</option>
                         {% for peli in peliculas %}
                         <option value="{{ peli.id }}" {% if filtro_pelicula == peli.id|stringformat:"s" %}selected{% endif %}>
@@ -35,8 +40,8 @@
                         </option>
                         {% endfor %}
                     </select>
-                    
-                    <select name="sala" class="form-select" style="width: 110px; padding: 0.4rem; font-size: 0.9rem;" onchange="this.form.submit()">
+
+                    <select name="sala" class="form-select" style="width: 110px; padding: 0.4rem; font-size: 0.9rem;">
                         <option value="">Salas</option>
                         {% for s in salas %}
                         <option value="{{ s.id }}" {% if filtro_sala == s.id|stringformat:"s" %}selected{% endif %}>
@@ -44,8 +49,8 @@
                         </option>
                         {% endfor %}
                     </select>
-                    
-                    <select name="formato" class="form-select" style="width: 110px; padding: 0.4rem; font-size: 0.9rem;" onchange="this.form.submit()">
+
+                    <select name="formato" class="form-select" style="width: 110px; padding: 0.4rem; font-size: 0.9rem;">
                         <option value="">Formatos</option>
                         {% for fmt in formatos %}
                         <option value="{{ fmt.id }}" {% if filtro_formato == fmt.id|stringformat:"s" %}selected{% endif %}>
@@ -53,34 +58,60 @@
                         </option>
                         {% endfor %}
                     </select>
-                    
-                    <div style="position: relative;">
-                        <input type="text" 
-                               name="fecha_display" 
-                               id="fecha-display"
-                               value="{{ filtro_fecha_display }}"
-                               class="form-input"
-                               placeholder="DD-MM-AAAA"
-                               readonly
-                               style="width: 140px; padding: 0.4rem 2rem 0.4rem 0.4rem; font-size: 0.9rem; cursor: pointer;"
-                               title="Haz clic para seleccionar fecha">
-                        <input type="date" 
-                               name="fecha" 
-                               id="fecha-filtro"
-                               value="{{ filtro_fecha }}"
-                               style="position: absolute; opacity: 0; pointer-events: none; width: 1px;">
-                        <span onclick="document.getElementById('fecha-filtro').showPicker()" 
-                              style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.1rem; opacity: 0.7;">
-                            📅
-                        </span>
-                    </div>
-                    
+
+                          <div style="display:flex; gap:0.5rem; align-items:center;">
+                           <div style="position: relative;">
+                            <input type="text" 
+                                name="fecha_inicio_display" 
+                                id="fecha-inicio-display"
+                                value="{{ filtro_fecha_inicio_display }}"
+                                class="form-input"
+                                placeholder="Desde (DD-MM-AAAA)"
+                                readonly
+                                style="width: 140px; padding: 0.4rem 2rem 0.4rem 0.4rem; font-size: 0.9rem; cursor: pointer;"
+                                title="Haz clic para seleccionar fecha inicio">
+                            <input type="date" 
+                                name="fecha_inicio" 
+                                id="fecha-inicio"
+                                value="{{ filtro_fecha_inicio }}"
+                                style="position: absolute; opacity: 0; pointer-events: none; width: 1px;">
+                            <span onclick="document.getElementById('fecha-inicio').showPicker()" 
+                                  style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.1rem; opacity: 0.7;">
+                                📅
+                            </span>
+                           </div>
+
+                           <div style="position: relative;">
+                            <input type="text" 
+                                name="fecha_fin_display" 
+                                id="fecha-fin-display"
+                                value="{{ filtro_fecha_fin_display }}"
+                                class="form-input"
+                                placeholder="Hasta (DD-MM-AAAA)"
+                                readonly
+                                style="width: 140px; padding: 0.4rem 2rem 0.4rem 0.4rem; font-size: 0.9rem; cursor: pointer;"
+                                title="Haz clic para seleccionar fecha fin">
+                            <input type="date" 
+                                name="fecha_fin" 
+                                id="fecha-fin"
+                                value="{{ filtro_fecha_fin }}"
+                                style="position: absolute; opacity: 0; pointer-events: none; width: 1px;">
+                            <span onclick="document.getElementById('fecha-fin').showPicker()" 
+                                  style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.1rem; opacity: 0.7;">
+                                📅
+                            </span>
+                           </div>
+                          </div>
+
+                    <button type="button" id="btn-filter" class="btn btn-primary" style="padding: 0.35rem 0.6rem; font-size:0.85rem;">Buscar</button>
+
                     {% if filtro_search or filtro_pelicula or filtro_sala or filtro_fecha or filtro_formato %}
                     <a href="{% url 'cine:funcion_list' %}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
                         ✕
                     </a>
                     {% endif %}
                 </div>
+                
             </form>
         </div>
 
@@ -294,42 +325,107 @@
             }
         });
 
-        // 3. Adjuntar listeners a los filtros (son estáticos)
+        // 3. Adjuntar listeners a los filtros (son estáticos) y activar búsqueda AJAX con debounce
         const searchInput = document.getElementById('search-input');
-        if (searchInput) {
-            let searchTimeout;
-            searchInput.addEventListener('input', function() {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => { document.getElementById('form-filtros').submit(); }, 500);
-            });
+        const btnFilter = document.getElementById('btn-filter');
+
+        function serializeForm() {
+            const form = document.getElementById('form-filtros');
+            const params = new URLSearchParams(new FormData(form));
+            return params.toString();
         }
-        
-        const fechaInput = document.getElementById('fecha-filtro');
-        const fechaDisplay = document.getElementById('fecha-display');
-        if (fechaInput && fechaDisplay) {
-            if (fechaInput.value) {
-                const [year, month, day] = fechaInput.value.split('-');
-                fechaDisplay.value = `${day}-${month}-${year}`;
-            }
-            fechaDisplay.addEventListener('click', function() {
-                try { fechaInput.showPicker(); } catch(e) { fechaInput.click(); }
+
+        let searchTimeout = null;
+        function fetchTable(push=true) {
+            const qs = serializeForm();
+            // Removed debug output to keep UI clean for end users
+            const url = window.location.pathname + (qs ? ('?' + qs) : '');
+            const container = document.getElementById('funcionTableContainer');
+            if (!container) return;
+            container.style.opacity = '0.6';
+            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(r => { if (!r.ok) throw new Error('Network response not ok'); return r.text(); })
+                .then(html => {
+                    container.innerHTML = html;
+                    attachRowListeners(container);
+                    selectedRows = [];
+                    updateUI();
+                    if (push) history.pushState(null, '', url);
+                })
+                .catch(err => { console.error('AJAX error', err); })
+                .finally(()=>{ container.style.opacity = ''; });
+        }
+
+        function fetchTableDebounced() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => fetchTable(true), 500);
+        }
+
+        // Adjuntar listeners a todos los selects y inputs de filtro
+        if (searchInput) {
+            searchInput.addEventListener('input', function(e) {
+                // debounce while typing
+                fetchTableDebounced();
             });
-            fechaInput.addEventListener('change', function() {
-                if (this.value) {
-                    const [year, month, day] = this.value.split('-');
-                    fechaDisplay.value = `${day}-${month}-${year}`;
-                    document.getElementById('form-filtros').submit();
+            // Enter key triggers immediate search
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    clearTimeout(searchTimeout);
+                    fetchTable(true);
                 }
             });
-            fechaDisplay.addEventListener('keydown', function(e) {
+        }
+
+        if (btnFilter) {
+            btnFilter.addEventListener('click', function() { clearTimeout(searchTimeout); fetchTable(true); });
+        }
+
+        // Adjuntar listener a TODOS los selects (estado, pelicula, sala, formato)
+        const allSelects = document.querySelectorAll('#form-filtros select');
+        allSelects.forEach(select => {
+            select.addEventListener('change', function() {
+                clearTimeout(searchTimeout);
+                fetchTable(true);
+            });
+        });
+        
+        const fechaInicioInput = document.getElementById('fecha-inicio');
+        const fechaInicioDisplay = document.getElementById('fecha-inicio-display');
+        const fechaFinInput = document.getElementById('fecha-fin');
+        const fechaFinDisplay = document.getElementById('fecha-fin-display');
+
+        function setupDatePair(input, display) {
+            if (!input || !display) return;
+            if (input.value) {
+                const [year, month, day] = input.value.split('-');
+                display.value = `${day}-${month}-${year}`;
+            }
+            display.addEventListener('click', function() { try { input.showPicker(); } catch(e) { input.click(); } });
+            input.addEventListener('change', function() {
+                if (this.value) {
+                    const [year, month, day] = this.value.split('-');
+                    display.value = `${day}-${month}-${year}`;
+                } else {
+                    display.value = '';
+                }
+                // trigger immediate fetch for date changes
+                clearTimeout(searchTimeout);
+                fetchTable(true);
+            });
+            display.addEventListener('keydown', function(e) {
                 if (e.key === 'Backspace' || e.key === 'Delete') {
                     e.preventDefault();
                     this.value = '';
-                    fechaInput.value = '';
-                    document.getElementById('form-filtros').submit();
+                    input.value = '';
+                    clearTimeout(searchTimeout);
+                    fetchTable(true);
                 }
             });
         }
+
+        setupDatePair(fechaInicioInput, fechaInicioDisplay);
+        setupDatePair(fechaFinInput, fechaFinDisplay);
 
         // 4. Adjuntar listeners a las filas de la tabla cargada inicialmente
         attachRowListeners(document.getElementById('funcionTableContainer'));

@@ -7,25 +7,52 @@
                     <th style="padding: var(--space-sm);">Género</th>
                     <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('fecha_estreno')" title="Ordenar por fecha de estreno">Estreno</th>
                     <th style="padding: var(--space-sm);">Director</th>
+                    <th style="padding: var(--space-sm); text-align: center;">🆕 Estreno</th>
+                    <th style="padding: var(--space-sm); text-align: center;">🎟️ Promociones</th>
                 </tr>
             </thead>
             <tbody>
                 {% for pelicula in peliculas %}
                 <tr class="pelicula-row" data-id="{{ pelicula.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
                     <td style="padding: var(--space-sm); font-weight: 600;">{{ pelicula.titulo }}</td>
-                    <td style="padding: var(--space-sm);">{{ pelicula.get_genero_display|default:"--" }}</td>
+                    
+                    <td style="padding: var(--space-sm);">
+                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                            {% for g in pelicula.generos.all %}
+                                <span class="genre-badge">{{ g.nombre }}</span>
+                            {% empty %}
+                                <span style="opacity: 0.4; font-size: 0.85rem;">-</span>
+                            {% endfor %}
+                        </div>
+                    </td>
+                    
                     <td style="padding: var(--space-sm);">{{ pelicula.fecha_estreno|date:"d/m/Y" }}</td>
                     <td style="padding: var(--space-sm);">{{ pelicula.director }}</td>
+                    
+                    <td style="padding: var(--space-sm); text-align: center;">
+                        {% if pelicula.es_estreno %}
+                            <span style="color: #4ecdc4; font-weight: 600;">✓</span>
+                        {% else %}
+                            <span style="opacity: 0.3;">—</span>
+                        {% endif %}
+                    </td>
+                    
+                    <td style="padding: var(--space-sm); text-align: center;">
+                        {% if pelicula.acepta_promociones %}
+                            <span style="color: #95e1d3; font-weight: 600;">✓</span>
+                        {% else %}
+                            <span style="color: #ff6b6b; font-weight: 600;">✗</span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="4" class="text-center text-secondary" style="padding: var(--space-lg);">No hay películas registradas todavía. ¡Añade la primera!</td>
+                    <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">No hay películas registradas todavía. ¡Añade la primera!</td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
 
-        <!-- Paginación -->
         {% include "cine/pagination.html" %}
 
     </div>

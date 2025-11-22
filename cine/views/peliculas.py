@@ -1,7 +1,7 @@
 from cine.mixins import AdminRequiredMixin
 from cine.forms import PeliculaForm
 from django.contrib.auth.decorators import login_required, user_passes_test
-from cine.models import Pelicula
+from cine.models import Pelicula, Genero
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.utils import timezone
@@ -28,7 +28,11 @@ class PeliculaListView(AdminRequiredMixin, ListView):
         # Filtro por género
         genero = self.request.GET.get('genero', '')
         if genero:
-            queryset = queryset.filter(genero__icontains=genero)
+            # aceptar id numérico o búsqueda por nombre (case-insensitive)
+            if genero.isdigit():
+                queryset = queryset.filter(generos__id=int(genero))
+            else:
+                queryset = queryset.filter(generos__nombre__icontains=genero)
         
         # Ordenamiento
         orden = self.request.GET.get('orden', 'titulo')
@@ -70,6 +74,8 @@ class PeliculaCreateView(AdminRequiredMixin, CreateView):
         context = super().get_context_data(**kwargs)
         context['titulo_pagina'] = '🎬 Añadir Nueva Película'
         context['nombre_boton'] = '✨ Crear Película'
+        # Pasar la lista de géneros para renderizado en plantilla (checkboxes)
+        context['generos'] = Genero.objects.all().order_by('nombre')
         return context
 
 # UPDATE: Vista para mostrar el formulario de edición
@@ -83,6 +89,8 @@ class PeliculaUpdateView(AdminRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context['titulo_pagina'] = 'Editar Película'
         context['nombre_boton'] = 'Guardar Cambios'
+        # Pasar la lista de géneros para renderizado en plantilla (checkboxes)
+        context['generos'] = Genero.objects.all().order_by('nombre')
         return context
 
 # DELETE: Vista para confirmar la eliminación

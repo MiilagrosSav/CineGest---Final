@@ -1,0 +1,54 @@
+{% if politicas %}
+<div class="table-responsive">
+    <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--glass-border);">
+                <th style="padding: var(--space-sm);">Nombre</th>
+                <th style="padding: var(--space-sm); text-align: center;">Estado</th>
+                <th style="padding: var(--space-sm);">Promoción</th>
+                <th style="padding: var(--space-sm);">Género</th>
+                <th style="padding: var(--space-sm);">Días</th>
+                <th style="padding: var(--space-sm);">Horario</th>
+                <th style="padding: var(--space-sm); text-align: center;">Prioridad</th>
+                <th style="padding: var(--space-sm); text-align: center;">Validez</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for politica in politicas %}
+            <tr class="promocion-row" 
+                data-id="{{ politica.pk }}"
+                data-edit-url="{% url 'promociones:politica_update' politica.pk %}"
+                data-delete-url="{% url 'promociones:politica_delete' politica.pk %}"
+                style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                <td style="padding: var(--space-sm);"><strong>{{ politica.nombre }}</strong></td>
+                <td style="padding: var(--space-sm); text-align: center;">
+                    {% if politica.activa %}
+                        <span style="color: #38ef7d; font-weight: 500;">✓ Activa</span>
+                    {% else %}
+                        <span style="color: #ef4444; font-weight: 500;">✗ Inactiva</span>
+                    {% endif %}
+                </td>
+                <td style="padding: var(--space-sm);">{{ politica.promocion_a_otorgar.codigo }}</td>
+                <td style="padding: var(--space-sm);">
+                    {% if politica.genero_pelicula %}
+                        <span style="background: rgba(156, 39, 176, 0.2); padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.85rem;">
+                            {{ politica.genero_pelicula.nombre }}
+                        </span>
+                    {% else %}
+                        <span style="opacity: 0.5; font-size: 0.85rem;">Cualquiera</span>
+                    {% endif %}
+                </td>
+                <td style="padding: var(--space-sm);">{{ politica.get_dias_display }}</td>
+                <td style="padding: var(--space-sm);">{{ politica.hora_inicio_rango|time:"H:i" }} - {{ politica.hora_fin_rango|time:"H:i" }}</td>
+                <td style="padding: var(--space-sm); text-align: center;">{{ politica.prioridad }}</td>
+                <td style="padding: var(--space-sm); text-align: center;">{{ politica.minutos_validez }}m</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div style="text-align: center; padding: 3rem; color: var(--text-secondary, #b0b0b0);">
+    <p style="font-size: 1.1rem; margin-bottom: 1rem;">No hay políticas con los filtros aplicados.</p>
+</div>
+{% endif %}

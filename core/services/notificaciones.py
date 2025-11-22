@@ -212,6 +212,44 @@ class NotificacionService:
             context=context
         )
 
+    def enviar_oferta_promocion(self, cliente, promocion, cupon, link, funcion=None, request=None) -> bool:
+        """
+        Envía un email de oferta/promoción a un cliente usando las plantillas de `core/emails/promocion_oferta`.
+        Args:
+            cliente: `accounts.models.Cliente` (tiene relación a `usuario` con email)
+            promocion: instancia de `promociones.models.Promocion`
+            cupon: instancia de `promociones.models.CuponGenerado`
+            link: URL de canje
+            funcion: (opcional) función relacionada
+            request: (opcional) request HTTP
+        """
+        usuario = getattr(cliente, 'usuario', None)
+        destinatario = usuario.email if usuario else None
+        if not destinatario:
+            self.logger.warning('Cliente sin email, se omite el envío de oferta')
+            return False
+
+        context = {
+            'cliente': cliente,
+            'usuario': usuario,
+            'promocion': promocion,
+            'cupon': cupon,
+            'link': link,
+            'funcion': funcion,
+            'site_name': 'CineGest',
+            'request': request,
+        }
+
+        asunto = f"Oferta limitada: {promocion.nombre} — ¡aprovechá ahora!"
+
+        return self._enviar_email(
+            asunto=asunto,
+            template_html='core/emails/promocion_oferta.html',
+            template_txt='core/emails/promocion_oferta.txt',
+            destinatario=destinatario,
+            context=context
+        )
+
 
 # Instancia singleton del servicio
 notificacion_service = NotificacionService()

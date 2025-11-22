@@ -1,5 +1,5 @@
 from django import forms
-from .models import Pelicula, Sala, Funcion, Formato, FuncionFormato, ConfiguracionCine
+from .models import Pelicula, Sala, Funcion, Formato, FuncionFormato, ConfiguracionCine, Genero
 from datetime import date, datetime, timedelta
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -60,16 +60,14 @@ class PeliculaForm(forms.ModelForm):
         }
     )
     
-    genero = forms.ChoiceField(
-        label='🎪 Género',
-        choices=[('', 'Selecciona un género...')] + Pelicula.GENERO_CHOICES,
-        widget=forms.Select(attrs={
-            'class': 'form-select',
-            'required': True,
-            'title': 'Debes seleccionar un género'
-        }),
+    generos = forms.ModelMultipleChoiceField(
+        label='🎪 Géneros',
+        queryset=None,
+        required=True,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'genre-checkboxes'}),
+        help_text='Selecciona uno o más géneros para la película',
         error_messages={
-            'required': 'Debes seleccionar un género para la película.'
+            'required': 'Debe seleccionar al menos un género.'
         }
     )
     
@@ -118,7 +116,7 @@ class PeliculaForm(forms.ModelForm):
     
     class Meta:
         model = Pelicula
-        fields = ['titulo', 'sinopsis', 'director', 'genero', 'duracion', 'fecha_estreno', 'imagen_portada']
+        fields = ['titulo', 'sinopsis', 'director', 'generos', 'duracion', 'fecha_estreno', 'clasificacion', 'imagen_portada', 'es_estreno', 'acepta_promociones']
         
     def clean_titulo(self):
         """Validación personalizada para el título"""
@@ -126,6 +124,15 @@ class PeliculaForm(forms.ModelForm):
         if len(titulo.strip()) < 2:
             raise forms.ValidationError('El título debe tener al menos 2 caracteres.')
         return titulo.strip()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Inicializar queryset de géneros dinámicamente
+        try:
+            self.fields['generos'].queryset = Genero.objects.all().order_by('nombre')
+        except Exception:
+            # En entornos donde el modelo no existe aún (migrations) fallamos silenciosamente
+            self.fields['generos'].queryset = []
     
     def clean_duracion(self):
         """Validación personalizada para la duración"""

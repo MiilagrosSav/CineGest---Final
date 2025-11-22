@@ -52,7 +52,7 @@ CSRF_TRUSTED_ORIGINS = [
 # Si tu app está detrás de un proxy/terminador TLS (ej: ngrok),
 # habilita esta cabecera para que Django detecte esquema https correctamente.
 # Esto ayuda a que social-auth y Django construyan `https://` en URLs absolutas.
-#SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # ✅ CONFIGURACIONES ADICIONALES CSRF PARA ADMIN
 CSRF_COOKIE_SECURE = False  # Para desarrollo HTTP (no HTTPS)
@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     'cine', #agregado por mi maneja el cine
     'ventas', #agregado por mi maneja las ventas
     'core', # ✅ App core para notificaciones y servicios compartidos
+    'promociones',
     'social_django', #  esta línea para la autenticación social
     'widget_tweaks', #  esta línea para personalizar widgets en templates
 
@@ -100,7 +101,7 @@ ROOT_URLCONF = 'trabajofinal.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -238,7 +239,7 @@ SOCIAL_AUTH_SESSION_EXPIRATION = False  # Las sesiones no expiran automáticamen
 SOCIAL_AUTH_RAISE_EXCEPTIONS = False   # No lanzar excepciones, redirigir en caso de error
 # Forzar que los redirect_uris construidos por social-auth sean HTTPS
 # Útil en desarrollo cuando expones el servidor con ngrok / proxy TLS.
-#SOCIAL_AUTH_REDIRECT_IS_HTTPS = os.getenv('SOCIAL_AUTH_REDIRECT_IS_HTTPS', 'True') == 'True' este sirve por si falla ngrok
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = os.getenv('SOCIAL_AUTH_REDIRECT_IS_HTTPS', 'True') == 'True' #este sirve por si falla ngrok
 SOCIAL_AUTH_URL_NAMESPACE = 'social'   # Namespace para las URLs
 
 # Configuración adicional que puede ayudar con errores 403

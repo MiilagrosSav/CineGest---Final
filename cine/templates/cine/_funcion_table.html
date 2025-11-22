@@ -23,7 +23,13 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">No hay funciones programadas todavía. ¡Programa la primera!</td>
+                    <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">
+                        {% if is_history %}
+                            No hay funciones pasadas en el historial.
+                        {% else %}
+                            No hay funciones programadas todavía. ¡Programa la primera!
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>

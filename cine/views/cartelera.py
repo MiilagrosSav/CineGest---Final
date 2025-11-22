@@ -2,6 +2,7 @@ from datetime import date, timedelta
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from cine.models import Funcion, Pelicula
+from cine.models.genero import Genero
 from django.utils import timezone
 from datetime import timedelta
 
@@ -43,7 +44,13 @@ def cartelera_view(request):
     # Filtro por género
     genero = request.GET.get('genero')
     if genero:
-        funciones = funciones.filter(pelicula__genero=genero)
+        # `Pelicula` ahora tiene ManyToMany `generos`. Filtrar por el id del género.
+        try:
+            genero_id = int(genero)
+            funciones = funciones.filter(pelicula__generos__id=genero_id)
+        except (ValueError, TypeError):
+            # Si no es un id, intentar filtrar por nombre (case-insensitive)
+            funciones = funciones.filter(pelicula__generos__nombre__iexact=genero)
     
     # Filtro por formato
     formato = request.GET.get('formato')
@@ -92,7 +99,8 @@ def cartelera_view(request):
         peliculas_con_funciones[clave]['funciones'].append(funcion)
     
     # Obtener opciones para los filtros
-    generos_disponibles = Pelicula.GENERO_CHOICES
+    # Antes: Pelicula.GENERO_CHOICES (ya no existe). Usar la tabla `Genero` (M2M).
+    generos_disponibles = list(Genero.objects.values_list('id', 'nombre'))
     formatos_disponibles = Funcion.FORMATO_CHOICES
     
     # Obtener lista de días de la semana (próximos 14 días)
