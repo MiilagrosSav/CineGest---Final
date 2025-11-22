@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}CineGest{% endblock %}</title>
     {% load static %}
-    <link rel="stylesheet" href="{% static 'css/forms.css' %}?v={% now 'U' %}">
+    <link rel="stylesheet" href="{% static 'css/forms.css' %}?v=1.0">
 </head>
 <body class="{% block body_class %}{% endblock %}">
     <div class="page-wrapper">
@@ -45,7 +45,7 @@
                                 <span class="dropdown-arrow">▼</span>
                             </button>
                             <div class="user-menu-dropdown" id="userMenuDropdown">
-                                <a href="#" class="dropdown-item">
+                                <a href="{% url 'accounts:profile_edit' %}" class="dropdown-item">
                                     <span>👤</span> Mi Perfil
                                 </a>
                                 {% if user.is_superuser or user.rol == 'admin' %}

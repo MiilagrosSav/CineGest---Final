@@ -14,6 +14,13 @@ urlpatterns = [
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
     path('dashboard/', views.dashboard_view, name='dashboard'),
+    # Marketing opt-in endpoints (AJAX)
+    path('marketing/optin/', views.set_marketing_optin, name='marketing_optin'),
+    path('marketing/dismiss/', views.dismiss_marketing_prompt, name='marketing_dismiss'),
+    # Perfil y contraseña
+    path('perfil/editar/', views.ProfileUpdateView.as_view(), name='profile_edit'),
+    path('perfil/password/', views.MyPasswordChangeView.as_view(), name='password_change'),
+    path('perfil/password/done/', views.MyPasswordChangeDoneView.as_view(), name='password_change_done'),
     # Rutas para gestión de empleados (CRUD completo)
     path('employees/', views.EmployeeListView.as_view(), name='employee_list'),
     path('employees/create/', views.EmployeeCreateView.as_view(), name='create_employee'),

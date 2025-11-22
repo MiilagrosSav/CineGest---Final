@@ -74,6 +74,13 @@
                     {% if form.minutos_limpieza.errors %}<span class="err">{{ form.minutos_limpieza.errors.0 }}</span>{% endif %}
                     <small style="display: block; margin-top: 0.3rem; opacity: 0.7;">Tiempo entre funciones para limpieza de sala (0-120 min)</small>
                 </div>
+                
+                <div class="form-field">
+                    <label>⏰ Tiempo de Espera para Reservas * <small>(minutos)</small></label>
+                    {{ form.reserva_tiempo_espera }}
+                    {% if form.reserva_tiempo_espera.errors %}<span class="err">{{ form.reserva_tiempo_espera.errors.0 }}</span>{% endif %}
+                    <small style="display: block; margin-top: 0.3rem; opacity: 0.7;">Tiempo que el cliente tiene para completar su compra después de seleccionar butacas (1-60 min)</small>
+                </div>
             </div>
             
             <!-- Columna 2 -->

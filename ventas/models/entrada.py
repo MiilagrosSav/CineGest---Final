@@ -3,6 +3,7 @@ Modelo Entrada - Representa cada entrada/butaca vendida
 """
 
 from django.db import models
+from django.conf import settings
 from simple_history.models import HistoricalRecords
 
 
@@ -10,6 +11,7 @@ class Entrada(models.Model):
     """Representa una entrada individual (una butaca para una función)"""
     
     ESTADO_CHOICES = [
+        ('PENDIENTE', 'Pendiente'),
         ('RESERVADA', 'Reservada'),
         ('VENDIDA', 'Vendida'),
         ('USADA', 'Usada'),
@@ -52,6 +54,15 @@ class Entrada(models.Model):
         choices=ESTADO_CHOICES,
         default='RESERVADA',
         verbose_name='Estado'
+    )
+    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
+    reservado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name='reservas',
+        verbose_name='Reservado por'
     )
     
     class Meta:

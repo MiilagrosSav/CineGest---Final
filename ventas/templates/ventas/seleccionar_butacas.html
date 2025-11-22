@@ -189,6 +189,13 @@
 </style>
 
 <div class="container">
+    <!-- Timer Sticky -->
+    <div id="reserva-timer-root" style="position: fixed; right: 18px; top: 18px; z-index: 2000; display:flex; gap:8px; align-items:center;">
+        <div id="reserva-timer" data-expiration="{{ expiracion_iso }}" style="background:rgba(18,18,23,0.8); color:#e6e6f0; padding:10px 14px; border-radius:10px; box-shadow:0 6px 20px rgba(0,0,0,0.6); font-weight:600; display:flex; gap:10px; align-items:center;">
+            <span style="font-size:1rem;">⏰</span>
+            <span id="reserva-timer-text" style="min-width:64px; text-align:center; font-variant-numeric: tabular-nums;">--:--</span>
+        </div>
+    </div>
     <div class="card glass-container" style="margin-bottom: var(--space-lg);">
         <div style="padding: var(--space-md) var(--space-lg) var(--space-xs) var(--space-lg);"> {# Padding aún más reducido #}
             <h1 class="card-title text-gradient-primary" style="margin: 0 0 var(--space-xxs) 0; font-size: 1.8rem;">🎬 {{ funcion.pelicula.titulo }}</h1> {# Título un poco más chico y margen muy reducido #}
@@ -386,6 +393,74 @@
             console.log('Butacas seleccionadas, botón habilitado');
         }
     }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    (function(){
+        // Timer logic: read seconds from data attribute provided by server
+        const timerRoot = document.getElementById('reserva-timer');
+        if (!timerRoot) return;
+        const expirationIso = timerRoot.getAttribute('data-expiration');
+        const expirationDate = expirationIso ? new Date(expirationIso) : new Date(Date.now() + 10*60*1000);
+        const textEl = document.getElementById('reserva-timer-text');
+        const mapa = document.querySelector('.mapa-butacas');
+        const btnConfirmar = document.getElementById('btnConfirmar');
+
+        function formatTime(sec){
+            const m = Math.floor(sec/60).toString().padStart(2,'0');
+            const s = Math.floor(sec%60).toString().padStart(2,'0');
+            return `${m}:${s}`;
+        }
+
+        function tick(){
+            const now = new Date();
+            let restante_ms = expirationDate.getTime() - now.getTime();
+            let restante = Math.floor(restante_ms / 1000);
+            if (restante <= 0){
+                textEl.textContent = '00:00';
+                handleExpiry();
+                return;
+            }
+            textEl.textContent = formatTime(restante);
+            // change color when less than 60s
+            if (restante <= 60){
+                timerRoot.style.background = 'linear-gradient(90deg,#36213a,#5c0fa8)';
+                textEl.style.color = '#ffb3b3';
+            }
+        }
+
+        function handleExpiry(){
+            try{
+                // disable interactions
+                if (mapa) mapa.style.pointerEvents = 'none';
+                if (btnConfirmar) btnConfirmar.disabled = true;
+
+                // Show SweetAlert2 modal
+                if (window.Swal){
+                    Swal.fire({
+                        title: '¡Tiempo Agotado!',
+                        text: 'Tus reservas han sido liberadas por inactividad',
+                        icon: 'warning',
+                        confirmButtonText: 'Aceptar',
+                        allowOutsideClick: false,
+                        allowEscapeKey: true
+                    }).then(() => {
+                        window.location.href = '{% url "cine:cartelera" %}';
+                    });
+                } else {
+                    alert('El tiempo de reserva ha expirado. Serás redirigido.');
+                    window.location.href = '{% url "cine:cartelera" %}';
+                }
+            }catch(e){
+                console.error('Error handling expiry', e);
+                window.location.reload();
+            }
+        }
+
+        // start immediately and update every segundo
+        tick();
+        const interval = setInterval(tick, 1000);
+    })();
 </script>
 {% if cantidad_requerida %}
 <div id="cantidad-data" data-cantidad="{{ cantidad_requerida }}" style="display:none"></div>

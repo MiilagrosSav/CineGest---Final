@@ -146,7 +146,7 @@ class Cliente(models.Model):
     usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, primary_key=True)
     
     # Campos específicos de Cliente
-    direccion = models.CharField(max_length=255, null=True, blank=True)
+    acepta_marketing = models.BooleanField(default=False, verbose_name='Acepta marketing', help_text='Opt-in para recibir novedades y ofertas')
     fecha_nacimiento = models.DateField(null=True, blank=True)
     fecha_registro = models.DateField(auto_now_add=True) # Se pone la fecha actual al crear
 
