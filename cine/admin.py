@@ -7,19 +7,25 @@ class PeliculaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
     """
     Configuración personalizada para el modelo Pelicula en el panel de admin.
     """
-    list_display = ('titulo', 'genero', 'director', 'fecha_estreno', 'duracion')
-    list_filter = ('genero', 'fecha_estreno')
+    list_display = ('titulo', 'get_generos_display', 'director', 'fecha_estreno', 'duracion')
+    list_filter = ('fecha_estreno',)
     search_fields = ('titulo', 'director', 'sinopsis')
     ordering = ('-fecha_estreno',)
+    filter_horizontal = ('generos',)  # widget mejorado para M2M
     
     fieldsets = (
         (None, {
             'fields': ('titulo', 'sinopsis', 'imagen_portada')
         }),
         ('Detalles de Producción', {
-            'fields': ('director', 'genero', 'duracion', 'fecha_estreno')
+            'fields': ('director', 'generos', 'duracion', 'fecha_estreno')
         }),
     )
+    
+    def get_generos_display(self, obj):
+        """Mostrar géneros separados por coma"""
+        return ', '.join([g.nombre for g in obj.generos.all()])
+    get_generos_display.short_description = 'Géneros'
 
 
 @admin.register(Sala)

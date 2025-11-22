@@ -151,7 +151,7 @@
             <select name="genero" class="form-select" style="width: 110px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
                 <option value="">Género</option>
                 {% for codigo, nombre in generos_disponibles %}
-                    <option value="{{ codigo }}" {% if filtro_genero == codigo %}selected{% endif %}>{{ nombre }}</option>
+                    <option value="{{ codigo }}" {% if filtro_genero == codigo|stringformat:"s" %}selected{% endif %}>{{ nombre }}</option>
                 {% endfor %}
             </select>
 

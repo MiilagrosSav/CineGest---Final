@@ -1,0 +1,443 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}{{ titulo_pagina }} - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: var(--form-max-width, 900px);">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">{{ titulo_pagina }}</h1>
+        <p class="card-subtitle">Define los detalles de la promoción y sus reglas de aplicación.</p>
+    </div>
+
+    <div class="card glass-container">
+
+        <form method="post" style="padding: var(--space-lg);">
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+                <div class="message message-error" style="text-align: center; margin-bottom: var(--space-md);">
+                    <strong>❌</strong> 
+                    {% for error in form.non_field_errors %}
+                        {{ error }}<br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            {# ============================================ #}
+            {# SECCIÓN GENERAL (Siempre visible)           #}
+            {# ============================================ #}
+            <div class="section-header" style="margin-bottom: 1.5rem;">
+                <h2 style="font-size: 1.3rem; color: var(--primary); margin-bottom: 0.5rem;">📋 Información General</h2>
+                <p style="font-size: 0.9rem; color: var(--text-secondary); opacity: 0.8;">Configuración básica de la promoción</p>
+            </div>
+
+            {# Código #}
+            <div class="form-group">
+                <label for="{{ form.codigo.id_for_label }}" class="form-label">
+                    {{ form.codigo.label }}
+                    {% if form.codigo.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                </label>
+                
+                {% if form.instance.pk %}
+                    <input type="text" 
+                           name="{{ form.codigo.name }}" 
+                           value="{{ form.codigo.value }}" 
+                           class="form-input disabled-input" 
+                           readonly>
+                    <small class="text-secondary" style="font-size: 0.8rem; margin-top: 5px; display: block; opacity: 0.6;">
+                        🔒 El código no se puede modificar una vez creado.
+                    </small>
+                {% else %}
+                    {{ form.codigo }}
+                    {% if form.codigo.help_text %}
+                        <small class="text-secondary" style="font-size: 0.8rem; margin-top: 5px; display: block; opacity: 0.8;">
+                            💡 {{ form.codigo.help_text }}
+                        </small>
+                    {% endif %}
+                {% endif %}
+                
+                {% if form.codigo.errors %}
+                    {% for error in form.codigo.errors %}
+                        <span class="form-error" role="alert">⚠️ {{ error }}</span>
+                    {% endfor %}
+                {% endif %}
+            </div>
+
+            {# Nombre #}
+            <div class="form-group">
+                <label for="{{ form.nombre.id_for_label }}" class="form-label">
+                    {{ form.nombre.label }}
+                    {% if form.nombre.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                </label>
+                {{ form.nombre }}
+                {% if form.nombre.errors %}{% for error in form.nombre.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+            </div>
+
+            {# Descripción #}
+            <div class="form-group">
+                <label for="{{ form.descripcion.id_for_label }}" class="form-label">
+                    {{ form.descripcion.label }}
+                </label>
+                {{ form.descripcion }}
+                {% if form.descripcion.errors %}{% for error in form.descripcion.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+            </div>
+
+            {# Tipo y Valor de Descuento #}
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
+                <div class="form-group">
+                    <label for="{{ form.tipo_descuento.id_for_label }}" class="form-label">
+                        {{ form.tipo_descuento.label }}
+                        <span style="color: var(--primary); margin-left: 4px;">*</span>
+                    </label>
+                    {{ form.tipo_descuento }}
+                    {% if form.tipo_descuento.errors %}{% for error in form.tipo_descuento.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+                </div>
+                
+                <div class="form-group" id="valor-descuento-group">
+                    <label for="{{ form.valor_descuento.id_for_label }}" class="form-label">
+                        {{ form.valor_descuento.label }}
+                    </label>
+                    {{ form.valor_descuento }}
+                    <small class="text-secondary" id="valor-help-text" style="font-size: 0.8rem; margin-top: 5px; display: block; opacity: 0.8;">
+                        💡 {{ form.valor_descuento.help_text }}
+                    </small>
+                    {% if form.valor_descuento.errors %}{% for error in form.valor_descuento.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+                </div>
+            </div>
+
+            {# Fechas #}
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
+                <div class="form-group">
+                    <label for="{{ form.fecha_inicio.id_for_label }}" class="form-label">
+                        {{ form.fecha_inicio.label }}
+                        <span style="color: var(--primary); margin-left: 4px;">*</span>
+                    </label>
+                    {{ form.fecha_inicio }}
+                    {% if form.fecha_inicio.errors %}{% for error in form.fecha_inicio.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="{{ form.fecha_fin.id_for_label }}" class="form-label">
+                        {{ form.fecha_fin.label }}
+                        <span style="color: var(--primary); margin-left: 4px;">*</span>
+                    </label>
+                    {{ form.fecha_fin }}
+                    {% if form.fecha_fin.errors %}{% for error in form.fecha_fin.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+                </div>
+            </div>
+
+            {# Aplica en Estrenos (Universal) #}
+            <div class="form-group" style="margin-top: 1rem;">
+                <label class="toggle-switch">
+                    {{ form.aplica_en_estrenos }}
+                    <span class="slider"></span>
+                    <span class="toggle-label">{{ form.aplica_en_estrenos.label }}</span>
+                </label>
+                {% if form.aplica_en_estrenos.help_text %}
+                    <small class="text-secondary" style="font-size: 0.8rem; margin-top: 5px; display: block; opacity: 0.8;">
+                        💡 {{ form.aplica_en_estrenos.help_text }}
+                    </small>
+                {% endif %}
+                {% if form.aplica_en_estrenos.errors %}{% for error in form.aplica_en_estrenos.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+            </div>
+
+            {# Checkbox de Aplicación Automática (Switch Destacado) #}
+            <div class="form-group" style="margin-top: 2rem; padding: 1.5rem; background: rgba(139, 95, 191, 0.08); border-radius: var(--radius); border: 1px solid rgba(139, 95, 191, 0.2);">
+                <label class="toggle-switch">
+                    {{ form.es_automatica }}
+                    <span class="slider"></span>
+                    <span class="toggle-label" style="font-size: 1.1rem; font-weight: 700;">🛒 {{ form.es_automatica.label }}</span>
+                </label>
+                {% if form.es_automatica.help_text %}
+                    <small class="text-secondary" style="font-size: 0.85rem; margin-top: 8px; display: block; opacity: 0.9;">
+                        💡 {{ form.es_automatica.help_text }}
+                    </small>
+                {% endif %}
+                {% if form.es_automatica.errors %}{% for error in form.es_automatica.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+            </div>
+
+            {# ============================================ #}
+            {# SECCIÓN AUTOMÁTICA (Condicional)            #}
+            {# ============================================ #}
+            <div id="config-automatica" style="display: none; margin-top: 2rem; padding: 1.5rem; background: rgba(255, 255, 255, 0.02); border-radius: var(--radius); border: 1px solid var(--glass-border);">
+                <div class="section-header" style="margin-bottom: 1.5rem;">
+                    <h2 style="font-size: 1.3rem; color: #4ecdc4; margin-bottom: 0.5rem;">🤖 Configuración Automática</h2>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); opacity: 0.8;">Reglas para aplicación automática de la promoción</p>
+                </div>
+
+                {# Días de la Semana #}
+                <div class="form-group">
+                    <label class="form-label">{{ form.dias_semana.label }}</label>
+                    <div class="week-selector">
+                        {% for checkbox in form.dias_semana %}
+                            <label class="day-option">
+                                {{ checkbox.tag }}
+                                <span>{{ checkbox.choice_label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    {% if form.dias_semana.help_text %}
+                        <small class="text-secondary" style="font-size: 0.8rem; margin-top: 8px; display: block; opacity: 0.8;">
+                            💡 {{ form.dias_semana.help_text }}
+                        </small>
+                    {% endif %}
+                    {% if form.dias_semana.errors %}{% for error in form.dias_semana.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+                </div>
+
+                {# Género Requerido #}
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label for="{{ form.genero_requerido.id_for_label }}" class="form-label">
+                        {{ form.genero_requerido.label }}
+                    </label>
+                    {{ form.genero_requerido }}
+                    {% if form.genero_requerido.help_text %}
+                        <small class="text-secondary" style="font-size: 0.8rem; margin-top: 5px; display: block; opacity: 0.8;">
+                            💡 {{ form.genero_requerido.help_text }}
+                        </small>
+                    {% endif %}
+                    {% if form.genero_requerido.errors %}{% for error in form.genero_requerido.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+                </div>
+            </div>
+
+            <div style="display: flex; gap: var(--space-md); margin-top: 2rem;">
+                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                    {{ nombre_boton }}
+                </button>
+                <a href="{% url 'promociones:promocion_list' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">
+                    Cancelar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<style>
+    /* --- PANEL DE CONTROL --- */
+    :root {
+        --form-max-width: 900px;
+        --form-label-size: 1rem;
+        --form-input-size: 1rem;
+        --btn-main-size: 1rem;
+        --btn-main-radius: 9999px;
+    }
+
+    .form-group { margin-bottom: 1.5rem; }
+    
+    form .form-label {
+        font-size: var(--form-label-size);
+        margin-bottom: 0.6rem;
+        font-weight: 600;
+        display: block;
+        color: var(--text-light);
+    }
+    
+    /* Estilos para inputs */
+    form input[type="text"],
+    form input[type="number"],
+    form input[type="date"],
+    form select,
+    form textarea {
+        font-size: var(--form-input-size);
+        padding: 0.8rem 1rem;
+        width: 100%;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        border-radius: var(--radius);
+        color: var(--text-light);
+        font-family: inherit;
+        transition: border-color 0.3s;
+    }
+    
+    form input:focus, form select:focus, form textarea:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(139, 95, 191, 0.1);
+    }
+    
+    /* Estilo especial para inputs deshabilitados (readonly) */
+    form .disabled-input,
+    form input[readonly],
+    form input:disabled {
+        background: rgba(255, 255, 255, 0.02);
+        border-color: rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.5);
+        cursor: not-allowed;
+    }
+
+    form select option {
+        background: #1a1a1a;
+        color: #fff;
+    }
+
+    /* --- SWITCH MODERN (Para checkboxes de activación) --- */
+    .toggle-switch {
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+        gap: 1rem;
+        position: relative;
+    }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+        position: relative;
+        width: 50px;
+        height: 26px;
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: 34px;
+        transition: .4s;
+        border: 1px solid var(--glass-border);
+    }
+    .slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        border-radius: 50%;
+        transition: .4s;
+    }
+    input:checked + .slider { background-color: var(--primary); border-color: var(--primary); }
+    input:checked + .slider:before { transform: translateX(24px); }
+    .toggle-label { font-weight: 600; font-size: 1rem; }
+
+    /* --- DÍAS DE LA SEMANA (Chips Modernos) --- */
+    .week-selector {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+    }
+    .day-option {
+        cursor: pointer;
+        user-select: none;
+    }
+    .day-option input {
+        position: absolute;
+        opacity: 0;
+        cursor: pointer;
+        height: 0;
+        width: 0;
+    }
+    .day-option span {
+        display: inline-block;
+        padding: 0.6rem 1.2rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 50px;
+        color: var(--text-secondary);
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    .day-option:hover span {
+        border-color: var(--primary);
+        color: var(--text-light);
+    }
+    .day-option input:checked + span {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: white;
+        box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
+    }
+
+    /* Botones */
+    form .btn {
+        padding: 0.8rem 1.5rem;
+        font-size: var(--btn-main-size);
+        font-weight: 600;
+        border-radius: var(--btn-main-radius);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    form .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        color: white;
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
+    }
+    
+    form .btn-outline:hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        color: var(--primary);
+        transform: translateY(-1px);
+    }
+
+    .form-error {
+        display: block;
+        color: #ff6b6b;
+        font-size: 0.85rem;
+        margin-top: 0.4rem;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tipoSelect = document.getElementById('id_tipo_descuento');
+        const valorGroup = document.getElementById('valor-descuento-group');
+        const valorInput = document.getElementById('id_valor_descuento');
+        const helpText = document.getElementById('valor-help-text');
+        
+        // Controlar visibilidad del campo valor_descuento según tipo
+        function actualizarCampoValor() {
+            if (!tipoSelect || !valorGroup || !valorInput) return;
+
+            const tipo = tipoSelect.value;
+            
+            if (tipo === '2X1') {
+                valorGroup.style.display = 'none';
+                valorInput.value = '';
+                valorInput.removeAttribute('required');
+            } else {
+                valorGroup.style.display = 'block';
+                valorInput.setAttribute('required', 'required');
+                
+                if (helpText) {
+                    if (tipo === 'PORCENTAJE') {
+                        helpText.textContent = '💡 Ingrese un porcentaje entre 0 y 100 (ej: 20 para 20% de descuento)';
+                        valorInput.setAttribute('max', '100');
+                        valorInput.setAttribute('min', '0');
+                    } else if (tipo === 'MONTO_FIJO') {
+                        helpText.textContent = '💡 Ingrese el monto fijo de descuento en pesos (ej: 500)';
+                        valorInput.removeAttribute('max');
+                        valorInput.setAttribute('min', '0');
+                    }
+                }
+            }
+        }
+        
+        if (tipoSelect) {
+            tipoSelect.addEventListener('change', actualizarCampoValor);
+            actualizarCampoValor();
+        }
+
+        // Controlar visibilidad de la sección automática según es_automatica
+        const checkboxAutomatica = document.getElementById('id_es_automatica');
+        const seccionAutomatica = document.getElementById('config-automatica');
+
+        function toggleSeccionAutomatica() {
+            if (checkboxAutomatica && seccionAutomatica) {
+                if (checkboxAutomatica.checked) {
+                    seccionAutomatica.style.display = 'block';
+                } else {
+                    seccionAutomatica.style.display = 'none';
+                }
+            }
+        }
+
+        if (checkboxAutomatica) {
+            checkboxAutomatica.addEventListener('change', toggleSeccionAutomatica);
+            // Ejecutar al cargar para mostrar/ocultar según el estado inicial
+            toggleSeccionAutomatica();
+        }
+    });
+</script>
+{% endblock %}

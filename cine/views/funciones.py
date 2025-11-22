@@ -5,6 +5,7 @@ from django.views.generic import ListView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.http import JsonResponse 
+from django.db.models import Q
 from django.views.decorators.csrf import ensure_csrf_cookie
 from datetime import datetime, timedelta, date, time
 import json
@@ -25,14 +26,31 @@ class FuncionListView(AdminRequiredMixin, ListView):
         """Filtrar y ordenar funciones según parámetros de búsqueda"""
         queryset = Funcion.objects.select_related('pelicula', 'sala').prefetch_related('formatos_funcion__formato')
         
-        # Filtro por búsqueda (título de película o sala)
+        # Filtrar por estado: 'activas' (por defecto) => fecha_hora >= ahora; 'inactivas' => fecha_hora < ahora
+        estado = self.request.GET.get('estado', 'activas')
+        # usar localtime para evitar comparaciones con datetimes naive/aware en distinto tz
+        ahora = timezone.localtime(timezone.now())
+        if estado == 'inactivas':
+            queryset = queryset.filter(fecha_hora__lt=ahora)
+        else:
+            queryset = queryset.filter(fecha_hora__gte=ahora)
+        
+        # Filtro por búsqueda (título de película, sala o formato)
         search = self.request.GET.get('search', '').strip()
         if search:
-            queryset = queryset.filter(
-                pelicula__titulo__icontains=search
-            ) | queryset.filter(
-                sala__nombre__icontains=search
+            # buscar por título de película O nombre de sala O nombre de formato (case-insensitive)
+            q = (
+                Q(pelicula__titulo__icontains=search) | 
+                Q(sala__nombre__icontains=search) |
+                Q(formatos_funcion__formato__nombre__icontains=search)
             )
+            # Si el término es numérico, también buscar por número de sala
+            if search.isdigit():
+                try:
+                    q |= Q(sala__numero=int(search))
+                except ValueError:
+                    pass
+            queryset = queryset.filter(q).distinct()  # distinct() evita duplicados por formatos múltiples
         
         # Filtro por película específica
         pelicula_id = self.request.GET.get('pelicula', '').strip()
@@ -44,14 +62,19 @@ class FuncionListView(AdminRequiredMixin, ListView):
         if sala_id:
             queryset = queryset.filter(sala_id=sala_id)
         
-        # Filtro por fecha
-        fecha = self.request.GET.get('fecha', '').strip()
-        if fecha:
-            try:
-                fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
-                queryset = queryset.filter(fecha_hora__date=fecha_obj)
-            except ValueError:
-                pass
+        # Filtro por rango de fecha: fecha_inicio / fecha_fin
+        fecha_inicio = self.request.GET.get('fecha_inicio', '').strip()
+        fecha_fin = self.request.GET.get('fecha_fin', '').strip()
+        try:
+            if fecha_inicio:
+                fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+                queryset = queryset.filter(fecha_hora__date__gte=fecha_inicio_obj)
+            if fecha_fin:
+                fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+                queryset = queryset.filter(fecha_hora__date__lte=fecha_fin_obj)
+        except ValueError:
+            # ignorar rango si formato inválido
+            pass
         
         # Filtro por formato
         formato_id = self.request.GET.get('formato', '').strip()
@@ -85,19 +108,21 @@ class FuncionListView(AdminRequiredMixin, ListView):
         context['filtro_pelicula'] = self.request.GET.get('pelicula', '')
         context['filtro_sala'] = self.request.GET.get('sala', '')
         
-        # Manejar fecha en formato YYYY-MM-DD (para el input hidden)
-        fecha_filtro = self.request.GET.get('fecha', '')
-        context['filtro_fecha'] = fecha_filtro
-        
-        # Convertir a formato DD-MM-YYYY para mostrar al usuario
-        if fecha_filtro:
+        # Manejar rango de fechas (YYYY-MM-DD) para inputs
+        fecha_inicio = self.request.GET.get('fecha_inicio', '')
+        fecha_fin = self.request.GET.get('fecha_fin', '')
+        context['filtro_fecha_inicio'] = fecha_inicio
+        context['filtro_fecha_fin'] = fecha_fin
+        # Convertir a formato DD-MM-YYYY para mostrar al usuario (si es necesario)
+        def _display(d):
+            if not d:
+                return ''
             try:
-                fecha_obj = datetime.strptime(fecha_filtro, '%Y-%m-%d').date()
-                context['filtro_fecha_display'] = fecha_obj.strftime('%d-%m-%Y')
-            except ValueError:
-                context['filtro_fecha_display'] = ''
-        else:
-            context['filtro_fecha_display'] = ''
+                return datetime.strptime(d, '%Y-%m-%d').date().strftime('%d-%m-%Y')
+            except Exception:
+                return ''
+        context['filtro_fecha_inicio_display'] = _display(fecha_inicio)
+        context['filtro_fecha_fin_display'] = _display(fecha_fin)
         
         context['filtro_formato'] = self.request.GET.get('formato', '')
         context['filtro_orden'] = self.request.GET.get('orden', 'fecha')
@@ -106,6 +131,10 @@ class FuncionListView(AdminRequiredMixin, ListView):
         context['peliculas'] = Pelicula.objects.all().order_by('titulo')
         context['salas'] = Sala.objects.all().order_by('numero')
         context['formatos'] = Formato.objects.all().order_by('nombre')
+        
+        # Indicar si se está viendo historial (inactivas)
+        context['is_history'] = (self.request.GET.get('estado', 'activas') == 'inactivas')
+        context['filtro_estado'] = self.request.GET.get('estado', 'activas')
         
         return context
 

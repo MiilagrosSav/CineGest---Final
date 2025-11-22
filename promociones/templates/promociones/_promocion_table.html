@@ -1,0 +1,111 @@
+{% if promociones %}
+<div class="table-responsive">
+    <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
+        <thead>
+            <tr style="border-bottom: 1px solid var(--glass-border);">
+                <th style="padding: var(--space-sm);">Tipo</th>
+                <th style="padding: var(--space-sm);">Código</th>
+                <th style="padding: var(--space-sm);">Nombre</th>
+                <th style="padding: var(--space-sm);">Descuento</th>
+                <th style="padding: var(--space-sm);">Días</th>
+                <th style="padding: var(--space-sm); text-align: center;">Estrenos</th>
+                <th style="padding: var(--space-sm);">Género</th>
+                <th style="padding: var(--space-sm);">Vigencia</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for promocion in promociones %}
+            <tr class="promocion-row" 
+                data-id="{{ promocion.pk }}"
+                data-edit-url="{% url 'promociones:promocion_update' promocion.pk %}"
+                data-delete-url="{% url 'promociones:promocion_delete' promocion.pk %}"
+                style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                
+                {# Columna TIPO: Badge AUTO vs CUPÓN #}
+                <td style="padding: var(--space-sm);">
+                    {% if promocion.es_automatica %}
+                        <span class="badge badge-auto">🛒 AUTO</span>
+                    {% else %}
+                        <span class="badge badge-cupon">📧 CUPÓN</span>
+                    {% endif %}
+                </td>
+                
+                <td style="padding: var(--space-sm);"><strong>{{ promocion.codigo }}</strong></td>
+                <td style="padding: var(--space-sm);">{{ promocion.nombre }}</td>
+                
+                {# Columna DESCUENTO #}
+                <td style="padding: var(--space-sm);">
+                    <span class="badge badge-tipo-{{ promocion.tipo_descuento|lower }}">
+                        {{ promocion.get_tipo_descuento_display }}
+                    </span>
+                    {% if promocion.tipo_descuento == '2X1' %}
+                        <span style="color: #b0b0b0; margin-left: 5px;">-</span>
+                    {% elif promocion.tipo_descuento == 'PORCENTAJE' %}
+                        <strong style="margin-left: 5px;">{{ promocion.valor_descuento }}%</strong>
+                    {% else %}
+                        <strong style="margin-left: 5px;">${{ promocion.valor_descuento }}</strong>
+                    {% endif %}
+                </td>
+                
+                {# Columna DÍAS #}
+                <td style="padding: var(--space-sm);">
+                    {% if promocion.es_automatica %}
+                        {% with dias_resumen=promocion.obtener_dias_resumen %}
+                            {% if dias_resumen == "Todos los días" %}
+                                <span style="color: #4ecdc4; font-weight: 600;">Todos los días</span>
+                            {% else %}
+                                <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                                    {% for dia in dias_resumen %}
+                                        <span class="day-badge">{{ dia }}</span>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        {% endwith %}
+                    {% else %}
+                        <span style="opacity: 0.4; font-size: 0.85rem;" title="Definido en Política">—</span>
+                    {% endif %}
+                </td>
+                
+                {# Columna ESTRENOS #}
+                <td style="padding: var(--space-sm); text-align: center;">
+                    {% if promocion.es_automatica %}
+                        {% if promocion.aplica_en_estrenos %}
+                            <span style="color: #4ecdc4; font-weight: 600;">✅ Sí</span>
+                        {% else %}
+                            <span style="color: #ff6b6b; font-weight: 600;">⛔ No</span>
+                        {% endif %}
+                    {% else %}
+                        <span style="opacity: 0.4; font-size: 0.85rem;">—</span>
+                    {% endif %}
+                </td>
+                
+                {# Columna GÉNERO #}
+                <td style="padding: var(--space-sm);">
+                    {% if promocion.es_automatica %}
+                        {% if promocion.genero_requerido %}
+                            <span class="genre-badge" style="font-size: 0.75rem;">{{ promocion.genero_requerido.nombre }}</span>
+                        {% else %}
+                            <span style="opacity: 0.6; font-size: 0.85rem;">Todos</span>
+                        {% endif %}
+                    {% else %}
+                        <span style="opacity: 0.4; font-size: 0.85rem;">—</span>
+                    {% endif %}
+                </td>
+                
+                {# Columna VIGENCIA #}
+                <td style="padding: var(--space-sm);">
+                    <div style="font-size: 0.9rem;">
+                        <div>Desde: {{ promocion.fecha_inicio|date:"d/m/Y" }}</div>
+                        <div>Hasta: {{ promocion.fecha_fin|date:"d/m/Y" }}</div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div style="text-align: center; padding: 3rem; color: var(--text-secondary, #b0b0b0);">
+    <p style="font-size: 1.1rem; margin-bottom: 1rem;">No hay promociones con los filtros aplicados.</p>
+</div>
+{% endif %}

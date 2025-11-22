@@ -1,0 +1,14 @@
+<html>
+  <body>
+    <p>Hola {{ usuario.get_full_name|default:usuario.username }},</p>
+    <p>Tenemos una oferta por tiempo limitado: <strong>{{ promocion.nombre }}</strong></p>
+    <p>{{ promocion.descripcion }}</p>
+    <p>Usá este cupón único para canjear la oferta:</p>
+    <p><strong>{{ cupon.token }}</strong></p>
+    <p>Canjealo aquí: <a href="{{ link }}">{{ link }}</a></p>
+    {% if funcion %}
+    <p>La oferta aplica para la función: {{ funcion.pelicula.titulo }} — {{ funcion.fecha_hora }}</p>
+    {% endif %}
+    <p>Saludos,<br/>El equipo de {{ site_name }}</p>
+  </body>
+</html>

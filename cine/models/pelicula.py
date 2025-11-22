@@ -2,6 +2,8 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from datetime import date
 from simple_history.models import HistoricalRecords
+from cine.models.genero import Genero
+
 
 
 
@@ -9,19 +11,6 @@ class Pelicula(models.Model):
     """
     Modelo para representar una película en el cine.
     """
-    # Opciones para el campo 'genero'
-    GENERO_CHOICES = [
-        ('ACCION', 'Acción'),
-        ('AVENTURA', 'Aventura'),
-        ('COMEDIA', 'Comedia'),
-        ('DRAMA', 'Drama'),
-        ('CIENCIA_FICCION', 'Ciencia Ficción'),
-        ('TERROR', 'Terror'),
-        ('FANTASIA', 'Fantasía'),
-        ('MUSICAL', 'Musical'),
-        ('ANIMACION', 'Animación'),
-    ]
-    
     # Opciones para clasificación
     CLASIFICACION_CHOICES = [
         ('ATP', 'Apta para todo público'),
@@ -33,7 +22,8 @@ class Pelicula(models.Model):
     titulo = models.CharField(max_length=200, help_text="El título de la película.")
     sinopsis = models.TextField(help_text="Una breve descripción de la trama.")
     director = models.CharField(max_length=100, help_text="El director de la película.")
-    genero = models.CharField(max_length=50, choices=GENERO_CHOICES, help_text="El género principal.")
+    # Ahora soportamos múltiples géneros por película
+    generos = models.ManyToManyField(Genero, related_name='peliculas', blank=True)
     duracion = models.PositiveIntegerField(help_text="La duración en minutos.")
     fecha_estreno = models.DateField(help_text="La fecha de estreno en cines.")
     
@@ -52,9 +42,26 @@ class Pelicula(models.Model):
         null=True, 
         help_text="La imagen de portada o póster de la película."
     )
+    
+    # Flags de control para promociones
+    es_estreno = models.BooleanField(
+        default=False,
+        help_text="Indica si es un lanzamiento reciente."
+    )
+    acepta_promociones = models.BooleanField(
+        default=True,
+        help_text="Master switch: si es False, bloquea cualquier descuento."
+    )
 
     def __str__(self):
         return self.titulo
+
+    def get_genero_display(self):
+        """Compatibilidad con plantillas: devuelve géneros como cadena separada por comas."""
+        try:
+            return ', '.join([g.nombre for g in self.generos.all()])
+        except Exception:
+            return ''
 
     def clean(self):
         """

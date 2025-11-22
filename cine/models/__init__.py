@@ -1,4 +1,5 @@
 from .pelicula import Pelicula
+from .pelicula import Genero
 from .sala import Sala
 from .formato import Formato
 from .funcion import Funcion
