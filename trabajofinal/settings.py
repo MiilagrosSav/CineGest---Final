@@ -80,6 +80,7 @@ INSTALLED_APPS = [
     'simple_history', # esta línea para el historial de cambios en modelos
     # App para mostrar auditoría consolidada en Admin
     'auditoria.apps.AuditoriaConfig',
+    'reportes',  # App para generación de reportes
 ]
 
 MIDDLEWARE = [

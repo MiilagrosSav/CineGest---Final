@@ -1,0 +1,252 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Dashboard Gerencial - CineGest{% endblock %}
+
+{% block content %}
+<div style="background:#121212; min-height:80vh; color:#e0e0e0; padding:24px;">
+  <h1 style="color:#e0e0e0; margin-bottom:16px">Dashboard Gerencial</h1>
+
+  <!-- Filter form -->
+  <form method="get" style="display:flex; gap:12px; align-items:center; margin-bottom:18px;">
+    <div style="display:flex; gap:8px; align-items:center;">
+      <label style="font-size:13px; color:#cfcfcf;">Fecha Inicio</label>
+      <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}" style="background:#0f1724; color:#e0e0e0; border:1px solid rgba(255,255,255,0.06); padding:6px 8px; border-radius:6px;" />
+    </div>
+
+    <div style="display:flex; gap:8px; align-items:center;">
+      <label style="font-size:13px; color:#cfcfcf;">Fecha Fin</label>
+      <input type="date" name="fecha_fin" value="{{ fecha_fin }}" style="background:#0f1724; color:#e0e0e0; border:1px solid rgba(255,255,255,0.06); padding:6px 8px; border-radius:6px;" />
+    </div>
+
+    <div>
+      <button type="submit" style="background:#a855f7; color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;">Filtrar</button>
+    </div>
+    
+    <!-- Quick range buttons -->
+    <div style="display:flex; gap:8px; margin-left:8px;">
+      <a href="{{ rango_7_qs }}" class="btn-quick" style="font-size:13px; color:#e0e0e0; background:transparent; border:1px solid rgba(255,255,255,0.06); padding:6px 8px; border-radius:6px; text-decoration:none;">7 Días</a>
+      <a href="{{ rango_30_qs }}" class="btn-quick" style="font-size:13px; color:#e0e0e0; background:transparent; border:1px solid rgba(255,255,255,0.06); padding:6px 8px; border-radius:6px; text-decoration:none;">30 Días</a>
+      <a href="{{ rango_mes_qs }}" class="btn-quick" style="font-size:13px; color:#e0e0e0; background:transparent; border:1px solid rgba(255,255,255,0.06); padding:6px 8px; border-radius:6px; text-decoration:none;">Este Mes</a>
+    </div>
+  </form>
+
+  <!-- Download buttons -->
+  <div style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:200px;">
+      <div style="font-size:13px; color:#cfcfcf; margin-bottom:6px;">📊 Reporte Financiero</div>
+      <div style="display:flex; gap:8px;">
+        <a href="{% url 'reportes:exportar_financiero_pdf' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" 
+           style="flex:1; text-align:center; background:#ef4444; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:13px;">
+          📄 PDF
+        </a>
+        <a href="{% url 'reportes:exportar_financiero_excel' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" 
+           style="flex:1; text-align:center; background:#10b981; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:13px;">
+          📊 Excel
+        </a>
+      </div>
+    </div>
+    
+    <div style="flex:1; min-width:200px;">
+      <div style="font-size:13px; color:#cfcfcf; margin-bottom:6px;">🎯 Reporte Operativo</div>
+      <div style="display:flex; gap:8px;">
+        <a href="{% url 'reportes:exportar_operativo_pdf' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" 
+           style="flex:1; text-align:center; background:#ef4444; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:13px;">
+          📄 PDF
+        </a>
+        <a href="{% url 'reportes:exportar_operativo_excel' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" 
+           style="flex:1; text-align:center; background:#10b981; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:13px;">
+          📊 Excel
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
+    <div style="flex:1; min-width:200px; background:#1e1e1e; padding:18px; border-radius:10px;">
+      <div style="color:#a855f7; font-size:14px;">Total Recaudación</div>
+      <div style="font-size:28px; font-weight:700; margin-top:8px;">${{ kpis.total_recaudacion|floatformat:2 }}</div>
+    </div>
+
+    <div style="flex:1; min-width:200px; background:#1e1e1e; padding:18px; border-radius:10px;">
+      <div style="color:#a855f7; font-size:14px;">Total Tickets</div>
+      <div style="font-size:28px; font-weight:700; margin-top:8px;">{{ kpis.total_tickets }}</div>
+    </div>
+
+    <div style="flex:1; min-width:200px; background:#1e1e1e; padding:18px; border-radius:10px;">
+      <div style="color:#a855f7; font-size:14px;">Ticket Promedio</div>
+      <div style="font-size:28px; font-weight:700; margin-top:8px;">${{ kpis.ticket_promedio|floatformat:2 }}</div>
+    </div>
+  </div>
+
+  <!-- Charts row -->
+    <div style="display:flex; gap:16px; flex-wrap:wrap;">
+        <div style="flex:1 1 50%; min-width:320px; background:#1e1e1e; padding:18px; border-radius:10px;">
+            <h3 style="color:#e0e0e0;">Ingresos por Película (Top 10)</h3>
+        <div style="position: relative; height: 300px; width: 100%;">
+            <canvas id="finChart"></canvas>
+        </div>
+    </div>
+    
+    <div style="flex:1 1 50%; min-width:320px; background:#1e1e1e; padding:18px; border-radius:10px;">
+        <h3 style="color:#e0e0e0;">Ocupación Semanal (%)</h3>
+    <div style="position: relative; height: 300px; width: 100%;">
+            <canvas id="occChart"></canvas>
+        </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart.js CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
+<script>
+  // Parse JSON context provided by view
+  const fin = JSON.parse(`{{ fin_chart_json|safe }}`);
+  const occ = JSON.parse(`{{ occ_chart_json|safe }}`);
+
+  // Financial stacked bar chart
+  const ctxFin = document.getElementById('finChart').getContext('2d');
+  // compute totals per label (full + promo) so we can set a sensible y-axis max
+  const finTotals = fin.labels.map((_, i) => ((fin.data_full[i] || 0) + (fin.data_promo[i] || 0)));
+  const finMax = finTotals.length ? Math.max(...finTotals) : 0;
+
+  // compute a "nice" maximum for the axis (1,2,5,10 * 10^n) to avoid runaway scales
+  function computeNiceMax(value){
+    if (!value || value <= 0) return 100;
+    const pow = Math.pow(10, Math.floor(Math.log10(value)));
+    const normalized = value / pow;
+    let niceNorm = 10;
+    if (normalized <= 1) niceNorm = 1;
+    else if (normalized <= 2) niceNorm = 2;
+    else if (normalized <= 5) niceNorm = 5;
+    else niceNorm = 10;
+    return niceNorm * pow;
+  }
+
+  const finNiceMax = computeNiceMax(finMax);
+  const finSuggestedMax = Math.ceil(finNiceMax * 1.05);
+
+  const finChart = new Chart(ctxFin, {
+    type: 'bar',
+    data: {
+      labels: fin.labels,
+      datasets: [
+        {
+          label: 'Precio Full',
+          data: fin.data_full,
+          backgroundColor: '#10b981',
+          stack: 'stack1'
+        },
+        {
+          label: 'Con Promo',
+          data: fin.data_promo,
+          backgroundColor: '#a855f7',
+          stack: 'stack1'
+        }
+      ]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: '#e0e0e0' } },
+        datalabels: {
+          color: '#ffffff',
+          anchor: 'end',
+          align: 'end',
+          formatter: function(value) {
+            if (!value || value === 0) return '';
+            return '$' + Number(value).toLocaleString();
+          },
+          font: {
+            weight: 'bold',
+            size: 11
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: function(ctx){
+              const v = ctx.parsed.y || ctx.parsed || 0;
+              return ctx.dataset.label + ': $' + Number(v).toLocaleString();
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255,255,255,0.03)' } },
+        y: {
+          ticks: {
+            color: '#e0e0e0',
+            callback: function(value){ return '$' + Number(value).toLocaleString(); }
+          },
+          grid: { color: 'rgba(255,255,255,0.03)' },
+          beginAtZero: true,
+          suggestedMax: finSuggestedMax
+        }
+      },
+      interaction: { mode: 'index', intersect: false },
+      elements: {
+        bar: {
+          maxBarThickness: 60,
+          borderRadius: 6
+        }
+      },
+      maintainAspectRatio: false,
+      responsive: true
+    }
+  });
+
+  // Occupation line chart
+  const ctxOcc = document.getElementById('occChart').getContext('2d');
+  const gradient = ctxOcc.createLinearGradient(0, 0, 0, 300);
+  gradient.addColorStop(0, 'rgba(168,85,247,0.45)');
+  gradient.addColorStop(1, 'rgba(168,85,247,0.05)');
+
+  const occChart = new Chart(ctxOcc, {
+    type: 'line',
+    data: {
+      labels: occ.labels,
+      datasets: [{
+        label: '% Ocupación',
+        data: occ.data,
+        borderColor: '#a855f7',
+        backgroundColor: gradient,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#a855f7'
+      }]
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: '#e0e0e0' } },
+        datalabels: {
+          color: '#ffffff',
+          anchor: 'end',
+          align: 'top',
+          formatter: function(value) {
+            if (!value || value === 0) return '';
+            return Number(value).toFixed(1) + '%';
+          },
+          font: {
+            weight: 'bold',
+            size: 11
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255,255,255,0.03)' } },
+        y: { ticks: { color: '#e0e0e0' }, grid: { color: 'rgba(255,255,255,0.03)' }, beginAtZero: true, max: 100 }
+      },
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+</script>
+
+<style>
+  /* Enforce dark mode look */
+  body { background: #121212; color: #e0e0e0; }
+  .card, .glass-container { background: transparent; }
+</style>
+
+{% endblock %}

@@ -28,6 +28,13 @@
                             <li><a href="{% url 'promociones:dashboard' %}" class="nav-link">Promociones</a></li>
                             <li><a href="{% url 'accounts:employee_list' %}" class="nav-link">Empleados</a></li>
                             <li><a href="{% url 'auditoria:list' %}" class="nav-link">Auditoría</a></li>
+                            <li class="user-menu">
+                                <button class="user-menu-button nav-link" id="reportsMenuButton">Reportes</button>
+                                <div class="user-menu-dropdown" id="reportsMenuDropdown">
+                                    <a href="{% url 'reportes:financiero' %}" class="dropdown-item">📈 Reporte Financiero</a>
+                                    <a href="{% url 'reportes:ocupacion' %}" class="dropdown-item">📊 Reporte de Ocupación</a>
+                                </div>
+                            </li>
                         
                         {% elif user.rol == 'empleado' %}
                             <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🎭 Películas</a></li>
@@ -51,6 +58,9 @@
                                 {% if user.is_superuser or user.rol == 'admin' %}
                                 <a href="{% url 'cine:configuracion' %}" class="dropdown-item">
                                     <span>⚙️</span> Configuración del Cine
+                                </a>
+                                <a href="{% url 'reportes:financiero' %}" class="dropdown-item">
+                                    <span>📊</span> Estadísticas
                                 </a>
                                 {% endif %}
                                 <div class="dropdown-divider"></div>
@@ -139,6 +149,23 @@
                 document.addEventListener('click', function(e) {
                     if (!userMenuButton.contains(e.target) && !userMenuDropdown.contains(e.target)) {
                         userMenuDropdown.classList.remove('show');
+                    }
+                });
+            }
+        });
+
+        // ✅ MENÚ DESPLEGABLE DE REPORTES
+        document.addEventListener('DOMContentLoaded', function() {
+            const reportsMenuButton = document.getElementById('reportsMenuButton');
+            const reportsMenuDropdown = document.getElementById('reportsMenuDropdown');
+            if (reportsMenuButton && reportsMenuDropdown) {
+                reportsMenuButton.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    reportsMenuDropdown.classList.toggle('show');
+                });
+                document.addEventListener('click', function(e) {
+                    if (!reportsMenuButton.contains(e.target) && !reportsMenuDropdown.contains(e.target)) {
+                        reportsMenuDropdown.classList.remove('show');
                     }
                 });
             }

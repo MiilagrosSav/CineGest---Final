@@ -26,6 +26,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls', namespace='accounts')),
     path('promociones/', include('promociones.urls', namespace='promociones')),
+    path('reportes/', include('reportes.urls', namespace='reportes')),
     path('', include('cine.urls', namespace='cine')), # URLs de cine (películas y salas) - cambiado de 'peliculas/' a 'cine/'
     path('ventas/', include('ventas.urls', namespace='ventas')),  # URLs de ventas y pagos
     path('auditoria/', include('auditoria.urls', namespace='auditoria')),
