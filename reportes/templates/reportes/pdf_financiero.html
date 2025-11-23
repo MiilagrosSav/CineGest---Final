@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{ titulo }}</title>
+    <style type="text/css">
+        /* --- CONFIGURACIÓN DE PÁGINA (A4) --- */
+        @page {
+            size: A4;
+            margin: 2cm;
+            margin-bottom: 2.5cm;
+        }
+
+        /* --- ESTILOS GENERALES --- */
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+            font-size: 10pt; /* Letra más chica */
+            color: #333333;
+            line-height: 1.3;
+        }
+
+        /* --- ENCABEZADO --- */
+        .header-table {
+            width: 100%;
+            border-bottom: 2px solid #77135c;
+            margin-bottom: 20px;
+            padding-bottom: 8px;
+        }
+        
+        .logo-text {
+            font-size: 20pt;
+            font-weight: bold;
+            color: #77135c;
+            text-transform: uppercase;
+        }
+
+        .report-title {
+            font-size: 14pt;
+            color: #000000;
+            text-align: right;
+            font-weight: normal;
+        }
+
+        .meta-info {
+            font-size: 8pt;
+            color: #666666;
+            text-align: right;
+            margin-top: 2px;
+        }
+
+        /* --- TABLAS DE DATOS --- */
+        h2 {
+            font-size: 12pt;
+            color: #77135c;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #cccccc;
+            padding-bottom: 2px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+
+        th {
+            background-color: #77135c;
+            color: #ffffff;
+            font-weight: bold;
+            padding: 6px;
+            text-align: left;
+            font-size: 9pt;
+            border: 1px solid #77135c;
+        }
+
+        td {
+            padding: 6px;
+            border: 1px solid #cccccc;
+            font-size: 9pt;
+            color: #333;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        /* --- KPIS --- */
+        .kpi-table td {
+            background-color: #f9f9f9;
+            border: 1px solid #ffffff;
+            padding: 10px;
+            text-align: center;
+            width: 33%;
+        }
+
+        .kpi-label {
+            font-size: 8pt;
+            text-transform: uppercase;
+            color: #666666;
+            display: block;
+            margin-bottom: 3px;
+            font-weight: bold;
+        }
+
+        .kpi-value {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #77135c;
+            display: block;
+        }
+
+        /* --- UTILIDADES --- */
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        
+        .total-row td {
+            background-color: #e8d5e0;
+            font-weight: bold;
+            color: #77135c;
+            border-top: 2px solid #77135c;
+        }
+
+        /* --- FOOTER --- */
+        #footerContent {
+            position: fixed;
+            bottom: -1cm;
+            left: 0;
+            right: 0;
+            width: 100%;
+            text-align: right;
+            font-size: 8pt;
+            color: #999999;
+            border-top: 1px solid #cccccc;
+            padding-top: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <table class="header-table">
+        <tr>
+            <td style="border:none; padding:0; vertical-align: bottom;">
+                <div class="logo-text">CineGest</div>
+            </td>
+            <td style="border:none; padding:0; text-align:right; vertical-align: bottom;">
+                <div class="report-title">{{ titulo }}</div>
+                <div class="meta-info">
+                    Período: {{ fecha_inicio }} al {{ fecha_fin }}
+                    {% if requested_by %}<br/>Solicitado por: {{ requested_by }}{% endif %}
+                    <br/>Generado: {% now "d/m/Y H:i" %}
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <table class="kpi-table">
+        <tr>
+            <td>
+                <span class="kpi-label">Recaudación Total</span>
+                <span class="kpi-value">${{ kpis.total_recaudacion|floatformat:2 }}</span>
+            </td>
+            <td>
+                <span class="kpi-label">Tickets Vendidos</span>
+                <span class="kpi-value">{{ kpis.total_tickets }}</span>
+            </td>
+            <td>
+                <span class="kpi-label">Ticket Promedio</span>
+                <span class="kpi-value">${{ kpis.ticket_promedio|floatformat:2 }}</span>
+            </td>
+        </tr>
+    </table>
+
+    {% if chart_base64 %}
+    <div style="text-align:center; margin-bottom: 15px;">
+        <img src="{{ chart_base64 }}" style="width: 600px; height: auto;" />
+    </div>
+    {% endif %}
+
+    <h2>Detalle por Película</h2>
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 40%;">Película</th>
+                <th class="text-right">Recaudación</th>
+                <th class="text-right">Full Price</th>
+                <th class="text-right">Promo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pelicula in peliculas %}
+            <tr>
+                <td>{{ pelicula.titulo }}</td>
+                <td class="text-right">${{ pelicula.total|floatformat:2 }}</td>
+                <td class="text-right">${{ pelicula.full|floatformat:2 }}</td>
+                <td class="text-right">${{ pelicula.promo|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+            
+            <tr class="total-row">
+                <td>TOTAL</td>
+                <td class="text-right">${{ kpis.total_recaudacion|floatformat:2 }}</td>
+                <td colspan="2" class="text-center" style="font-size: 8pt; color: #77135c;">
+                    Resumen Final
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="margin-top: 20px; text-align: center; font-size: 8pt; color: #999999;">
+        Fin del reporte. Uso interno.
+    </div>
+
+    <div id="footerContent">
+        Pág <pdf:pagenumber/> de <pdf:pagecount/>
+    </div>
+
+</body>
+</html>

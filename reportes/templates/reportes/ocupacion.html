@@ -1,0 +1,308 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Reporte de Ocupación - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1200px;">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">📊 Reporte de Ocupación</h1>
+        <p class="card-subtitle">Análisis de tickets vendidos y capacidad de salas</p>
+    </div>
+
+    <div class="card glass-container" style="margin-bottom: 2rem;">
+        <div style="padding: var(--space-md);">
+            <form method="get" style="display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: end; justify-content: space-between;">
+                
+                <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Desde</label>
+                        <input type="date" name="fecha_inicio" value="{{ fecha_inicio }}" class="form-input">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Hasta</label>
+                        <input type="date" name="fecha_fin" value="{{ fecha_fin }}" class="form-input">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="visibility: hidden; margin-bottom: 0.4rem;">Acción</label>
+                        <button type="submit" class="btn btn-primary" style="height: 42px; padding: 0 1.5rem;">
+                            🔍 Filtrar
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <span style="font-size: 0.9rem; opacity: 0.7; margin-right: 5px;">Rápido:</span>
+                    <a href="{{ rango_7_qs }}" class="filter-chip">7 Días</a>
+                    <a href="{{ rango_30_qs }}" class="filter-chip">30 Días</a>
+                    <a href="{{ rango_mes_qs }}" class="filter-chip">Este Mes</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card glass-container" style="margin-bottom: 2rem;">
+        <div style="padding: var(--space-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg); flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h3 style="margin: 0;">📈 Ocupación Semanal</h3>
+                    <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Porcentaje de butacas ocupadas por día</p>
+                </div>
+                <div style="display: flex; gap: 0.5rem;">
+                    <a href="{% url 'reportes:exportar_operativo_excel' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="btn btn-outline btn-sm">
+                        📊 Excel
+                    </a>
+                    <button id="exportPdfBtn" class="btn btn-secondary btn-sm">
+                        📄 PDF
+                    </button>
+                </div>
+            </div>
+
+            <div style="position: relative; height: 400px; width: 100%;">
+                <canvas id="occChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="card glass-container">
+        <div style="padding: var(--space-lg);">
+            <h3 style="margin-bottom: var(--space-md);">📋 Detalle Numérico</h3>
+            
+            <div class="table-responsive">
+                <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--glass-border);">
+                            <th style="padding: var(--space-sm);">Día</th>
+                            <th style="padding: var(--space-sm); text-align: center;">Tickets Vendidos</th>
+                            <th style="padding: var(--space-sm); text-align: center;">Capacidad Total</th>
+                            <th style="padding: var(--space-sm); text-align: right;">% Ocupación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in occ_data.detalle %}
+                        <tr style="border-bottom: 1px solid var(--glass-border);">
+                            <td style="padding: var(--space-md); font-weight: 600;">{{ item.dia }}</td>
+                            <td style="padding: var(--space-md); text-align: center;">
+                                <span style="background: rgba(255,255,255,0.05); padding: 4px 10px; border-radius: 6px;">
+                                    {{ item.tickets }}
+                                </span>
+                            </td>
+                            <td style="padding: var(--space-md); text-align: center; opacity: 0.8;">{{ item.capacidad }}</td>
+                            <td style="padding: var(--space-md); text-align: right;">
+                                {% if item.porcentaje >= 70 %}
+                                    <span style="color: #4CAF50; font-weight: 700;">{{ item.porcentaje|floatformat:1 }}%</span>
+                                {% elif item.porcentaje < 30 %}
+                                    <span style="color: #ff6b6b; font-weight: 700;">{{ item.porcentaje|floatformat:1 }}%</span>
+                                {% else %}
+                                    <span style="color: #ffc107; font-weight: 700;">{{ item.porcentaje|floatformat:1 }}%</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center" style="padding: var(--space-xl); opacity: 0.6;">
+                                No hay datos para este período.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
+<script>
+    // Configuración del Gráfico
+    const occ = JSON.parse(`{{ occ_chart_json|safe }}`);
+    const ctx = document.getElementById('occChart').getContext('2d');
+
+    // Gradiente para el gráfico
+    let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(139, 95, 191, 0.5)'); // Tu color primario
+    gradient.addColorStop(1, 'rgba(139, 95, 191, 0.0)');
+
+    const occChart = new Chart(ctx, {
+        type: 'line',
+        data: { 
+            labels: occ.labels, 
+            datasets: [{ 
+                label: '% Ocupación', 
+                data: occ.values, 
+                borderColor: '#9B59B6', // Tu color primario sólido
+                backgroundColor: gradient, 
+                fill: true,
+                tension: 0.4, // Curva suave
+                pointBackgroundColor: '#ffffff',
+                pointBorderColor: '#9B59B6',
+                pointRadius: 5
+            }] 
+        },
+        options: {
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    color: '#ffffff', 
+                    anchor: 'end', 
+                    align: 'top', 
+                    formatter: v => v ? v.toFixed(1) + '%' : '', 
+                    font: { weight: 'bold', size: 11 },
+                    offset: 4
+                }
+            },
+            scales: { 
+                y: { 
+                    beginAtZero: true, 
+                    max: 100, 
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#b0b0b0' } 
+                }, 
+                x: { 
+                    grid: { display: false },
+                    ticks: { color: '#b0b0b0' } 
+                } 
+            },
+            responsive: true, 
+            maintainAspectRatio: false
+        },
+        plugins: [ChartDataLabels]
+    });
+
+    // Lógica de Exportación PDF
+    function getCookie(name) { const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)'); return v ? v.pop() : ''; }
+
+    document.getElementById('exportPdfBtn').addEventListener('click', async function(){
+        const btn = this;
+        const originalText = btn.innerText;
+        btn.innerText = '⏳ Generando...';
+        btn.disabled = true;
+
+        try {
+            const chartImage = occChart.toBase64Image();
+            const csrftoken = getCookie('csrftoken');
+            const url = `{% url 'reportes:exportar_operativo_pdf' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}`;
+
+            const res = await fetch(url, { 
+                method:'POST', 
+                headers:{ 'Content-Type':'application/json', 'X-CSRFToken': csrftoken }, 
+                body: JSON.stringify({ chart_image: chartImage }) 
+            });
+            
+            if (!res.ok) throw new Error('Error en el servidor');
+            
+            const blob = await res.blob(); 
+            const link = document.createElement('a'); 
+            const filename = `reporte_ocupacion_{{ fecha_inicio }}.pdf`; 
+            link.href = window.URL.createObjectURL(blob); 
+            link.download = filename; 
+            link.click();
+        } catch (e) {
+            alert('Error al generar PDF');
+            console.error(e);
+        } finally {
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+    });
+</script>
+
+<style>
+    /* --- Inputs Modernos --- */
+    .form-label {
+        display: block;
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+    .form-input {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        border-radius: 8px;
+        padding: 0.6rem 1rem;
+        color: var(--text-light);
+        font-family: inherit;
+        outline: none;
+        transition: all 0.3s;
+    }
+    .form-input:focus {
+        border-color: var(--primary);
+        background: rgba(255, 255, 255, 0.1);
+    }
+    
+    /* --- Accesos Rápidos (Chips) --- */
+    .filter-chip {
+        padding: 0.4rem 0.8rem;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+        text-decoration: none;
+        transition: all 0.2s;
+    }
+    .filter-chip:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(var(--primary-rgb), 0.1);
+    }
+
+    /* --- Botones Estandarizados --- */
+    .btn {
+        border-radius: 9999px; /* Píldora */
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: 2px solid var(--primary);
+    }
+    .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4);
+    }
+
+    .btn-outline {
+        background: transparent;
+        color: var(--text-light);
+        border: 2px solid rgba(20, 164, 1, 0.3);
+    }
+    .btn-outline:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(var(--primary-rgb), 0.1);
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary { /* Usado para PDF (color rojo/danger o alternativo) */
+        background: transparent;
+        color: #ff6b6b;
+        border: 2px solid #ff6b6b;
+    }
+    .btn-secondary:hover {
+        background: #ff6b6b;
+        color: white;
+        transform: translateY(-1px);
+    }
+
+    .btn-sm {
+        padding: 0.4rem 1rem;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
