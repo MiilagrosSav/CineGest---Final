@@ -11,6 +11,7 @@
                 <th style="padding: var(--space-sm);">Horario</th>
                 <th style="padding: var(--space-sm); text-align: center;">Prioridad</th>
                 <th style="padding: var(--space-sm); text-align: center;">Validez</th>
+                <th style="padding: var(--space-sm); text-align: center;">Yield (h)</th>
             </tr>
         </thead>
         <tbody>
@@ -42,6 +43,13 @@
                 <td style="padding: var(--space-sm);">{{ politica.hora_inicio_rango|time:"H:i" }} - {{ politica.hora_fin_rango|time:"H:i" }}</td>
                 <td style="padding: var(--space-sm); text-align: center;">{{ politica.prioridad }}</td>
                 <td style="padding: var(--space-sm); text-align: center;">{{ politica.minutos_validez }}m</td>
+                <td style="padding: var(--space-sm); text-align: center;">
+                    {% if politica.horas_antes_de_funcion %}
+                        <span style="color: #4ecdc4;">{{ politica.horas_antes_de_funcion }}</span>
+                    {% else %}
+                        <span style="opacity: 0.4;">∞</span>
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>

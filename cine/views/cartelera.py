@@ -19,6 +19,29 @@ def cartelera_view(request):
     Muestra todas las funciones disponibles ordenadas por fecha.
     Incluye filtros por género, formato, fecha y búsqueda.
     """
+    # Limpiar promociones de sesión si el usuario llega a cartelera de forma normal
+    # (no desde activación de link). Esto evita que promociones antiguas se queden pegadas.
+    if 'promo_activa_id' in request.session or 'promo_token' in request.session:
+        # Verificar si viene de activación reciente (último minuto)
+        promo_activada_recientemente = request.session.get('promo_activada_timestamp')
+        if promo_activada_recientemente:
+            import datetime
+            try:
+                timestamp = datetime.datetime.fromisoformat(promo_activada_recientemente)
+                ahora = timezone.now()
+                if (ahora - timestamp).total_seconds() > 60:  # Más de 1 minuto
+                    # Limpiar promoción antigua
+                    request.session.pop('promo_activa_id', None)
+                    request.session.pop('promo_token', None)
+                    request.session.pop('promo_activada_timestamp', None)
+                    request.session.modified = True
+            except:
+                # Error parseando timestamp, limpiar por seguridad
+                request.session.pop('promo_activa_id', None)
+                request.session.pop('promo_token', None)
+                request.session.pop('promo_activada_timestamp', None)
+                request.session.modified = True
+    
     # Obtener funciones futuras (desde hoy en adelante)
     ahora = timezone.now()
 
@@ -123,6 +146,9 @@ def cartelera_view(request):
             'es_hoy': i == 0
         })
     
+    # Sólo exponer intercambio_for si validamos la venta para este usuario
+    contexto_intercambio_for = intercambio_venta.id_venta if intercambio_venta else None
+
     context = {
         'peliculas_con_funciones': peliculas_con_funciones.values(),
         'total_funciones': funciones.count(),
@@ -136,7 +162,7 @@ def cartelera_view(request):
         'filtro_search': search,
         'filtro_orden': orden,
         # Soporte para modo intercambio: ?intercambio_for=<venta_id>
-        'intercambio_for': intercambio_for if intercambio_for else None,
+        'intercambio_for': contexto_intercambio_for,
         'intercambio_venta': intercambio_venta,
     }
     

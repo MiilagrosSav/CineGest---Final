@@ -70,11 +70,11 @@
                     <tbody>
                         {% for cupon in cupones_recientes %}
                         <tr class="cupon-row" style="border-bottom: 1px solid var(--glass-border);">
-                            <td style="padding: var(--space-sm); font-weight: 500;">{{ cupon.cliente.usuario.email }}</td>
+                            <td style="padding: var(--space-sm); font-weight: 500;">{{ cupon.cliente__usuario__email }}</td>
                             <td style="padding: var(--space-sm);">
                                 <span class="token-badge">{{ cupon.token }}</span>
                             </td>
-                            <td style="padding: var(--space-sm);">{{ cupon.politica_origen.nombre }}</td>
+                            <td style="padding: var(--space-sm);">{{ cupon.politica_origen__nombre }}</td>
                             <td style="padding: var(--space-sm);">
                                 {% if cupon.usado %}
                                     <span class="estado-badge estado-usado">✓ Usado</span>

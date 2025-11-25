@@ -73,9 +73,32 @@
             {% endif %}
             
             <hr style="margin: var(--space-lg) 0; border-color: rgba(255,255,255,0.1);">
-            <p style="font-size: 1.5rem; font-weight: 600; color: var(--primary); text-align: right;">
-                <strong>💰 Total:</strong> ${{ venta.calcular_total }}
-            </p>
+            <div style="text-align: right; margin-bottom: var(--space-sm);">
+                {% comment %} Use formatted display variables for consistent formatting {% endcomment %}
+                {% if tiene_descuento %}
+                    <p style="margin:0; color: #888;">Precio original: <s>${{ original_total_display }}</s></p>
+                    <div style="display:flex; align-items:center; gap:0.75rem; justify-content:center;">
+                        <span style="background: #e6ffed; color: #065f46; padding:0.35rem 0.6rem; border-radius:999px; font-weight:700;">¡Ahorraste ${{ ahorro_display }}!</span>
+                        {% if applied_promo_tipo == '2X1' and unidades_pagadas_2x1 %}
+                            <span style="background:#f0fdf4;color:#065f46;padding:0.25rem 0.5rem;border-radius:6px;font-weight:600;">Promo 2x1 Aplicada</span>
+                        {% elif applied_promo_nombre %}
+                            <span style="background:#f0fdf4;color:#065f46;padding:0.25rem 0.5rem;border-radius:6px;font-weight:600;">{{ applied_promo_nombre }}</span>
+                        {% endif %}
+                    </div>
+                    {% if applied_promo_tipo == '2X1' and not venta.entradas.count|divisibleby:2 %}
+                        <p style="margin:6px 0 0 0; color: #0b5; font-weight:600;">¡Sugerencia: agregá una entrada más y obtenela GRATIS!</p>
+                    {% endif %}
+                    {% if applied_promo_tipo == '2X1' and unidades_pagadas_2x1 %}
+                        <p style="margin:0; color: #bbb;">Promoción: <strong>2x1</strong> — Pagás {{ unidades_pagadas_2x1 }} de {{ venta.entradas.count }} entradas</p>
+                    {% elif applied_promo_nombre %}
+                        <p style="margin:0; color: #bbb;">Promoción: <strong>{{ applied_promo_nombre }}</strong></p>
+                    {% endif %}
+                    <p style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">Total a pagar: ${{ discounted_total_display }}</p>
+                {% else %}
+                    <p style="font-size: 1.5rem; font-weight: 600; color: var(--primary);">
+                        <strong>💰 Total:</strong> ${{ discounted_total_display }}</p>
+                {% endif %}
+            </div>
             
         </div> 
         

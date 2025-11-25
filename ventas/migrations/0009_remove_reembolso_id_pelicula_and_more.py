@@ -43,52 +43,45 @@ class Migration(migrations.Migration):
             new_name='ventas_inte_funcion_75aeec_idx',
             old_name='ventas_inte_funcion_3f2a1b_idx',
         ),
-        migrations.RemoveField(
-            model_name='politicareembolso',
-            name='horas_minimas_antes_evento',
+        migrations.RunSQL(
+            sql=("ALTER TABLE IF EXISTS \"ventas_politicareembolso\" DROP COLUMN IF EXISTS \"horas_minimas_antes_evento\" CASCADE;"),
+            reverse_sql=("-- Reverse of dropping horas_minimas_antes_evento: no-op.\n"),
         ),
-        migrations.RemoveField(
-            model_name='politicareembolso',
-            name='is_active',
+        migrations.RunSQL(
+            sql=("ALTER TABLE IF EXISTS \"ventas_politicareembolso\" DROP COLUMN IF EXISTS \"is_active\" CASCADE;"),
+            reverse_sql=("-- Reverse of dropping is_active: no-op.\n"),
         ),
-        migrations.RemoveField(
-            model_name='politicareembolso',
-            name='porcentaje_reembolso',
+        migrations.RunSQL(
+            sql=("ALTER TABLE IF EXISTS \"ventas_politicareembolso\" DROP COLUMN IF EXISTS \"porcentaje_reembolso\" CASCADE;"),
+            reverse_sql=("-- Reverse of dropping porcentaje_reembolso: no-op.\n"),
         ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='activo',
-            field=models.BooleanField(default=True),
+        migrations.RunSQL(
+            sql=("ALTER TABLE IF EXISTS \"ventas_politicareembolso\" ADD COLUMN IF NOT EXISTS \"activo\" BOOLEAN DEFAULT TRUE NOT NULL;"),
+            reverse_sql=("-- reverse no-op for activo\n"),
         ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='created_at',
-            field=models.DateTimeField(default=django.utils.timezone.now),
+        migrations.RunSQL(
+            sql=("ALTER TABLE IF EXISTS \"ventas_politicareembolso\" ADD COLUMN IF NOT EXISTS \"created_at\" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL;"),
+            reverse_sql=("-- reverse no-op for created_at\n"),
         ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='dias_antes_minimo',
-            field=models.IntegerField(default=1, help_text='Número mínimo de días antes de la función para permitir intercambio'),
+        migrations.RunSQL(
+            sql=("ALTER TABLE IF EXISTS \"ventas_politicareembolso\" ADD COLUMN IF NOT EXISTS \"dias_antes_minimo\" INTEGER DEFAULT 1 NOT NULL;"),
+            reverse_sql=("-- reverse no-op for dias_antes_minimo\n"),
         ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='max_cambios_por_compra',
-            field=models.IntegerField(default=1, help_text='Máximo de intercambios permitidos por compra (0 = ilimitado)'),
+        migrations.RunSQL(
+            sql=("ALTER TABLE IF EXISTS \"ventas_politicareembolso\" ADD COLUMN IF NOT EXISTS \"max_cambios_por_compra\" INTEGER DEFAULT 1 NOT NULL;"),
+            reverse_sql=("-- reverse no-op for max_cambios_por_compra\n"),
         ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='penalidad_percent',
-            field=models.DecimalField(decimal_places=2, default=0.0, help_text='Porcentaje de penalidad aplicado al intercambio (si aplica)', max_digits=5),
+        migrations.RunSQL(
+            sql=("ALTER TABLE IF EXISTS \"ventas_politicareembolso\" ADD COLUMN IF NOT EXISTS \"penalidad_percent\" NUMERIC(5,2) DEFAULT 0.00 NOT NULL;"),
+            reverse_sql=("-- reverse no-op for penalidad_percent\n"),
         ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='permitir_intercambio',
-            field=models.BooleanField(default=True),
+        migrations.RunSQL(
+            sql=("ALTER TABLE IF EXISTS \"ventas_politicareembolso\" ADD COLUMN IF NOT EXISTS \"permitir_intercambio\" BOOLEAN DEFAULT TRUE NOT NULL;"),
+            reverse_sql=("-- reverse no-op for permitir_intercambio\n"),
         ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='updated_at',
-            field=models.DateTimeField(auto_now=True),
+        migrations.RunSQL(
+            sql=("ALTER TABLE IF EXISTS \"ventas_politicareembolso\" ADD COLUMN IF NOT EXISTS \"updated_at\" TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL;"),
+            reverse_sql=("-- reverse no-op for updated_at\n"),
         ),
         migrations.AlterField(
             model_name='politicareembolso',

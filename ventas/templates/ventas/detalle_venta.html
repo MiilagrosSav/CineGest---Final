@@ -135,10 +135,17 @@
             <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary">
                 💳 Pagar Ahora
             </a>
-            {% elif puede_intercambiar %}
-            <a href="{% url 'cine:cartelera' %}?intercambio_for={{ venta.id_venta }}" class="btn btn-secondary" style="background:#6c757d; color:white; border:none;">
-                🔁 Intercambiar Entrada
-            </a>
+            {% else %}
+                {# Mostrar el botón de intercambio siempre, pero deshabilitado con tooltip si no se permite #}
+                {% if puede_intercambiar %}
+                    <a href="{% url 'cine:cartelera' %}?intercambio_for={{ venta.id_venta }}" class="btn btn-secondary" style="background:#6c757d; color:white; border:none;">
+                        🔁 Intercambiar Entrada
+                    </a>
+                {% else %}
+                    <button class="btn btn-secondary" style="background:#6c757d; color:white; border:none; opacity:0.6; cursor:not-allowed;" title="{{ motivo_no_intercambio|default:'Intercambio no disponible' }}" disabled>
+                        🔁 Intercambiar Entrada
+                    </button>
+                {% endif %}
             {% endif %}
             <a href="{% url 'ventas:mis_ventas' %}" class="btn btn-outline">
                 Volver

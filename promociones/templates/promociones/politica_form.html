@@ -101,6 +101,15 @@
                 </div>
             </div>
 
+            <div class="form-group" style="margin-top: 1.5rem; padding: 1rem; background: rgba(78, 205, 196, 0.05); border-radius: var(--radius); border: 1px solid rgba(78, 205, 196, 0.2);">
+                <label for="{{ form.horas_antes_de_funcion.id_for_label }}" class="form-label">
+                    ⏱️ {{ form.horas_antes_de_funcion.label }}
+                </label>
+                {{ form.horas_antes_de_funcion }}
+                {% if form.horas_antes_de_funcion.errors %}<span class="form-error">⚠️ {{ form.horas_antes_de_funcion.errors.0 }}</span>{% endif %}
+                <small class="form-text">{{ form.horas_antes_de_funcion.help_text }}</small>
+            </div>
+
             <div style="display: flex; gap: var(--space-md); margin-top: 2rem;">
                 <button type="submit" class="btn btn-primary" style="flex: 1;">{{ nombre_boton }}</button>
                 <button type="button" id="btn-cancelar" data-href="{% url 'promociones:politica_list' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">Cancelar</button>

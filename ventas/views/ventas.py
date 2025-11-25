@@ -110,13 +110,27 @@ def detalle_venta(request, venta_id):
     # - La política, si existe, debe permitir el intercambio
     politica = PoliticaReembolso.objects.filter(activo=True).first()
     puede_intercambiar = False
-    if venta.estado == 'CONFIRMADA' and getattr(venta, 'pago', None):
-        if entradas_canceladas.count() == 0:
-            if politica:
-                permite, motivo = politica.permite_intercambio_para_venta(venta)
-                puede_intercambiar = permite
-            else:
+    motivo_no_intercambio = None
+
+    # Evaluar condiciones y proporcionar motivo legible cuando no se permite
+    if venta.estado != 'CONFIRMADA':
+        motivo_no_intercambio = 'La venta no está confirmada.'
+    elif entradas_canceladas.count() > 0:
+        motivo_no_intercambio = 'La venta ya tiene intercambios previos (entradas canceladas).'
+    elif not getattr(venta, 'pago', None):
+        motivo_no_intercambio = 'No se encontró un pago registrado para esta venta.'
+    else:
+        # Si hay política activa, delegar validación
+        if politica:
+            permite, motivo = politica.permite_intercambio_para_venta(venta)
+            if permite:
                 puede_intercambiar = True
+            else:
+                puede_intercambiar = False
+                motivo_no_intercambio = motivo or 'La política vigente no permite intercambio para esta venta.'
+        else:
+            # Sin política, permitir por defecto
+            puede_intercambiar = True
 
     context = {
         'venta': venta,

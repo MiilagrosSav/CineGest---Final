@@ -116,7 +116,7 @@ class PoliticaPromocionForm(forms.ModelForm):
 
     class Meta:
         model = PoliticaPromocion
-        fields = ['nombre', 'activa', 'promocion_a_otorgar', 'genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango', 'dias_semana', 'prioridad', 'minutos_validez']
+        fields = ['nombre', 'activa', 'promocion_a_otorgar', 'genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango', 'dias_semana', 'prioridad', 'minutos_validez', 'horas_antes_de_funcion']
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'activa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -126,6 +126,7 @@ class PoliticaPromocionForm(forms.ModelForm):
             'hora_fin_rango': forms.TimeInput(attrs={'class': 'form-control', 'type': 'time'}),
             'prioridad': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'minutos_validez': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'horas_antes_de_funcion': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'dias_semana': forms.CheckboxSelectMultiple(),
         }
         labels = {
@@ -137,6 +138,10 @@ class PoliticaPromocionForm(forms.ModelForm):
             'hora_fin_rango': 'Hora fin (rango)',
             'prioridad': 'Prioridad',
             'minutos_validez': 'Minutos de validez del cupón',
+            'horas_antes_de_funcion': 'Horas antes de función (yield management)',
+        }
+        help_texts = {
+            'horas_antes_de_funcion': 'Opcional: Solo enviar promoción si faltan menos de X horas para la función. Dejar vacío para enviar siempre.',
         }
 
     def __init__(self, *args, **kwargs):

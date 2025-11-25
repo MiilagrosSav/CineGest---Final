@@ -1,14 +1,124 @@
-<html>
-  <body>
-    <p>Hola {{ usuario.get_full_name|default:usuario.username }},</p>
-    <p>Tenemos una oferta por tiempo limitado: <strong>{{ promocion.nombre }}</strong></p>
-    <p>{{ promocion.descripcion }}</p>
-    <p>Usá este cupón único para canjear la oferta:</p>
-    <p><strong>{{ cupon.token }}</strong></p>
-    <p>Canjealo aquí: <a href="{{ link }}">{{ link }}</a></p>
-    {% if funcion %}
-    <p>La oferta aplica para la función: {{ funcion.pelicula.titulo }} — {{ funcion.fecha_hora }}</p>
-    {% endif %}
-    <p>Saludos,<br/>El equipo de {{ site_name }}</p>
-  </body>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡Tenés un regalo de CineGest!</title>
+    <style>
+        /* Reset básico limpio */
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+        table { border-collapse: collapse !important; }
+        body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; font-family: 'Helvetica', 'Arial', sans-serif; background-color: #121212; }
+        
+        /* Botón con hover simulado */
+        .button-primary:hover { background-color: #7B1FA2 !important; }
+    </style>
+</head>
+<body style="margin: 0 !important; padding: 0 !important; background-color: #121212;">
+
+<table border="0" cellpadding="0" cellspacing="0" width="100%">
+    <tr>
+        <td bgcolor="#121212" align="center">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;" class="wrapper">
+                <tr>
+                    <td align="center" valign="top" style="padding: 40px 0 30px 0;">
+                        <h1 style="margin: 0; font-size: 32px; font-weight: 800; color: #9B59B6; letter-spacing: 1px; font-family: sans-serif;">CineGest 🍿</h1>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td bgcolor="#121212" align="center" style="padding: 0 10px 0 10px;">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;">
+                <tr>
+                    <td bgcolor="#1e1e1e" style="padding: 40px 30px; border-radius: 16px; border: 1px solid #333333; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+                        <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                            
+                            <tr>
+                                <td align="center" style="color: #ffffff; font-family: sans-serif; font-size: 24px; font-weight: 700; padding-bottom: 20px;">
+                                    ¡Hola, {{ usuario.get_full_name|default:usuario.username }}! 👋
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td align="center" style="color: #b0b0b0; font-family: sans-serif; font-size: 16px; line-height: 24px; padding-bottom: 30px;">
+                                    Queremos premiarte por ser parte de nuestra comunidad. Hemos preparado un beneficio especial solo para vos:
+                                </td>
+                            </tr>
+                            
+                            <tr>
+                                <td align="center">
+                                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #251829; border-radius: 12px; border: 1px solid #9B59B6;">
+                                        <tr>
+                                            <td align="center" style="padding: 30px;">
+                                                <p style="margin: 0 0 10px 0; color: #ffc107; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;">
+                                                    🎁 TU REGALO EXCLUSIVO
+                                                </p>
+                                                
+                                                <h2 style="margin: 0 0 15px 0; color: #ffffff; font-size: 32px; font-weight: 800; letter-spacing: -0.5px;">
+                                                    {{ promocion.nombre }}
+                                                </h2>
+                                                
+                                                <p style="margin: 0; color: #e0e0e0; font-size: 17px; line-height: 1.5;">
+                                                    {{ promocion.descripcion }}
+                                                </p>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+
+                            {% if funcion %}
+                            <tr>
+                                <td style="padding-top: 25px;">
+                                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #2a2a2a; border-radius: 8px; padding: 15px;">
+                                        <tr>
+                                            <td width="40" align="center" style="font-size: 24px;">🎬</td>
+                                            <td style="color: #ffffff; font-family: sans-serif; font-size: 14px; line-height: 20px;">
+                                                <strong>Función disponible:</strong><br>
+                                                {{ funcion.pelicula.titulo }} — {{ funcion.fecha_hora|date:"d/m H:i" }} hs
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            {% endif %}
+
+                            <tr>
+                                <td align="center" style="padding-top: 40px;">
+                                    <p style="margin: 0 0 20px 0; color: #888888; font-size: 14px;">
+                                        Hacé clic abajo para activar tu beneficio automáticamente:
+                                    </p>
+                                    <table border="0" cellspacing="0" cellpadding="0">
+                                        <tr>
+                                            <td align="center" style="border-radius: 50px;" bgcolor="#9B59B6">
+                                                <a href="{{ link }}" target="_blank" style="font-size: 16px; font-family: sans-serif; color: #ffffff; text-decoration: none; padding: 16px 40px; border-radius: 50px; border: 1px solid #9B59B6; display: inline-block; font-weight: bold; text-transform: uppercase; box-shadow: 0 4px 15px rgba(155, 89, 182, 0.4);">
+                                                    ✨ Activar Descuento
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+
+                        </table>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td align="center" style="padding: 30px 0 0 0; color: #666666; font-family: sans-serif; font-size: 12px; line-height: 18px;">
+                        <p style="margin: 0;">Este enlace es personal e intransferible.</p>
+                        <p style="margin: 10px 0 0 0;">
+                            &copy; {% now "Y" %} <strong>CineGest</strong>. Todos los derechos reservados.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+</body>
 </html>

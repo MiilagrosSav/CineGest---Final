@@ -60,6 +60,15 @@ class Promocion(models.Model):
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
 
+    def save(self, *args, **kwargs):
+        """
+        Override save para garantizar que 2x1 siempre tenga valor_descuento=50.
+        Esto evita errores en cálculos y reportes que esperan un número.
+        """
+        if self.tipo_descuento == '2X1':
+            self.valor_descuento = 50
+        super().save(*args, **kwargs)
+    
     def clean(self):
         """
         Seguridad: evitar que el campo `codigo` sea modificado si existen
