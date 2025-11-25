@@ -1,0 +1,20 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Canje de Promoción{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 800px; margin: 3rem auto;">
+    <div class="card glass-container" style="padding: 2rem;">
+        <h2>Canje de Promoción</h2>
+        {% if estado == 'ok' %}
+            <p>¡Listo! Tu cupón fue validado y marcado como usado. Aprovechá la oferta: <strong>{{ promocion.nombre }}</strong></p>
+            <p>Si querés revisarla en el panel, <a href="{% url 'promociones:promocion_list' %}">ver promociones</a>.</p>
+        {% elif estado == 'expirado' %}
+            <p>Lo sentimos, este enlace ha expirado o no es válido.</p>
+        {% else %}
+            <p>Enlace inválido o cupón no encontrado.</p>
+        {% endif %}
+        <p style="margin-top: 1.5rem;"><a class="btn btn-outline" href="/">Volver al inicio</a></p>
+    </div>
+</div>
+{% endblock %}

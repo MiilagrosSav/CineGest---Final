@@ -38,11 +38,21 @@ class PoliticaPromocion(models.Model):
     dias_semana = models.CharField(max_length=32, blank=True, default='',
                                   help_text='Días permitidos como CSV de índices (0=Lunes,..6=Domingo). Ej: "0,2,4"')
 
-    # Nuevo: prioridad para desempate (mayor => se elige primero)
-    prioridad = models.PositiveIntegerField(default=0, help_text='Prioridad de la política (mayor gana)')
+    # Nuevo: prioridad para desempate (1 = mayor prioridad). Ordenar ascendente.
+    prioridad = models.PositiveIntegerField(
+        default=100,
+        help_text='Prioridad de la política (1 = mayor prioridad; ordenar ascendente). Valor por defecto=100 (baja prioridad)'
+    )
 
     # Nuevo: minutos de validez del cupón generado
     minutos_validez = models.PositiveIntegerField(default=60, help_text='Minutos que el enlace del cupón será válido')
+    
+    # Yield Management: ventana de urgencia
+    horas_antes_de_funcion = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text='Horas mínimas antes de la función para disparar el envío. Si no se define, envía siempre.'
+    )
 
     class Meta:
         db_table = 'promociones_politicapromocion'

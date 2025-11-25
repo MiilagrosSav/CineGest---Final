@@ -40,7 +40,6 @@ def procesar_compra(request, funcion_id):
             cliente, created = Cliente.objects.get_or_create(
                 usuario=request.user,
                 defaults={
-                    'direccion': '',  # Valores opcionales para Cliente
                     'fecha_nacimiento': None,
                 }
             )
@@ -52,11 +51,11 @@ def procesar_compra(request, funcion_id):
                 estado='PENDIENTE'
             )
             
-            # Verificar que las butacas estén disponibles y crear las entradas
+            # Verificar que las butacas estén disponibles y crear/reutilizar las entradas
             for butaca_id in butacas_ids:
                 butaca = get_object_or_404(Butaca, id=butaca_id)
                 
-                # Verificar que la butaca no esté ocupada
+                # Verificar que la butaca no esté ocupada (RESERVADA o VENDIDA)
                 entrada_existente = Entrada.objects.filter(
                     id_funcion=funcion,
                     id_butaca=butaca,
@@ -66,15 +65,30 @@ def procesar_compra(request, funcion_id):
                 if entrada_existente:
                     raise Exception(f'La butaca {butaca.fila}{butaca.numero} ya está ocupada.')
                 
-                # Crear la entrada
-                Entrada.objects.create(
-                    id_venta=venta,
+                # Buscar entrada CANCELADA que podamos reutilizar
+                entrada_cancelada = Entrada.objects.filter(
                     id_funcion=funcion,
-                    id_sala=funcion.sala,
                     id_butaca=butaca,
-                    id_pelicula=funcion.pelicula,
-                    estado='RESERVADA'
-                )
+                    estado='CANCELADA'
+                ).first()
+                
+                if entrada_cancelada:
+                    # Reutilizar entrada cancelada
+                    entrada_cancelada.id_venta = venta
+                    entrada_cancelada.estado = 'RESERVADA'
+                    entrada_cancelada.reservado_por = request.user
+                    entrada_cancelada.save()
+                else:
+                    # Crear nueva entrada si no hay canceladas
+                    Entrada.objects.create(
+                        id_venta=venta,
+                        id_funcion=funcion,
+                        id_sala=funcion.sala,
+                        id_butaca=butaca,
+                        id_pelicula=funcion.pelicula,
+                        estado='RESERVADA',
+                        reservado_por=request.user
+                    )
             
             messages.success(request, f'✅ Se creó tu reserva con {len(butacas_ids)} entrada(s). ¡Ahora procede al pago!')
             
@@ -107,10 +121,30 @@ def confirmar_compra(request, funcion_id):
     # Obtener las butacas seleccionadas
     butacas = Butaca.objects.filter(id__in=butacas_ids)
     
-    # Calcular el total
-    total, promo_aplicada, detalle = calcular_precio_final(funcion, len(butacas_ids))
+    # -----------------------------------------------------------
+    # CORRECCIÓN: Recuperar el cupón de la sesión
+    # -----------------------------------------------------------
+    from promociones.models.promocion import Promocion
+    
+    promo_id = request.session.get('promo_activa_id')
+    promo_obj = None
+    
+    if promo_id:
+        # Buscamos la promoción real en la base de datos
+        promo_obj = Promocion.objects.filter(pk=promo_id).first()
+
+    # -----------------------------------------------------------
+    # LLAMADA CORREGIDA: Pasamos 'promocion_especifica'
+    # -----------------------------------------------------------
+    # Ahora sí la calculadora sabe que tiene que aplicar el 2x1
+    total, promo_aplicada, detalle = calcular_precio_final(
+        funcion, 
+        len(butacas_ids), 
+        promocion_especifica=promo_obj  # <--- ¡ESTA ES LA CLAVE!
+    )
 
     precio_unitario_final = detalle.get('precio_unitario_final')
+    
     context = {
         'funcion': funcion,
         'butacas': butacas,
@@ -123,7 +157,7 @@ def confirmar_compra(request, funcion_id):
         'butacas_ids': butacas_ids,
     }
     
-    return render(request, 'ventas/confirmar_compra.html', context)
+    return render(request, 'ventas/iniciar_pago.html', context)
 
 
 @login_required

@@ -229,6 +229,62 @@ class NotificacionService:
             self.logger.warning('Cliente sin email, se omite el envío de oferta')
             return False
 
+        # Seguridad de negocio: sólo enviar ofertas si la promoción está
+        # referenciada por al menos una PoliticaPromocion activa.
+        # Esto evita que promociones "sueltas" creadas en la tabla `Promocion`
+        # sean enviadas masivamente por error.
+        try:
+            if promocion is None:
+                self.logger.warning('No hay promoción asociada al envío de oferta; se omite.')
+                return False
+            # Import local para evitar importaciones circulares
+            from promociones.models.politicaPromocion import PoliticaPromocion
+            politicas_qs = PoliticaPromocion.objects.filter(promocion_a_otorgar=promocion)
+            politicas_ids = list(politicas_qs.values_list('pk', flat=True))
+            tiene_politica = politicas_qs.filter(activa=True).exists()
+            # Sólo enviar promociones que vienen de políticas y que son del tipo 'cupón'
+            # (es_automatica == False). Las promociones marcadas como automáticas
+            # aplican en el flujo de compra pero NO deben enviarse por email.
+            if not tiene_politica:
+                # Si no existe PoliticaPromocion activa referenciando la promoción,
+                # permitir el envío únicamente si se nos pasó un `cupon` y ese cupón
+                # tiene `politica_origen` activa que referencia esta promoción.
+                try:
+                    politica_desde_cupon = getattr(cupon, 'politica_origen', None)
+                    if politica_desde_cupon and getattr(politica_desde_cupon, 'activa', False):
+                        # Verificar que la política del cupón apunte a la misma promoción
+                        try:
+                            promo_from_politica = getattr(politica_desde_cupon, 'promocion_a_otorgar', None)
+                            if promo_from_politica and getattr(promo_from_politica, 'pk', None) == getattr(promocion, 'pk', None):
+                                self.logger.info('Promoción %s no tiene PoliticaPromocion activa global, pero se permite envío porque el cupón proviene de Politica %s activa.', getattr(promocion, 'pk', None), getattr(politica_desde_cupon, 'pk', None))
+                                tiene_politica = True
+                        except Exception:
+                            self.logger.exception('Error validando politica_origen del cupon para promocion %s', getattr(promocion, 'pk', None))
+                except Exception:
+                    self.logger.exception('Error accediendo a atributo politica_origen del cupon para promocion %s', getattr(promocion, 'pk', None))
+
+            if not tiene_politica:
+                # Log detallado: listar políticas encontradas (si las hay) y estado
+                if politicas_ids:
+                    self.logger.warning(
+                        'Promoción %s tiene PoliticaPromocion(s) %s pero ninguna activa. No se envía oferta.',
+                        getattr(promocion, 'pk', None), politicas_ids
+                    )
+                else:
+                    self.logger.warning('Promoción %s no referenciada por ninguna PoliticaPromocion. No se envía oferta.', getattr(promocion, 'pk', None))
+                return False
+            try:
+                es_auto = getattr(promocion, 'es_automatica', False)
+                if es_auto:
+                    self.logger.warning('Promoción %s es automática (es_automatica=True); no se envían emails automáticos para promociones automáticas.', getattr(promocion, 'pk', None))
+                    return False
+            except Exception:
+                # En caso de problemas leyendo el atributo, cancelar el envío
+                self.logger.exception('Error leyendo atributo es_automatica para promocion %s. Cancelando envío.', getattr(promocion, 'pk', None))
+                return False
+        except Exception:
+            self.logger.exception('Error validando PoliticaPromocion para promocion %s; se cancela el envío.', getattr(promocion, 'pk', None))
+            return False
         context = {
             'cliente': cliente,
             'usuario': usuario,

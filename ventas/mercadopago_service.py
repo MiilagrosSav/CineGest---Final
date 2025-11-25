@@ -6,6 +6,7 @@ Maneja la creación de preferencias de pago y procesamiento de pagos
 import mercadopago
 from django.conf import settings
 from django.urls import reverse
+from promociones.models.cuponGenerado import CuponGenerado
 
 
 class MercadoPagoService:
@@ -30,19 +31,34 @@ class MercadoPagoService:
         Returns:
             dict: Respuesta de Mercado Pago con la preferencia creada
         """
-        # Calcular el monto total de la venta
-        total = venta.calcular_total()
+        # Calcular el monto total de la venta (pasamos request para aplicar posible promoción en sesión)
+        # Antes de crear la preferencia, si existe `promo_token` en sesión, asociar el cupón a la venta
+        total = venta.calcular_total(request)
+        try:
+            promo_token = None
+            if request is not None:
+                promo_token = request.session.get('promo_token')
+            if promo_token:
+                cupon = CuponGenerado.objects.filter(token=str(promo_token)).first()
+                if cupon:
+                    venta.cupon_utilizado = cupon
+                    venta.save()
+        except Exception:
+            # No queremos bloquear la creación de la preferencia si hay un problema con el cupón
+            pass
         
-        # Crear los items de la preferencia
-        items = []
-        for entrada in venta.entradas.all():
-            items.append({
-                "title": f"Entrada - {entrada.id_funcion.pelicula.titulo}",
-                "description": f"Sala {entrada.id_sala.numero} - Butaca {entrada.id_butaca.fila}{entrada.id_butaca.numero}",
-                "quantity": 1,
-                "unit_price": float(entrada.id_funcion.precio_base),
-                "currency_id": "ARS"  # Cambiar según tu país
-            })
+        # Crear los items de la preferencia usando el total calculado con promociones
+        # En lugar de listar cada entrada individual, crear un solo item con el total
+        cantidad_entradas = venta.entradas.count()
+        primera_entrada = venta.entradas.first()
+        
+        items = [{
+            "title": f"Entradas - {primera_entrada.id_funcion.pelicula.titulo}" if primera_entrada else "Entradas de Cine",
+            "description": f"{cantidad_entradas} entrada(s) para {primera_entrada.id_funcion.pelicula.titulo}" if primera_entrada else f"{cantidad_entradas} entrada(s)",
+            "quantity": 1,
+            "unit_price": float(total),
+            "currency_id": "ARS"
+        }]
         
         # URLs de retorno - construir manualmente para asegurar que funcionen
         # Forzar HTTPS para ngrok (Mercado Pago requiere HTTPS)

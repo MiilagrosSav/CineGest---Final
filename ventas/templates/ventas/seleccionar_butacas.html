@@ -3,7 +3,7 @@
 {% block title %}Seleccionar Butacas - CineGest{% endblock %}
 
 {% block content %}
-<div id="precio-data" data-precio="{{ precio }}" style="display:none;"></div>
+<div id="precio-data" data-precio="{{ precio }}" data-precio-base="{{ precio_base|default:precio }}" style="display:none;"></div>
 
 <style>
     /* ... (tus estilos existentes .pantalla, .mapa-butacas, .butaca, .leyenda, etc. van aquí sin cambios) ... */
@@ -296,8 +296,22 @@
                 
                 <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-sm);">
                     <span>Precio unitario:</span>
-                    <span>${{ precio }}</span>
+                    <span id="precioUnitarioMostrado">${{ precio }}</span>
                 </div>
+                
+                {% if info_descuento %}
+                <div style="background: rgba(78, 205, 196, 0.1); border-left: 3px solid #4ecdc4; padding: var(--space-sm); margin-bottom: var(--space-sm); border-radius: 4px;">
+                    <div style="font-size: 0.9rem; color: #4ecdc4; font-weight: 600; margin-bottom: 4px;">
+                        {{ info_descuento.descripcion }}
+                    </div>
+                    {% if precio_base and precio != precio_base %}
+                    <div style="display: flex; justify-content: space-between; font-size: 0.85rem; opacity: 0.8; margin-top: 4px;">
+                        <span>Precio original:</span>
+                        <span style="text-decoration: line-through;">${{ precio_base }}</span>
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
                 
                 <hr style="border-color: rgba(255,255,255,0.2); margin: var(--space-md) 0;">
                 
@@ -323,9 +337,17 @@
     const precioUnitario = parseFloat(document.getElementById('precio-data').getAttribute('data-precio'));
     const cantidadNecesariaEl = document.getElementById('cantidad-data');
     const cantidadNecesaria = cantidadNecesariaEl ? parseInt(cantidadNecesariaEl.getAttribute('data-cantidad')) : null;
+    const promo2x1El = document.getElementById('promo-2x1-data');
+    const promo2x1 = promo2x1El ? (promo2x1El.getAttribute('data-promo-2x1') === 'true') : false;
+    
+    // Leer información de descuento
+    const infoDescuentoEl = document.getElementById('info-descuento-data');
+    const tipoDescuento = infoDescuentoEl ? infoDescuentoEl.getAttribute('data-tipo') : null;
+    const precioConDescuento = infoDescuentoEl ? parseFloat(infoDescuentoEl.getAttribute('data-precio-con-descuento')) : null;
+    
     let butacasSeleccionadas = [];
     
-    console.log('Script cargado. Precio unitario:', precioUnitario);
+    console.log('Script cargado. Precio unitario:', precioUnitario, 'Tipo descuento:', tipoDescuento);
     
     function toggleButaca(elemento) {
         console.log('Toggle butaca clickeada:', elemento);
@@ -363,8 +385,19 @@
     
     function actualizarResumen() {
         const cantidad = butacasSeleccionadas.length;
-        const total = cantidad * precioUnitario;
-        console.log('Actualizando resumen. Cantidad:', cantidad, 'Total:', total);
+        
+        // Calcular total según tipo de descuento
+        let total = cantidad * precioUnitario;
+        
+        if (tipoDescuento === '2X1' && cantidad === 2) {
+            // Para 2x1: cobrar solo 1 entrada cuando hay 2
+            total = precioUnitario;
+        } else if (tipoDescuento === 'PORCENTAJE' || tipoDescuento === 'MONTO_FIJO') {
+            // Para porcentaje o monto fijo, el precio ya está calculado en precioUnitario
+            total = cantidad * precioUnitario;
+        }
+        
+        console.log('Actualizando resumen. Cantidad:', cantidad, 'Total:', total, 'Tipo:', tipoDescuento);
         
         document.getElementById('cantidadButacas').textContent = cantidad;
         document.getElementById('totalCompra').textContent = `$${total.toFixed(2)}`;
@@ -376,10 +409,13 @@
             console.log('Sin butacas seleccionadas, botón deshabilitado');
         } else {
             let html = '<div style="display: flex; flex-direction: column; gap: 0.5rem;">';
-            butacasSeleccionadas.forEach(butaca => {
+            butacasSeleccionadas.forEach((butaca, idx) => {
+                // Si es 2x1 y es la segunda butaca, mostrar como gratis
+                const precio = (tipoDescuento === '2X1' && cantidad === 2 && idx === 1) ? 0 : precioUnitario;
+                const precioTexto = precio === 0 ? 'GRATIS 🎉' : `$${precio.toFixed(2)}`;
                 html += `<div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
                     <span>💺 Butaca ${butaca.fila}${butaca.numero}</span>
-                    <span style="color: var(--primary);">$${precioUnitario.toFixed(2)}</span>
+                    <span style="color: ${precio === 0 ? 'var(--accent)' : 'var(--primary)'};">${precioTexto}</span>
                 </div>`;
             });
             html += '</div>';
@@ -464,5 +500,14 @@
 </script>
 {% if cantidad_requerida %}
 <div id="cantidad-data" data-cantidad="{{ cantidad_requerida }}" style="display:none"></div>
+{% endif %}
+{% if promo_2x1 %}
+<div id="promo-2x1-data" data-promo-2x1="true" data-promo-codigo="{{ promo_codigo }}" style="display:none"></div>
+{% endif %}
+{% if info_descuento %}
+<div id="info-descuento-data" 
+     data-tipo="{{ info_descuento.tipo }}" 
+     data-precio-con-descuento="{{ info_descuento.precio_con_descuento }}"
+     style="display:none"></div>
 {% endif %}
 {% endblock %}

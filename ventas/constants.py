@@ -4,18 +4,20 @@ Constantes compartidas para el módulo de ventas
 
 # Estados de Entrada
 class EstadoEntrada:
+    PENDIENTE = 'PENDIENTE'
     RESERVADA = 'RESERVADA'
     VENDIDA = 'VENDIDA'
     USADA = 'USADA'
     CANCELADA = 'CANCELADA'
     EXPIRADA = 'EXPIRADA'
     
-    ESTADOS_ACTIVOS = [RESERVADA, VENDIDA, USADA]
-    ESTADOS_OCUPADOS = [RESERVADA, VENDIDA, USADA]  # Estados que bloquean una butaca
+    ESTADOS_ACTIVOS = [PENDIENTE, RESERVADA, VENDIDA, USADA]
+    ESTADOS_OCUPADOS = [PENDIENTE, RESERVADA, VENDIDA, USADA]  # Estados que bloquean una butaca
     
     @classmethod
     def choices(cls):
         return [
+            (cls.PENDIENTE, 'Pendiente'),
             (cls.RESERVADA, 'Reservada'),
             (cls.VENDIDA, 'Vendida'),
             (cls.USADA, 'Usada'),

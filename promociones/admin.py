@@ -21,7 +21,7 @@ class FuncionPromocionAdmin(admin.ModelAdmin):
 
 @admin.register(PoliticaPromocion)
 class PoliticaPromocionAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'activa', 'promocion_a_otorgar', 'genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango')
+    list_display = ('nombre', 'activa', 'promocion_a_otorgar', 'genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango', 'horas_antes_de_funcion')
     search_fields = ('nombre',)
     list_filter = ('activa', 'genero_pelicula')
     readonly_fields = ()
@@ -31,6 +31,10 @@ class PoliticaPromocionAdmin(admin.ModelAdmin):
         }),
         ('Condiciones de Activación', {
             'fields': ('genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango')
+        }),
+        ('Yield Management', {
+            'fields': ('horas_antes_de_funcion',),
+            'description': 'Solo enviar promociones si faltan menos de X horas para la función.'
         }),
     )
 

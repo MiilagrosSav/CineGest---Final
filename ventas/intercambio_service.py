@@ -252,6 +252,13 @@ class IntercambioService:
                     # 4. Crear nuevas entradas
                     nuevas_entradas = []
                     for butaca in butacas_locked:
+                        # 1. LIMPIEZA: Borramos entradas viejas (zombies) que estorben
+                        Entrada.objects.filter(
+                            id_funcion=funcion_destino,
+                            id_butaca=butaca,
+                            estado__in=[EstadoEntrada.CANCELADA, EstadoEntrada.EXPIRADA] 
+                        ).delete()
+                        # 2. CREACIÓN: Nueva entrada
                         entrada = Entrada.objects.create(
                             id_venta=venta,
                             id_funcion=funcion_destino,
