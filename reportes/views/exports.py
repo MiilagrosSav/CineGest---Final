@@ -140,15 +140,21 @@ def exportar_operativo_pdf(request):
     
     # Obtener datos usando selectores
     occ_data = get_datos_ocupacion(start_dt, end_dt)
-    # Accept optional chart image via POST JSON
+    # Accept optional chart/heatmap/marketing images via POST JSON
     chart_base64 = None
+    heatmap_base64 = None
+    marketing_base64 = None
     if request.method == 'POST':
         try:
             import json as _json
             payload = _json.loads(request.body.decode('utf-8') or '{}')
             chart_base64 = payload.get('chart_image')
+            heatmap_base64 = payload.get('heatmap_image')
+            marketing_base64 = payload.get('marketing_image')
         except Exception:
             chart_base64 = None
+            heatmap_base64 = None
+            marketing_base64 = None
 
     # Build a robust display name for the requesting user
     requested_by = None
@@ -167,6 +173,8 @@ def exportar_operativo_pdf(request):
     buffer = generar_pdf_operativo(
         occ_data, fecha_inicio, fecha_fin,
         chart_base64=chart_base64,
+        heatmap_base64=heatmap_base64,
+        marketing_base64=marketing_base64,
         requested_by=requested_by
     )
     

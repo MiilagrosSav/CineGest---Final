@@ -67,6 +67,7 @@ def reporte_financiero_view(request):
 
     kpis = get_kpis(start_dt, end_dt)
     fin_data = get_datos_financieros(start_dt, end_dt, limit=50)
+    # Métricas avanzadas (moved to ocupacion view)
 
     context = {
         'kpis': kpis,
@@ -138,8 +139,25 @@ def reporte_ocupacion_view(request):
 
     occ_data = get_datos_ocupacion(start_dt, end_dt)
 
+    # Métricas avanzadas para la vista de ocupación: heatmap y marketing
+    from reportes.selectors import get_ocupacion_por_franja_horaria, get_metricas_marketing
+    heatmap = get_ocupacion_por_franja_horaria(start_dt, end_dt)
+    marketing = get_metricas_marketing(start_dt, end_dt)
+    labels = heatmap.get('labels', []) or []
+    grid = heatmap.get('grid', []) or []
+    # If heatmap data is missing, provide a sensible default (Lunes..Domingo with 0%)
+    if not labels or not grid:
+        labels = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+        grid = [[0, 0, 0] for _ in labels]
+    heatmap_rows = list(zip(labels, grid))
+    marketing_json = json.dumps(marketing.get('donut', {}))
+
     context = {
         'occ_data': occ_data,
+        'heatmap': heatmap,
+        'heatmap_rows': heatmap_rows,
+        'marketing': marketing,
+        'marketing_json': marketing_json,
         'fecha_inicio': fecha_inicio_final,
         'fecha_fin': fecha_fin_final,
         'rango_7_qs': rango_7_qs,

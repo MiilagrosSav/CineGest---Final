@@ -60,6 +60,8 @@
         </div>
     </div>
 
+    <!-- Heatmap y Marketing movidos a Reporte de Ocupación -->
+
     <div class="card glass-container" style="margin-bottom: 2rem;">
         <div style="padding: var(--space-lg);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg); flex-wrap: wrap; gap: 1rem;">
@@ -93,8 +95,9 @@
                         <tr style="border-bottom: 1px solid var(--glass-border);">
                             <th style="padding: var(--space-sm);">Película</th>
                             <th style="padding: var(--space-sm); text-align: right;">Total</th>
-                            <th style="padding: var(--space-sm); text-align: right;">Precio Full</th>
+                            <th style="padding: var(--space-sm); text-align: right;">Precio Completo</th>
                             <th style="padding: var(--space-sm); text-align: right;">Con Promo</th>
+                            <th style="padding: var(--space-sm); text-align: right;">Ingreso por Butaca</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -109,6 +112,9 @@
                             </td>
                             <td style="padding: var(--space-md); text-align: right; opacity: 0.8;">
                                 ${{ item.promo|floatformat:2 }}
+                            </td>
+                            <td style="padding: var(--space-md); text-align: right; opacity: 0.8;">
+                                ${{ item.revpas|floatformat:2 }}
                             </td>
                         </tr>
                         {% empty %}
@@ -323,5 +329,7 @@
         padding: 0.4rem 1rem;
         font-size: 0.85rem;
     }
+
+    /* heatmap styles moved to ocupacion template */
 </style>
 {% endblock %}

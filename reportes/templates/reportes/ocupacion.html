@@ -8,7 +8,7 @@
     
     <div class="mb-lg">
         <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">📊 Reporte de Ocupación</h1>
-        <p class="card-subtitle">Análisis de tickets vendidos y capacidad de salas</p>
+        <p class="card-subtitle">Análisis de capacidad y asistencia semanal</p>
     </div>
 
     <div class="card glass-container" style="margin-bottom: 2rem;">
@@ -46,7 +46,7 @@
         <div style="padding: var(--space-lg);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg); flex-wrap: wrap; gap: 1rem;">
                 <div>
-                    <h3 style="margin: 0;">📈 Ocupación Semanal</h3>
+                    <h3 style="margin: 0;">📈 Evolución de Ocupación</h3>
                     <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Porcentaje de butacas ocupadas por día</p>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
@@ -65,9 +65,75 @@
         </div>
     </div>
 
+    <div class="analysis-row" style="margin-bottom: 2rem;">
+        
+        <div class="card glass-container" style="padding: var(--space-lg);">
+            <h3 style="margin-top:0;">🔥 Mapa de Calor (Franjas Horarias)</h3>
+            <p style="margin:0 0 var(--space-md) 0; opacity:0.7; font-size: 0.9rem;">Intensidad de ocupación según el momento del día</p>
+
+            <div style="overflow-x:auto;">
+                <table class="heatmap-table" style="width:100%; border-collapse: separate; border-spacing: 8px 10px;">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left; padding:8px 12px; font-weight:700; color: var(--text-secondary);">Día \ Franja</th>
+                            <th style="text-align:center; padding:8px 12px; font-weight:700; color: var(--text-secondary);">Matiné</th>
+                            <th style="text-align:center; padding:8px 12px; font-weight:700; color: var(--text-secondary);">Tarde</th>
+                            <th style="text-align:center; padding:8px 12px; font-weight:700; color: var(--text-secondary);">Noche</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for pair in heatmap_rows %}
+                        <tr>
+                            <td style="padding:10px 12px; font-weight:600; color:var(--text-light);">{{ pair.0 }}</td>
+                            {% for pct in pair.1 %}
+                                {% if pct < 15 %}
+                                    <td class="heatcell heat-verylow" data-tooltip="Baja ocupación (< 15%)">{{ pct }}%</td>
+                                {% elif pct <= 50 %}
+                                    <td class="heatcell heat-mid" data-tooltip="Ocupación moderada (15% - 50%)">{{ pct }}%</td>
+                                {% else %}
+                                    <td class="heatcell heat-high" data-tooltip="Alta ocupación (> 50%)">{{ pct }}%</td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="margin-top:1rem; font-size:0.85rem; color:var(--text-secondary); display: flex; gap: 1.5rem; justify-content: center;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width:10px; height:10px; background: rgba(255,77,77,0.2); border-radius:2px;"></span> Baja
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width:10px; height:10px; background: rgba(255,193,7,0.18); border-radius:2px;"></span> Media
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span style="width:10px; height:10px; background: rgba(167,243,208,0.18); border-radius:2px;"></span> Alta
+                </div>
+            </div>
+        </div>
+
+        <div class="card glass-container" style="padding: var(--space-lg); text-align:center; position:relative;">
+            <h3 style="margin-top:0;">🎯 Conversión</h3>
+            <p style="margin:0 0 var(--space-md) 0; opacity:0.7; font-size: 0.9rem;">Eficacia de promociones</p>
+            
+            <div class="donut-wrap" style="width: 200px; height:200px; margin: 0 auto; position:relative;">
+                <canvas id="marketingDonut"></canvas>
+                <div class="donut-center" style="position:absolute; inset:0; display:flex; flex-direction: column; align-items:center; justify-content:center;">
+                    <div style="font-size:1.8rem; font-weight:800; color:var(--primary); line-height: 1;">{{ marketing.tasa_conversion }}%</div>
+                    <div style="font-size:0.8rem; opacity:0.6; text-transform: uppercase; letter-spacing: 1px;">Éxito</div>
+                </div>
+            </div>
+            
+            <div style="margin-top:1.5rem; font-size: 0.9rem; color: var(--text-light);">
+                <strong style="color: var(--primary);">{{ marketing.total_canjeados }}</strong> canjeados de <strong>{{ marketing.total_enviados }}</strong> enviados
+            </div>
+        </div>
+    </div>
+
     <div class="card glass-container">
         <div style="padding: var(--space-lg);">
-            <h3 style="margin-bottom: var(--space-md);">📋 Detalle Numérico</h3>
+            <h3 style="margin-bottom: var(--space-md);">📋 Detalle Semanal</h3>
             
             <div class="table-responsive">
                 <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
@@ -88,7 +154,9 @@
                                     {{ item.tickets }}
                                 </span>
                             </td>
-                            <td style="padding: var(--space-md); text-align: center; opacity: 0.8;">{{ item.capacidad }}</td>
+                            <td style="padding: var(--space-md); text-align: center; opacity: 0.8;">
+                                {{ item.capacidad }}
+                            </td>
                             <td style="padding: var(--space-md); text-align: right;">
                                 {% if item.porcentaje >= 70 %}
                                     <span style="color: #4CAF50; font-weight: 700;">{{ item.porcentaje|floatformat:1 }}%</span>
@@ -116,15 +184,15 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
 <script>
-    // Configuración del Gráfico
+    // 1. Gráfico de Línea (Ocupación)
     const occ = JSON.parse(`{{ occ_chart_json|safe }}`);
     const ctx = document.getElementById('occChart').getContext('2d');
 
-    // Gradiente para el gráfico
     let gradient = ctx.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(139, 95, 191, 0.5)'); // Tu color primario
+    gradient.addColorStop(0, 'rgba(139, 95, 191, 0.5)');
     gradient.addColorStop(1, 'rgba(139, 95, 191, 0.0)');
 
     const occChart = new Chart(ctx, {
@@ -134,13 +202,14 @@
             datasets: [{ 
                 label: '% Ocupación', 
                 data: occ.values, 
-                borderColor: '#9B59B6', // Tu color primario sólido
+                borderColor: '#9B59B6', 
                 backgroundColor: gradient, 
                 fill: true,
-                tension: 0.4, // Curva suave
+                tension: 0.4,
                 pointBackgroundColor: '#ffffff',
                 pointBorderColor: '#9B59B6',
-                pointRadius: 5
+                pointRadius: 5,
+                pointHoverRadius: 7
             }] 
         },
         options: {
@@ -173,7 +242,37 @@
         plugins: [ChartDataLabels]
     });
 
-    // Lógica de Exportación PDF
+    // 2. Gráfico de Torta (Marketing)
+    try {
+        const marketingJsonRaw = '{{ marketing_json|default:"{}"|escapejs }}';
+        let mkt = {};
+        try { mkt = JSON.parse(marketingJsonRaw || '{}'); } catch(e) { mkt = {}; }
+
+        const donutData = (mkt && mkt.data && mkt.labels) ? mkt : { labels: ['Ignorados','Canjeados'], data: [1,0] };
+        const ctxM = document.getElementById('marketingDonut').getContext('2d');
+        
+        // keep a reference to the marketing chart so we can export image later
+        window.marketingChart = new Chart(ctxM, {
+            type: 'doughnut',
+            data: {
+                labels: donutData.labels,
+                datasets: [{
+                    data: donutData.data,
+                    backgroundColor: ['rgba(255,255,255,0.05)', '#9B59B6'], // Gris sutil y Violeta vibrante
+                    borderWidth: 0,
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                cutout: '75%', // Agujero más grande para el texto
+                plugins: { legend: { display: false } },
+                responsive: true, 
+                maintainAspectRatio: false
+            }
+        });
+    } catch(e) { console.error('Error drawing marketing donut', e); }
+
+    // 3. Exportación PDF
     function getCookie(name) { const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)'); return v ? v.pop() : ''; }
 
     document.getElementById('exportPdfBtn').addEventListener('click', async function(){
@@ -184,13 +283,106 @@
 
         try {
             const chartImage = occChart.toBase64Image();
+            // marketing image: if we have the chart instance use its canvas, otherwise try DOM
+            let marketingImage = null;
+            try {
+                // Produce a combined, higher-resolution marketing image that includes the center text
+                if (window.marketingChart && window.marketingChart.canvas) {
+                    const origCanvas = window.marketingChart.canvas;
+                    // temporarily enhance colors for export to improve contrast in PDF
+                    let oldColors = null;
+                    try {
+                        oldColors = window.marketingChart.data.datasets[0].backgroundColor;
+                        const bright = ['#f2f2f2', '#9B59B6'];
+                        window.marketingChart.data.datasets[0].backgroundColor = bright;
+                        window.marketingChart.update();
+                    } catch (e) { oldColors = null; }
+                    // draw the chart image into a temp canvas
+                    const img = new Image();
+                    img.src = window.marketingChart.toBase64Image();
+                    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+                    // create high-res canvas (scale 2)
+                    const scale = 2;
+                    const tmp = document.createElement('canvas');
+                    tmp.width = origCanvas.width * scale;
+                    tmp.height = origCanvas.height * scale;
+                    const tctx = tmp.getContext('2d');
+                    // white background
+                    tctx.fillStyle = '#ffffff';
+                    tctx.fillRect(0,0,tmp.width,tmp.height);
+                    // draw scaled chart
+                    tctx.drawImage(img, 0, 0, tmp.width, tmp.height);
+
+                    // draw center text (read from DOM .donut-center)
+                    try {
+                        const center = document.querySelector('.donut-center');
+                        if (center) {
+                            const percentEl = center.children[0];
+                            const labelEl = center.children[1];
+                            const pctText = percentEl ? percentEl.innerText.trim() : '';
+                            const labelText = labelEl ? labelEl.innerText.trim() : '';
+                            // big number
+                            tctx.fillStyle = '#4B0082';
+                            tctx.textAlign = 'center';
+                            tctx.textBaseline = 'middle';
+                            // percentage
+                            tctx.font = `${28 * scale}px Arial`; 
+                            tctx.fillText(pctText, tmp.width/2, tmp.height/2 - 6*scale);
+                            // label smaller
+                            tctx.font = `${10 * scale}px Arial`;
+                            tctx.fillStyle = 'rgba(0,0,0,0.6)';
+                            tctx.fillText(labelText, tmp.width/2, tmp.height/2 + 18*scale);
+                        }
+                    } catch (e) {}
+
+                    marketingImage = tmp.toDataURL('image/png');
+                    // restore old colors
+                    try {
+                        if (oldColors) {
+                            window.marketingChart.data.datasets[0].backgroundColor = oldColors;
+                            window.marketingChart.update();
+                        }
+                    } catch(e) {}
+                } else {
+                    const mCanv = document.getElementById('marketingDonut');
+                    if (mCanv && mCanv.toDataURL) {
+                        // try higher-res export by drawing into temp canvas
+                        const img = new Image();
+                        img.src = mCanv.toDataURL('image/png');
+                        await new Promise((res, rej) => { img.onload = res; img.onerror = rej; });
+                        const scale = 2;
+                        const tmp = document.createElement('canvas');
+                        tmp.width = mCanv.width * scale;
+                        tmp.height = mCanv.height * scale;
+                        const tctx = tmp.getContext('2d');
+                        tctx.fillStyle = '#ffffff'; tctx.fillRect(0,0,tmp.width,tmp.height);
+                        tctx.drawImage(img, 0,0,tmp.width,tmp.height);
+                        marketingImage = tmp.toDataURL('image/png');
+                    }
+                }
+            } catch(e) { marketingImage = null; }
+
+            // heatmap: render the heatmap table to a canvas using html2canvas at higher scale
+            let heatmapImage = null;
+            try {
+                const heatEl = document.querySelector('.heatmap-table');
+                if (heatEl && window.html2canvas) {
+                    const heatCanvas = await html2canvas(heatEl, { backgroundColor: '#ffffff', scale: 2 });
+                    heatmapImage = heatCanvas.toDataURL('image/png');
+                }
+            } catch(e) { heatmapImage = null; }
             const csrftoken = getCookie('csrftoken');
             const url = `{% url 'reportes:exportar_operativo_pdf' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}`;
 
+            const payload = { chart_image: chartImage };
+            if (marketingImage) payload.marketing_image = marketingImage;
+            if (heatmapImage) payload.heatmap_image = heatmapImage;
+
             const res = await fetch(url, { 
                 method:'POST', 
+                credentials: 'same-origin',
                 headers:{ 'Content-Type':'application/json', 'X-CSRFToken': csrftoken }, 
-                body: JSON.stringify({ chart_image: chartImage }) 
+                body: JSON.stringify(payload) 
             });
             
             if (!res.ok) throw new Error('Error en el servidor');
@@ -212,7 +404,7 @@
 </script>
 
 <style>
-    /* --- Inputs Modernos --- */
+    /* --- Inputs --- */
     .form-label {
         display: block;
         font-size: 0.9rem;
@@ -234,7 +426,7 @@
         background: rgba(255, 255, 255, 0.1);
     }
     
-    /* --- Accesos Rápidos (Chips) --- */
+    /* --- Chips --- */
     .filter-chip {
         padding: 0.4rem 0.8rem;
         border-radius: 20px;
@@ -250,9 +442,9 @@
         background: rgba(var(--primary-rgb), 0.1);
     }
 
-    /* --- Botones Estandarizados --- */
+    /* --- Botones --- */
     .btn {
-        border-radius: 9999px; /* Píldora */
+        border-radius: 9999px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 0.5px;
@@ -264,7 +456,6 @@
         align-items: center;
         justify-content: center;
     }
-    
     .btn-primary {
         background: var(--primary);
         color: white;
@@ -276,11 +467,10 @@
         transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4);
     }
-
     .btn-outline {
         background: transparent;
         color: var(--text-light);
-        border: 2px solid rgba(20, 164, 1, 0.3);
+        border: 2px solid rgba(22, 234, 68, 0.3);
     }
     .btn-outline:hover {
         border-color: var(--primary);
@@ -288,8 +478,7 @@
         background: rgba(var(--primary-rgb), 0.1);
         transform: translateY(-1px);
     }
-
-    .btn-secondary { /* Usado para PDF (color rojo/danger o alternativo) */
+    .btn-secondary {
         background: transparent;
         color: #ff6b6b;
         border: 2px solid #ff6b6b;
@@ -299,10 +488,35 @@
         color: white;
         transform: translateY(-1px);
     }
+    .btn-sm { padding: 0.4rem 1rem; font-size: 0.85rem; }
 
-    .btn-sm {
-        padding: 0.4rem 1rem;
-        font-size: 0.85rem;
+    /* --- Layout del Heatmap & Marketing --- */
+    .analysis-row { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
+    @media (max-width: 900px) { .analysis-row { grid-template-columns: 1fr; } }
+
+    /* --- Estilos del Mapa de Calor --- */
+    .heatmap-table th, .heatmap-table td { border: none; padding: 8px; vertical-align: middle; }
+    .heatmap-table td.heatcell { border-radius: 8px; font-weight:700; text-align:center; cursor: default; font-size: 0.9rem; }
+    
+    /* Colores de celdas (Opacidad para glass) */
+    .heat-verylow { background: rgba(255, 77, 77, 0.15); color: #ff8a80; border: 1px solid rgba(255, 77, 77, 0.3); }
+    .heat-mid { background: rgba(255, 193, 7, 0.15); color: #ffd54f; border: 1px solid rgba(255, 193, 7, 0.3); }
+    .heat-high { background: rgba(76, 175, 80, 0.15); color: #81c784; border: 1px solid rgba(76, 175, 80, 0.3); }
+
+    /* Tooltip simple para heatmap */
+    .heatcell[data-tooltip]:hover::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        bottom: 100%; left: 50%; transform: translateX(-50%);
+        background: #222; color: #fff; padding: 5px 10px;
+        border-radius: 4px; font-size: 0.8rem; white-space: nowrap;
+        pointer-events: none; z-index: 10; margin-bottom: 5px;
+        border: 1px solid #444;
     }
+    .heatcell { position: relative; }
+
+    /* Donut Chart Center */
+    .donut-wrap { position: relative; }
+    .donut-center { pointer-events: none; }
 </style>
 {% endblock %}

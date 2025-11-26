@@ -104,7 +104,11 @@ def api_guardar_layout_sala(request, sala_id):
         
         # Contar pasillos en la lista de nuevas antes de bulk_create
         total_pasillos = sum(1 for b in nuevas if b.es_pasillo)
-
+        # --- PARCHE PARA ACTUALIZAR CAPACIDAD TOTAL ---
+        # Como bulk_create no dispara señales, forzamos la actualización manual aquí.
+        sala.capacidad_total = sala.butacas.filter(es_pasillo=False).count()
+        sala.save(update_fields=['capacidad_total'])
+        
         respuesta = {
             'status': 'ok', 
             'butacas_creadas': len(nuevas),
@@ -116,6 +120,7 @@ def api_guardar_layout_sala(request, sala_id):
             respuesta['warning'] = f'{len(duplicados)} butacas duplicadas fueron ignoradas'
             respuesta['duplicados'] = duplicados
         
+    
         return JsonResponse(respuesta)
     except json.JSONDecodeError:
         return JsonResponse({'status': 'error', 'message': 'JSON inválido'}, status=400)

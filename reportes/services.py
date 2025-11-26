@@ -195,7 +195,7 @@ def generar_excel_operativo(occ_data, fecha_inicio, fecha_fin):
     return buffer
 
 
-def generar_pdf_operativo(occ_data, fecha_inicio, fecha_fin, chart_base64=None, requested_by=None):
+def generar_pdf_operativo(occ_data, fecha_inicio, fecha_fin, chart_base64=None, heatmap_base64=None, marketing_base64=None, requested_by=None):
     """
     Genera PDF con reporte operativo de salas.
     
@@ -213,6 +213,8 @@ def generar_pdf_operativo(occ_data, fecha_inicio, fecha_fin, chart_base64=None, 
         'fecha_fin': fecha_fin,
         'ocupacion': occ_data.get('detalle', []),
         'chart_base64': chart_base64,
+        'heatmap_base64': heatmap_base64,
+        'marketing_base64': marketing_base64,
         'requested_by': requested_by,
     }
     
