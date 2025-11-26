@@ -181,10 +181,11 @@
     <table>
         <thead>
             <tr>
-                <th style="width: 40%;">Película</th>
+                <th style="width: 35%;">Película</th>
                 <th class="text-right">Recaudación</th>
                 <th class="text-right">Full Price</th>
                 <th class="text-right">Promo</th>
+                <th class="text-right">RevPAS</th>
             </tr>
         </thead>
         <tbody>
@@ -194,13 +195,14 @@
                 <td class="text-right">${{ pelicula.total|floatformat:2 }}</td>
                 <td class="text-right">${{ pelicula.full|floatformat:2 }}</td>
                 <td class="text-right">${{ pelicula.promo|floatformat:2 }}</td>
+                <td class="text-right">${{ pelicula.revpas|floatformat:2 }}</td>
             </tr>
             {% endfor %}
             
             <tr class="total-row">
                 <td>TOTAL</td>
                 <td class="text-right">${{ kpis.total_recaudacion|floatformat:2 }}</td>
-                <td colspan="2" class="text-center" style="font-size: 8pt; color: #77135c;">
+                <td colspan="3" class="text-center" style="font-size: 8pt; color: #77135c;">
                     Resumen Final
                 </td>
             </tr>
