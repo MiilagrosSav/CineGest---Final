@@ -1,0 +1,23 @@
+¡Hola {{ usuario.get_full_name|default:usuario.username }}!
+
+🎬 OFERTA ESPECIAL - ÚLTIMA HORA
+
+Tenemos una promoción exclusiva para ti en:
+
+{{ pelicula.titulo }}
+📅 {{ funcion.fecha_hora|date:"d/m/Y" }} a las {{ funcion.fecha_hora|time:"H:i" }}
+🏛️ Sala {{ sala.numero }}
+
+🎁 {{ descuento_texto }}
+
+Esta es una oferta por tiempo limitado para ayudarte a disfrutar de esta función.
+
+👉 Usa tu cupón aquí: {{ cupon_url }}
+🔑 Código del cupón: {{ cupon.token }}
+
+⏰ Esta oferta expira el {{ cupon.expira_en|date:"d/m/Y" }} a las {{ cupon.expira_en|time:"H:i" }}
+
+¡No te lo pierdas!
+
+---
+CineGest - Tu cine de confianza

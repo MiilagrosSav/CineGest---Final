@@ -9,186 +9,117 @@ logger = logging.getLogger(__name__)
 
 def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None):
     """
-    Calcula el precio final.
-    Prioridad:
-    1. Si llega 'promocion_especifica' (Cupón de sesión), usa esa.
-    2. Si no, busca automáticas en FuncionPromocion.
-    
-    Retorna tupla: (total_decimal, promocion_aplicada, detalle_dict)
+    Calcula el precio final de una compra.
+
+    Reglas:
+    - Si llega `promocion_especifica`, se aplica directamente.
+    - Si no, buscamos entre las `Promocion` con `es_automatica=True` y que sean
+      válidas para la función usando `es_promocion_valida_para_funcion`.
+
+    Retorna: (total_decimal, promocion_aplicada | None, detalle_dict)
     """
-    from promociones.models.funcionPromocion import FuncionPromocion
-    from promociones.models.politicaPromocion import PoliticaPromocion # Si la usas para validar
+    from promociones.models.promocion import Promocion
     from decimal import Decimal, ROUND_HALF_UP
-    from django.db import models
-    from django.utils import timezone
-    
-    # 1. Preparar datos base
+
     precio_base = Decimal(funcion.precio_base)
     cantidad = int(cantidad_entradas)
-    
-    # El total sin descuento
     total_original = (precio_base * cantidad).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-    
-    # Estructura de respuesta por defecto
+
     detalle = {
         'precio_unitario_base': precio_base,
         'total_original': total_original,
         'ahorro': Decimal('0.00'),
         'tipo_aplicado': None,
-        'descripcion': 'Precio regular',
-        'aviso': None
+        'descripcion': None,
+        'precio_unitario_final': None,
+        'aviso': None,
     }
 
-    promo_a_usar = None
-
-    # ---------------------------------------------------------
-    # PASO 2: ELEGIR LA PROMOCIÓN
-    # ---------------------------------------------------------
-    
-    # A) Si viene del Cupón (Sesión), esa GANA.
-    if promocion_especifica:
-        promo_a_usar = promocion_especifica
-    
-    # B) Si no hay cupón, buscamos Automáticas
-    else:
-        candidatos_qs = FuncionPromocion.objects.filter(
-            models.Q(funcion=funcion) | models.Q(pelicula=funcion.pelicula),
-            promocion__es_automatica=True
-        ).select_related('promocion')
-        
-        # Aquí usamos tu validador existente para filtrar
-        # (Asumo que es_promocion_valida_para_funcion está en este mismo archivo o importada)
-        from .services import es_promocion_valida_para_funcion 
-        
-        for fp in candidatos_qs:
-            if es_promocion_valida_para_funcion(fp.promocion, funcion):
-                promo_a_usar = fp.promocion
-                break # Nos quedamos con la primera válida (o aplicar lógica de mejor precio)
-
-    # ---------------------------------------------------------
-    # PASO 3: CALCULAR MATEMÁTICA
-    # ---------------------------------------------------------
-    total_final = total_original # Empezamos asumiendo precio full
-
-    if promo_a_usar:
-        # Normalizamos a mayúsculas y sin espacios para evitar errores '2x1' vs '2X1'
-        tipo = str(promo_a_usar.tipo_descuento).upper().strip()
-        
+    # Helper para calcular total dado una promoción
+    def _total_con_promocion(promo: Promocion) -> Decimal:
+        tipo = (promo.tipo_descuento or '').upper().strip()
         if tipo == '2X1':
-            # Fórmula: Pares pagan 1, Impares pagan (Pares + 1)
-            # Ej: 3 entradas -> (3 // 2) + (3 % 2) = 1 + 1 = 2 a pagar.
-            entradas_a_pagar = (cantidad // 2) + (cantidad % 2)
-            total_final = precio_base * entradas_a_pagar
-            
-            # Aviso de UX si lleva impar
-            if cantidad % 2 != 0:
-                detalle['aviso'] = "¡Tenés 2x1! Llevás una cantidad impar, agregá una más GRATIS."
-
-        elif tipo == 'PORCENTAJE':
-            descuento = Decimal(promo_a_usar.valor_descuento or 0) / 100
-            total_final = total_original * (1 - descuento)
-
-        elif tipo == 'MONTO_FIJO':
-            descuento_total = Decimal(promo_a_usar.valor_descuento or 0) * cantidad
-            total_final = total_original - descuento_total
-
-        # Redondeo y seguridad
-        if total_final < 0: total_final = Decimal('0.00')
-        total_final = total_final.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
-        # Llenar el detalle con la data del éxito
-        detalle['ahorro'] = total_original - total_final
-        detalle['tipo_aplicado'] = tipo
-        detalle['descripcion'] = promo_a_usar.nombre
-        detalle['porcentaje'] = promo_a_usar.valor_descuento # Opcional para mostrar
-
-    # Retorno final
-    return total_final, promo_a_usar, detalle
-
-    def politica_valida_para_funcion(promocion):
-        # Si existen políticas asociadas activas, requerir que al menos una coincida
-        politicas = PoliticaPromocion.objects.filter(promocion_a_otorgar=promocion, activa=True)
-        if not politicas.exists():
-            return True
-
-        for pol in politicas:
-            # Día de la función
-            dias = pol.get_dias_list()
-            if dias and funcion.fecha_hora.weekday() not in dias:
-                continue
-
-            # Hora
-            hora = funcion.fecha_hora.time()
-            inicio = pol.hora_inicio_rango
-            fin = pol.hora_fin_rango
-            # manejar rango que cruza medianoche
-            if inicio <= fin:
-                if not (inicio <= hora <= fin):
-                    continue
-            else:
-                # rango overnight: valido si hora >= inicio or hora <= fin
-                if not (hora >= inicio or hora <= fin):
-                    continue
-
-            # si llegó hasta acá, la política aplica
-            return True
-
-        return False
-
-    for fp in candidatos_qs:
-        promo = fp.promocion
-
-        # Verificar vigencia por fechas de la promoción
-        if promo.fecha_inicio and promo.fecha_fin:
-            if not (promo.fecha_inicio <= hoy <= promo.fecha_fin):
-                continue
-
-        # Si existen políticas activas asociadas, validar que alguna coincida con la función
-        if not politica_valida_para_funcion(promo):
-            continue
-
-        # Calcular total según tipo
-        tipo = promo.tipo_descuento
-        detalle = {'tipo_aplicado': tipo, 'descripcion': promo.descripcion or promo.nombre}
-
-        if tipo == 'PORCENTAJE':
-            porcentaje = Decimal(promo.valor_descuento or 0) / Decimal(100)
-            unitario = (precio_base * (Decimal(1) - porcentaje)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            total = (unitario * cantidad).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            detalle.update({'precio_unitario_final': unitario, 'porcentaje': promo.valor_descuento})
-
-        elif tipo == 'MONTO_FIJO':
-            monto = Decimal(promo.valor_descuento or 0)
-            unitario = (precio_base - monto)
-            if unitario < Decimal('0.00'):
-                unitario = Decimal('0.00')
-            unitario = unitario.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            total = (unitario * cantidad).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            detalle.update({'precio_unitario_final': unitario, 'monto': promo.valor_descuento})
-
-        elif tipo == '2X1':
-            # Corrección: paga (cantidad // 2) + (cantidad % 2) entradas
-            # Ejemplos: 1→1, 2→1, 3→2, 4→2, 5→3
             entradas_a_pagar = (cantidad // 2) + (cantidad % 2)
             total = (precio_base * entradas_a_pagar).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            detalle.update({'precio_unitario_final': None})
+            return total
+        if tipo == 'PORCENTAJE':
+            pct = Decimal(promo.valor_descuento or 0) / Decimal(100)
+            total = (precio_base * (Decimal(1) - pct) * cantidad).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            return total
+        if tipo == 'MONTO_FIJO':
+            monto = Decimal(promo.valor_descuento or 0)
+            unit = precio_base - monto
+            if unit < Decimal('0.00'):
+                unit = Decimal('0.00')
+            total = (unit * cantidad).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            return total
+        # Fallback: sin descuento
+        return total_original
 
-        else:
-            # comportamiento por defecto: no descuento
-            total = (precio_base * cantidad).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-            detalle.update({'precio_unitario_final': precio_base})
+    # 1) Si viene promoción específica (cupón/session), aplicar directamente
+    if promocion_especifica:
+        promo_aplicada = promocion_especifica
+        total_final = _total_con_promocion(promo_aplicada)
+        detalle['ahorro'] = total_original - total_final
+        detalle['tipo_aplicado'] = (promo_aplicada.tipo_descuento or '').upper()
+        detalle['descripcion'] = promo_aplicada.nombre
+        detalle['precio_unitario_final'] = (total_final / cantidad).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if cantidad > 0 else precio_base
+        if detalle['tipo_aplicado'] == '2X1' and (cantidad % 2 != 0):
+            detalle['aviso'] = 'Tenés 2x1: agregá una entrada más para aprovecharla al máximo.'
+        return total_final, promo_aplicada, detalle
 
-        mejores.append((total, promo, detalle))
+    # 2) Buscar promociones automáticas válidas para la función
+    from promociones.models.funcionPromocion import FuncionPromocion
+    candidatos = list(Promocion.objects.filter(es_automatica=True))
+    candidatos_validos = []
+    for p in candidatos:
+        # Primero validar reglas generales (fechas, días, género, estreno, acepta_promociones)
+        if not es_promocion_valida_para_funcion(p, funcion):
+            continue
 
-    # Si no hay promociones aplicables, retornar precio base
+        # Si existen filas en FuncionPromocion para esta promoción, requerimos que
+        # la promoción esté vinculada explícitamente a la función o a la película.
+        tiene_vinculos = FuncionPromocion.objects.filter(promocion=p).exists()
+        if tiene_vinculos:
+            if not FuncionPromocion.objects.filter(promocion=p).filter(models.Q(funcion=funcion) | models.Q(pelicula=funcion.pelicula)).exists():
+                # La promo existe pero no está vinculada a esta función/película
+                continue
+
+        candidatos_validos.append(p)
+
+    if not candidatos_validos:
+        # No hay promociones automáticas aplicables
+        detalle['descripcion'] = 'Precio regular'
+        detalle['precio_unitario_final'] = precio_base
+        return total_original, None, detalle
+
+    # 3) Elegir la promoción que deje el total más bajo (mayor beneficio)
+    mejores = []
+    for p in candidatos_validos:
+        try:
+            total_p = _total_con_promocion(p)
+            mejores.append((total_p, p))
+        except Exception:
+            logger.exception('Error calculando total para promoción %s', getattr(p, 'pk', None))
+
     if not mejores:
-        total = (precio_base * cantidad).quantize(Decimal('0.01'))
-        return total, None, {'precio_unitario_final': precio_base, 'tipo_aplicado': None}
+        detalle['descripcion'] = 'Precio regular'
+        detalle['precio_unitario_final'] = precio_base
+        return total_original, None, detalle
 
-    # escoger la promoción que deje el total mínimo (mayor beneficio al cliente)
     mejores.sort(key=lambda x: x[0])
-    mejor_total, mejor_promo, mejor_detalle = mejores[0]
-    return mejor_total, mejor_promo, mejor_detalle
+    total_final, promo_aplicada = mejores[0]
+
+    detalle['ahorro'] = total_original - total_final
+    detalle['tipo_aplicado'] = (promo_aplicada.tipo_descuento or '').upper()
+    detalle['descripcion'] = promo_aplicada.nombre
+    detalle['precio_unitario_final'] = (total_final / cantidad).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if cantidad > 0 else precio_base
+    if detalle['tipo_aplicado'] == '2X1' and (cantidad % 2 != 0):
+        detalle['aviso'] = 'Tenés 2x1: agregá una entrada más para aprovecharla al máximo.'
+
+    return total_final, promo_aplicada, detalle
+
+    # Fin de calcular_precio_final
 
 
 def es_promocion_valida_para_funcion(promocion, funcion) -> bool:

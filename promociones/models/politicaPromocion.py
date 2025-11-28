@@ -53,6 +53,20 @@ class PoliticaPromocion(models.Model):
         blank=True,
         help_text='Horas mínimas antes de la función para disparar el envío. Si no se define, envía siempre.'
     )
+    
+    # Yield Management Automático: activación por ocupación baja
+    activar_por_ocupacion = models.BooleanField(
+        default=False,
+        help_text='Si está activo, el sistema escaneará automáticamente funciones futuras y disparará promociones cuando la ocupación sea baja.'
+    )
+    umbral_ocupacion = models.PositiveIntegerField(
+        default=30,
+        help_text='Porcentaje de ocupación mínimo para activar promociones automáticas (ej: 30 = disparar si ocupación < 30%)'
+    )
+    horas_anticipacion = models.PositiveIntegerField(
+        default=24,
+        help_text='Analizar funciones que ocurran dentro de X horas. El sistema verificará funciones en este rango de tiempo.'
+    )
 
     class Meta:
         db_table = 'promociones_politicapromocion'

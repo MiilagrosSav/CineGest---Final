@@ -116,7 +116,12 @@ class PoliticaPromocionForm(forms.ModelForm):
 
     class Meta:
         model = PoliticaPromocion
-        fields = ['nombre', 'activa', 'promocion_a_otorgar', 'genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango', 'dias_semana', 'prioridad', 'minutos_validez', 'horas_antes_de_funcion']
+        fields = [
+            'nombre', 'activa', 'promocion_a_otorgar', 'genero_pelicula', 
+            'hora_inicio_rango', 'hora_fin_rango', 'dias_semana', 
+            'prioridad', 'minutos_validez', 'horas_antes_de_funcion',
+            'activar_por_ocupacion', 'umbral_ocupacion', 'horas_anticipacion'
+        ]
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'activa': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
@@ -128,6 +133,9 @@ class PoliticaPromocionForm(forms.ModelForm):
             'minutos_validez': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'horas_antes_de_funcion': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'dias_semana': forms.CheckboxSelectMultiple(),
+            'activar_por_ocupacion': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'umbral_ocupacion': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
+            'horas_anticipacion': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
         }
         labels = {
             'nombre': 'Nombre de la Política',
@@ -137,11 +145,17 @@ class PoliticaPromocionForm(forms.ModelForm):
             'hora_inicio_rango': 'Hora inicio (rango)',
             'hora_fin_rango': 'Hora fin (rango)',
             'prioridad': 'Prioridad',
-            'minutos_validez': 'Minutos de validez del cupón',
-            'horas_antes_de_funcion': 'Horas antes de función (yield management)',
+            'minutos_validez': 'Minutos de validez',
+            'horas_antes_de_funcion': 'Horas antes de función',
+            'activar_por_ocupacion': 'Ocupación Inteligente',
+            'umbral_ocupacion': 'Umbral de ocupación (%)',
+            'horas_anticipacion': 'Ventana de anticipación (horas)',
         }
         help_texts = {
             'horas_antes_de_funcion': 'Opcional: Solo enviar promoción si faltan menos de X horas para la función. Dejar vacío para enviar siempre.',
+            'activar_por_ocupacion': 'Activar para que el sistema escanee automáticamente funciones con baja ocupación y dispare promociones.',
+            'umbral_ocupacion': 'Disparar promoción si la ocupación es menor a este porcentaje (ej: 30 = disparar si < 30%).',
+            'horas_anticipacion': 'Escanear funciones que ocurran dentro de X horas desde ahora (ej: 24 = verificar funciones en las próximas 24 horas).',
         }
 
     def __init__(self, *args, **kwargs):
