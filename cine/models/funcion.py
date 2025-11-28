@@ -65,6 +65,26 @@ class Funcion(models.Model):
     
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    # Yield Management: Control de promociones automáticas
+    ESTADO_PROMOCION_CHOICES = [
+        ('NORMAL', 'Normal'),
+        ('OFERTA_ACTIVA', 'Oferta Activa'),
+    ]
+    estado_promocion = models.CharField(
+        max_length=20,
+        choices=ESTADO_PROMOCION_CHOICES,
+        default='NORMAL',
+        help_text='Estado de promoción automática para esta función'
+    )
+    promocion_aplicada = models.ForeignKey(
+        'promociones.Promocion',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='funciones_con_oferta',
+        help_text='Promoción automática actualmente vigente para esta función'
+    )
 
     def __str__(self):
         formatos = self.get_formatos_destacados()

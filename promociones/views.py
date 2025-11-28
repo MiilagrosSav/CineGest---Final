@@ -329,12 +329,14 @@ def activar_promocion_por_link(request, token):
         logger.exception('Error al loggear marcado como usado')
 
     messages.success(request, '¡Promoción activada! Elige tu película')
-    # Si el cupón tiene función origen, dirigir al flujo de selección de butacas
+    # Si el cupón tiene función origen, dirigir directamente a selección de butacas (yield management)
     try:
         if getattr(cupon, 'funcion_origen', None):
             funcion_id = cupon.funcion_origen.id
+            logger.info(f'[PROMO ACT] Redirigiendo a función {funcion_id} (yield management)')
             return redirect('ventas:seleccionar_butacas', funcion_id=funcion_id)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.exception('Error al redirigir a función origen')
 
+    # Si no tiene función origen, ir a cartelera (cupones normales)
     return redirect(reverse('cine:cartelera'))

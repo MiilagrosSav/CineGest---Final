@@ -186,8 +186,6 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'     # tras logout
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# ✅ ✅ ✅ CONFIGURACIÓN COMPLETA DE OAUTH2 - ESTO ES LO QUE FALTABA ✅ ✅ ✅
-
 # Backends de autenticación
 AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',  # Backend para Google OAuth2

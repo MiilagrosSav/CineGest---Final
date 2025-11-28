@@ -3,11 +3,11 @@
 {% block title %}{{ titulo_pagina }}{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 768px;">
+<div class="container" style="max-width: 800px;">
     
     <div class="mb-lg">
         <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">{{ titulo_pagina }}</h1>
-        <p class="card-subtitle">Las políticas definen cuándo enviar automáticamente ofertas a clientes.</p>
+        <p class="card-subtitle">Configura las reglas de automatización de marketing.</p>
     </div>
 
     <div class="card glass-container">
@@ -21,205 +21,315 @@
                 </div>
             {% endif %}
             
-            <div class="form-group">
-                <label for="{{ form.nombre.id_for_label }}" class="form-label">
-                    {{ form.nombre.label }}
-                </label>
-                {{ form.nombre }}
-                {% if form.nombre.errors %}<span class="form-error">⚠️ {{ form.nombre.errors.0 }}</span>{% endif %}
-                <small class="form-text">Nombre descriptivo (ej: "Promoción Tardes de Terror")</small>
-            </div>
-
-            <div class="form-group" style="margin-bottom: 2rem;">
-                <label class="toggle-switch">
-                    {{ form.activa }}
-                    <span class="slider"></span>
-                    <span class="toggle-label">{{ form.activa.label }}</span>
-                </label>
-                {% if form.activa.errors %}<span class="form-error">⚠️ {{ form.activa.errors.0 }}</span>{% endif %}
-                <small class="form-text" style="margin-top: 5px;">Si está activa, se ejecutará automáticamente.</small>
-            </div>
-
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-md);">
-                <div class="form-group">
-                    <label for="{{ form.promocion_a_otorgar.id_for_label }}" class="form-label">
-                        {{ form.promocion_a_otorgar.label }}
-                    </label>
-                    {{ form.promocion_a_otorgar }}
-                    {% if form.promocion_a_otorgar.errors %}<span class="form-error">⚠️ {{ form.promocion_a_otorgar.errors.0 }}</span>{% endif %}
-                </div>
-
-                <div class="form-group">
-                    <label for="{{ form.genero_pelicula.id_for_label }}" class="form-label">
-                        {{ form.genero_pelicula.label }}
-                    </label>
-                    {{ form.genero_pelicula }}
-                    {% if form.genero_pelicula.errors %}<span class="form-error">⚠️ {{ form.genero_pelicula.errors.0 }}</span>{% endif %}
-                    <small class="form-text">Opcional: Dejar vacío para todas.</small>
-                </div>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); margin-top: var(--space-md);">
-                <div class="form-group">
-                    <label for="{{ form.hora_inicio_rango.id_for_label }}" class="form-label">{{ form.hora_inicio_rango.label }}</label>
-                    {{ form.hora_inicio_rango }}
-                    {% if form.hora_inicio_rango.errors %}<span class="form-error">⚠️ {{ form.hora_inicio_rango.errors.0 }}</span>{% endif %}
-                </div>
-
-                <div class="form-group">
-                    <label for="{{ form.hora_fin_rango.id_for_label }}" class="form-label">{{ form.hora_fin_rango.label }}</label>
-                    {{ form.hora_fin_rango }}
-                    {% if form.hora_fin_rango.errors %}<span class="form-error">⚠️ {{ form.hora_fin_rango.errors.0 }}</span>{% endif %}
-                </div>
-            </div>
-
-            <div class="form-group" style="margin-top: 1.5rem;">
-                <label class="form-label">{{ form.dias_semana.label }}</label>
-                <div class="week-selector">
-                    {% for checkbox in form.dias_semana %}
-                        <label class="day-option">
-                            {{ checkbox.tag }}
-                            <span>{{ checkbox.choice_label }}</span>
+            <div class="section-block">
+                <h5 class="section-title">📝 Datos Generales</h5>
+                
+                <div style="display: grid; grid-template-columns: 1fr auto; gap: var(--space-md); align-items: center;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="{{ form.nombre.id_for_label }}" class="form-label">
+                            {{ form.nombre.label }}
+                            {% if form.nombre.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
                         </label>
-                    {% endfor %}
-                </div>
-                {% if form.dias_semana.errors %}<span class="form-error">⚠️ {{ form.dias_semana.errors.0 }}</span>{% endif %}
-                <small class="form-text">Selecciona los días aplicables. Vacío = todos los días.</small>
-            </div>
+                        {{ form.nombre }}
+                        {% if form.nombre.errors %}<span class="form-error">⚠️ {{ form.nombre.errors.0 }}</span>{% endif %}
+                    </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); margin-top: 1.5rem;">
-                <div class="form-group">
-                    <label for="{{ form.prioridad.id_for_label }}" class="form-label">{{ form.prioridad.label }}</label>
-                    {{ form.prioridad }}
-                    {% if form.prioridad.errors %}<span class="form-error">⚠️ {{ form.prioridad.errors.0 }}</span>{% endif %}
+                    <div class="form-group" style="margin-bottom: 0; padding-top: 1.8rem;">
+                        <label class="toggle-switch">
+                            {{ form.activa }}
+                            <span class="slider"></span>
+                            <span class="toggle-label">{{ form.activa.label }}</span>
+                        </label>
+                    </div>
                 </div>
-
-                <div class="form-group">
-                    <label for="{{ form.minutos_validez.id_for_label }}" class="form-label">{{ form.minutos_validez.label }}</label>
-                    {{ form.minutos_validez }}
-                    {% if form.minutos_validez.errors %}<span class="form-error">⚠️ {{ form.minutos_validez.errors.0 }}</span>{% endif %}
+                <div style="margin-top: 0.5rem;">
+                    <small class="form-text">Nombre descriptivo de la política (ej: "Promo Lunes de Terror")</small>
                 </div>
             </div>
 
-            <div class="form-group" style="margin-top: 1.5rem; padding: 1rem; background: rgba(78, 205, 196, 0.05); border-radius: var(--radius); border: 1px solid rgba(78, 205, 196, 0.2);">
-                <label for="{{ form.horas_antes_de_funcion.id_for_label }}" class="form-label">
-                    ⏱️ {{ form.horas_antes_de_funcion.label }}
-                </label>
-                {{ form.horas_antes_de_funcion }}
-                {% if form.horas_antes_de_funcion.errors %}<span class="form-error">⚠️ {{ form.horas_antes_de_funcion.errors.0 }}</span>{% endif %}
-                <small class="form-text">{{ form.horas_antes_de_funcion.help_text }}</small>
+            <div class="section-block">
+                <h5 class="section-title">🎯 Reglas de Aplicación</h5>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-md);">
+                    <div class="form-group">
+                        <label for="{{ form.promocion_a_otorgar.id_for_label }}" class="form-label">
+                            {{ form.promocion_a_otorgar.label }}
+                            {% if form.promocion_a_otorgar.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
+                        </label>
+                        {{ form.promocion_a_otorgar }}
+                        {% if form.promocion_a_otorgar.errors %}<span class="form-error">⚠️ {{ form.promocion_a_otorgar.errors.0 }}</span>{% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.genero_pelicula.id_for_label }}" class="form-label">
+                            {{ form.genero_pelicula.label }}
+                            {% if form.genero_pelicula.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
+                        </label>
+                        {{ form.genero_pelicula }}
+                        {% if form.genero_pelicula.errors %}<span class="form-error">⚠️ {{ form.genero_pelicula.errors.0 }}</span>{% endif %}
+                    </div>
+                </div>
             </div>
 
-            <div style="display: flex; gap: var(--space-md); margin-top: 2rem;">
+            <div class="section-block">
+                <h5 class="section-title">⏰ Horarios y Días</h5>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
+                    <div class="form-group">
+                        <label for="{{ form.hora_inicio_rango.id_for_label }}" class="form-label">
+                            {{ form.hora_inicio_rango.label }}
+                            {% if form.hora_inicio_rango.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
+                        </label>
+                        {{ form.hora_inicio_rango }}
+                        {% if form.hora_inicio_rango.errors %}<span class="form-error">⚠️ {{ form.hora_inicio_rango.errors.0 }}</span>{% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.hora_fin_rango.id_for_label }}" class="form-label">
+                            {{ form.hora_fin_rango.label }}
+                            {% if form.hora_fin_rango.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
+                        </label>
+                        {{ form.hora_fin_rango }}
+                        {% if form.hora_fin_rango.errors %}<span class="form-error">⚠️ {{ form.hora_fin_rango.errors.0 }}</span>{% endif %}
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 1rem;">
+                    <label class="form-label" style="margin-bottom: 0.8rem;">
+                        {{ form.dias_semana.label }}
+                        {% if form.dias_semana.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
+                    </label>
+                    <div class="week-selector">
+                        {% for checkbox in form.dias_semana %}
+                            <label class="day-option">
+                                {{ checkbox.tag }}
+                                <span>{{ checkbox.choice_label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    {% if form.dias_semana.errors %}<span class="form-error">⚠️ {{ form.dias_semana.errors.0 }}</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="section-block">
+                <h5 class="section-title">⚙️ Configuración</h5>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--space-md); align-items: start;">
+                    
+                    <div class="form-group">
+                        <label for="{{ form.prioridad.id_for_label }}" class="form-label">
+                            {{ form.prioridad.label }}
+                            {% if form.prioridad.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
+                        </label>
+                        {{ form.prioridad }}
+                        <small class="form-text">Prioridad más alta = 1.</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.minutos_validez.id_for_label }}" class="form-label">
+                            {{ form.minutos_validez.label }}
+                            {% if form.minutos_validez.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
+                        </label>
+                        {{ form.minutos_validez }}
+                        <small class="form-text">Validez del link (min).</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="{{ form.horas_antes_de_funcion.id_for_label }}" class="form-label">
+                            {{ form.horas_antes_de_funcion.label }}
+                            {% if form.horas_antes_de_funcion.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
+                        </label>
+                        {{ form.horas_antes_de_funcion }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="yield-card">
+                <div class="yield-header">
+                    <div>
+                        <h3 class="yield-title">⚡ Ocupación Automática</h3>
+                        <p class="yield-subtitle">Activar promoción automáticamente si la ocupación de la sala es baja</p>
+                    </div>
+                    <div class="form-group" style="margin: 0;">
+                        <label class="toggle-switch">
+                            {{ form.activar_por_ocupacion }}
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div id="yield-campos" style="display: none; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
+                        <div class="form-group">
+                            <label for="{{ form.umbral_ocupacion.id_for_label }}" class="form-label">
+                                {{ form.umbral_ocupacion.label }}
+                                {% if form.umbral_ocupacion.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
+                            </label>
+                            {{ form.umbral_ocupacion }}
+                            <small class="form-text">Ej: Si ocupación &lt; 30%</small>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="{{ form.horas_anticipacion.id_for_label }}" class="form-label">
+                                {{ form.horas_anticipacion.label }}
+                                {% if form.horas_anticipacion.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
+                            </label>
+                            {{ form.horas_anticipacion }}
+                            <small class="form-text">Revisar X horas antes</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: flex; gap: var(--space-md); margin-top: 2.5rem;">
                 <button type="submit" class="btn btn-primary" style="flex: 1;">{{ nombre_boton }}</button>
-                <button type="button" id="btn-cancelar" data-href="{% url 'promociones:politica_list' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">Cancelar</button>
+                <button type="button" id="btn-cancelar" data-href="{% url 'promociones:politica_list' %}" class="btn btn-outline" style="flex: 1;">Cancelar</button>
             </div>
         </form>
     </div>
 </div>
 
 <style>
-    /* --- Estilos Generales de Formulario --- */
-    .form-group { margin-bottom: 1rem; }
-    .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 1rem; color: var(--text-primary); }
-    .form-text { display: block; margin-top: 0.4rem; font-size: 0.85rem; color: var(--text-secondary); opacity: 0.8; }
-    .form-error { color: #ff6b6b; font-size: 0.85rem; display: block; margin-top: 0.25rem; }
+    /* --- Estructura de Secciones --- */
+    .section-block {
+        margin-bottom: 2.5rem;
+    }
+    .section-title {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--text-secondary);
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--glass-border);
+        padding-bottom: 0.5rem;
+        opacity: 0.8;
+    }
 
-    /* Inputs Modernos */
+    /* --- Inputs Modernos --- */
+    .form-group { margin-bottom: 0; } /* El margen lo maneja el grid */
+    
+    .form-label { 
+        display: block; 
+        margin-bottom: 0.5rem; 
+        font-weight: 600; 
+        font-size: 0.95rem; 
+        color: var(--text-light); 
+    }
+    
+    .form-text { 
+        font-size: 0.8rem; 
+        color: var(--text-secondary); 
+        opacity: 0.7; 
+        margin-top: 5px;
+        display: block;
+    }
+    
+    .form-error { 
+        color: #ff6b6b; 
+        font-size: 0.85rem; 
+        display: block; 
+        margin-top: 0.3rem; 
+    }
+
     input[type="text"], input[type="number"], input[type="time"], select {
         width: 100%;
-        padding: 0.8rem 1rem;
-        background: rgba(255, 255, 255, 0.05);
+        padding: 0.7rem 1rem;
+        background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--glass-border);
-        border-radius: var(--radius);
+        border-radius: 8px;
         color: var(--text-light);
         font-family: inherit;
         font-size: 1rem;
-        transition: border-color 0.3s;
+        transition: all 0.3s;
+        /* Aseguramos que los inputs no se salgan de su caja */
+        box-sizing: border-box; 
     }
     input:focus, select:focus {
         outline: none;
         border-color: var(--primary);
-        box-shadow: 0 0 0 3px rgba(139, 95, 191, 0.1);
+        background: rgba(255, 255, 255, 0.06);
+        box-shadow: 0 0 0 4px rgba(139, 95, 191, 0.1);
     }
     select option { background: #1a1a1a; color: #fff; }
 
-    /* --- SWITCH MODERN (Para 'Activa') --- */
+    /* --- SWITCH MODERN --- */
     .toggle-switch {
         display: inline-flex;
         align-items: center;
         cursor: pointer;
-        gap: 1rem;
+        gap: 0.8rem;
         position: relative;
     }
-    .toggle-switch input { opacity: 0; width: 0; height: 0; }
+    .toggle-switch input { opacity: 0; width: 0; height: 0; position: absolute; }
     .slider {
         position: relative;
-        width: 50px;
-        height: 26px;
+        width: 44px;
+        height: 24px;
         background-color: rgba(255, 255, 255, 0.1);
         border-radius: 34px;
-        transition: .4s;
+        transition: .3s;
         border: 1px solid var(--glass-border);
     }
     .slider:before {
         position: absolute;
         content: "";
-        height: 18px;
-        width: 18px;
+        height: 16px;
+        width: 16px;
         left: 3px;
         bottom: 3px;
-        background-color: white;
+        background-color: #ccc;
         border-radius: 50%;
-        transition: .4s;
+        transition: .3s;
     }
-    input:checked + .slider { background-color: var(--primary); border-color: var(--primary); }
-    input:checked + .slider:before { transform: translateX(24px); }
-    .toggle-label { font-weight: 600; font-size: 1rem; }
+    input:checked + .slider { background-color: rgba(139, 95, 191, 0.5); border-color: var(--primary); }
+    input:checked + .slider:before { transform: translateX(20px); background-color: #fff; }
+    .toggle-label { font-weight: 600; font-size: 1rem; color: var(--text-light); }
 
-    /* --- DÍAS DE LA SEMANA (Chips Modernos) --- */
+    /* --- DÍAS DE LA SEMANA (Tus estilos originales) --- */
     .week-selector {
         display: flex;
         gap: 0.5rem;
         flex-wrap: wrap;
     }
-    .day-option {
-        cursor: pointer;
-        user-select: none;
-    }
-    /* Ocultar el checkbox real */
-    .day-option input {
-        position: absolute;
-        opacity: 0;
-        cursor: pointer;
-        height: 0;
-        width: 0;
-    }
-    /* Estilo del Chip */
+    .day-option { cursor: pointer; user-select: none; }
+    .day-option input { position: absolute; opacity: 0; width: 0; height: 0; }
     .day-option span {
         display: inline-block;
-        padding: 0.6rem 1.2rem;
-        background: rgba(255, 255, 255, 0.05); /* Fondo 5% opaco */
-        border: 1px solid rgba(255, 255, 255, 0.25);
-        border-radius: 50px; /* Pill shape */
+        padding: 0.5rem 1rem;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: 8px;
         color: var(--text-secondary);
+        font-size: 0.9rem;
         font-weight: 500;
-        transition: all 0.2s ease;
+        transition: all 0.2s;
     }
-    /* Estado Hover */
     .day-option:hover span {
         border-color: var(--primary);
         color: var(--text-light);
+        background: rgba(139, 95, 191, 0.1);
     }
-    /* Estado Seleccionado (Controlado por JS o CSS :checked) */
     .day-option input:checked + span {
         background: var(--primary);
         border-color: var(--primary);
         color: white;
-        box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
     }
 
-    /* --- Botones --- */
+    /* --- CARD ESPECIAL YIELD --- */
+    .yield-card {
+        background: linear-gradient(145deg, rgba(156, 39, 176, 0.05), rgba(0, 0, 0, 0.2));
+        border: 1px solid rgba(156, 39, 176, 0.3);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        transition: border-color 0.3s;
+    }
+    .yield-card:hover { border-color: var(--primary); }
+    .yield-header { display: flex; justify-content: space-between; align-items: center; }
+    .yield-title { margin: 0; font-size: 1.1rem; color: #e0e0e0; font-weight: 700; }
+    .yield-subtitle { margin: 4px 0 0 0; font-size: 0.85rem; color: var(--text-secondary); }
+
+    /* --- BOTONES --- */
     .btn {
         padding: 0.8rem 1.5rem;
         font-size: 1rem;
@@ -230,17 +340,34 @@
         border-width: 2px;
         transition: all 0.3s ease;
         cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: 2px solid var(--primary);
     }
     .btn-primary:hover {
         background: rgb(77, 19, 92);
         border-color: rgb(77, 19, 92);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(139, 95, 191, 0.4);
+    }
+    .btn-outline {
+        background: transparent;
+        color: var(--text-light);
+        border: 2px solid rgba(255, 255, 255, 0.2);
     }
     .btn-outline:hover {
-        background: rgba(var(--primary-rgb), 0.25);
         border-color: var(--primary);
         color: var(--primary);
+        background: rgba(139, 95, 191, 0.1);
+        transform: translateY(-1px);
     }
 </style>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         var btn = document.getElementById('btn-cancelar');
@@ -249,6 +376,28 @@
                 var href = this.getAttribute('data-href');
                 if (href) window.location.href = href;
             });
+        }
+
+        // Toggle de Yield Management
+        var yieldCheckbox = document.getElementById('{{ form.activar_por_ocupacion.id_for_label }}');
+        var yieldCampos = document.getElementById('yield-campos');
+        
+        function toggleYieldCampos() {
+            if (yieldCheckbox && yieldCampos) {
+                if (yieldCheckbox.checked) {
+                    yieldCampos.style.display = 'block';
+                } else {
+                    yieldCampos.style.display = 'none';
+                }
+            }
+        }
+        
+        // Estado inicial
+        toggleYieldCampos();
+        
+        // Listener para cambios
+        if (yieldCheckbox) {
+            yieldCheckbox.addEventListener('change', toggleYieldCampos);
         }
     });
 </script>

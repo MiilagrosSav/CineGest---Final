@@ -1,9 +1,10 @@
 {% extends "accounts/base.html" %}
+{% load static %}
 
 {% block title %}Políticas de Promoción{% endblock %}
 
 {% block content %}
-<div class="container">
+<div class="container" style="max-width: 1400px; margin: 2rem auto;">
     
     <div class="mb-lg">
         <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">⚙️ Políticas de Marketing</h1>
@@ -12,32 +13,35 @@
 
     <div class="card glass-container">
         
-        {# Barra de Filtros #}
-        <div style="padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--glass-border);">
-            <form method="get" id="form-filtros" style="display: flex; gap: var(--space-xs); align-items: center; justify-content: space-between; flex-wrap: wrap;">
-                <div style="position: relative; min-width: 180px; max-width: 250px;">
+        <div style="padding: var(--space-md); border-bottom: 1px solid var(--glass-border);">
+            <form method="get" id="form-filtros" style="display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between;">
+                
+                <div style="flex: 1; min-width: 300px; position: relative;">
                     <input type="text" 
                            name="search" 
                            id="search-input"
                            value="{{ filtro_search }}"
-                           placeholder=" Política o promoción..."
-                           title="Buscar por nombre de política o promoción"
+                           placeholder="Buscar por nombre, promoción o género..."
                            class="form-input"
-                           style="width: 100%; padding: 0.4rem 0.4rem 0.4rem 2rem; font-size: 0.9rem;">
-                    <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
+                           style="width: 100%; padding-left: 2.5rem;">
+                    <span style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); opacity: 0.5;">🔍</span>
                 </div>
                 
-                <div style="display: flex; gap: var(--space-xs); align-items: center; flex-wrap: wrap;">
-                    <select name="estado" class="form-select" style="width: 130px; padding: 0.4rem; font-size: 0.9rem;">
-                        <option value="">Todos</option>
-                        <option value="activa" {% if filtro_estado == 'activa' %}selected{% endif %}>✓ Activas</option>
-                        <option value="inactiva" {% if filtro_estado == 'inactiva' %}selected{% endif %}>✗ Inactivas</option>
-                    </select>
+                <div style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
+                    <div class="select-wrapper">
+                        <select name="estado" class="form-select">
+                            <option value="">Estado: Todos</option>
+                            <option value="activa" {% if filtro_estado == 'activa' %}selected{% endif %}>✓ Activas</option>
+                            <option value="inactiva" {% if filtro_estado == 'inactiva' %}selected{% endif %}>✗ Inactivas</option>
+                        </select>
+                    </div>
                     
-                    <button type="button" id="btn-filter" class="btn btn-primary" style="padding: 0.35rem 0.6rem; font-size:0.85rem;">Buscar</button>
+                    <button type="submit" id="btn-filter" class="btn btn-primary" style="padding: 0.6rem 1.5rem;">
+                        Filtrar
+                    </button>
                     
                     {% if filtro_search or filtro_estado %}
-                    <a href="{% url 'promociones:politica_list' %}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                    <a href="{% url 'promociones:politica_list' %}" class="btn btn-outline" style="padding: 0.6rem 0.9rem;" title="Limpiar filtros">
                         ✕
                     </a>
                     {% endif %}
@@ -45,23 +49,94 @@
             </form>
         </div>
         
-        <div id="promocionTableContainer" style="padding: var(--space-md);">
-            {% include 'promociones/_politica_table.html' %}
+        <div id="politicaTableContainer" style="padding: 0;">
+            {% if politicas %}
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th style="padding-left: var(--space-lg);">Nombre</th>
+                            <th style="text-align: center;">Estado</th>
+                            <th>Promoción</th>
+                            <th>Género</th>
+                            <th>Días</th>
+                            <th>Horario</th>
+                            <th style="text-align: center;">Prioridad</th>
+                            <th style="text-align: center; padding-right: var(--space-lg);">Validez</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for politica in politicas %}
+                        <tr class="politica-row" 
+                            data-id="{{ politica.pk }}" 
+                            data-edit-url="{% url 'promociones:politica_update' politica.pk %}"
+                            data-delete-url="{% url 'promociones:politica_delete' politica.pk %}">
+                            
+                            <td style="padding-left: var(--space-lg); font-weight: 600; color: var(--text-light);">
+                                {{ politica.nombre }}
+                            </td>
+                            
+                            <td style="text-align: center;">
+                                {% if politica.activa %}
+                                    <span class="badge badge-active">Activa</span>
+                                {% else %}
+                                    <span class="badge badge-inactive">Inactiva</span>
+                                {% endif %}
+                            </td>
+                            
+                            <td>
+                                <span style="opacity: 0.9;">{{ politica.promocion_a_otorgar.codigo }}</span>
+                            </td>
+                            
+                            <td>
+                                {% if politica.genero_pelicula %}
+                                    <span class="badge badge-genre">
+                                        {{ politica.get_genero_pelicula_display }}
+                                    </span>
+                                {% else %}
+                                    <span style="opacity: 0.4;">Todos</span>
+                                {% endif %}
+                            </td>
+                            
+                            <td>{{ politica.get_dias_display|default:"Todos los días" }}</td>
+                            
+                            <td style="white-space: nowrap;">
+                                {{ politica.hora_inicio_rango|time:"H:i" }} - {{ politica.hora_fin_rango|time:"H:i" }}
+                            </td>
+                            
+                            <td style="text-align: center; font-weight: 600;">
+                                {{ politica.prioridad }}
+                            </td>
+                            
+                            <td style="text-align: center; padding-right: var(--space-lg);">
+                                {{ politica.minutos_validez }} min
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 4rem 2rem; color: var(--text-secondary);">
+                <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;">⚙️</div>
+                <p style="font-size: 1.1rem; margin-bottom: 0;">No hay políticas configuradas.</p>
+            </div>
+            {% endif %}
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-md); padding: var(--space-md); border-top: 1px solid var(--glass-border);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-md); padding: var(--space-md) var(--space-lg); border-top: 1px solid var(--glass-border);">
             
             <div>
-                <a href="{% url 'promociones:politica_create' %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                <a href="{% url 'promociones:politica_create' %}" class="btn btn-primary">
                     ✚ Nueva Política
                 </a>
             </div>
             
-            <div style="display: flex; gap: var(--space-sm);">
-                <button id="btn-modificar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
+            <div style="display: flex; gap: 0.8rem;">
+                <button id="btn-modificar" class="btn btn-outline" disabled>
                     ✏️ Modificar
                 </button>
-                <button id="btn-eliminar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
+                <button id="btn-eliminar" class="btn btn-outline" disabled>
                     🗑️ Eliminar
                 </button>
             </div>
@@ -71,11 +146,73 @@
 </div>
 
 <style>
-    /* Estilos para botones */
-    .card .btn,
-    .card .btn-primary,
-    .card .btn-outline {
-        padding: 0.7rem 1.3rem;
+    /* --- Inputs y Selects Modernos --- */
+    .form-input, .form-select {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        border-radius: 9999px; /* Píldora */
+        padding: 0.6rem 1.2rem;
+        color: var(--text-light);
+        font-size: 0.9rem;
+        outline: none;
+        transition: all 0.3s;
+        font-family: inherit;
+    }
+    .form-input:focus, .form-select:focus {
+        border-color: var(--primary);
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.1);
+    }
+    .select-wrapper { position: relative; }
+    .form-select option { background: #1a1a1a; color: white; }
+
+    /* --- Tabla Moderna --- */
+    .table-responsive {
+        overflow-x: auto;
+    }
+    .table {
+        width: 100%;
+        border-collapse: collapse;
+        white-space: nowrap; /* Evita que el texto se rompa feo */
+    }
+    .table th {
+        padding: 1rem;
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--text-secondary);
+        border-bottom: 1px solid var(--glass-border);
+    }
+    .table td {
+        padding: 1rem;
+        font-size: 0.95rem;
+        color: var(--text-light);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .politica-row { transition: all 0.2s; cursor: pointer; }
+    .politica-row:hover { background-color: rgba(255, 255, 255, 0.03); }
+    .politica-row.selected { 
+        background-color: rgba(var(--primary-rgb), 0.15);
+        box-shadow: inset 6px 0 0 var(--primary);
+    }
+
+    /* --- Badges --- */
+    .badge {
+        display: inline-block;
+        padding: 0.25rem 0.7rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        letter-spacing: 0.3px;
+    }
+    .badge-active { background: rgba(76, 175, 80, 0.15); color: #66bb6a; border: 1px solid rgba(76, 175, 80, 0.3); }
+    .badge-inactive { background: rgba(244, 67, 54, 0.15); color: #ef5350; border: 1px solid rgba(244, 67, 54, 0.3); }
+    .badge-genre { background: rgba(156, 39, 176, 0.15); color: #ce93d8; border: 1px solid rgba(156, 39, 176, 0.3); }
+
+    /* --- Botones --- */
+    .btn {
+        padding: 0.7rem 1.5rem;
         font-size: 0.9rem; 
         font-weight: 600;
         border-radius: 9999px;
@@ -83,51 +220,41 @@
         letter-spacing: 0.5px;
         border-width: 2px;
         transition: all 0.3s ease-in-out;
-        position: relative;
-        overflow: hidden;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        cursor: pointer;
     }
-
-    /* Hover para botón PRIMARIO */
-    .card .btn-primary:hover {
-        background: rgb(77, 19, 92);
+    
+    .btn-primary {
+        background: var(--primary);
         color: white;
-        border: none;
+        border: 2px solid var(--primary);
     }
-
-    /* Hover para botones OUTLINE */
-    .card .btn-outline:not(:disabled):hover {
-        background: rgba(var(--primary-rgb), 0.25);
+    .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4);
+    }
+    .btn-outline {
+        background: transparent;
+        color: var(--text-light);
+        border: 2px solid rgba(255, 255, 255, 0.2);
+    }
+    .btn-outline:hover {
         border-color: var(--primary);
         color: var(--primary);
+        background: rgba(var(--primary-rgb), 0.1);
         transform: translateY(-1px) scale(1.01);
-        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
     }
-
-    /* Estado DESHABILITADO */
-    .card .btn-outline:disabled {
+    .btn-outline:disabled {
         opacity: 0.4;
         cursor: not-allowed;
-        background: transparent;
-        border-color: var(--glass-border);
-        color: var(--text-secondary);
         transform: none;
         box-shadow: none;
-    }
-
-    /* Estilos de Fila */
-    .promocion-row {
-        transition: background-color 0.2s ease;
-    }
-    .promocion-row:hover {
-        background-color: rgba(255, 255, 255, 0.05);
-    }
-    .promocion-row.selected {
-        background-color: rgba(var(--primary-rgb), 0.15);
-        border-left: 3px solid var(--primary);
+        background: transparent;
     }
 </style>
 
@@ -137,14 +264,14 @@
         const btnEliminar = document.getElementById('btn-eliminar');
         let selectedRows = [];
 
-        // Función para adjuntar listeners a las filas
+        // 1. Selección de filas
         function attachRowListeners(container) {
             if (!container) container = document;
-            const rows = container.querySelectorAll('.promocion-row');
+            const rows = container.querySelectorAll('.politica-row');
             rows.forEach(row => {
                 row.addEventListener('click', function(event) {
                     if (!event.ctrlKey && !event.metaKey) {
-                        document.querySelectorAll('.promocion-row.selected').forEach(r => {
+                        document.querySelectorAll('.politica-row.selected').forEach(r => {
                             if (r !== this) r.classList.remove('selected');
                         });
                         selectedRows = [];
@@ -152,6 +279,18 @@
                     toggleRowSelection(this);
                 });
             });
+        }
+
+        function toggleRowSelection(row) {
+            const rowId = row.dataset.id;
+            if (row.classList.contains('selected')) {
+                row.classList.remove('selected');
+                selectedRows = selectedRows.filter(id => id !== rowId);
+            } else {
+                row.classList.add('selected');
+                selectedRows.push(rowId);
+            }
+            updateUI();
         }
 
         function updateUI() {
@@ -165,98 +304,13 @@
                 btnEliminar.textContent = '🗑️ Eliminar';
             }
         }
-        
-        function toggleRowSelection(row) {
-            const rowId = row.dataset.id;
-            if (row.classList.contains('selected')) {
-                row.classList.remove('selected');
-                selectedRows = selectedRows.filter(id => id !== rowId);
-            } else {
-                row.classList.add('selected');
-                selectedRows.push(rowId);
-            }
-            updateUI();
-        }
 
-        // Inicializar listeners en la carga inicial
-        attachRowListeners();
-
-        // --- FILTROS CON AJAX ---
-        const searchInput = document.getElementById('search-input');
-        const btnFilter = document.getElementById('btn-filter');
-        const formFiltros = document.getElementById('form-filtros');
-
-        function serializeForm() {
-            const form = document.getElementById('form-filtros');
-            const params = new URLSearchParams(new FormData(form));
-            return params.toString();
-        }
-
-        let searchTimeout = null;
-        function fetchTable(push=true) {
-            const qs = serializeForm();
-            const url = window.location.pathname + (qs ? ('?' + qs) : '');
-            const container = document.getElementById('promocionTableContainer');
-            if (!container) return;
-            container.style.opacity = '0.6';
-            fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-                .then(r => { if (!r.ok) throw new Error('Network response not ok'); return r.text(); })
-                .then(html => {
-                    container.innerHTML = html;
-                    attachRowListeners(container);
-                    selectedRows = [];
-                    updateUI();
-                    if (push) history.pushState(null, '', url);
-                })
-                .catch(err => { console.error('AJAX error', err); })
-                .finally(()=>{ container.style.opacity = ''; });
-        }
-
-        function fetchTableDebounced() {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(() => fetchTable(true), 500);
-        }
-
-        if (searchInput) {
-            searchInput.addEventListener('input', function(e) {
-                fetchTableDebounced();
-            });
-            searchInput.addEventListener('keydown', function(e) {
-                if (e.key === 'Enter') {
-                    e.preventDefault();
-                    clearTimeout(searchTimeout);
-                    fetchTable(true);
-                }
-            });
-        }
-
-        if (btnFilter) {
-            btnFilter.addEventListener('click', function() { 
-                clearTimeout(searchTimeout); 
-                fetchTable(true); 
-            });
-        }
-
-        const allSelects = document.querySelectorAll('#form-filtros select');
-        allSelects.forEach(select => {
-            select.addEventListener('change', function() {
-                clearTimeout(searchTimeout);
-                fetchTable(true);
-            });
-        });
-
-        // Manejar botón atrás del navegador
-        window.addEventListener('popstate', function() {
-            fetchTable(false);
-        });
-
-        // --- BOTONES DE ACCIÓN ---
+        // 2. Acciones de Botones (Usando data-url)
         if(btnModificar) btnModificar.addEventListener('click', function() {
             if (selectedRows.length === 1) {
-                const row = document.querySelector(`.promocion-row[data-id="${selectedRows[0]}"]`);
-                if (row) {
-                    const url = row.getAttribute('data-edit-url');
-                    if (url) window.location.href = url;
+                const row = document.querySelector(`.politica-row[data-id="${selectedRows[0]}"]`);
+                if (row && row.dataset.editUrl) {
+                    window.location.href = row.dataset.editUrl;
                 }
             }
         });
@@ -265,10 +319,9 @@
             if (selectedRows.length === 0) return;
             
             if (selectedRows.length === 1) {
-                const row = document.querySelector(`.promocion-row[data-id="${selectedRows[0]}"]`);
-                if (row) {
-                    const url = row.getAttribute('data-delete-url');
-                    if (url) window.location.href = url;
+                const row = document.querySelector(`.politica-row[data-id="${selectedRows[0]}"]`);
+                if (row && row.dataset.deleteUrl) {
+                    window.location.href = row.dataset.deleteUrl;
                 }
             } else {
                 if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} políticas seleccionadas?`)) {
@@ -276,7 +329,21 @@
                 }
             }
         });
-        
+
+        // 3. Búsqueda en vivo (Opcional)
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            let timeout = null;
+            searchInput.addEventListener('input', function() {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => {
+                    document.getElementById('form-filtros').submit();
+                }, 500);
+            });
+        }
+
+        // Inicializar
+        attachRowListeners();
         updateUI();
     });
 </script>

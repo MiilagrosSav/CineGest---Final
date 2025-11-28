@@ -165,7 +165,60 @@ def seleccionar_butacas(request, funcion_id):
         request.session.modified = True
     
     logger.info(f'[SELECCIONAR_BUTACAS] Resultado: precio={precio_mostrar}, tiene_descuento={info_descuento is not None}')
-
+    # ==============================================================================
+    # BLOQUE NUEVO: BUSCAR PROMOCIONES AUTOMÁTICAS (Si no hay cupón)
+    # ==============================================================================
+    if not promocion_aplicada:
+        hoy = timezone.localdate()
+        
+        # Buscamos promos automáticas vigentes
+        candidatas = Promocion.objects.filter(
+            es_automatica=True,
+            fecha_inicio__lte=hoy,
+            fecha_fin__gte=hoy
+        )
+        
+        from promociones.services import es_promocion_valida_para_funcion
+        
+        for p in candidatas:
+            if es_promocion_valida_para_funcion(p, funcion):
+                promocion_aplicada = p
+                
+                # Configurar visualización según tipo
+                tipo = str(p.tipo_descuento).upper().strip()
+                promo_codigo = p.codigo
+                
+                if tipo == '2X1':
+                    promo_2x1 = True
+                    info_descuento = {
+                        'tipo': '2X1',
+                        'descripcion': f'🎉 {p.nombre}: Pagás 1 y llevás 2',
+                        'precio_con_descuento': funcion.precio_base
+                    }
+                elif tipo == 'PORCENTAJE':
+                    from decimal import Decimal, ROUND_HALF_UP
+                    porcentaje = Decimal(p.valor_descuento or 0) / Decimal(100)
+                    precio_con_desc = (funcion.precio_base * (Decimal(1) - porcentaje)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                    precio_mostrar = precio_con_desc
+                    ahorro = funcion.precio_base - precio_con_desc
+                    info_descuento = {
+                        'tipo': 'PORCENTAJE',
+                        'descripcion': f'🔥 {p.nombre}: {int(p.valor_descuento)}% OFF (ahorrás ${ahorro})',
+                        'precio_con_descuento': precio_con_desc
+                    }
+                elif tipo == 'MONTO_FIJO':
+                     from decimal import Decimal, ROUND_HALF_UP
+                     monto = Decimal(p.valor_descuento or 0)
+                     precio_con_desc = (funcion.precio_base - monto).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                     if precio_con_desc < 0: precio_con_desc = 0
+                     precio_mostrar = precio_con_desc
+                     info_descuento = {
+                        'tipo': 'MONTO_FIJO',
+                        'descripcion': f'💰 {p.nombre}: ${monto} OFF',
+                        'precio_con_descuento': precio_con_desc
+                     }
+                
+                break # Encontramos una, nos quedamos con esa y salimos del bucle
     context = {
         'funcion': funcion,
         'sala': sala,
