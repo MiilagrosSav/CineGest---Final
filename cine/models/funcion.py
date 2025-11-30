@@ -147,6 +147,42 @@ class Funcion(models.Model):
             return self.fecha_hora + timedelta(minutes=self.pelicula.duracion)
         return None
     
+    def get_valoraciones_stats(self):
+        """
+        Devuelve estadísticas de valoraciones específicas para ESTA función.
+        Returns: dict con 'promedio', 'total', 'estrellas_llenas', 'estrellas_vacias'
+        """
+        from django.db.models import Avg, Count
+        try:
+            from valoraciones.models import Valoracion
+            
+            stats = Valoracion.objects.filter(funcion=self).aggregate(
+                promedio=Avg('puntuacion'),
+                total=Count('id')
+            )
+            
+            promedio = stats['promedio'] or 0
+            total = stats['total'] or 0
+            
+            # Calcular estrellas para display (truncar al entero, no redondear)
+            # Usar int() en lugar de round() para evitar 6 estrellas totales
+            estrellas_llenas = int(promedio) if promedio > 0 else 0
+            estrellas_vacias = 5 - estrellas_llenas
+            
+            return {
+                'promedio': round(promedio, 1),
+                'total': total,
+                'estrellas_llenas': estrellas_llenas,
+                'estrellas_vacias': estrellas_vacias,
+            }
+        except Exception:
+            return {
+                'promedio': 0,
+                'total': 0,
+                'estrellas_llenas': 0,
+                'estrellas_vacias': 5,
+            }
+    
     def get_asientos_disponibles(self):
         """Retorna el número de asientos disponibles para esta función"""
         # Por ahora retorna la capacidad total de la sala

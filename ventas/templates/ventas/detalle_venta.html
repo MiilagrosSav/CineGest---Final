@@ -82,53 +82,43 @@
                     {% endif %}
                 </div>
 
-                {% if venta.estado == 'CONFIRMADA' and venta.tipo_venta == 'ONLINE' %}
-                <!-- Ticket Digital con QR Único -->
-                <div style="background: linear-gradient(135deg, rgba(106, 17, 203, 0.1) 0%, rgba(37, 117, 252, 0.1) 100%); border-radius: var(--radius); padding: var(--space-xl); text-align: center; margin-bottom: var(--space-lg);">
-                    <h3 style="margin-bottom: var(--space-md); color: var(--primary);">🎫 Tu Ticket Digital</h3>
-                    
-                    <div style="background: white; border-radius: var(--radius); padding: var(--space-xl); max-width: 350px; margin: 0 auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
-                        {% if venta.codigo_compra %}
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{ venta.codigo_compra }}" 
-                             alt="QR Code Compra" 
-                             style="width: 100%; max-width: 220px; border-radius: var(--radius); margin-bottom: var(--space-md);">
+                <div>
+                    {% if venta.estado == 'CONFIRMADA' and venta.tipo_venta == 'ONLINE' %}
+                    <div style="margin-bottom: var(--space-lg);">
+                        <h3 style="margin-bottom: var(--space-md);">🎫 Tu Ticket Digital</h3>
                         
-                        <div style="background: #f5f5f5; padding: var(--space-md); border-radius: var(--radius); margin-bottom: var(--space-md);">
-                            <small style="display: block; color: #666; font-size: 0.8rem; margin-bottom: 0.25rem;">CÓDIGO DE COMPRA</small>
-                            <strong style="font-family: monospace; font-size: 1.3rem; color: #333; letter-spacing: 2px;">{{ venta.codigo_compra }}</strong>
-                        </div>
-                        {% else %}
-                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=VENTA-{{ venta.id_venta }}" 
-                             alt="QR Code Compra" 
-                             style="width: 100%; max-width: 220px; border-radius: var(--radius); margin-bottom: var(--space-md);">
-                        
-                        <div style="background: #f5f5f5; padding: var(--space-md); border-radius: var(--radius); margin-bottom: var(--space-md);">
-                            <small style="display: block; color: #666; font-size: 0.8rem; margin-bottom: 0.25rem;">ID DE VENTA</small>
-                            <strong style="font-family: monospace; font-size: 1.3rem; color: #333; letter-spacing: 2px;">#{{ venta.id_venta }}</strong>
-                        </div>
-                        {% endif %}
-                        
-                        <div style="padding: var(--space-md); background: rgba(106, 17, 203, 0.05); border-radius: var(--radius); border: 2px dashed var(--primary);">
-                            <p style="margin: 0; font-size: 0.85rem; color: #333; line-height: 1.5;">
-                                <strong>📱 Instrucciones:</strong><br>
-                                Muestra este código en la boletería para imprimir tus entradas físicas.
-                            </p>
+                        <div class="qr-card" style="background: white; border-radius: 16px; padding: 2rem; text-align: center; color: #333; box-shadow: 0 10px 30px rgba(0,0,0,0.2); position: relative; overflow: hidden;">
+                            <div style="position: absolute; top: 0; left: 0; right: 0; height: 6px; background: linear-gradient(90deg, #6a11cb, #2575fc);"></div>
+                            
+                            <p style="margin: 0 0 1rem 0; font-size: 0.8rem; font-weight: 700; letter-spacing: 1px; color: #666; text-transform: uppercase;">Escanea en la entrada</p>
+                            
+                            {% if venta.codigo_compra %}
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{ venta.codigo_compra }}" 
+                                     alt="QR Code" 
+                                     style="width: 180px; height: 180px; mix-blend-mode: multiply;">
+                                <div style="margin-top: 1rem; background: #f3f4f6; padding: 0.5rem; border-radius: 8px; display: inline-block;">
+                                    <strong style="font-family: monospace; font-size: 1.4rem; letter-spacing: 2px;">{{ venta.codigo_compra }}</strong>
+                                </div>
+                            {% else %}
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=VENTA-{{ venta.id_venta }}" 
+                                     alt="QR Code"
+                                     style="width: 180px; height: 180px; mix-blend-mode: multiply;">
+                                <div style="margin-top: 1rem;">
+                                    <small>ID: #{{ venta.id_venta }}</small>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
-                </div>
-                {% endif %}
-
-                <div>
+                    {% endif %}
                     <h3 style="margin-bottom: var(--space-md);">🎟️ Tus Entradas</h3>
-
+                    
                     {% if entradas_canceladas and entradas_canceladas|length > 0 %}
                     <div style="background: rgba(255,107,107,0.04); border-radius: var(--radius); padding: var(--space-lg); margin-bottom: var(--space-md);">
-                        <h4 style="margin:0 0 .5rem 0; color:#ff6b6b;">🚫 Entradas Canceladas (antes)</h4>
-                        <p style="margin:0 0 .5rem 0; opacity:0.8;">Estas butacas fueron canceladas al realizar un intercambio.</p>
+                        <h4 style="margin:0 0 .5rem 0; color:#ff6b6b;">🚫 Entradas Canceladas</h4>
                         <div style="display:flex; gap: .5rem; flex-wrap:wrap;">
                             {% for e in entradas_canceladas %}
                                 <span class="butaca-badge" style="background: rgba(255,107,107,0.12); border-color:#ff6b6b; color:#ff6b6b;">
-                                    {{ e.id_butaca.fila }}{{ e.id_butaca.numero }} — {{ e.id_funcion.fecha_hora|date:"d/m H:i" }}
+                                    {{ e.id_butaca.fila }}{{ e.id_butaca.numero }}
                                 </span>
                             {% endfor %}
                         </div>
@@ -138,10 +128,9 @@
                     {% if entradas_activas and entradas_activas|length > 0 %}
                         {% with primera_entrada=entradas_activas.0 %}
                         <div style="background: rgba(255,255,255,0.05); border-radius: var(--radius); padding: var(--space-lg);">
-                            
                             <h4 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">🎬 {{ primera_entrada.id_pelicula.titulo }}</h4>
                             
-                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
                                 <div>
                                     <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">📅 Fecha</p>
                                     <p style="margin: 2px 0 0 0; font-weight: 500;">{{ primera_entrada.id_funcion.fecha_hora|date:"d/m/Y" }}</p>
@@ -159,9 +148,8 @@
                             <hr style="border-color: var(--glass-border); margin: 0 0 var(--space-md) 0;">
 
                             <p style="margin: 0 0 var(--space-sm) 0; opacity: 0.7; font-size: 0.9rem;">
-                                💺 Butacas Adquiridas ({{ entradas_activas|length }}):
+                                💺 Butacas ({{ entradas_activas|length }}):
                             </p>
-                            
                             <div style="display: flex; flex-wrap: wrap; gap: var(--space-sm);">
                                 {% for entrada in entradas_activas %}
                                     <span class="butaca-badge">
@@ -173,29 +161,49 @@
                         {% endwith %}
                     {% else %}
                         <div style="background: rgba(255,255,255,0.05); border-radius: var(--radius); padding: var(--space-lg); text-align: center; opacity: 0.7;">
-                            <p style="margin: 0;">No hay entradas activas asociadas a esta compra.</p>
+                            <p style="margin: 0;">No hay entradas activas.</p>
                         </div>
                     {% endif %}
                 </div>
 
-            </div> </div> <div class="card-footer" style="padding: var(--space-lg); border-top: 1px solid var(--glass-border); display: flex; justify-content: center; gap: var(--space-md); flex-wrap: wrap;">
+            </div> {% if user.is_authenticated and can_valorar_info and can_valorar_info|length > 0 %}
+            <div style="margin-top: 2.5rem; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
+                {% for info in can_valorar_info %}
+
+                    <div class="modal fade" id="modalCalificar-{{ info.funcion.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Calificar {{ info.funcion.pelicula.titulo }}</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                                </div>
+                                <div class="modal-body">
+                                    {% include 'valoraciones/modal_calificar.html' with funcion=info.funcion %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            </div>
+
+        <div class="card-footer" style="padding: var(--space-lg); border-top: 1px solid var(--glass-border); display: flex; justify-content: center; gap: var(--space-md); flex-wrap: wrap;">
             {% if venta.estado == 'PENDIENTE' %}
-            <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary">
-                💳 Pagar Ahora
-            </a>
+                <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary">
+                    💳 Pagar Ahora
+                </a>
             {% elif venta.tipo_venta == 'PRESENCIAL' %}
-                {# Para ventas presenciales, no mostrar botón de intercambio online #}
                 <p style="opacity: 0.7; margin: 0; padding: 0.5rem 1rem; text-align: center;">
-                    ℹ️ Venta procesada en boletería. Para cambios, consulta en mostrador.
+                    ℹ️ Venta procesada en boletería.
                 </p>
             {% else %}
-                {# Mostrar el botón de intercambio solo para ventas online #}
                 {% if puede_intercambiar %}
-                    <a href="{% url 'cine:cartelera' %}?intercambio_for={{ venta.id_venta }}" class="btn btn-secondary" style="background:#6c757d; color:white; border:none;">
+                    <a href="{% url 'cine:cartelera' %}?intercambio_for={{ venta.id_venta }}" class="btn btn-secondary" style="background:#6c757d; border-color:#6c757d; color:white;">
                         🔁 Intercambiar Entrada
                     </a>
                 {% else %}
-                    <button class="btn btn-secondary" style="background:#6c757d; color:white; border:none; opacity:0.6; cursor:not-allowed;" title="{{ motivo_no_intercambio|default:'Intercambio no disponible' }}" disabled>
+                    <button class="btn btn-secondary" style="background:#6c757d; border-color:#6c757d; color:white; opacity:0.6; cursor:not-allowed;" title="{{ motivo_no_intercambio|default:'Intercambio no disponible' }}" disabled>
                         🔁 Intercambiar Entrada
                     </button>
                 {% endif %}
@@ -232,20 +240,11 @@
         font-size: 0.9rem;
         margin-bottom: 0.5px;
     }
-    .estado-confirmada {
-        background: rgba(78, 205, 196, 0.1);
-        border-color: var(--primary);
-    }
-    .estado-pendiente {
-        background: rgba(255, 193, 7, 0.1);
-        border-color: #ffc107;
-    }
-    .estado-cancelada {
-        background: rgba(255, 107, 107, 0.1);
-        border-color: #ff6b6b;
-    }
+    .estado-confirmada { background: rgba(78, 205, 196, 0.1); border-color: var(--primary); }
+    .estado-pendiente { background: rgba(255, 193, 7, 0.1); border-color: #ffc107; }
+    .estado-cancelada { background: rgba(255, 107, 107, 0.1); border-color: #ff6b6b; }
 
-    /* Estilo para el "chip" de la butaca */
+    /* Chip de butaca */
     .butaca-badge {
         background: rgba(var(--primary-rgb), 0.15);
         border: 1px solid var(--primary);
@@ -257,13 +256,15 @@
         white-space: nowrap;
     }
 
-    /* Estilos de Botones */
+    /* Botones */
     .card-footer .btn-primary,
-    .card-footer .btn-outline {
+    .card-footer .btn-outline,
+    .card-footer .btn-secondary,
+    .btn {
         padding: 0.8rem 1.5rem;
         font-size: 1rem;
         font-weight: 600;
-        border-radius: 9999px; /* Píldora */
+        border-radius: 9999px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
         border-width: 2px;
@@ -273,19 +274,13 @@
         display: inline-flex; 
         align-items: center;
         justify-content: center;
+        cursor: pointer;
     }
-    .card-footer .btn-primary:hover {
-        background: rgb(77, 19, 92);
-        color: white;
-        border-color: rgb(77, 19, 92);
-        transform: translateY(-1px) scale(1.01);
-        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
+    .card-footer .btn-primary:hover, .btn-primary:hover { 
+        background: rgb(77, 19, 92); color: white; border-color: rgb(77, 19, 92); transform: translateY(-1px); 
     }
-    .card-footer .btn-outline:hover {
-        background: rgba(var(--primary-rgb), 0.25);
-        border-color: var(--primary);
-        color: var(--primary);
-        transform: translateY(-1px);
+    .card-footer .btn-outline:hover, .btn-outline:hover { 
+        background: rgba(var(--primary-rgb), 0.25); border-color: var(--primary); color: var(--primary); transform: translateY(-1px); 
     }
 </style>
 {% endblock %}

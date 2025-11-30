@@ -47,95 +47,48 @@
         </style>
 
         <div class="filter-group-container" style="padding: var(--space-md); border-bottom: 1px solid var(--glass-border);">
-            <div class="filter-group" style="display: flex; gap: var(--space-sm); flex-wrap: wrap;">
-                <button class="filter-btn active" data-filter="confirmadas">
-                    Confirmadas
+            <div class="filter-group" style="display: flex; gap: var(--space-sm); flex-wrap: wrap; align-items: center;">
+                <button class="filter-btn {% if current_filter == 'confirmadas' %}active{% endif %}" data-filter="confirmadas">
+                    ✅ Confirmadas
                 </button>
-                <button class="filter-btn" data-filter="pendientes" data-count="{{ ventas_pendientes.count|default:"0" }}">
-                    Pendientes
-                    {% if ventas_pendientes.count > 0 %}
-                    <span class="notification-badge">{{ ventas_pendientes.count }}</span>
+                <button class="filter-btn {% if current_filter == 'intercambiadas' %}active{% endif %}" data-filter="intercambiadas">
+                    🔄 Intercambiadas
+                </button>
+                <button class="filter-btn {% if current_filter == 'canceladas' %}active{% endif %}" data-filter="canceladas">
+                    ❌ Canceladas
+                </button>
+                
+                <!-- Buscador -->
+                <div style="margin-left: auto; display: flex; gap: 0.5rem; align-items: center;">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="🔍 Buscar por película, nombre o compra..." 
+                        value="{{ search_query }}"
+                        style="padding: 0.6rem 1rem; border-radius: 9999px; border: 2px solid var(--glass-border); background: rgba(255,255,255,0.05); color: var(--text-light); min-width: 280px; font-size: 0.9rem;"
+                    />
+                    <button id="searchBtn" class="btn btn-primary" style="padding: 0.6rem 1.2rem; font-size: 0.9rem; white-space: nowrap;">
+                        🔍 Buscar
+                    </button>
+                    {% if search_query %}
+                    <button id="clearSearchBtn" class="btn btn-outline" style="padding: 0.6rem 1rem; font-size: 0.9rem;">
+                        ✖️ Limpiar
+                    </button>
                     {% endif %}
-                </button>
-                <button class="filter-btn" data-filter="canceladas">
-                    Canceladas
-                </button>
-                {# Reembolsadas filter removed; refunds deprecated #}
-            </div>
-        </div>
-
-        
-        {% if ventas_pendientes %}
-        <div class="ventas-pendientes" style="padding: var(--space-lg); display: none;"> <h2 style="margin: 0 0 var(--space-md) 0; color: #ffc107;">⏳ Pagos Pendientes</h2>
-            <div style="display: flex; flex-direction: column; gap: var(--space-md);">
-                {% for venta in ventas_pendientes_page %}
-                <div class="venta-card venta-pendiente" style="display: block;"> <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-md);">
-                        <div>
-                            <h3 style="margin: 0 0 var(--space-xs) 0;">🎬 Compra #{{ venta.id_venta }}</h3>
-                            <p style="margin: 0; opacity: 0.8; font-size: 0.9rem;">📅 {{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
-                        </div>
-                        <div style="text-align: right;">
-                            <span class="badge-estado badge-pendiente">
-                                {% if venta.estado == 'PENDIENTE' %}⏳ Pendiente
-                                {% else %}⏳ Pendiente de Pago{% endif %}
-                            </span>
-                        </div>
-                    </div>
-                    
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-md);">
-                        <div>
-                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Cantidad de entradas</p>
-                            <p style="margin: 4px 0 0 0; font-weight: 600;">{{ venta.cantidad_entradas }}</p>
-                        </div>
-                        <div>
-                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Total a pagar</p>
-                            <p style="margin: 4px 0 0 0; font-weight: 600; color: #ffc107; font-size: 1.1rem;">${{ venta.calcular_total }}</p>
-                        </div>
-                    </div>
-                    
-                    <div style="display: flex; gap: var(--space-sm); flex-wrap: wrap; justify-content: space-between; align-items: center;">
-                        <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary" style="text-decoration: none;">
-                            💳 Pagar Ahora
-                        </a>
-                        <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" class="btn-ver-detalle" style="text-decoration: none;">
-                            👁️ Ver Detalle
-                        </a>
-                    </div>
                 </div>
-                {% endfor %}
             </div>
-
-            {# Paginación para pendientes #}
-            {% if ventas_pendientes_page.has_other_pages %}
-            <nav class="ventas-pendientes-pagination" style="margin-top:1rem; display:flex; gap:.5rem; align-items:center; justify-content:center;">
-                {% if ventas_pendientes_page.has_previous %}
-                    <a class="btn btn-outline" href="?pending_page={{ ventas_pendientes_page.previous_page_number }}&filter=pendientes" aria-label="Anterior">« Anterior</a>
-                {% else %}
-                    <span class="btn btn-outline" style="opacity:.5; pointer-events:none;">« Anterior</span>
-                {% endif %}
-
-                <span style="padding:.4rem .8rem;">Página {{ ventas_pendientes_page.number }} de {{ ventas_pendientes_page.paginator.num_pages }}</span>
-
-                {% if ventas_pendientes_page.has_next %}
-                    <a class="btn btn-outline" href="?pending_page={{ ventas_pendientes_page.next_page_number }}&filter=pendientes" aria-label="Siguiente">Siguiente »</a>
-                {% else %}
-                    <span class="btn btn-outline" style="opacity:.5; pointer-events:none;">Siguiente »</span>
-                {% endif %}
-            </nav>
-            {% endif %}
         </div>
-        {% endif %}
+
+
 
         {% if ventas_historial %}
-        <div class="ventas-historial" style="padding: var(--space-lg); display: none;"> <h2 id="historial-titulo" style="margin: 0 0 var(--space-md) 0; color: var(--primary);">📚 Historial de Compras</h2>
+        <div class="ventas-historial" style="padding: var(--space-lg);"> 
+            <h2 id="historial-titulo" style="margin: 0 0 var(--space-md) 0; color: var(--primary);">📚 Historial de Compras</h2>
             <div id="ventasHistorialContainer">
                 {% include 'ventas/_ventas_historial.html' %}
             </div>
-            
-            </div>
-        {% endif %}
-
-        {% if not ventas_pendientes and not ventas_historial %}
+        </div>
+        {% else %}
         <div class="ventas-ninguna" style="text-align: center; padding: var(--space-xl);">
             <div style="font-size: 4rem; margin-bottom: var(--space-md);">🎟️</div>
             <p style="font-size: 1.2rem; margin-bottom: var(--space-md);">No tienes compras registradas</p>
@@ -286,45 +239,21 @@
 <script>
     (function(){
         const buttons = document.querySelectorAll('.filter-btn');
+        const historyContainer = document.getElementById('ventasHistorialContainer');
+        const historyTitle = document.getElementById('historial-titulo');
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+
         if (!buttons || buttons.length === 0) return;
 
-        // Seleccionar las SECCIONES
-        const pendingSection = document.querySelector('.ventas-pendientes');
-        const historySection = document.querySelector('.ventas-historial');
-
-        const historyContainer = document.getElementById('ventasHistorialContainer');
-        const pendingContainer = document.querySelector('.ventas-pendientes');
-
-        const historyTitle = document.getElementById('historial-titulo');
-        const noResultsDiv = document.getElementById('ventasNoResults');
-        const noSalesDiv = document.querySelector('.ventas-ninguna');
-
-        // Aplica sólo la visibilidad (las tarjetas son renderizadas por el servidor)
-        function applyFilterVisibility(filter){
-            if(pendingSection) pendingSection.style.display = 'none';
-            if(historySection) historySection.style.display = 'none';
-            if(noResultsDiv) noResultsDiv.style.display = 'none';
-
-            if(filter === 'pendientes'){
-                if(pendingSection) pendingSection.style.display = 'block';
-            } else {
-                if(historySection) historySection.style.display = 'block';
-                if(historyTitle){
-                    if(filter === 'confirmadas') historyTitle.innerText = '📚 Historial de Compras';
-                    else if(filter === 'canceladas') historyTitle.innerText = '🚫 Compras Canceladas';
-                }
-            }
-        }
-
-        // Fetch partial (historial or pendientes) via AJAX and replace the corresponding container
-        function fetchPartial(filter, page){
+        // Fetch partial via AJAX and replace the history container
+        function fetchPartial(filter, page, search){
             const url = new URL(window.location.pathname, window.location.origin);
-            if(filter === 'pendientes'){
-                url.searchParams.set('filter', 'pendientes');
-                url.searchParams.set('pending_page', page || 1);
-            } else {
-                url.searchParams.set('filter', filter || 'confirmadas');
-                url.searchParams.set('page', page || 1);
+            url.searchParams.set('filter', filter || 'confirmadas');
+            url.searchParams.set('page', page || 1);
+            if (search) {
+                url.searchParams.set('search', search);
             }
 
             return fetch(url.toString(), {
@@ -333,19 +262,18 @@
                 if (!resp.ok) throw new Error('Network response was not ok');
                 return resp.text();
             }).then(html => {
-                if(filter === 'pendientes'){
-                    // Replace pending container
-                    if(pendingContainer) pendingContainer.innerHTML = html;
-                } else {
-                    if(historyContainer) historyContainer.innerHTML = html;
-                }
+                if(historyContainer) historyContainer.innerHTML = html;
 
                 // Update URL
                 const newUrl = url.toString();
-                window.history.pushState({filter: filter, page: page}, '', newUrl);
+                window.history.pushState({filter: filter, page: page, search: search}, '', newUrl);
 
-                // Ensure visibility and re-bind handlers
-                applyFilterVisibility(filter);
+                // Update title
+                if(historyTitle){
+                    if(filter === 'confirmadas') historyTitle.innerText = '✅ Compras Confirmadas';
+                    else if(filter === 'intercambiadas') historyTitle.innerText = '🔄 Compras Intercambiadas';
+                    else if(filter === 'canceladas') historyTitle.innerText = '❌ Compras Canceladas';
+                }
             }).catch(err => {
                 console.error('Error fetching partial:', err);
             });
@@ -353,7 +281,7 @@
 
         // Delegated click handler for pagination links
         document.addEventListener('click', function(e){
-            const a = e.target.closest('.ventas-pagination a, .ventas-pendientes-pagination a');
+            const a = e.target.closest('.ventas-pagination a');
             if(!a) return;
             e.preventDefault();
             const href = a.getAttribute('href');
@@ -361,13 +289,9 @@
             const parsed = new URL(href, window.location.origin);
             const params = parsed.searchParams;
             const filter = params.get('filter') || '{{ current_filter }}';
-            if(filter === 'pendientes'){
-                const p = params.get('pending_page') || 1;
-                fetchPartial('pendientes', p);
-            } else {
-                const p = params.get('page') || 1;
-                fetchPartial(filter, p);
-            }
+            const p = params.get('page') || 1;
+            const search = params.get('search') || '';
+            fetchPartial(filter, p, search);
         });
 
         // Click on filter buttons: fetch page 1 of that filter via AJAX
@@ -376,20 +300,49 @@
                 const filter = this.dataset.filter;
                 buttons.forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
-                fetchPartial(filter, 1).then(() => applyFilterVisibility(filter));
+                const search = searchInput ? searchInput.value.trim() : '';
+                fetchPartial(filter, 1, search);
             });
         });
 
-        // Initialize: load the server-provided filter content (server already rendered it), then apply visibility
-        const initialFilter = "{{ current_filter }}";
-        applyFilterVisibility(initialFilter);
+        // Search button click
+        if (searchBtn) {
+            searchBtn.addEventListener('click', function(e){
+                e.preventDefault();
+                const currentFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'confirmadas';
+                const search = searchInput.value.trim();
+                fetchPartial(currentFilter, 1, search);
+            });
+        }
+
+        // Search on Enter key
+        if (searchInput) {
+            searchInput.addEventListener('keypress', function(e){
+                if(e.key === 'Enter'){
+                    e.preventDefault();
+                    searchBtn.click();
+                }
+            });
+        }
+
+        // Clear search button
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', function(e){
+                e.preventDefault();
+                if (searchInput) searchInput.value = '';
+                const currentFilter = document.querySelector('.filter-btn.active')?.dataset.filter || 'confirmadas';
+                fetchPartial(currentFilter, 1, '');
+            });
+        }
 
         // Handle back/forward navigation
         window.addEventListener('popstate', function(ev){
             const state = ev.state || {};
             const filter = state.filter || new URL(window.location.href).searchParams.get('filter') || '{{ current_filter }}';
-            const page = state.page || new URL(window.location.href).searchParams.get('page') || new URL(window.location.href).searchParams.get('pending_page') || 1;
-            fetchPartial(filter, page);
+            const page = state.page || new URL(window.location.href).searchParams.get('page') || 1;
+            const search = state.search || new URL(window.location.href).searchParams.get('search') || '';
+            if (searchInput) searchInput.value = search;
+            fetchPartial(filter, page, search);
         });
     })();
 </script>
