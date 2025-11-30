@@ -81,6 +81,7 @@ INSTALLED_APPS = [
     # App para mostrar auditoría consolidada en Admin
     'auditoria.apps.AuditoriaConfig',
     'reportes',  # App para generación de reportes
+    'valoraciones.apps.ValoracionesConfig',  # App para manejo de valoraciones
 ]
 
 MIDDLEWARE = [

@@ -123,9 +123,66 @@ def cartelera_view(request):
             peliculas_con_funciones[clave] = {
                 'pelicula': funcion.pelicula,
                 'fecha': funcion.fecha_hora.date(),
-                'funciones': []
+                'funciones': [],
+                'funciones_data': [],  # Lista con datos de valoraciones por función
             }
+        
+        # Agregar función y sus estadísticas
         peliculas_con_funciones[clave]['funciones'].append(funcion)
+        peliculas_con_funciones[clave]['funciones_data'].append({
+            'funcion': funcion,
+            'valoraciones': funcion.get_valoraciones_stats(),
+        })
+    
+    # Calcular valoraciones agregadas por grupo (película + fecha)
+    for clave, item in peliculas_con_funciones.items():
+        # Sumar todas las valoraciones de todas las funciones de este grupo
+        total_valoraciones = sum(f['valoraciones']['total'] for f in item['funciones_data'])
+        
+        if total_valoraciones > 0:
+            # Calcular promedio ponderado basado en cantidad de valoraciones por función
+            suma_ponderada = sum(
+                f['valoraciones']['promedio'] * f['valoraciones']['total'] 
+                for f in item['funciones_data']
+            )
+            promedio_general = suma_ponderada / total_valoraciones if total_valoraciones > 0 else 0
+            
+            # Usar int() para truncar, no round() (evita 6 estrellas)
+            estrellas_llenas = int(promedio_general) if promedio_general > 0 else 0
+            estrellas_vacias = 5 - estrellas_llenas
+            
+            item['valoraciones'] = {
+                'promedio': round(promedio_general, 1),
+                'total': total_valoraciones,
+                'estrellas_llenas': estrellas_llenas,
+                'estrellas_vacias': estrellas_vacias,
+            }
+        else:
+            item['valoraciones'] = {
+                'promedio': 0,
+                'total': 0,
+                'estrellas_llenas': 0,
+                'estrellas_vacias': 5,
+            }
+        
+        # Obtener comentarios de valoraciones de todas las funciones de este grupo
+        from valoraciones.models import Valoracion
+        comentarios = []
+        for func_data in item['funciones_data']:
+            valoraciones_funcion = Valoracion.objects.filter(
+                funcion=func_data['funcion']
+            ).select_related('cliente__usuario').order_by('-fecha_creacion')
+            
+            for val in valoraciones_funcion:
+                if val.comentario and val.comentario.strip():
+                    comentarios.append({
+                        'cliente': val.cliente.usuario.get_full_name() or val.cliente.usuario.username,
+                        'puntuacion': val.puntuacion,
+                        'comentario': val.comentario,
+                        'fecha': val.fecha_creacion.strftime('%d/%m/%Y'),
+                    })
+        
+        item['comentarios'] = comentarios
     
     # Obtener opciones para los filtros
     # Antes: Pelicula.GENERO_CHOICES (ya no existe). Usar la tabla `Genero` (M2M).

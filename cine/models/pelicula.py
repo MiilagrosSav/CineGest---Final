@@ -88,6 +88,50 @@ class Pelicula(models.Model):
         self.clean()
         super().save(*args, **kwargs)
 
+    def get_valoraciones_stats(self):
+        """
+        Devuelve estadísticas de valoraciones para esta película.
+        Returns: dict con 'promedio', 'total', 'estrellas_llenas', 'estrellas_vacias'
+        """
+        from django.db.models import Avg, Count
+        from valoraciones.models import Valoracion
+        
+        stats = Valoracion.objects.filter(pelicula=self).aggregate(
+            promedio=Avg('puntuacion'),
+            total=Count('id')
+        )
+        
+        promedio = stats['promedio'] or 0
+        total = stats['total'] or 0
+        
+        # Calcular estrellas para display (truncar al entero, no redondear)
+        # Usar int() en lugar de round() para evitar 6 estrellas totales
+        estrellas_llenas = int(promedio) if promedio > 0 else 0
+        estrellas_vacias = 5 - estrellas_llenas
+        
+        return {
+            'promedio': round(promedio, 1),
+            'total': total,
+            'estrellas_llenas': estrellas_llenas,
+            'estrellas_vacias': estrellas_vacias,
+        }
+
+    @property
+    def promedio_calificacion(self):
+        """
+        Retorna el promedio de las valoraciones (puntuacion) asociadas a esta película.
+        Devuelve un float redondeado a una cifra (ej: 4.5) o 0 si no hay valoraciones.
+        """
+        from django.db.models import Avg
+        from valoraciones.models import Valoracion
+
+        stats = Valoracion.objects.filter(pelicula=self).aggregate(promedio=Avg('puntuacion'))
+        promedio = stats.get('promedio') or 0
+        try:
+            return round(float(promedio), 1)
+        except Exception:
+            return 0.0
+
     # historial de cambios
     history = HistoricalRecords()
 

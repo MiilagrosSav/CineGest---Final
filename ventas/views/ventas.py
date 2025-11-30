@@ -9,6 +9,13 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.contrib import messages
 from django.db import transaction
 from django.utils import timezone
+from accounts.models import Cliente
+try:
+    from valoraciones.services import puede_valorar
+    from valoraciones.models import Valoracion
+except Exception:
+    puede_valorar = None
+    Valoracion = None
 from cine.models import Funcion, Butaca
 from ventas.forms import IntercambioEntradaForm
 from ventas.services import obtener_funciones_candidatas
@@ -28,38 +35,53 @@ def mis_ventas(request):
     # Obtener todas las ventas del cliente actual
     ventas_todas = Venta.objects.filter(
         id_cliente__usuario=request.user
-    ).prefetch_related('entradas', 'entradas__id_funcion', 'entradas__id_pelicula').order_by('-fecha_compra')
+    ).prefetch_related('entradas', 'entradas__id_funcion', 'entradas__id_pelicula', 'intercambios').order_by('-fecha_compra')
     
-    # Separar ventas pendientes y el historial (incluye confirmadas, canceladas y reembolsadas)
-    # Excluir ventas pendientes cuyos eventos ya ocurrieron (fecha_hora en el pasado)
-    ahora = timezone.now()
-    ventas_pendientes = ventas_todas.filter(
-        estado__in=['PENDIENTE', 'PENDIENTE_PAGO'],
-        entradas__id_funcion__fecha_hora__gte=ahora
-    ).distinct()
-    ventas_historial_qs = ventas_todas.filter(estado__in=['CONFIRMADA', 'CANCELADA', 'REEMBOLSADO'])
-
-    # Leer filtro de categoría desde GET (confirmadas, pendientes, canceladas, reembolsadas)
+    # Leer filtro de categoría desde GET (confirmadas, intercambiadas, canceladas)
     requested_filter = request.GET.get('filter', 'confirmadas')
+    
+    # Leer término de búsqueda
+    search_query = request.GET.get('search', '').strip()
 
     # Paginación
     page_number = request.GET.get('page', 1)
-    pending_page_number = request.GET.get('pending_page', 1)
-    page_size = 3  # items por página — ajustalo si querés
+    page_size = 5  # items por página
 
     # Construir queryset del historial según el filtro solicitado
     if requested_filter == 'confirmadas':
-        ventas_historial_qs = ventas_todas.filter(estado='CONFIRMADA')
-    elif requested_filter == 'canceladas':
-        # Mostrar ventas cuyo estado sea CANCELADA o que tengan alguna entrada marcada como CANCELADA
+        # Mostrar solo ventas CONFIRMADAS que NO tengan entradas CANCELADAS (no intercambiadas)
         ventas_historial_qs = ventas_todas.filter(
-            Q(estado='CANCELADA') | Q(entradas__estado='CANCELADA')
+            estado='CONFIRMADA'
+        ).exclude(
+            entradas__estado='CANCELADA'
         ).distinct()
-    elif requested_filter == 'reembolsadas':
-        ventas_historial_qs = ventas_todas.filter(estado='REEMBOLSADO')
+    elif requested_filter == 'intercambiadas':
+        # Mostrar ventas que tienen al menos un registro de intercambio
+        ventas_historial_qs = ventas_todas.filter(
+            intercambios__isnull=False
+        ).distinct()
+    elif requested_filter == 'canceladas':
+        # Mostrar ventas con estado CANCELADA (no intercambios, que son detectados por tener registro Intercambio)
+        ventas_historial_qs = ventas_todas.filter(
+            estado='CANCELADA'
+        ).distinct()
     else:
-        # fallback: mostrar todas las del historial (confirmadas/canceladas/reembolsadas)
-        ventas_historial_qs = ventas_todas.filter(estado__in=['CONFIRMADA', 'CANCELADA', 'REEMBOLSADO'])
+        # fallback: mostrar todas confirmadas sin intercambios
+        ventas_historial_qs = ventas_todas.filter(
+            estado='CONFIRMADA'
+        ).exclude(
+            entradas__estado='CANCELADA'
+        ).distinct()
+
+    # Aplicar búsqueda si hay término de búsqueda
+    if search_query:
+        ventas_historial_qs = ventas_historial_qs.filter(
+            Q(id_venta__icontains=search_query) |  # Buscar por ID de compra
+            Q(codigo_compra__icontains=search_query) |  # Buscar por código de compra
+            Q(entradas__id_pelicula__titulo__icontains=search_query) |  # Buscar por título de película
+            Q(id_cliente__usuario__first_name__icontains=search_query) |  # Buscar por nombre
+            Q(id_cliente__usuario__last_name__icontains=search_query)  # Buscar por apellido
+        ).distinct()
 
     # Historial paginator (según el queryset filtrado)
     paginator = Paginator(ventas_historial_qs, page_size)
@@ -69,30 +91,17 @@ def mis_ventas(request):
         ventas_page = paginator.page(1)
     except EmptyPage:
         ventas_page = paginator.page(paginator.num_pages)
-
-    # Paginación para pendientes (siempre por separado)
-    pending_paginator = Paginator(ventas_pendientes, page_size)
-    try:
-        ventas_pendientes_page = pending_paginator.page(pending_page_number)
-    except PageNotAnInteger:
-        ventas_pendientes_page = pending_paginator.page(1)
-    except EmptyPage:
-        ventas_pendientes_page = pending_paginator.page(pending_paginator.num_pages)
     
     context = {
         'ventas': ventas_todas,
-        'ventas_pendientes': ventas_pendientes,
-        'ventas_pendientes_page': ventas_pendientes_page,
         'ventas_historial': ventas_historial_qs,
         'ventas_page': ventas_page,
         'current_filter': requested_filter,
+        'search_query': search_query,
     }
     
     # Si la petición es AJAX, devolvemos solo el partial del historial
     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-        # Si el cliente pidió la categoría 'pendientes' devolvemos su partial
-        if requested_filter == 'pendientes':
-            return render(request, 'ventas/_ventas_pendientes.html', context)
         return render(request, 'ventas/_ventas_historial.html', context)
 
     return render(request, 'ventas/mis_ventas.html', context)
@@ -116,6 +125,54 @@ def detalle_venta(request, venta_id):
     # Preparar entradas activas y canceladas para la plantilla (evitar lógica en templates)
     entradas_activas = venta.entradas.exclude(estado='CANCELADA')
     entradas_canceladas = venta.entradas.filter(estado='CANCELADA')
+
+    # Calcular qué funciones dentro de esta venta puede valorar el cliente
+    # Construir info detallada por función para mostrar en la plantilla
+    # SOLO incluir funciones que el cliente PUEDE valorar (no mostrar las que no puede)
+    can_valorar_info = []
+    if es_cliente:
+        try:
+            cliente_obj = Cliente.objects.get(usuario=request.user)
+            funciones = list({e.id_funcion for e in entradas_activas})
+            ahora = timezone.now()
+            for func in funciones:
+                # Tiene entrada en esta venta para esa función en estado VENDIDA o USADA?
+                tiene_entrada = entradas_activas.filter(id_funcion=func, estado__in=['VENDIDA', 'USADA']).exists()
+                # Función finalizada?
+                try:
+                    fin = func.get_hora_fin()
+                    funcion_finalizada = bool(fin and fin <= ahora)
+                except Exception:
+                    funcion_finalizada = False
+
+                # Ya valoró?
+                ya_valorada = False
+                if Valoracion is not None:
+                    try:
+                        ya_valorada = Valoracion.objects.filter(cliente=cliente_obj, funcion=func).exists()
+                    except Exception:
+                        ya_valorada = False
+
+                # Evaluar puede_valorar (si el servicio está disponible)
+                puede = False
+                if puede_valorar:
+                    try:
+                        puede = puede_valorar(cliente_obj, func)
+                    except Exception:
+                        puede = False
+
+                # SOLO agregar si puede valorar (filtrar las que no puede desde el backend)
+                if puede:
+                    can_valorar_info.append({
+                        'funcion': func,
+                        'tiene_entrada': tiene_entrada,
+                        'finalizada': funcion_finalizada,
+                        'ya_valorada': ya_valorada,
+                        'puede_valorar': puede,
+                    })
+        except Cliente.DoesNotExist:
+            can_valorar_info = []
+
     # Determinar si la venta todavía puede intercambiarse:
     # - Debe estar confirmada y tener pago
     # - No debe haber intercambios previos (entradas canceladas)
@@ -154,6 +211,7 @@ def detalle_venta(request, venta_id):
         'entradas_canceladas': entradas_canceladas,
         'politica': politica,
         'puede_intercambiar': puede_intercambiar,
+        'can_valorar_info': can_valorar_info,
     }
     
     return render(request, 'ventas/detalle_venta.html', context)

@@ -1,0 +1,332 @@
+<style>
+    :root {
+        --primary-color: #4f46e5; /* Indigo moderno */
+        --star-color-inactive: #e5e7eb;
+        --star-color-active: #fbbf24; /* Amber/Gold */
+        --bg-card: #ffffff;
+        --text-main: #1f2937;
+        --border-color: #d1d5db;
+    }
+
+    .rating-card {
+        background-color: var(--bg-card);
+        border-radius: 16px;
+        padding: 2rem;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        max-width: 500px;
+        margin: 0 auto; /* Centrado si no está en un modal */
+        font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+
+    .rating-header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+
+    .rating-header h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: var(--text-main);
+        font-weight: 600;
+    }
+
+    .rating-header p {
+        margin: 0.5rem 0 0;
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    /* Contenedor de estrellas */
+    .stars-container {
+        display: flex;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .star {
+        background: transparent;
+        border: none;
+        font-size: 2.5rem; /* Más grandes */
+        cursor: pointer;
+        line-height: 1;
+        color: var(--star-color-inactive);
+        transition: transform 0.2s ease, color 0.2s ease;
+        padding: 0;
+    }
+
+    /* Animaciones de estrellas */
+    .star:hover {
+        transform: scale(1.2);
+    }
+
+    .star.selected, 
+    .star.hover { /* La clase hover se aplica via JS si tu lógica lo requiere, o por CSS nativo */
+        color: var(--star-color-active);
+        filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.5));
+    }
+
+    /* Textarea moderno */
+    .custom-textarea {
+        width: 100%;
+        padding: 1rem;
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        background-color: #f9fafb;
+        resize: vertical;
+        min-height: 100px;
+        font-family: inherit;
+        font-size: 0.95rem;
+        transition: all 0.2s;
+        outline: none;
+        color: var(--text-main);
+    }
+
+    .custom-textarea:focus {
+        background-color: #fff;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    .custom-textarea::placeholder {
+        color: #9ca3af;
+    }
+
+    /* Botones */
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+
+    .btn-custom {
+        padding: 0.6rem 1.2rem;
+        border-radius: 8px;
+        font-weight: 500;
+        font-size: 0.95rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+    }
+
+    .btn-cancel {
+        background-color: transparent;
+        color: #6b7280;
+    }
+    .btn-cancel:hover {
+        background-color: #f3f4f6;
+        color: #1f2937;
+    }
+
+    .btn-submit {
+        background-color: var(--primary-color);
+        color: white;
+        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+    }
+    .btn-submit:hover {
+        background-color: #4338ca; /* Un poco más oscuro */
+        transform: translateY(-1px);
+    }
+</style>
+
+<div class="rating-card">
+    <div class="rating-header">
+        <h3>¿Qué te pareció?</h3>
+        <p>Comparte tu experiencia con nosotros</p>
+    </div>
+
+    <form method="post" action="{% url 'valoraciones:registrar_valoracion' %}" class="valoracion-form">
+        {% csrf_token %}
+        <input type="hidden" name="funcion_id" value="{{ funcion.id }}">
+        
+        <div class="rating-wrapper">
+            <div class="stars-container stars" aria-label="Puntuación">
+                <button type="button" class="star" data-value="1" aria-label="1 estrella">★</button>
+                <button type="button" class="star" data-value="2" aria-label="2 estrellas">★</button>
+                <button type="button" class="star" data-value="3" aria-label="3 estrellas">★</button>
+                <button type="button" class="star" data-value="4" aria-label="4 estrellas">★</button>
+                <button type="button" class="star" data-value="5" aria-label="5 estrellas">★</button>
+            </div>
+
+            <input type="hidden" name="estrellas" value="5">
+
+            <textarea name="comentario" 
+                      class="custom-textarea"
+                      rows="4" 
+                      maxlength="500" 
+                      placeholder="Cuéntanos más sobre tu experiencia (opcional)..."></textarea>
+
+            <div class="form-actions">
+                <button type="button" class="btn-custom btn-cancel" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" class="btn-custom btn-submit">Publicar reseña</button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+    // Inicializar cada formulario de valoración (puede haber varios en la página)
+    document.querySelectorAll('.valoracion-form').forEach(form => {
+        const stars = Array.from(form.querySelectorAll('.star'));
+        const estrellasInput = form.querySelector('[name="estrellas"]');
+        let selected = parseInt(estrellasInput.value) || 5;
+
+        // Función para pintar estrellas
+        function paint(upTo){
+            stars.forEach(s => {
+                const v = parseInt(s.getAttribute('data-value'));
+                if (v <= upTo) {
+                    s.classList.add('selected');
+                    // Nota: visualmente usamos CSS color, pero el caracter unicode se mantiene
+                    // s.textContent = '★'; 
+                } else {
+                    s.classList.remove('selected');
+                    // s.textContent = '☆'; // Opcional: cambiar caracter si se desea outline
+                }
+            });
+        }
+
+        // Pintar estado inicial
+        paint(selected);
+
+        // Eventos de mouse
+        stars.forEach(s => {
+            s.addEventListener('mouseenter', () => {
+                const v = parseInt(s.getAttribute('data-value'));
+                paint(v);
+            });
+            s.addEventListener('mouseleave', () => {
+                paint(selected);
+            });
+            s.addEventListener('click', () => {
+                selected = parseInt(s.getAttribute('data-value'));
+                estrellasInput.value = selected;
+                paint(selected);
+                
+                // Pequeña animación de feedback al hacer click
+                s.style.transform = "scale(1.4)";
+                setTimeout(() => s.style.transform = "", 200);
+            });
+        });
+
+        // Helper para obtener cookie CSRF
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Submit via AJAX
+        form.addEventListener('submit', async function(e){
+            e.preventDefault();
+            const action = form.getAttribute('action');
+            const formData = new FormData(form);
+            const csrftoken = getCookie('csrftoken');
+
+            // Debug: verificar que tenemos CSRF token
+            if (!csrftoken) {
+                console.error('No se encontró el token CSRF');
+                alert('Error de configuración: token CSRF no disponible.');
+                return;
+            }
+
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const originalText = submitBtn.textContent;
+            submitBtn.textContent = 'Enviando...';
+            submitBtn.disabled = true;
+
+            console.log('Enviando valoración...', {
+                action: action,
+                csrf: csrftoken ? 'presente' : 'ausente',
+                funcionId: formData.get('funcion_id'),
+                estrellas: formData.get('estrellas')
+            });
+
+            try {
+                const resp = await fetch(action, {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': csrftoken
+                    },
+                    credentials: 'same-origin',
+                    body: formData
+                });
+
+                console.log('Respuesta recibida:', resp.status, resp.statusText);
+
+                // Intentar parsear JSON siempre
+                let data = null;
+                const contentType = resp.headers.get('content-type') || '';
+                
+                if (!contentType.includes('application/json')) {
+                    console.warn('Content-Type no es JSON:', contentType);
+                    const text = await resp.text();
+                    console.error('Respuesta del servidor:', text.substring(0, 500));
+                    alert('Error: el servidor no devolvió una respuesta JSON válida.');
+                    return;
+                }
+
+                try {
+                    data = await resp.json();
+                    console.log('JSON parseado:', data);
+                } catch (parseErr) {
+                    console.error('Error parseando JSON:', parseErr);
+                    alert('Error: respuesta del servidor inválida.');
+                    return;
+                }
+
+                // Comprobar success en la respuesta
+                if (data && data.success) {
+                    console.log('✓ Valoración registrada exitosamente');
+                    
+                    // Cerrar modal si existe (Bootstrap)
+                    const modalEl = form.closest('.modal');
+                    if (modalEl) {
+                        if (typeof $ !== 'undefined' && $.fn.modal) {
+                            $(modalEl).modal('hide');
+                        } else {
+                            // Fallback manual cierre modal
+                            modalEl.classList.remove('show');
+                            modalEl.style.display = 'none';
+                            const backdrop = document.querySelector('.modal-backdrop');
+                            if (backdrop) backdrop.remove();
+                            document.body.classList.remove('modal-open');
+                            document.body.style.overflow = '';
+                            document.body.style.paddingRight = '';
+                        }
+                    }
+
+                    // Feedback visual y recarga
+                    alert(data.message || '¡Gracias por tu valoración!');
+                    window.location.reload();
+                } else {
+                    const msg = data && data.message ? data.message : 'Error al enviar la valoración.';
+                    console.error('Error en respuesta:', data);
+                    alert(msg);
+                }
+            } catch (err) {
+                console.error('Error de red completo:', err);
+                alert('Error de red al enviar la valoración: ' + err.message);
+            } finally {
+                // Restaurar botón en caso de error
+                if(submitBtn) {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }
+            }
+        });
+    });
+});
+</script>

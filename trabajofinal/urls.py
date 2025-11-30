@@ -29,6 +29,7 @@ urlpatterns = [
     path('reportes/', include('reportes.urls', namespace='reportes')),
     path('', include('cine.urls', namespace='cine')), # URLs de cine (películas y salas) - cambiado de 'peliculas/' a 'cine/'
     path('ventas/', include('ventas.urls', namespace='ventas')),  # URLs de ventas y pagos
+    path('valoraciones/', include('valoraciones.urls', namespace='valoraciones')),
     path('auditoria/', include('auditoria.urls', namespace='auditoria')),
     path('oauth/', include('social_django.urls', namespace='social')),  # Añade esta línea para las URLs de autenticación social
 ]
