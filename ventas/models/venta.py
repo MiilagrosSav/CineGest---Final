@@ -25,6 +25,12 @@ class Venta(models.Model):
         ('PRESENCIAL', 'Presencial'),
     ]
     
+    MEDIO_PAGO_CHOICES = [
+        ('EFECTIVO', 'Efectivo'),
+        ('MERCADOPAGO', 'Mercado Pago'),
+        ('TARJETA', 'Tarjeta'),
+    ]
+    
     id_venta = models.AutoField(primary_key=True)
     id_cliente = models.ForeignKey(
         Cliente, 
@@ -66,12 +72,44 @@ class Venta(models.Model):
         default='PENDIENTE',
         verbose_name='Estado'
     )
+    medio_pago = models.CharField(
+        max_length=20,
+        choices=MEDIO_PAGO_CHOICES,
+        null=True,
+        blank=True,
+        verbose_name='Medio de Pago',
+        help_text='Medio de pago utilizado para la venta'
+    )
+    codigo_compra = models.CharField(
+        max_length=20,
+        unique=True,
+        null=True,
+        blank=True,
+        verbose_name='Código de Compra',
+        help_text='Código único para canje de entradas (generado automáticamente)'
+    )
     
     class Meta:
         db_table = 'Venta'
         verbose_name = 'Venta'
         verbose_name_plural = 'Ventas'
         ordering = ['-fecha_compra']
+    
+    def save(self, *args, **kwargs):
+        """Generar código de compra automáticamente si no existe"""
+        if not self.codigo_compra and self.tipo_venta == 'ONLINE':
+            import random
+            import string
+            # Generar código único: CG-XXXX-XXXX
+            while True:
+                parte1 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+                parte2 = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+                codigo = f"CG-{parte1}-{parte2}"
+                # Verificar que no exista
+                if not Venta.objects.filter(codigo_compra=codigo).exists():
+                    self.codigo_compra = codigo
+                    break
+        super().save(*args, **kwargs)
     
     def __str__(self):
         return f"Venta #{self.id_venta} - {self.id_cliente.usuario.get_full_name() or self.id_cliente.usuario.username}"

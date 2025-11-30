@@ -1,0 +1,183 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Confirmar Pago - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 700px; margin: 2rem auto;">
+    
+    <div class="mb-lg text-center">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">💳 Confirmar Pago</h1>
+        <p class="card-subtitle">Finaliza la operación de venta.</p>
+    </div>
+
+    <div class="card glass-container">
+        
+        <div style="padding: var(--space-lg); border-bottom: 1px solid var(--glass-border);">
+            <h3 style="margin: 0 0 var(--space-md) 0; font-size: 1.2rem;">📋 Resumen</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md); margin-bottom: var(--space-lg);">
+                <div><p class="info-label">🎬 Película</p><p class="info-value">{{ funcion.pelicula.titulo }}</p></div>
+                <div><p class="info-label">📅 Fecha/Hora</p><p class="info-value">{{ funcion.fecha_hora|date:"d/m H:i" }}</p></div>
+                <div><p class="info-label">🎭 Sala</p><p class="info-value">{{ funcion.sala.nombre }}</p></div>
+                <div><p class="info-label">🎫 Entradas</p><p class="info-value">{{ cantidad }}</p></div>
+            </div>
+
+            <div style="margin-bottom: var(--space-lg);">
+                <p class="info-label" style="margin-bottom: 0.5rem;">🪑 Butacas</p>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem;">
+                    {% for butaca in butacas %}
+                        <span class="butaca-badge">{{ butaca.fila }}{{ butaca.numero }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if promocion_aplicada %}
+                <div style="background: rgba(76, 175, 80, 0.1); border-radius: 8px; padding: 0.8rem; border: 1px solid rgba(76, 175, 80, 0.25); margin-bottom: var(--space-lg);">
+                    <p style="margin: 0; color: #66bb6a; font-weight: 600; font-size: 0.95rem;">🎉 Promo: {{ promocion_aplicada.nombre }}</p>
+                </div>
+            {% endif %}
+
+            <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--glass-border);">
+                <span style="font-size: 1.1rem; font-weight: 600;">Total a cobrar:</span>
+                <div style="text-align: right;">
+                    <span style="font-size: 1.6rem; font-weight: 700; color: var(--primary); display: block;">
+                        ${{ total|floatformat:2 }}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <form method="POST" action="{% url 'ventas:procesar_venta_presencial' %}" style="padding: var(--space-lg);">
+            {% csrf_token %}
+            
+            <h3 style="margin: 0 0 var(--space-md) 0; font-size: 1.2rem;">💳 Medio de Pago</h3>
+            
+            <div class="payment-options-row">
+                <label class="payment-card-mini">
+                    <input type="radio" name="medio_pago" value="EFECTIVO" checked required>
+                    <div class="payment-content-mini">
+                        <span class="payment-icon-mini">💵</span>
+                        <span class="payment-title-mini">Efectivo</span>
+                    </div>
+                </label>
+
+                <label class="payment-card-mini">
+                    <input type="radio" name="medio_pago" value="MERCADOPAGO" required>
+                    <div class="payment-content-mini">
+                        <span class="payment-icon-mini">📱</span>
+                        <span class="payment-title-mini">Digital / QR</span>
+                    </div>
+                </label>
+
+                <label class="payment-card-mini">
+                    <input type="radio" name="medio_pago" value="TARJETA" required>
+                    <div class="payment-content-mini">
+                        <span class="payment-icon-mini">💳</span>
+                        <span class="payment-title-mini">Tarjeta</span>
+                    </div>
+                </label>
+            </div>
+
+            <div style="margin-top: 2rem; display: flex; gap: var(--space-md); justify-content: center;">
+                <a href="{% url 'ventas:dashboard_presencial' %}" class="btn btn-outline">
+                    Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    Confirmar Venta
+                </button>
+            </div>
+        </form>
+
+    </div>
+</div>
+
+<style>
+    /* --- Estilos Generales --- */
+    .info-label { font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+    .info-value { font-size: 1rem; color: white; font-weight: 500; margin: 0; }
+    .butaca-badge { background: rgba(var(--primary-rgb), 0.15); border: 1px solid var(--primary); color: white; padding: 0.3rem 0.7rem; border-radius: 6px; font-weight: 600; font-size: 0.85rem; }
+
+    /* --- NUEVO ESTILO MINIMALISTA HORIZONTAL PARA PAGOS --- */
+    .payment-options-row {
+        display: flex;
+        gap: 1rem;
+        justify-content: center; /* Centrar los botones */
+        flex-wrap: wrap; /* Permitir que bajen si no hay espacio */
+    }
+    
+    .payment-card-mini {
+        position: relative;
+        cursor: pointer;
+        user-select: none;
+        flex: 1 1 auto; /* Permite que crezcan pero manteniendo un tamaño base */
+        min-width: 120px;
+        max-width: 180px;
+    }
+    
+    .payment-card-mini input {
+        position: absolute;
+        opacity: 0;
+        height: 0;
+        width: 0;
+    }
+    
+    .payment-content-mini {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.02);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 12px;
+        transition: all 0.2s ease-in-out;
+        height: 100%; /* Asegura que todos tengan la misma altura */
+    }
+    
+    .payment-icon-mini {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+        opacity: 0.8;
+        transition: transform 0.2s;
+    }
+    
+    .payment-title-mini {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--text-light);
+        text-align: center;
+    }
+
+    /* Hover sutil */
+    .payment-card-mini:hover .payment-content-mini {
+        background: rgba(255, 255, 255, 0.05);
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    /* Estado Seleccionado Elegante */
+    .payment-card-mini input:checked + .payment-content-mini {
+        background: rgba(var(--primary-rgb), 0.1);
+        border-color: var(--primary);
+        box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.15);
+    }
+    
+    .payment-card-mini input:checked + .payment-content-mini .payment-icon-mini {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+
+    /* --- Botones --- */
+    .btn {
+        padding: 0.8rem 2rem; font-size: 1rem; font-weight: 600; border-radius: 9999px;
+        text-transform: uppercase; letter-spacing: 0.5px; border-width: 2px; transition: all 0.3s ease;
+        text-decoration: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    /* Estilo consistente para el botón primario */
+    .btn-primary { background: var(--primary); color: white; border: 2px solid var(--primary); }
+    .btn-primary:hover { background: rgb(77, 19, 92); border-color: rgb(77, 19, 92); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3); }
+    
+    .btn-outline { background: transparent; color: white; border: 2px solid rgba(255, 255, 255, 0.3); }
+    .btn-outline:hover { background: rgba(255, 255, 255, 0.08); border-color: white; transform: translateY(-1px); }
+</style>
+{% endblock %}

@@ -193,6 +193,24 @@ class EmployeeUpdateForm(forms.ModelForm):
     """
     Formulario para editar empleados existentes
     """
+    password1 = forms.CharField(
+        label='Contraseña nueva',
+        required=False,
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Dejar en blanco para no cambiar'
+        })
+    )
+    password2 = forms.CharField(
+        label='Confirmar contraseña nueva',
+        required=False,
+        strip=False,
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Reingresá la contraseña'
+        })
+    )
     class Meta:
         model = Usuario
         fields = ['username', 'email', 'first_name', 'last_name', 'dni', 'telefono', 'is_active']
@@ -234,6 +252,24 @@ class EmployeeUpdateForm(forms.ModelForm):
             'telefono': '📱 Teléfono',
             'is_active': '✅ Usuario activo'
         }
+
+    def clean(self):
+        cleaned = super().clean()
+        p1 = cleaned.get('password1')
+        p2 = cleaned.get('password2')
+        if p1 or p2:
+            if p1 != p2:
+                raise forms.ValidationError('Las contraseñas no coinciden.')
+        return cleaned
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        pwd = self.cleaned_data.get('password1')
+        if pwd:
+            user.set_password(pwd)
+        if commit:
+            user.save()
+        return user
 
 # --- Formulario para Politica de Reembolso (Admin) ---
 class PoliticaReembolsoForm(forms.ModelForm):

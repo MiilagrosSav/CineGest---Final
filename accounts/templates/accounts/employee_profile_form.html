@@ -1,0 +1,130 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}{{ titulo }} - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 700px; margin: 2rem auto;">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">{{ titulo }}</h1>
+        <p class="card-subtitle">Actualiza tu información personal</p>
+    </div>
+
+    <div class="card glass-container">
+        <div style="padding: var(--space-lg);">
+            
+            {% if empleado %}
+            <div style="background: rgba(var(--primary-rgb), 0.1); border-left: 3px solid var(--primary); padding: 1rem; margin-bottom: 2rem; border-radius: 0.5rem;">
+                <div style="font-weight: 600; margin-bottom: 0.5rem;">📋 Información de Empleado</div>
+                <div style="font-size: 0.9rem; opacity: 0.8;">
+                    <strong>Fecha de ingreso:</strong> {{ empleado.fecha_ingreso|date:"d/m/Y" }}
+                </div>
+            </div>
+            {% endif %}
+
+            <form method="POST" novalidate>
+                {% csrf_token %}
+                
+                <div style="display: grid; gap: 1.5rem;">
+                    
+                    <div class="form-group">
+                        <label for="{{ form.first_name.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                            Nombre
+                        </label>
+                        {{ form.first_name }}
+                        {% if form.first_name.errors %}
+                            <div style="color: #ff6b6b; font-size: 0.85rem; margin-top: 0.25rem;">
+                                {{ form.first_name.errors|first }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.last_name.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                            Apellido
+                        </label>
+                        {{ form.last_name }}
+                        {% if form.last_name.errors %}
+                            <div style="color: #ff6b6b; font-size: 0.85rem; margin-top: 0.25rem;">
+                                {{ form.last_name.errors|first }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.email.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                            📧 Email
+                        </label>
+                        {{ form.email }}
+                        {% if form.email.errors %}
+                            <div style="color: #ff6b6b; font-size: 0.85rem; margin-top: 0.25rem;">
+                                {{ form.email.errors|first }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="form-group">
+                        <label for="{{ form.telefono.id_for_label }}" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                            📱 Teléfono
+                        </label>
+                        {{ form.telefono }}
+                        {% if form.telefono.errors %}
+                            <div style="color: #ff6b6b; font-size: 0.85rem; margin-top: 0.25rem;">
+                                {{ form.telefono.errors|first }}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                </div>
+
+                <div style="border-top: 1px solid var(--glass-border); margin: 2rem 0; padding-top: 2rem;">
+                    <div style="display: flex; gap: 1rem; justify-content: space-between; flex-wrap: wrap;">
+                        <a href="{% url 'accounts:password_change' %}" class="btn btn-outline">
+                            🔒 Cambiar Contraseña
+                        </a>
+                        <div style="display: flex; gap: 1rem;">
+                            <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline">
+                                Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                💾 Guardar Cambios
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </form>
+
+        </div>
+    </div>
+
+</div>
+
+<style>
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--glass-border);
+    border-radius: 0.5rem;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-light);
+    font-size: 1rem;
+    transition: all 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: rgba(255,255,255,0.08);
+}
+
+.form-group input[type="checkbox"] {
+    width: auto;
+    margin-right: 0.5rem;
+}
+</style>
+{% endblock %}

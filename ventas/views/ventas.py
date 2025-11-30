@@ -20,6 +20,11 @@ from django.db.models import Q
 @login_required
 def mis_ventas(request):
     """Vista para que el cliente vea sus ventas/compras"""
+    # Bloquear acceso a empleados
+    if hasattr(request.user, 'rol') and request.user.rol == 'empleado':
+        messages.warning(request, '⚠️ Los empleados no tienen acceso a "Mis Ventas". Usa el módulo de búsqueda de clientes.')
+        return redirect('accounts:dashboard')
+    
     # Obtener todas las ventas del cliente actual
     ventas_todas = Venta.objects.filter(
         id_cliente__usuario=request.user
@@ -96,11 +101,18 @@ def mis_ventas(request):
 @login_required
 def detalle_venta(request, venta_id):
     """Vista para ver el detalle de una venta específica"""
-    venta = get_object_or_404(
-        Venta,
-        id_venta=venta_id,
-        id_cliente__usuario=request.user
-    )
+    # Permitir que el cliente vea sus ventas O que un empleado vea cualquier venta (búsqueda de clientes)
+    venta = get_object_or_404(Venta, id_venta=venta_id)
+    
+    # Verificar permisos: debe ser el cliente dueño O empleado O admin
+    es_cliente = venta.id_cliente.usuario == request.user
+    es_empleado = hasattr(request.user, 'rol') and request.user.rol == 'empleado'
+    es_admin = getattr(request.user, 'is_superuser', False) or getattr(request.user, 'rol', '') == 'admin'
+    
+    if not (es_cliente or es_empleado or es_admin):
+        messages.error(request, 'No tienes permiso para ver esta venta.')
+        return redirect('accounts:dashboard')
+    
     # Preparar entradas activas y canceladas para la plantilla (evitar lógica en templates)
     entradas_activas = venta.entradas.exclude(estado='CANCELADA')
     entradas_canceladas = venta.entradas.filter(estado='CANCELADA')
@@ -117,6 +129,10 @@ def detalle_venta(request, venta_id):
         motivo_no_intercambio = 'La venta no está confirmada.'
     elif entradas_canceladas.count() > 0:
         motivo_no_intercambio = 'La venta ya tiene intercambios previos (entradas canceladas).'
+    elif venta.tipo_venta == 'PRESENCIAL':
+        # Las ventas presenciales no permiten intercambio en línea
+        motivo_no_intercambio = 'Las ventas presenciales deben gestionarse en boletería.'
+        puede_intercambiar = False
     elif not getattr(venta, 'pago', None):
         motivo_no_intercambio = 'No se encontró un pago registrado para esta venta.'
     else:

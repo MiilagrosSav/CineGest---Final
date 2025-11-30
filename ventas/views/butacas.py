@@ -20,6 +20,11 @@ from ventas.constants import EstadoEntrada
 @login_required
 def seleccionar_butacas(request, funcion_id):
     """Vista para seleccionar butacas para una función"""
+    # Bloquear acceso a empleados - deben usar el módulo presencial
+    if hasattr(request.user, 'rol') and request.user.rol == 'empleado':
+        messages.warning(request, '⚠️ Los empleados deben usar el módulo de venta presencial.')
+        return redirect('ventas:dashboard_presencial')
+    
     # Liberar reservas expiradas antes de calcular disponibilidad (check-on-access)
     try:
         liberar_reservas_expiradas()

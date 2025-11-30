@@ -1,0 +1,216 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Horarios - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1200px; margin: 2rem auto;">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">📅 Horarios de Funciones</h1>
+        <p class="card-subtitle">Próximas {{ total_funciones }} funciones programadas</p>
+    </div>
+
+    {% if por_fecha %}
+        <div style="display: flex; flex-direction: column; gap: 2.5rem;">
+            {% for fecha, funciones in por_fecha %}
+            
+            <div>
+                <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; padding-left: 0.5rem;">
+                    <div style="background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 1px;">
+                        {{ fecha|date:"l" }} </div>
+                    <h3 style="margin: 0; font-size: 1.4rem; color: var(--text-light); font-weight: 400;">
+                        {{ fecha|date:"d 'de' F" }}
+                    </h3>
+                    <span style="background: rgba(255,255,255,0.1); color: var(--text-secondary); padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.8rem;">
+                        {{ funciones|length }} funciones
+                    </span>
+                </div>
+
+                <div class="funcion-grid">
+                    {% for f in funciones %}
+                    <div class="funcion-card glass-container">
+                        <div class="funcion-header">
+                            <div class="funcion-time">
+                                🕐 {{ f.fecha_hora|date:"H:i" }}
+                            </div>
+                            <div class="funcion-sala">
+                                Sala {{ f.sala.numero }}
+                            </div>
+                        </div>
+                        
+                        <div class="funcion-body">
+                            <h4 class="funcion-title">{{ f.pelicula.titulo }}</h4>
+                            
+                            <div class="funcion-meta">
+                                <span class="meta-item">
+                                    {% for formato in f.formatos.all %}
+                                        {{ formato.nombre }}{% if not forloop.last %}, {% endif %}
+                                    {% empty %}
+                                        2D {% endfor %}
+                                </span>
+                                <span class="meta-price">${{ f.precio_base|floatformat:0 }}</span>
+                            </div>
+                        </div>
+
+                        <div class="funcion-footer">
+                            <a href="{% url 'ventas:seleccionar_butacas_presencial' f.id %}" class="btn btn-primary btn-sm btn-block">
+                                🛒 Vender
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+    {% else %}
+        <div class="card glass-container" style="padding: 4rem; text-align: center; opacity: 0.7;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">📅</div>
+            <h3>No hay funciones programadas próximamente.</h3>
+            <p>Revisa la cartelera o contacta al administrador.</p>
+        </div>
+    {% endif %}
+
+    <div style="margin-top: 3rem; text-align: center;">
+        <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline">
+            ← Volver al panel
+        </a>
+    </div>
+
+</div>
+
+<style>
+    /* --- Grid de Funciones --- */
+    .funcion-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1.2rem;
+    }
+
+    /* --- Tarjeta de Función --- */
+    .funcion-card {
+        /* El glass-container ya le da fondo y borde */
+        padding: 0; /* El padding lo manejan los hijos */
+        display: flex;
+        flex-direction: column;
+        transition: all 0.2s ease;
+        overflow: hidden; /* Para los bordes redondeados internos */
+    }
+    .funcion-card:hover {
+        transform: translateY(-3px);
+        background: rgba(255, 255, 255, 0.08);
+        border-color: rgba(139, 95, 191, 0.4);
+    }
+
+    /* Header de la tarjeta (Hora y Sala) */
+    .funcion-header {
+        background: rgba(255, 255, 255, 0.03);
+        padding: 0.8rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--glass-border);
+    }
+    .funcion-time {
+        font-size: 1.2rem;
+        font-weight: 700;
+        color: var(--text-light);
+    }
+    .funcion-sala {
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        background: rgba(255,255,255,0.05);
+        padding: 0.2rem 0.6rem;
+        border-radius: 6px;
+    }
+
+    /* Cuerpo de la tarjeta (Título y Precio) */
+    .funcion-body {
+        padding: 1rem;
+        flex: 1; /* Ocupa el espacio disponible */
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 0.8rem;
+    }
+    .funcion-title {
+        margin: 0;
+        font-size: 1.05rem;
+        font-weight: 600;
+        line-height: 1.4;
+        color: white;
+    }
+    .funcion-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9rem;
+    }
+    .meta-item {
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+    }
+    .meta-price {
+        color: var(--primary);
+        font-weight: 700;
+        font-size: 1rem;
+    }
+
+    /* Footer de la tarjeta (Botón) */
+    .funcion-footer {
+        padding: 1rem;
+        padding-top: 0; /* Pegado al body visualmente */
+    }
+
+    /* --- Botones --- */
+    .btn {
+        padding: 0.7rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 9999px; /* Píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+    
+    .btn-sm {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .btn-block {
+        width: 100%;
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: 2px solid var(--primary);
+    }
+    .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.3);
+    }
+
+    .btn-outline {
+        background: transparent;
+        color: var(--text-light);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    .btn-outline:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(var(--primary-rgb), 0.1);
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}
