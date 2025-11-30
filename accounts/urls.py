@@ -19,6 +19,7 @@ urlpatterns = [
     path('marketing/dismiss/', views.dismiss_marketing_prompt, name='marketing_dismiss'),
     # Perfil y contraseña
     path('perfil/editar/', views.ProfileUpdateView.as_view(), name='profile_edit'),
+    path('perfil/empleado/editar/', views.EmployeeProfileUpdateView.as_view(), name='edit_employee_profile'),
     path('perfil/password/', views.MyPasswordChangeView.as_view(), name='password_change'),
     path('perfil/password/done/', views.MyPasswordChangeDoneView.as_view(), name='password_change_done'),
     # Rutas para gestión de empleados (CRUD completo)

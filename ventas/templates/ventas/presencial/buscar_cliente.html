@@ -1,0 +1,299 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Buscar Cliente - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 900px;">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🔍 Buscar Cliente</h1>
+        <p class="card-subtitle">Busca por DNI, email, nombre o apellido para ver su historial.</p>
+    </div>
+
+    <div class="card glass-container" style="margin-bottom: 2rem;">
+        <div style="padding: var(--space-lg);">
+            <form method="GET" action="{% url 'ventas:buscar_cliente' %}" style="display: flex; gap: 1rem;">
+                <div style="position: relative; flex: 1;">
+                    <input type="text" 
+                           name="q" 
+                           value="{{ query }}" 
+                           placeholder="Ingresa DNI, email o nombre..."
+                           class="form-input"
+                           style="width: 100%; padding-left: 3rem;"
+                           autofocus>
+                    <span style="position: absolute; left: 1.2rem; top: 50%; transform: translateY(-50%); font-size: 1.2rem; opacity: 0.5;">🔍</span>
+                </div>
+                <button type="submit" class="btn btn-primary" style="padding: 0 2rem;">
+                    Buscar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% if query %}
+        {% if clientes %}
+            <div class="mb-lg">
+                <h3 style="margin-bottom: 1rem; font-size: 1.2rem; opacity: 0.8;">📋 Resultados ({{ clientes|length }})</h3>
+                <div style="display: grid; gap: 1rem;">
+                    {% for cliente in clientes %}
+                    <a href="{% url 'ventas:buscar_cliente' %}?q={{ query }}&cliente_id={{ cliente.pk }}" 
+                       class="cliente-card {% if cliente_seleccionado and cliente_seleccionado.pk == cliente.pk %}selected{% endif %}">
+                        
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div class="cliente-avatar">
+                                {{ cliente.usuario.username|slice:":1"|upper }}
+                            </div>
+                            <div>
+                                <div style="font-weight: 600; font-size: 1.1rem; margin-bottom: 2px;">
+                                    {{ cliente.usuario.get_full_name|default:cliente.usuario.username }}
+                                </div>
+                                <div style="font-size: 0.9rem; opacity: 0.6;">
+                                    {{ cliente.usuario.email }}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.9rem; opacity: 0.8; display: block;">DNI: {{ cliente.usuario.dni|default:"-" }}</span>
+                            {% if cliente_seleccionado and cliente_seleccionado.pk == cliente.pk %}
+                                <span style="color: var(--primary); font-size: 0.8rem; font-weight: 600;">● Seleccionado</span>
+                            {% endif %}
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        {% else %}
+            <div class="card glass-container" style="padding: 3rem; text-align: center; opacity: 0.7; margin-bottom: 2rem;">
+                <div style="font-size: 3rem; margin-bottom: 0.5rem;">🤷</div>
+                <p>No se encontraron clientes con "{{ query }}"</p>
+            </div>
+        {% endif %}
+
+        {% if cliente_seleccionado %}
+            <div class="mb-lg">
+                <h3 style="margin-bottom: 1rem; font-size: 1.2rem; opacity: 0.8;">
+                    👤 Historial de Compras
+                </h3>
+                
+                <div class="card glass-container">
+                    <div style="padding: var(--space-lg);">
+                        {% if ventas_cliente %}
+                            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                                {% for venta in ventas_cliente %}
+                                <div class="venta-item">
+                                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.8rem;">
+                                        <div>
+                                            <strong style="font-size: 1.1rem; display: block;">Venta #{{ venta.id_venta }}</strong>
+                                            <span style="font-size: 0.85rem; opacity: 0.7;">{{ venta.fecha_compra|date:"d/m/Y H:i" }}</span>
+                                        </div>
+                                        <span class="badge-estado {% if venta.estado == 'CONFIRMADA' %}confirmada{% else %}pendiente{% endif %}">
+                                            {{ venta.estado }}
+                                        </span>
+                                    </div>
+
+                                    <div style="display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: end;">
+                                        <div>
+                                            {% if venta.entradas.exists %}
+                                                {% with primera=venta.entradas.first %}
+                                                    <p style="margin: 0; font-size: 0.95rem; color: var(--text-light);">
+                                                        🎬 {{ primera.id_pelicula.titulo }}
+                                                    </p>
+                                                    <p style="margin: 2px 0 0 0; font-size: 0.85rem; opacity: 0.7;">
+                                                        {{ primera.id_funcion.fecha_hora|date:"d/m H:i" }} | Sala {{ primera.id_sala.numero }}
+                                                    </p>
+                                                {% endwith %}
+                                            {% else %}
+                                                <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Sin entradas</p>
+                                            {% endif %}
+                                            
+                                            <p style="margin: 6px 0 0 0; font-size: 0.85rem; opacity: 0.6;">
+                                                {{ venta.cantidad_entradas }} entrada(s) • {{ venta.tipo_venta }}
+                                                {% if venta.medio_pago %} • {{ venta.get_medio_pago_display }}{% endif %}
+                                            </p>
+                                        </div>
+                                        
+                                        <div style="text-align: right;">
+                                            <div style="font-weight: 700; font-size: 1.2rem; color: var(--primary); margin-bottom: 0.5rem;">
+                                                ${{ venta.calcular_total|floatformat:2 }}
+                                            </div>
+                                            <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" class="btn-ver-detalle">
+                                                Ver Detalle
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div style="text-align: center; padding: 2rem; opacity: 0.7;">
+                                <p>Este cliente no tiene compras registradas.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="card glass-container" style="padding: 4rem; text-align: center; opacity: 0.7;">
+            <div style="font-size: 4rem; margin-bottom: 1rem; opacity: 0.5;">🔍</div>
+            <h3>Búsqueda de Clientes</h3>
+            <p>Ingresa un criterio arriba para comenzar.</p>
+        </div>
+    {% endif %}
+
+    <div style="margin-top: 3rem; text-align: center;">
+        <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline">
+            ← Volver al panel
+        </a>
+    </div>
+
+</div>
+
+<style>
+    /* --- Inputs Modernos --- */
+    .form-input {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--glass-border);
+        border-radius: 9999px; /* Píldora */
+        padding: 0.8rem 1.5rem;
+        color: var(--text-light);
+        font-size: 1rem;
+        outline: none;
+        transition: all 0.3s;
+    }
+    .form-input:focus {
+        border-color: var(--primary);
+        background: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 0 0 4px rgba(var(--primary-rgb), 0.1);
+    }
+
+    /* --- Tarjeta de Cliente --- */
+    .cliente-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.2rem;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        text-decoration: none;
+        color: inherit;
+        transition: all 0.2s ease;
+    }
+    .cliente-card:hover {
+        background: rgba(255,255,255,0.08);
+        transform: translateY(-2px);
+        border-color: rgba(255,255,255,0.2);
+    }
+    .cliente-card.selected {
+        background: rgba(var(--primary-rgb), 0.1);
+        border-color: var(--primary);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    
+    .cliente-avatar {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--primary), #6a1b9a);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 1.2rem;
+        color: white;
+    }
+
+    /* --- Item de Venta (Historial) --- */
+    .venta-item {
+        background: rgba(255,255,255,0.02);
+        border-radius: 12px;
+        padding: 1.2rem;
+        border: 1px solid var(--glass-border);
+        transition: all 0.2s;
+    }
+    .venta-item:hover {
+        background: rgba(255,255,255,0.05);
+    }
+
+    /* --- Badges --- */
+    .badge-estado {
+        padding: 0.3rem 0.7rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .badge-estado.confirmada {
+        background: rgba(76, 175, 80, 0.15);
+        color: #81c784;
+        border: 1px solid rgba(76, 175, 80, 0.3);
+    }
+    .badge-estado.pendiente {
+        background: rgba(255, 193, 7, 0.15);
+        color: #ffc107;
+        border: 1px solid rgba(255, 193, 7, 0.3);
+    }
+
+    /* --- Botones --- */
+    .btn {
+        padding: 0.8rem 1.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        border-radius: 9999px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: 2px solid var(--primary);
+    }
+    .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
+    }
+    .btn-outline {
+        background: transparent;
+        color: var(--text-light);
+        border: 2px solid rgba(255,255,255,0.3);
+    }
+    .btn-outline:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(var(--primary-rgb), 0.1);
+        transform: translateY(-1px);
+    }
+
+    /* Botón pequeño "Ver Detalle" */
+    .btn-ver-detalle {
+        padding: 0.4rem 0.9rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        border-radius: 9999px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border: 1px solid var(--glass-border);
+        color: var(--text-secondary);
+        text-decoration: none;
+        transition: all 0.2s;
+        display: inline-block;
+    }
+    .btn-ver-detalle:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(var(--primary-rgb), 0.1);
+    }
+</style>
+{% endblock %}

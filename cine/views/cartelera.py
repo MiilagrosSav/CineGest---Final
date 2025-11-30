@@ -1,6 +1,7 @@
 from datetime import date, timedelta
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from cine.models import Funcion, Pelicula
 from cine.models.genero import Genero
 from django.utils import timezone
@@ -19,6 +20,11 @@ def cartelera_view(request):
     Muestra todas las funciones disponibles ordenadas por fecha.
     Incluye filtros por género, formato, fecha y búsqueda.
     """
+    # Bloquear acceso a empleados
+    if hasattr(request.user, 'rol') and request.user.rol == 'empleado':
+        messages.warning(request, '⚠️ Los empleados no tienen acceso a la cartelera. Usa el módulo de ventas presenciales.')
+        return redirect('accounts:dashboard')
+    
     # Limpiar promociones de sesión si el usuario llega a cartelera de forma normal
     # (no desde activación de link). Esto evita que promociones antiguas se queden pegadas.
     if 'promo_activa_id' in request.session or 'promo_token' in request.session:

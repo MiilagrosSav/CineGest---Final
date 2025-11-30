@@ -139,22 +139,22 @@
             {% with primera_entrada=entradas.first %}
             <div class="ticket-detail">
                 <span class="label">🎬 Película:</span>
-                <span class="value">{{ primera_entrada.id_funcion.id_pelicula.titulo }}</span>
+                <span class="value">{{ primera_entrada.id_funcion.pelicula.titulo }}</span>
             </div>
             
             <div class="ticket-detail">
                 <span class="label">📅 Fecha:</span>
-                <span class="value">{{ primera_entrada.id_funcion.fecha|date:"d/m/Y" }}</span>
+                <span class="value">{{ primera_entrada.id_funcion.fecha_hora|date:"d/m/Y" }}</span>
             </div>
             
             <div class="ticket-detail">
                 <span class="label">🕐 Hora:</span>
-                <span class="value">{{ primera_entrada.id_funcion.hora_inicio|time:"H:i" }}h</span>
+                <span class="value">{{ primera_entrada.id_funcion.fecha_hora|date:"H:i" }}h</span>
             </div>
             
             <div class="ticket-detail">
                 <span class="label">🏛️ Sala:</span>
-                <span class="value">{{ primera_entrada.id_funcion.id_sala.nombre }}</span>
+                <span class="value">{{ primera_entrada.id_sala.nombre }}</span>
             </div>
             {% endwith %}
             
@@ -164,14 +164,44 @@
             </div>
         </div>
         
+        <!-- TICKET DIGITAL CON QR ÚNICO -->
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; padding: 30px; text-align: center; margin: 20px 0; color: white;">
+            <h3 style="margin-top: 0; color: white;">🎫 Tu Ticket Digital</h3>
+            <p style="margin-bottom: 20px; font-size: 14px;">Usa este código único para toda tu compra</p>
+            
+            <div style="background: white; border-radius: 10px; padding: 20px; display: inline-block;">
+                <img src="{{ qr_src }}" alt="QR Code Compra" width="200" height="200" style="display: block; margin: 0 auto;">
+                
+                <div style="background: #f5f5f5; padding: 15px; margin-top: 15px; border-radius: 5px;">
+                    {% if venta.codigo_compra %}
+                    <div style="color: #666; font-size: 12px; margin-bottom: 5px;">CÓDIGO DE COMPRA</div>
+                    <div style="font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold; color: #333; letter-spacing: 2px;">
+                        {{ venta.codigo_compra }}
+                    </div>
+                    {% else %}
+                    <div style="color: #666; font-size: 12px; margin-bottom: 5px;">ID DE VENTA</div>
+                    <div style="font-family: 'Courier New', monospace; font-size: 24px; font-weight: bold; color: #333; letter-spacing: 2px;">
+                        #{{ venta.id_venta }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div style="background: rgba(255,255,255,0.2); padding: 15px; margin-top: 20px; border-radius: 5px; border: 2px dashed rgba(255,255,255,0.5);">
+                <p style="margin: 0; font-size: 14px; line-height: 1.6;">
+                    <strong>📱 Instrucciones:</strong><br>
+                    Muestra este código en la boletería o escanéalo en el kiosco para imprimir tus entradas físicas.
+                </p>
+            </div>
+        </div>
+        
         <h3>🪑 Tus Butacas Reservadas:</h3>
         <div class="seats-list">
-            {% for ticket in tickets %}
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
-                <img src="{{ ticket.qr_src }}" alt="QR Entrada" width="120" height="120" style="border-radius:6px; border:1px solid #e0e0e0;">
-                <div>
-                    <div style="font-weight:700;">Butaca: {{ ticket.entrada.id_butaca.fila }}{{ ticket.entrada.id_butaca.numero }}</div>
-                    <div style="color:#666; font-size:0.95rem;">{{ ticket.entrada.id_funcion.pelicula.titulo }} — {{ ticket.entrada.id_funcion.fecha_hora|date:"d/m/Y H:i" }}</div>
+            {% for entrada in entradas %}
+            <div style="padding: 10px; margin-bottom: 8px; background: #f8f9fa; border-left: 3px solid #27ae60; border-radius: 3px;">
+                <div style="font-weight: 700; color: #2c3e50;">🎫 Butaca: {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}</div>
+                <div style="color: #666; font-size: 0.95rem; margin-top: 4px;">
+                    {{ entrada.id_funcion.pelicula.titulo }} — {{ entrada.id_funcion.fecha_hora|date:"d/m/Y H:i" }}
                 </div>
             </div>
             {% endfor %}

@@ -166,6 +166,37 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
+class EmployeeProfileUpdateView(LoginRequiredMixin, UpdateView):
+    """Vista para que empleados editen su propio perfil"""
+    model = Usuario
+    template_name = 'accounts/employee_profile_form.html'
+    fields = ['first_name', 'last_name', 'email', 'telefono']
+    success_url = reverse_lazy('accounts:dashboard')
+
+    def get_object(self, queryset=None):
+        # Solo permite editar su propio perfil
+        return self.request.user
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Verificar que sea empleado
+        if not (hasattr(request.user, 'rol') and request.user.rol == 'empleado'):
+            messages.error(request, 'Acceso restringido.')
+            return redirect('accounts:dashboard')
+        return super().dispatch(request, *args, **kwargs)
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['titulo'] = 'Editar Mi Perfil'
+        # Agregar info del empleado si existe
+        if hasattr(self.request.user, 'empleado'):
+            context['empleado'] = self.request.user.empleado
+        return context
+    
+    def form_valid(self, form):
+        messages.success(self.request, '✓ Tu perfil ha sido actualizado correctamente')
+        return super().form_valid(form)
+
+
 class MyPasswordChangeView(PasswordChangeView):
     template_name = 'accounts/password_change_form.html'
     success_url = reverse_lazy('accounts:password_change_done')
@@ -190,10 +221,23 @@ class EmployeeCreateView(AdminRequiredMixin, CreateView):
     
     def form_valid(self, form):
         # El .save() del form ya crea el Usuario Y el Empleado
-        employee = form.save() 
+        employee = form.save()
+        # Si no se proporcionó contraseña (por ejemplo creación vía admin UI),
+        # generamos una contraseña temporal y la asignamos para que el empleado
+        # pueda iniciar sesión. Recomendamos cambiarla luego.
+        try:
+            if not employee.has_usable_password():
+                import secrets
+                pwd = secrets.token_urlsafe(8)
+                employee.set_password(pwd)
+                employee.save()
+                messages.info(self.request, f'Contraseña temporal generada para {employee.username}: {pwd}')
+
+        except Exception:
+            # No bloquear creación por errores en generación de contraseña
+            pass
+
         messages.success(self.request, f'Empleado {employee.username} creado exitosamente.')
-        # Usamos super().form_valid() pero llamándolo con el form
-        # ya que el objeto se creó en form.save()
         super().form_valid(form)
         return redirect(self.success_url)
 

@@ -26,6 +26,12 @@
                     <small class="text-muted d-block" style="opacity: 0.7; font-size: 0.9rem;">N° de Orden</small>
                     <strong style="font-size: 1.1rem;">#{{ venta.id_venta }}</strong>
                 </div>
+                {% if venta.codigo_compra %}
+                <div>
+                    <small class="text-muted d-block" style="opacity: 0.7; font-size: 0.9rem;">Código de Compra</small>
+                    <strong style="font-size: 1.1rem; font-family: monospace; color: var(--primary);">{{ venta.codigo_compra }}</strong>
+                </div>
+                {% endif %}
                 <div>
                     <small class="text-muted d-block" style="opacity: 0.7; font-size: 0.9rem;">Total Pagado</small>
                     <strong style="font-size: 1.1rem; color: var(--primary);">
@@ -39,20 +45,52 @@
             </div>
         </div>
 
-        <div style="padding: var(--space-lg);">
-            <h3 class="mb-4">🎟️ Tus Entradas ({{ venta.entradas.all|length }})</h3>
+        <!-- Ticket Digital con QR Único -->
+        <div style="padding: var(--space-xl); background: linear-gradient(135deg, rgba(106, 17, 203, 0.1) 0%, rgba(37, 117, 252, 0.1) 100%); text-align: center;">
+            <h3 style="margin-bottom: var(--space-md); color: var(--primary);">🎫 Tu Ticket Digital</h3>
             
-            <div class="ticket-carousel">
+            <div style="background: white; border-radius: var(--radius); padding: var(--space-xl); max-width: 400px; margin: 0 auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);">
+                {% if venta.codigo_compra %}
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{ venta.codigo_compra }}" 
+                     alt="QR Code Compra" 
+                     style="width: 100%; max-width: 250px; border-radius: var(--radius); margin-bottom: var(--space-md);">
+                
+                <div style="background: #f5f5f5; padding: var(--space-md); border-radius: var(--radius); margin-bottom: var(--space-md);">
+                    <small style="display: block; color: #666; font-size: 0.85rem; margin-bottom: 0.25rem;">CÓDIGO DE COMPRA</small>
+                    <strong style="font-family: monospace; font-size: 1.5rem; color: #333; letter-spacing: 2px;">{{ venta.codigo_compra }}</strong>
+                </div>
+                {% else %}
+                <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=VENTA-{{ venta.id_venta }}" 
+                     alt="QR Code Compra" 
+                     style="width: 100%; max-width: 250px; border-radius: var(--radius); margin-bottom: var(--space-md);">
+                
+                <div style="background: #f5f5f5; padding: var(--space-md); border-radius: var(--radius); margin-bottom: var(--space-md);">
+                    <small style="display: block; color: #666; font-size: 0.85rem; margin-bottom: 0.25rem;">ID DE VENTA</small>
+                    <strong style="font-family: monospace; font-size: 1.5rem; color: #333; letter-spacing: 2px;">#{{ venta.id_venta }}</strong>
+                </div>
+                {% endif %}
+                
+                <div style="padding: var(--space-md); background: rgba(106, 17, 203, 0.05); border-radius: var(--radius); border: 2px dashed var(--primary);">
+                    <p style="margin: 0; font-size: 0.9rem; color: #333; line-height: 1.6;">
+                        <strong>📱 Instrucciones:</strong><br>
+                        Muestra este código en la boletería o escanéalo en el kiosco para imprimir tus entradas físicas.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div style="padding: var(--space-lg);">
+            <h3 class="mb-4">🎟️ Detalle de tus Entradas ({{ venta.entradas.all|length }})</h3>
+            
+            <div class="ticket-list">
                 {% for entrada in venta.entradas.all %}
-                <div class="ticket-item" style="background: rgba(255,255,255,0.05); border-radius: var(--radius); padding: var(--space-lg); text-align: center;">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=CINEGEST-{{ entrada.id }}-{{ venta.id_venta }}" 
-                         alt="QR Entrada" class="mb-3" style="border-radius: var(--radius);">
-                    
-                    <h5 class="mb-2" style="color: var(--primary);">{{ entrada.id_funcion.pelicula.titulo }}</h5>
-                    
-                    <div classs="small text-muted" style="opacity: 0.8; line-height: 1.6; font-size: 0.9rem;">
-                        <div>Sala {{ entrada.id_sala.numero }} - <strong>Butaca {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}</strong></div>
-                        <div>{{ entrada.id_funcion.fecha_hora|date:"d/m/Y H:i" }}</div>
+                <div class="ticket-item-detail" style="background: rgba(255,255,255,0.05); border-radius: var(--radius); padding: var(--space-md); margin-bottom: var(--space-sm); display: flex; align-items: center; gap: var(--space-md);">
+                    <div style="flex: 1;">
+                        <h5 style="margin: 0 0 0.5rem 0; color: var(--primary);">{{ entrada.id_funcion.pelicula.titulo }}</h5>
+                        <div style="opacity: 0.8; font-size: 0.9rem;">
+                            <div>🏛️ Sala {{ entrada.id_sala.nombre }} - <strong>Butaca {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}</strong></div>
+                            <div>📅 {{ entrada.id_funcion.fecha_hora|date:"d/m/Y H:i" }}</div>
+                        </div>
                     </div>
                 </div>
                 {% endfor %}
@@ -82,30 +120,20 @@
         .card-body, div[style*="padding"] { padding: 0 !important; }
     }
 
-    /* --- Estilos para el Carrusel de Tickets --- */
-    .ticket-carousel {
-        display: flex;
-        overflow-x: auto; /* ¡Magia! Habilita el scroll horizontal */
-        gap: var(--space-md);
-        padding: 0 4px var(--space-md) 4px; /* Pequeño padding para que se vea la sombra */
-        
-        /* Ocultar scrollbar pero permitir scroll */
-        -ms-overflow-style: none;  /* IE y Edge */
-        scrollbar-width: none;  /* Firefox */
-    }
-    .ticket-carousel::-webkit-scrollbar {
-        display: none; /* Chrome, Safari y Opera */
+    /* --- Estilos para lista de entradas --- */
+    .ticket-list {
+        max-width: 100%;
     }
     
-    .ticket-item {
-        flex: 0 0 300px; /* Cada ticket tendrá 300px de ancho */
+    .ticket-item-detail {
         transition: all 0.2s ease;
     }
-    .ticket-item:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    
+    .ticket-item-detail:hover {
+        background: rgba(255,255,255,0.1) !important;
+        transform: translateX(4px);
     }
-    /* --- Fin Estilos Carrusel --- */
+    /* --- Fin Estilos --- */
 
 
     /* --- Estilos para el botón del footer --- */

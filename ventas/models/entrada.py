@@ -14,6 +14,7 @@ class Entrada(models.Model):
         ('PENDIENTE', 'Pendiente'),
         ('RESERVADA', 'Reservada'),
         ('VENDIDA', 'Vendida'),
+        ('ENTREGADA', 'Entregada'),
         ('USADA', 'Usada'),
         ('CANCELADA', 'Cancelada'),
     ]

@@ -20,8 +20,8 @@
             <p class="text-secondary mb-md">
                 Procesa ventas de entradas, gestiona reservas y atiende a los clientes.
             </p>
-            <div style="margin-top: auto;">
-                <a href="#" class="btn btn-primary">
+                <div style="margin-top: auto;">
+                <a href="{% url 'ventas:dashboard_presencial' %}" class="btn btn-primary">
                     💳 Vender Tickets
                 </a>
             </div>
@@ -32,8 +32,8 @@
             <p class="text-secondary mb-md">
                 Consulta las funciones programadas para el día actual y próximas sesiones.
             </p>
-            <div style="margin-top: auto;">
-                <a href="#" class="btn btn-outline">
+                <div style="margin-top: auto;">
+                <a href="{% url 'ventas:ver_horarios' %}" class="btn btn-outline">
                     🕒 Ver Horarios
                 </a>
             </div>
@@ -45,17 +45,23 @@
                 Busca información de clientes y gestiona sus consultas y solicitudes.
             </p>
             <div style="margin-top: auto;">
-                <a href="#" class="btn btn-outline">
+                <a href="{% url 'ventas:buscar_cliente' %}" class="btn btn-outline">
                     🔍 Buscar Cliente
                 </a>
             </div>
         </div>
-        
-        <div class="card glass-container">
+
+        <div class="card glass-container" style="display: flex; flex-direction: column;">
+            <h3 class="mb-md text-gradient-accent">📲 Canje de Entradas</h3>
+            <p class="text-secondary mb-md">
+                Escanea códigos QR para canjear entradas online compradas por clientes.
+            </p>
+            <div style="margin-top: auto;">
+                <a href="{% url 'ventas:canje_rapido' %}" class="btn btn-success">
+                    🎫 Canjear Entradas
+                </a>
             </div>
-        
-        <div class="card glass-container">
-            </div>
+        </div>
 
     </div> </div>
 {% endblock %}

@@ -1,0 +1,167 @@
+{% extends "accounts/base.html" %}
+
+{% block title %}Ventas Presenciales - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1200px; margin: 2rem auto;">
+    
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🎫 Boletería</h1>
+        <p class="card-subtitle">Funciones de hoy. Seleccioná una función para vender entradas.</p>
+    </div>
+
+    {% if agrupado %}
+        <div style="display: flex; flex-direction: column; gap: 2rem;">
+            {% for titulo, funciones in agrupado.items %}
+            <div class="card glass-container">
+                <div style="padding: var(--space-lg);">
+                    
+                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: var(--space-lg); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">
+                        <span style="font-size: 1.5rem;">🎬</span>
+                        <h3 style="margin: 0; font-size: 1.25rem; color: var(--text-light);">{{ titulo }}</h3>
+                        <span class="badge badge-count">{{ funciones|length }} funciones</span>
+                    </div>
+
+                    <div class="funcion-grid">
+                        {% for f in funciones %}
+                        <div class="funcion-card">
+                            <div class="funcion-info">
+                                <div class="funcion-time">
+                                    🕐 {{ f.fecha_hora|date:"H:i" }}
+                                </div>
+                                <div class="funcion-details">
+                                    <span>🏛️ Sala {{ f.sala.numero }}</span>
+                                    <span style="color: var(--primary); font-weight: 600;">${{ f.precio_base|floatformat:0 }}</span>
+                                </div>
+                            </div>
+                            
+                            <a href="{% url 'ventas:seleccionar_butacas_presencial' f.id %}" class="btn btn-primary btn-block">
+                                🛒 Vender
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="card glass-container" style="padding: 4rem; text-align: center; opacity: 0.7;">
+            <div style="font-size: 3rem; margin-bottom: 1rem;">😴</div>
+            <h3>No hay funciones programadas para hoy.</h3>
+            <p>Revisa la cartelera o la programación de salas.</p>
+        </div>
+    {% endif %}
+
+    <div style="margin-top: 2rem; text-align: center;">
+        <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline">
+            ← Volver al panel
+        </a>
+    </div>
+
+</div>
+
+<style>
+    /* --- Grid de Funciones --- */
+    .funcion-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); /* Responsivo */
+        gap: 1rem;
+    }
+
+    /* --- Tarjeta de Función Individual --- */
+    .funcion-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        transition: all 0.2s ease;
+    }
+
+    .funcion-card:hover {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: rgba(139, 95, 191, 0.3); /* Color primario sutil */
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .funcion-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+
+    .funcion-time {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--text-light);
+    }
+
+    .funcion-details {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+    }
+
+    /* --- Badges --- */
+    .badge-count {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-weight: normal;
+    }
+
+    /* --- Botones --- */
+    .btn {
+        padding: 0.6rem 1.2rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        border-radius: 9999px; /* Píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .btn-block {
+        width: 100%; /* Botón ancho dentro de la tarjeta */
+    }
+
+    .btn-primary {
+        background: var(--primary);
+        color: white;
+        border: 2px solid var(--primary);
+    }
+    .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        border-color: rgb(77, 19, 92);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.3);
+    }
+
+    .btn-outline {
+        background: transparent;
+        color: var(--text-light);
+        border: 2px solid var(--glass-border);
+        border: 2px solid rgba(255, 255, 255, 0.3);
+    }
+    .btn-outline:hover {
+        border-color: var(--primary);
+        color: var(--primary);
+        background: rgba(var(--primary-rgb), 0.1);
+        transform: translateY(-1px);
+    }
+</style>
+{% endblock %}

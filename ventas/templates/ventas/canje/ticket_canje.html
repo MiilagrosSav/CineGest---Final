@@ -1,0 +1,309 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticket #{{ venta.id_venta }}</title>
+    <style>
+        /* --- FUENTES --- */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+
+        /* --- ESTILOS BASE (Pantalla) --- */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: #222; /* Fondo oscuro solo en pantalla para contraste */
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* El contenedor del ticket simula el papel de 80mm */
+        .ticket {
+            background: white;
+            width: 80mm; /* Ancho estándar de impresora térmica */
+            padding: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            position: relative;
+        }
+
+        /* Efecto de corte de papel arriba y abajo (Solo visual en pantalla) */
+        .ticket::before, .ticket::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background: linear-gradient(135deg, transparent 50%, white 50%), 
+                        linear-gradient(45deg, transparent 50%, white 50%);
+            background-size: 20px 20px;
+            background-repeat: repeat-x;
+        }
+        .ticket::before { top: -10px; background-position: 0 0; transform: rotate(180deg); }
+        .ticket::after { bottom: -10px; background-position: 0 0; }
+
+        /* --- CONTENIDO DEL TICKET --- */
+        .header {
+            text-align: center;
+            border-bottom: 2px dashed #000;
+            padding-bottom: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .cine-name {
+            font-size: 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+        
+        .meta-info {
+            font-size: 10px;
+            color: #444;
+        }
+
+        /* Película grande */
+        .movie-title {
+            font-size: 16px;
+            font-weight: 800;
+            text-transform: uppercase;
+            line-height: 1.2;
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        /* Tabla de info alineada */
+        .info-table {
+            width: 100%;
+            margin-bottom: 10px;
+            font-size: 12px;
+        }
+        .info-table td {
+            padding: 2px 0;
+            vertical-align: top;
+        }
+        .label { font-weight: 600; color: #666; width: 60px; }
+        .value { font-weight: 600; color: #000; text-align: right; }
+
+        /* Butacas destacadas */
+        .seats-box {
+            border: 2px solid #000;
+            padding: 8px;
+            text-align: center;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .seats-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .seats-list {
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        /* Total */
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 16px;
+            font-weight: 900;
+            border-top: 2px dashed #000;
+            border-bottom: 2px dashed #000;
+            padding: 10px 0;
+            margin: 15px 0;
+        }
+
+        /* QR */
+        .qr-container {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+        .qr-code {
+            width: 120px;
+            height: 120px;
+            /* Filtro para asegurar negro puro al imprimir */
+            filter: contrast(200%); 
+        }
+
+        .footer {
+            text-align: center;
+            font-size: 9px;
+            margin-top: 15px;
+        }
+
+        /* --- BOTONES DE ACCIÓN (Solo pantalla) --- */
+        .actions {
+            position: fixed;
+            bottom: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border-radius: 50px;
+            font-weight: 600;
+            text-decoration: none;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: transform 0.2s;
+        }
+        .btn:active { transform: scale(0.95); }
+        
+        .btn-print { background: #77135c; color: white; }
+        .btn-back { background: white; color: #333; }
+
+        /* --- CONFIGURACIÓN DE IMPRESIÓN --- */
+        @media print {
+            @page {
+                margin: 0;
+                size: 80mm auto; /* Ancho continuo */
+            }
+            
+            body {
+                background: white;
+                padding: 0;
+                display: block;
+            }
+            
+            .ticket {
+                width: 100%; /* Ocupar todo el ancho del papel */
+                box-shadow: none;
+                padding: 0 5px; /* Margen mínimo de seguridad */
+                margin: 0;
+            }
+
+            /* Ocultar elementos decorativos */
+            .ticket::before, .ticket::after, .actions {
+                display: none !important;
+            }
+
+            /* Asegurar negro puro */
+            * { color: black !important; }
+        }
+
+        @media print {
+            @page {
+                /* Definimos el papel como rollo de 80mm */
+                size: 80mm auto;
+                margin: 0; 
+            }
+            
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+                /* Alineamos todo a la izquierda arriba para asegurar posición */
+                display: block; 
+            }
+            
+            .ticket {
+                /* IMPORTANTE: Forzar el ancho exacto */
+                width: 80mm; 
+                max-width: 80mm; 
+                
+                /* Quitar sombras y márgenes extras */
+                box-shadow: none;
+                margin: 0;
+                padding: 5px 5px 20px 5px; /* Márgenes de seguridad para la impresora */
+                
+                /* Asegurar que no se corte */
+                page-break-inside: avoid;
+            }
+
+            /* Ocultar botones */
+            .actions { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="ticket">
+        
+        <div class="header">
+            <div class="cine-name">{{ nombre_cine|default:"CINEGEST" }}</div>
+            <div class="meta-info">
+                TICKET DE ENTRADA<br>
+                {{ venta.fecha_compra|date:"d/m/Y H:i" }}<br>
+                Venta #: {{ venta.id_venta }}
+            </div>
+        </div>
+
+        {% if primera_entrada %}
+        <div class="movie-title">
+            {{ primera_entrada.id_pelicula.titulo }}
+        </div>
+
+        <table class="info-table">
+            <tr>
+                <td class="label">FECHA:</td>
+                <td class="value">{{ primera_entrada.id_funcion.fecha_hora|date:"d/m/Y" }}</td>
+            </tr>
+            <tr>
+                <td class="label">HORA:</td>
+                <td class="value">{{ primera_entrada.id_funcion.fecha_hora|date:"H:i" }} HS</td>
+            </tr>
+            <tr>
+                <td class="label">SALA:</td>
+                <td class="value">{{ primera_entrada.id_sala.numero }} ({{ primera_entrada.id_sala.nombre }})</td>
+            </tr>
+            <tr>
+                <td class="label">FORMATO:</td>
+                <td class="value">
+                    GENERAL
+                </td>
+            </tr>
+        </table>
+        {% endif %}
+
+        <div class="seats-box">
+            <div class="seats-label">BUTACAS ({{ entradas|length }})</div>
+            <div class="seats-list">
+                {% for entrada in entradas %}
+                    {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="total-row">
+            <span>TOTAL</span>
+            <span>${{ total|floatformat:0 }}</span>
+        </div>
+
+        <div class="qr-container">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=CINEGEST-VENTA-{{ venta.id_venta }}" 
+                 alt="QR" class="qr-code">
+            <div class="meta-info" style="margin-top: 5px;">Escanear para ingresar</div>
+        </div>
+
+        <div class="footer">
+            <p>Compra Online - Canje en Boletería</p>
+            <p style="margin-top: 5px;"><strong>¡DISFRUTA LA FUNCIÓN!</strong></p>
+            <p style="margin-top: 10px; font-size: 8px;">Conserve este ticket.</p>
+        </div>
+
+    </div>
+
+    <div class="actions">
+        <a href="{% url 'ventas:canje_rapido' %}" class="btn btn-back">🔙 Volver</a>
+        <button onclick="window.print()" class="btn btn-print">🖨️ Imprimir</button>
+    </div>
+
+</body>
+</html>

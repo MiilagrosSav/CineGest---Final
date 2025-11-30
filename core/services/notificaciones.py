@@ -128,32 +128,29 @@ class NotificacionService:
         # Calcular total
         total = sum(entrada.id_funcion.precio_base for entrada in entradas)
 
-        # Generar QR localmente para cada entrada (usar qrcode + Pillow)
-        tickets: List[Dict[str, Optional[str]]] = []
-        for entrada in entradas:
-            qr_data_value = f"CINEGEST-{entrada.id_entrada}-{venta.id_venta}"
-            qr_src = None
-            try:
-                qr = qrcode.QRCode(box_size=6, border=2)
-                qr.add_data(qr_data_value)
-                qr.make(fit=True)
-                img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-                buf = io.BytesIO()
-                img.save(buf, format='PNG')
-                buf.seek(0)
-                b64 = base64.b64encode(buf.read()).decode('ascii')
-                qr_src = f"data:image/png;base64,{b64}"
-            except Exception:
-                # Fallback a servicio externo si algo falla
-                qr_src = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(qr_data_value)}"
-
-            tickets.append({'entrada': entrada, 'qr_src': qr_src})
+        # Generar QR ÚNICO para la venta completa (usando codigo_compra o ID)
+        qr_data_value = venta.codigo_compra if venta.codigo_compra else f"VENTA-{venta.id_venta}"
+        qr_src = None
+        try:
+            qr = qrcode.QRCode(box_size=6, border=2)
+            qr.add_data(qr_data_value)
+            qr.make(fit=True)
+            img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
+            buf = io.BytesIO()
+            img.save(buf, format='PNG')
+            buf.seek(0)
+            b64 = base64.b64encode(buf.read()).decode('ascii')
+            qr_src = f"data:image/png;base64,{b64}"
+        except Exception:
+            # Fallback a servicio externo si algo falla
+            qr_src = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(qr_data_value)}"
 
         context = {
             'usuario': usuario,
             'venta': venta,
             'entradas': entradas,
-            'tickets': tickets,
+            'qr_src': qr_src,
+            'qr_data': qr_data_value,
             'total': total,
             'cantidad': len(entradas),
             'request': request,

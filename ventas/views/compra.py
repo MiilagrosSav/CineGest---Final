@@ -21,6 +21,10 @@ logger = logging.getLogger(__name__)
 @login_required
 def procesar_compra(request, funcion_id):
     """Vista para procesar la compra de entradas"""
+    # Bloquear acceso a empleados
+    if hasattr(request.user, 'rol') and request.user.rol == 'empleado':
+        messages.warning(request, '⚠️ Los empleados deben usar el módulo de venta presencial.')
+        return redirect('ventas:dashboard_presencial')
     
     if request.method != 'POST':
         return redirect('ventas:seleccionar_butacas', funcion_id=funcion_id)
@@ -107,6 +111,10 @@ def procesar_compra(request, funcion_id):
 @login_required
 def confirmar_compra(request, funcion_id):
     """Vista para mostrar resumen y confirmar la compra antes del pago"""
+    # Bloquear acceso a empleados
+    if hasattr(request.user, 'rol') and request.user.rol == 'empleado':
+        messages.warning(request, '⚠️ Los empleados deben usar el módulo de venta presencial.')
+        return redirect('ventas:dashboard_presencial')
     
     if request.method != 'POST':
         return redirect('ventas:seleccionar_butacas', funcion_id=funcion_id)
