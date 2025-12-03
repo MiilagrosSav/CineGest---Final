@@ -14,32 +14,55 @@
         <div style="display: flex; flex-direction: column; gap: 2rem;">
             {% for titulo, funciones in agrupado.items %}
             <div class="card glass-container">
-                <div style="padding: var(--space-lg);">
+                <div style="padding: var(--space-lg); display: flex; gap: var(--space-lg);">
                     
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: var(--space-lg); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">
-                        <span style="font-size: 1.5rem;">🎬</span>
-                        <h3 style="margin: 0; font-size: 1.25rem; color: var(--text-light);">{{ titulo }}</h3>
-                        <span class="badge badge-count">{{ funciones|length }} funciones</span>
+                    <!-- Poster de la película -->
+                    <div style="flex-shrink: 0;">
+                        {% if funciones.0.pelicula.imagen_portada %}
+                            <img src="{{ funciones.0.pelicula.imagen_portada.url }}" 
+                                 alt="{{ titulo }}"
+                                 style="width: 150px; height: 220px; object-fit: cover; border-radius: var(--radius); box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
+                        {% else %}
+                            <div style="width: 150px; height: 220px; background: linear-gradient(135deg, rgba(74, 144, 226, 0.2), rgba(155, 89, 182, 0.2)); border-radius: var(--radius); display: flex; align-items: center; justify-content: center;">
+                                <span style="font-size: 3rem;">🎬</span>
+                            </div>
+                        {% endif %}
                     </div>
 
-                    <div class="funcion-grid">
-                        {% for f in funciones %}
-                        <div class="funcion-card">
-                            <div class="funcion-info">
-                                <div class="funcion-time">
-                                    🕐 {{ f.fecha_hora|date:"H:i" }}
-                                </div>
-                                <div class="funcion-details">
-                                    <span>🏛️ Sala {{ f.sala.numero }}</span>
-                                    <span style="color: var(--primary); font-weight: 600;">${{ f.precio_base|floatformat:0 }}</span>
-                                </div>
-                            </div>
-                            
-                            <a href="{% url 'ventas:seleccionar_butacas_presencial' f.id %}" class="btn btn-primary btn-block">
-                                🛒 Vender
-                            </a>
+                    <!-- Contenido de funciones -->
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: var(--space-lg); border-bottom: 1px solid var(--glass-border); padding-bottom: 0.5rem;">
+                            <span style="font-size: 1.5rem;">🎬</span>
+                            <h3 style="margin: 0; font-size: 1.25rem; color: var(--text-light);">{{ titulo }}</h3>
+                            <span class="badge badge-count">{{ funciones|length }} funciones</span>
                         </div>
-                        {% endfor %}
+
+                        <div class="funcion-grid">
+                            {% for f in funciones %}
+                            <div class="funcion-card">
+                                <div class="funcion-info">
+                                    <div class="funcion-time">
+                                        🕐 {{ f.fecha_hora|date:"H:i" }}
+                                    </div>
+                                    <div class="funcion-details">
+                                        <span>🏛️ Sala {{ f.sala.numero }}</span>
+                                        <span style="color: var(--primary); font-weight: 600;">${{ f.precio_base|floatformat:0 }}</span>
+                                    </div>
+                                    
+                                    <!-- Formato -->
+                                    {% if f.get_formatos_destacados != "—" %}
+                                    <div style="margin-top: 0.5rem;">
+                                        <span class="badge-formato">{{ f.get_formatos_destacados }}</span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <a href="{% url 'ventas:seleccionar_butacas_presencial' f.id %}" class="btn btn-primary btn-block">
+                                    🛒 Vender
+                                </a>
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
 
                 </div>
@@ -116,6 +139,17 @@
         padding: 2px 8px;
         border-radius: 10px;
         font-weight: normal;
+    }
+
+    .badge-formato {
+        background: linear-gradient(135deg, rgba(74, 144, 226, 0.3), rgba(155, 89, 182, 0.3));
+        color: var(--text-light);
+        font-size: 0.7rem;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-weight: 600;
+        display: inline-block;
+        border: 1px solid rgba(139, 95, 191, 0.4);
     }
 
     /* --- Botones --- */
