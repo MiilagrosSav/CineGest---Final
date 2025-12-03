@@ -93,9 +93,8 @@ class Venta(models.Model):
         verbose_name = 'Venta'
         verbose_name_plural = 'Ventas'
         ordering = ['-fecha_compra']
-        constraints = [
-            models.UniqueConstraint(fields=['codigo_compra'], name='UQ_venta_codigo_compra')
-        ]
+        # NOTA: El constraint de unicidad para codigo_compra se maneja
+        # mediante un índice parcial en la migración (solo valores no vacíos)
     
     def save(self, *args, **kwargs):
         """Generar código de compra automáticamente si no existe"""
