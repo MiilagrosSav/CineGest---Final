@@ -14,186 +14,212 @@
 
     <div class="card glass-container">
         
-        <div style="padding: var(--space-md) var(--space-md) 0 var(--space-md);">
-            <form method="get" class="search-form" style="display: flex; gap: var(--space-md);">
-                <div style="position: relative; flex-grow: 1;">
+        <div style="padding: var(--space-md); border-bottom: 1px solid var(--glass-border);">
+            <form method="get" class="search-form" style="display: flex; gap: 0.5rem; width: 100%; flex-wrap: wrap; align-items: center;">
+                
+                <div style="position: relative; flex-grow: 1; min-width: 250px;">
                     <input type="text" 
                            name="q" 
                            placeholder="Buscar por modelo, objeto o usuario..." 
                            value="{{ q|default:'' }}"
-                           class="form-input"
-                           style="width: 100%; padding: 0.8rem 1rem 0.8rem 2.5rem; font-size: 1rem;">
-                    <span style="position: absolute; left: 1rem; top: 50%; transform: translateY(-50%); font-size: 1.1rem; opacity: 0.5;">🔍</span>
+                           class="form-input-dark"
+                           style="width: 100%; padding: 0.5rem 1rem 0.5rem 2.2rem; font-size: 0.9rem; border-radius: 9999px;">
+                    <span style="position: absolute; left: 0.8rem; top: 50%; transform: translateY(-50%); font-size: 0.9rem; opacity: 0.5;">🔍</span>
                 </div>
-                <button type="submit" class="btn btn-primary" style="border-radius: 9999px; padding: 0 2rem; font-weight: 600;">Buscar</button>
+                
+                <div class="select-wrapper">
+                    <select name="type" class="form-select-dark">
+                        <option value="">Tipo: Todos</option>
+                        <option value="+" {% if type_filter == '+' %}selected{% endif %}>✨ Creación</option>
+                        <option value="~" {% if type_filter == '~' %}selected{% endif %}>✏️ Actualización</option>
+                        <option value="-" {% if type_filter == '-' %}selected{% endif %}>🗑️ Eliminación</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="border-radius: 9999px; padding: 0.5rem 1.2rem; font-size: 0.9rem; font-weight: 600;">
+                    Buscar
+                </button>
+
+                {% if q or type_filter %}
+                <a href="{% url 'auditoria:list' %}" class="btn btn-outline" style="border-radius: 50%; width: 36px; height: 36px; padding: 0; display: flex; align-items: center; justify-content: center;" title="Limpiar filtros">
+                    ✕
+                </a>
+                {% endif %}
             </form>
         </div>
 
-        <div style="overflow-x: auto;">
-            <table class="table" style="width: 100%; border-collapse: collapse; text-align: left; margin-top: var(--space-md);">
-                <thead>
-                    <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <th style="padding: var(--space-md);">Fecha</th>
-                        <th style="padding: var(--space-md);">Tipo</th>
-                        <th style="padding: var(--space-md);">Modelo</th>
-                        <th style="padding: var(--space-md);">Objeto</th>
-                        <th style="padding: var(--space-md);">Usuario</th>
-                        <th style="padding: var(--space-md);">Snapshot (extracto)</th>
-                        <th style="padding: var(--space-md);"></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for entry in page_obj.object_list %}
-                    <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <td style="padding: var(--space-md); white-space: nowrap;">{{ entry.history_date|date:"d/m/Y H:i:s" }}</td>
-                        <td style="padding: var(--space-md);">
-                            <span class="badge-tipo 
-                                {% if entry.history_type == '+' %}tipo-c{% endif %}
-                                {% if entry.history_type == '~' %}tipo-u{% endif %}
-                                {% if entry.history_type == '-' %}tipo-d{% endif %}"
-                            >
-                                {{ entry.get_history_type_display }}
-                            </span>
-                        </td>
-                        <td style="padding: var(--space-md);">{{ entry.model_name }}</td>
-                        <td style="padding: var(--space-md); font-weight: 500;">{{ entry.object_repr }}</td>
-                        <td style="padding: var(--space-md);">{{ entry.history_user|default:"Sistema" }}</td>
-                        <td style="padding: var(--space-md); max-width: 300px; font-family: 'Courier New', Courier, monospace; font-size: 0.85rem; opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                            {{ entry.snapshot|default:''|truncatechars:120 }}
-                        </td>
-                        <td style="padding: var(--space-md); text-align: right;">
-                            <a class="btn btn-outline btn-ver" href="{% url 'auditoria:detail' entry.pk %}">
-                                Ver
-                            </a>
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr><td colspan="7" style="padding: var(--space-lg); text-align: center; opacity: 0.7;">No hay registros que coincidan con tu búsqueda.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div style="padding: var(--space-md);">
+            <div style="overflow-x: auto;">
+                <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--glass-border);">
+                            <th style="padding: var(--space-sm);">Fecha</th>
+                            <th style="padding: var(--space-sm);">Tipo</th>
+                            <th style="padding: var(--space-sm);">Modelo</th>
+                            <th style="padding: var(--space-sm);">Objeto</th>
+                            <th style="padding: var(--space-sm);">Usuario</th>
+                            <th style="padding: var(--space-sm);">Snapshot</th>
+                            <th style="padding: var(--space-sm); text-align: center; width: 80px;">Detalle</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in page_obj.object_list %}
+                        <tr style="border-bottom: 1px solid var(--glass-border); transition: background-color 0.2s ease;">
+                            <td style="padding: var(--space-sm); white-space: nowrap; font-size: 0.9rem;">
+                                {{ entry.history_date|date:"d/m/Y H:i" }}
+                            </td>
+                            <td style="padding: var(--space-sm);">
+                                <span class="badge-tipo 
+                                    {% if entry.history_type == '+' %}tipo-c{% endif %}
+                                    {% if entry.history_type == '~' %}tipo-u{% endif %}
+                                    {% if entry.history_type == '-' %}tipo-d{% endif %}"
+                                >
+                                    {{ entry.get_history_type_display }}
+                                </span>
+                            </td>
+                            <td style="padding: var(--space-sm); font-size: 0.9rem;">{{ entry.model_name }}</td>
+                            <td style="padding: var(--space-sm); font-weight: 500; font-size: 0.9rem;">{{ entry.object_repr }}</td>
+                            <td style="padding: var(--space-sm); font-size: 0.9rem;">{{ entry.history_user|default:"Sistema" }}</td>
+                            <td style="padding: var(--space-sm); max-width: 250px; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                                {{ entry.snapshot|default:''|truncatechars:50 }}
+                            </td>
+                            
+                            <td style="padding: var(--space-sm); text-align: center;">
+                                <a class="btn-icon" href="{% url 'auditoria:detail' entry.pk %}" title="Ver detalles">
+                                    👁️
+                                </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="7" style="padding: var(--space-lg); text-align: center; opacity: 0.7;">No hay registros que coincidan con tu búsqueda.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
         
+        {% if page_obj.has_other_pages %}
         <div class="pagination">
             {% if page_obj.has_previous %}
-                <a class="page-item page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}">« Anterior</a>
+                <a class="page-item page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}">« Anterior</a>
             {% else %}
                 <span class="page-item disabled page-link">« Anterior</span>
             {% endif %}
             
-            <span class="page-item active page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            <span class="page-item active page-link" style="border-color: var(--primary); color: white; background: var(--primary);">
+                Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+            </span>
             
             {% if page_obj.has_next %}
-                <a class="page-item page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}">Siguiente »</a>
+                <a class="page-item page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}">Siguiente »</a>
             {% else %}
                  <span class="page-item disabled page-link">Siguiente »</span>
             {% endif %}
         </div>
+        {% endif %}
     </div>
 </div>
 
 <style>
-    /* Estilos para Badges de Tipo (Copiados de detalle_auditoria) */
-    .badge-tipo {
-        display: inline-block;
-        padding: 0.4rem 1rem;
-        border-radius: 20px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        text-transform: capitalize;
+    /* --- Input Oscuro (Buscador) --- */
+    .form-input-dark {
+        background: rgba(0, 0, 0, 0.25); /* Fondo oscuro */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-light);
+        outline: none;
+        transition: all 0.3s;
     }
-    .tipo-c { /* Creación */
-        background: rgba(78, 205, 196, 0.2); 
-        color: #4ecdc4;
-    }
-    .tipo-u { /* Update */
-        background: rgba(255, 193, 7, 0.2); 
-        color: #ffc107;
-    }
-    .tipo-d { /* Delete */
-        background: rgba(255, 107, 107, 0.2); 
-        color: #ff6b6b;
+    .form-input-dark:focus {
+        border-color: var(--primary);
+        background: rgba(0, 0, 0, 0.4);
+        box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
     }
 
-    /* Estilo para el botón "Ver" */
-    .btn-ver {
-        padding: 0.4rem 0.9rem;
-        font-size: 0.85rem;
-        font-weight: 600;
-        border-radius: 9999px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border: 2px solid var(--glass-border);
-        color: var(--text-secondary);
-        text-decoration: none;
-        transition: all 0.3s ease;
+    /* --- Select Oscuro (Filtro de Tipo) --- */
+    .select-wrapper {
+        position: relative;
+        min-width: 160px;
     }
-    .btn-ver:hover {
-        background: rgba(var(--primary-rgb), 0.25);
+    .form-select-dark {
+        appearance: none; /* Quitar flecha nativa fea */
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        
+        width: 100%;
+        padding: 0.5rem 2rem 0.5rem 1rem; /* Espacio a la derecha para la flecha */
+        font-size: 0.9rem;
+        border-radius: 9999px; /* Píldora */
+        
+        background-color: rgba(0, 0, 0, 0.25); /* Fondo oscuro igual al input */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text-light);
+        cursor: pointer;
+        outline: none;
+        transition: all 0.3s;
+        
+        /* Flecha custom blanca */
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+    }
+    .form-select-dark:focus {
         border-color: var(--primary);
-        color: var(--primary);
-        transform: translateY(-1px);
+        background-color: rgba(0, 0, 0, 0.4);
     }
     
-    /* Estilo para el botón "Actualizar" del banner */
-    #audit-refresh {
-        padding: 0.3rem 0.8rem;
-        font-size: 0.8rem;
-        border-radius: 9999px;
-        margin-left: 1rem;
-        font-weight: 600;
-        background: var(--primary);
+    /* Opciones del select (fondo negro para que no salga blanco) */
+    .form-select-dark option {
+        background-color: #1a1a1a;
         color: white;
-        border: none;
-    }
-    .alert-info { /* Asumiendo que tenés una clase .alert-info */
-        background: rgba(var(--primary-rgb), 0.1);
-        border: 1px solid var(--primary);
-        padding: var(--space-md);
-        border-radius: var(--radius);
-        color: var(--text-light);
+        padding: 10px;
     }
 
-
-    /* --- Estilos para Paginación Minimalista --- */
-    .pagination {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        gap: 0.5rem; 
-        padding: var(--space-md);
-        list-style: none;
-        margin-top: 0; /* Ya no necesita margen superior */
-        border-top: 1px solid var(--glass-border);
-    }
-    .page-item .page-link {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        padding: 0.5rem 0.9rem;
-        border-radius: var(--radius, 8px); 
-        border: 2px solid transparent;
-        background: transparent;
-        color: var(--text-secondary);
+    /* --- Badges --- */
+    .badge-tipo {
+        display: inline-block;
+        padding: 0.25rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
         font-weight: 600;
-        text-decoration: none;
-        transition: all 0.2s ease;
+        text-transform: capitalize;
+        border: 1px solid transparent;
     }
-    .page-item:not(.active) .page-link:hover {
-        border-color: var(--primary);
-        color: var(--primary);
-        background: rgba(var(--primary-rgb), 0.1);
+    .tipo-c { background: rgba(78, 205, 196, 0.15); color: #4ecdc4; border-color: rgba(78, 205, 196, 0.3); }
+    .tipo-u { background: rgba(255, 193, 7, 0.15); color: #ffc107; border-color: rgba(255, 193, 7, 0.3); }
+    .tipo-d { background: rgba(255, 107, 107, 0.15); color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3); }
+
+    /* --- Botones --- */
+    .btn-icon {
+        display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+        border-radius: 50%; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border);
+        text-decoration: none; font-size: 0.9rem; transition: all 0.2s ease;
     }
-    .page-item.active .page-link {
-        background: var(--primary);
-        border-color: var(--primary);
-        color: #FFF;
-        font-weight: 700;
+    .btn-icon:hover { background: rgba(var(--primary-rgb), 0.2); border-color: var(--primary); transform: scale(1.1); }
+
+    .btn-primary {
+        background: var(--primary); color: white; border: 2px solid var(--primary);
+        cursor: pointer; transition: all 0.3s;
     }
-    .page-item.disabled .page-link {
-        opacity: 0.3;
-        cursor: not-allowed;
+    .btn-primary:hover { background: rgb(77, 19, 92); border-color: rgb(77, 19, 92); transform: translateY(-1px); }
+    
+    .btn-outline {
+        background: transparent; color: var(--text-light); border: 1px solid var(--glass-border);
+        cursor: pointer; transition: all 0.3s;
     }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); background: rgba(var(--primary-rgb), 0.1); }
+    
+    /* Banner y Paginación */
+    #audit-refresh { padding: 0.3rem 0.8rem; font-size: 0.8rem; border-radius: 9999px; margin-left: 1rem; font-weight: 600; background: var(--primary); color: white; border: none; cursor: pointer; }
+    .alert-info { background: rgba(var(--primary-rgb), 0.15); border: 1px solid var(--primary); padding: var(--space-md); border-radius: var(--radius); color: var(--text-light); display: flex; align-items: center; justify-content: space-between; }
+
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 0.5rem; padding: var(--space-md); list-style: none; margin-top: 0; border-top: 1px solid var(--glass-border); }
+    .page-item .page-link { display: inline-flex; align-items: center; justify-content: center; padding: 0.4rem 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border); background: transparent; color: var(--text-secondary); font-weight: 600; text-decoration: none; font-size: 0.9rem; transition: all 0.2s ease; }
+    .page-item:not(.active) .page-link:hover { border-color: var(--primary); color: var(--primary); background: rgba(var(--primary-rgb), 0.1); }
+    .page-item.active .page-link { background: var(--primary); border-color: var(--primary); color: #FFF; font-weight: 700; }
+    .page-item.disabled .page-link { opacity: 0.4; cursor: not-allowed; background: transparent; border-color: var(--glass-border); }
+    
+    tbody tr:hover { background-color: rgba(255,255,255,0.03); }
+
 </style>
 
 {% endblock %}
@@ -201,13 +227,13 @@
 {% block extra_js %}
 <script>
 (function(){
-    const pollInterval = 10000; // ms
+    const pollInterval = 10000; 
     const banner = document.getElementById('audit-new-banner');
     const container = document.getElementById('audit-list');
     let lastId = container ? container.dataset.lastId || '' : '';
 
     function showBanner(count){
-        banner.innerHTML = `<div class="alert alert-info">Hay ${count} nuevos registros. <button id="audit-refresh" class="btn btn-sm">Actualizar</button></div>`;
+        banner.innerHTML = `<div class="alert alert-info"><span>Hay <strong>${count}</strong> nuevos registros de auditoría.</span> <button id="audit-refresh" class="btn btn-sm">↻ Actualizar</button></div>`;
         banner.style.display = 'block';
         const btn = document.getElementById('audit-refresh');
         if(btn){
@@ -219,10 +245,15 @@
     }
 
     function checkUpdates(){
-        const url = new URL('{% url "auditoria:updates" %}', window.location.origin);
+        const updatesUrl = '{% url "auditoria:updates" %}'; 
+        const url = new URL(updatesUrl, window.location.origin);
         if(lastId) url.searchParams.set('since_id', lastId);
+        
         fetch(url.toString(), {credentials: 'same-origin'})
-            .then(resp => resp.json())
+            .then(resp => {
+                if(!resp.ok) throw new Error('Network response was not ok');
+                return resp.json();
+            })
             .then(data => {
                 if(!data) return;
                 if(data.new_count && data.new_count > 0){
@@ -235,7 +266,7 @@
     }
 
     setInterval(checkUpdates, pollInterval);
-    setTimeout(checkUpdates, 2000);
+    setTimeout(checkUpdates, 3000);
 })();
 </script>
 {% endblock %}

@@ -32,6 +32,14 @@
                         <option value="inactivas" {% if filtro_estado == 'inactivas' %}selected{% endif %}>Inactivas (Historial)</option>
                     </select>
 
+                    <select name="estado_funcion" class="form-select" style="width: 130px; padding: 0.4rem; font-size: 0.9rem;">
+                        <option value="">Estado</option>
+                        <option value="ACTIVA" {% if filtro_estado_funcion == 'ACTIVA' %}selected{% endif %}>Activa</option>
+                        <option value="PREVENTA" {% if filtro_estado_funcion == 'PREVENTA' %}selected{% endif %}>Preventa</option>
+                        <option value="AGOTADA" {% if filtro_estado_funcion == 'AGOTADA' %}selected{% endif %}>Agotada</option>
+                        <option value="INACTIVA" {% if filtro_estado_funcion == 'INACTIVA' %}selected{% endif %}>Inactiva</option>
+                    </select>
+
                     <select name="pelicula" class="form-select" style="width: 150px; padding: 0.4rem; font-size: 0.9rem;">
                         <option value="">Peliculas</option>
                         {% for peli in peliculas %}
@@ -243,6 +251,21 @@
     .formato-2D_3D { background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #9B59B6 50%, #9B59B6 100%); color: white; }
     .formato-2D_4D { background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #7ED321 50%, #7ED321 100%); color: white; }
     .formato-3D_4D { background: linear-gradient(135deg, #9B59B6 0%, #9B59B6 50%, #7ED321 50%, #7ED321 100%); color: white; }
+
+    /* Badges de estado */
+    .estado-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        font-weight: 600;
+        white-space: nowrap;
+        text-transform: uppercase;
+    }
+    .estado-activa { background: linear-gradient(135deg, #4ecdc4, #44a3a0); color: white; }
+    .estado-preventa { background: linear-gradient(135deg, #ffc107, #ff9800); color: white; }
+    .estado-agotada { background: linear-gradient(135deg, #ff6b6b, #ee5a52); color: white; }
+    .estado-inactiva { background: linear-gradient(135deg, #95a5a6, #7f8c8d); color: white; }
 </style>
 
 <script>

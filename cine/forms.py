@@ -334,6 +334,15 @@ class FuncionForm(forms.ModelForm):
         error_messages={'required': 'Debes seleccionar un idioma.'}
     )
     
+    estado = forms.ChoiceField(
+        label='5. Estado',
+        choices=[('ACTIVA', 'Activa'), ('PREVENTA', 'Preventa')],
+        widget=forms.RadioSelect,
+        required=True,
+        initial='ACTIVA',
+        error_messages={'required': 'Debes seleccionar un estado.'}
+    )
+    
     precio_base = forms.DecimalField(
         label='💰 Precio de entrada',
         min_value=0.01,
@@ -356,7 +365,7 @@ class FuncionForm(forms.ModelForm):
 
     class Meta:
         model = Funcion
-        fields = ['pelicula', 'sala', 'fecha_hora', 'idioma', 'precio_base']
+        fields = ['pelicula', 'sala', 'fecha_hora', 'idioma', 'estado', 'precio_base']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -544,6 +553,15 @@ class FuncionBatchForm(forms.Form):
         required=True,
         initial='DOBLADA',
         error_messages={'required': 'Debes seleccionar un idioma.'}
+    )
+    
+    estado = forms.ChoiceField(
+        label='5. Estado',
+        choices=[('ACTIVA', 'Activa'), ('PREVENTA', 'Preventa')],
+        widget=forms.RadioSelect,
+        required=True,
+        initial='ACTIVA',
+        error_messages={'required': 'Debes seleccionar un estado.'}
     )
     
     precio_base = forms.DecimalField(

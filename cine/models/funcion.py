@@ -86,6 +86,20 @@ class Funcion(models.Model):
         help_text='Promoción automática actualmente vigente para esta función (puede ser null)'
     )
 
+    # Estado de la función
+    ESTADO_CHOICES = [
+        ('ACTIVA', 'Activa'),
+        ('PREVENTA', 'Preventa'),
+        ('AGOTADA', 'Agotada'),
+        ('INACTIVA', 'Inactiva'),
+    ]
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='ACTIVA',
+        help_text='Estado actual de la función'
+    )
+
     def __str__(self):
         formatos = self.get_formatos_destacados()
         return f"{self.pelicula.titulo} [{formatos}] - Sala {self.sala.numero} - {self.fecha_hora.strftime('%d/%m/%Y %H:%M')}"

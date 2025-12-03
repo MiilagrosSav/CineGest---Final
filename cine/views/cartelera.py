@@ -60,13 +60,16 @@ def cartelera_view(request):
             funciones = obtener_funciones_candidatas(intercambio_venta).select_related('pelicula', 'sala')
         except Exception:
             intercambio_venta = None
-            funciones = Funcion.objects.filter(fecha_hora__gte=ahora, sala__activa=True).select_related('pelicula', 'sala')
+            funciones = Funcion.objects.filter(
+                fecha_hora__gte=ahora,
+                sala__activa=True
+            ).exclude(estado='INACTIVA').select_related('pelicula', 'sala')
     else:
-        # Filtrar funciones futuras
+        # Filtrar funciones futuras y no inactivas
         funciones = Funcion.objects.filter(
             fecha_hora__gte=ahora,
             sala__activa=True
-        ).select_related(
+        ).exclude(estado='INACTIVA').select_related(
             'pelicula', 'sala'
         )
     

@@ -24,12 +24,17 @@ class FuncionListView(AdminRequiredMixin, ListView):
     
     def get_queryset(self):
         """Filtrar y ordenar funciones según parámetros de búsqueda"""
+        # Primero marcar funciones pasadas como inactivas
+        ahora = timezone.localtime(timezone.now())
+        Funcion.objects.filter(
+            fecha_hora__lt=ahora
+        ).exclude(estado='INACTIVA').update(estado='INACTIVA')
+        
         queryset = Funcion.objects.select_related('pelicula', 'sala').prefetch_related('formatos_funcion__formato')
         
         # Filtrar por estado: 'activas' (por defecto) => fecha_hora >= ahora; 'inactivas' => fecha_hora < ahora
         estado = self.request.GET.get('estado', 'activas')
         # usar localtime para evitar comparaciones con datetimes naive/aware en distinto tz
-        ahora = timezone.localtime(timezone.now())
         if estado == 'inactivas':
             queryset = queryset.filter(fecha_hora__lt=ahora)
         else:
@@ -81,6 +86,11 @@ class FuncionListView(AdminRequiredMixin, ListView):
         if formato_id:
             queryset = queryset.filter(formatos_funcion__formato_id=formato_id)
         
+        # Filtro por estado de función (ACTIVA, PREVENTA, AGOTADA)
+        estado_funcion = self.request.GET.get('estado_funcion', '').strip()
+        if estado_funcion:
+            queryset = queryset.filter(estado=estado_funcion)
+        
         # Ordenamiento
         orden = self.request.GET.get('orden', 'fecha')
         orden_mapping = {
@@ -125,6 +135,7 @@ class FuncionListView(AdminRequiredMixin, ListView):
         context['filtro_fecha_fin_display'] = _display(fecha_fin)
         
         context['filtro_formato'] = self.request.GET.get('formato', '')
+        context['filtro_estado_funcion'] = self.request.GET.get('estado_funcion', '')
         context['filtro_orden'] = self.request.GET.get('orden', 'fecha')
         
         # Pasar listas para los selects
@@ -166,6 +177,7 @@ def funcion_create_view(request):
             fecha = form.cleaned_data['fecha']
             precio = form.cleaned_data['precio_base']
             idioma = form.cleaned_data.get('idioma')  # String: 'DOBLADA', 'SUBTITULADA', etc.
+            estado = form.cleaned_data.get('estado', 'ACTIVA')  # String: 'ACTIVA', 'PREVENTA', 'AGOTADA'
             # Formatos por categoría (un solo objeto por categoría)
             formato_visual = form.cleaned_data.get('formatos_visual')
             formato_pantalla = form.cleaned_data.get('formatos_pantalla')
@@ -192,7 +204,8 @@ def funcion_create_view(request):
                         sala=sala,
                         fecha_hora=fecha_y_hora_final_aware,
                         precio_base=precio,
-                        idioma=idioma  # Guardar el idioma en el modelo
+                        idioma=idioma,  # Guardar el idioma en el modelo
+                        estado=estado   # Guardar el estado en el modelo
                     )
                     
                     # Crea las relaciones con los formatos en la tabla intermedia
