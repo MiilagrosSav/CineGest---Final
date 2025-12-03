@@ -6,6 +6,7 @@ from django.db import models
 from django.utils import timezone
 from ventas.models.venta import Venta
 from cine.models import Funcion
+from simple_history.models import HistoricalRecords
 
 
 class Intercambio(models.Model):
@@ -87,7 +88,7 @@ class Intercambio(models.Model):
     )
     notas = models.TextField(
         blank=True,
-        null=True,
+        default='',
         verbose_name='Notas',
         help_text='Información adicional sobre el intercambio'
     )
@@ -104,7 +105,7 @@ class Intercambio(models.Model):
     )
     user_agent = models.TextField(
         blank=True,
-        null=True,
+        default='',
         verbose_name='User Agent'
     )
     
@@ -114,10 +115,10 @@ class Intercambio(models.Model):
         verbose_name_plural = 'Intercambios de Entradas'
         ordering = ['-fecha_intercambio']
         indexes = [
-            models.Index(fields=['venta', 'fecha_intercambio']),
-            models.Index(fields=['estado']),
-            models.Index(fields=['funcion_origen']),
-            models.Index(fields=['funcion_destino']),
+            models.Index(fields=['venta', 'fecha_intercambio'], name='IDX_int_venta_fecha'),
+            models.Index(fields=['estado'], name='IDX_int_estado'),
+            models.Index(fields=['funcion_origen'], name='IDX_int_func_origen'),
+            models.Index(fields=['funcion_destino'], name='IDX_int_func_destino'),
         ]
     
     def __str__(self):
@@ -168,3 +169,6 @@ class Intercambio(models.Model):
                 return (False, f'Has alcanzado el límite máximo de {politica.max_cambios_por_compra} intercambio(s) para esta compra.')
         
         return (True, '')
+    
+    # historial de cambios
+    history = HistoricalRecords()

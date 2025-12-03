@@ -8,11 +8,12 @@ class EstadoEntrada:
     RESERVADA = 'RESERVADA'
     VENDIDA = 'VENDIDA'
     USADA = 'USADA'
+    ENTREGADA = 'ENTREGADA'
     CANCELADA = 'CANCELADA'
     EXPIRADA = 'EXPIRADA'
     
-    ESTADOS_ACTIVOS = [PENDIENTE, RESERVADA, VENDIDA, USADA]
-    ESTADOS_OCUPADOS = [PENDIENTE, RESERVADA, VENDIDA, USADA]  # Estados que bloquean una butaca
+    ESTADOS_ACTIVOS = [PENDIENTE, RESERVADA, VENDIDA, USADA, ENTREGADA]
+    ESTADOS_OCUPADOS = [PENDIENTE, RESERVADA, VENDIDA, USADA, ENTREGADA]  # Estados que bloquean una butaca
     
     @classmethod
     def choices(cls):
@@ -21,6 +22,7 @@ class EstadoEntrada:
             (cls.RESERVADA, 'Reservada'),
             (cls.VENDIDA, 'Vendida'),
             (cls.USADA, 'Usada'),
+            (cls.ENTREGADA, 'Entregada'),
             (cls.CANCELADA, 'Cancelada'),
             (cls.EXPIRADA, 'Expirada'),
         ]

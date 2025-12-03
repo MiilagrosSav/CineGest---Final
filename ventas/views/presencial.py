@@ -63,6 +63,19 @@ def seleccionar_butacas_presencial(request, funcion_id):
         precio_mostrar = detalle.get('precio_unitario_final', precio_mostrar) or precio_mostrar
         info_descuento = {'tipo': detalle.get('tipo_aplicado'), 'descripcion': detalle.get('descripcion'), 'precio_con_descuento': precio_mostrar}
 
+    # Verificar si la función requiere butacas 4D (tiene formato 4DX o 4D en experiencia)
+    requiere_4d = False
+    try:
+        from cine.models.funcion_formato import FuncionFormato
+        formatos_funcion = FuncionFormato.objects.filter(funcion=funcion).select_related('formato')
+        for ff in formatos_funcion:
+            # Verificar si el formato es 4DX o 4D en la categoría EXPERIENCIA
+            if ff.formato.categoria == 'EXPERIENCIA' and ('4D' in ff.formato.nombre.upper()):
+                requiere_4d = True
+                break
+    except Exception:
+        pass
+
     context = {
         'funcion': funcion,
         'sala': sala,
@@ -78,6 +91,7 @@ def seleccionar_butacas_presencial(request, funcion_id):
         'promo_2x1': False,
         'promo_codigo': None,
         'expiracion_iso': (timezone.now() + timedelta(minutes=10)).isoformat(),
+        'requiere_4d': requiere_4d,
     }
 
     return render(request, 'ventas/seleccionar_butacas.html', context)

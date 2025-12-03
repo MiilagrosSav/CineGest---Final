@@ -18,6 +18,7 @@ urlpatterns = [
     path('seleccionar-butacas/<int:funcion_id>/', butacas.seleccionar_butacas, name='seleccionar_butacas'),
     path('seleccionar-butacas/intercambio/<int:venta_id>/<int:funcion_id>/', butacas.seleccionar_butacas_intercambio, name='seleccionar_butacas_intercambio'),
     path('confirmar/<int:funcion_id>/', compra.confirmar_compra, name='confirmar_compra'),
+    path('api/verificar-butacas/<int:funcion_id>/', butacas.verificar_butacas_ocupadas, name='verificar_butacas_ocupadas'),
     path('procesar/<int:funcion_id>/', compra.procesar_compra, name='procesar_compra'),
     path('procesar-intercambio/<int:venta_id>/<int:funcion_id>/', compra.procesar_intercambio, name='procesar_intercambio'),
     

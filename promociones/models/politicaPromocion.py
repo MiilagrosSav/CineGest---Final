@@ -1,6 +1,7 @@
 import django.db.models as models
 from .promocion import Promocion
 from django.utils import timezone
+from simple_history.models import HistoricalRecords
 
 
 class PoliticaPromocion(models.Model):
@@ -38,10 +39,10 @@ class PoliticaPromocion(models.Model):
     dias_semana = models.CharField(max_length=32, blank=True, default='',
                                   help_text='Días permitidos como CSV de índices (0=Lunes,..6=Domingo). Ej: "0,2,4"')
 
-    # Nuevo: prioridad para desempate (1 = mayor prioridad). Ordenar ascendente.
+    # Prioridad: 1 = máxima prioridad, números más altos = menor prioridad
     prioridad = models.PositiveIntegerField(
         default=100,
-        help_text='Prioridad de la política (1 = mayor prioridad; ordenar ascendente). Valor por defecto=100 (baja prioridad)'
+        help_text='Prioridad de la política: 1 = máxima prioridad, números más altos = menor prioridad. Valor por defecto=100 (baja prioridad)'
     )
 
     # Nuevo: minutos de validez del cupón generado
@@ -93,3 +94,6 @@ class PoliticaPromocion(models.Model):
         if not l:
             return 'Todos'
         return ','.join([nombres[d] for d in l if 0 <= d <= 6])
+    
+    # historial de cambios
+    history = HistoricalRecords()

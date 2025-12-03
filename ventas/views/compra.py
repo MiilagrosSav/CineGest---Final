@@ -39,8 +39,38 @@ def procesar_compra(request, funcion_id):
         return redirect('ventas:seleccionar_butacas', funcion_id=funcion_id)
     
     try:
+        from django.utils import timezone
+        from datetime import timedelta
+        
         with transaction.atomic():
-            # Obtener o crear el cliente asociado al usuario
+            # PASO 1: VALIDAR TODAS LAS BUTACAS CON LOCK ANTES DE CREAR NADA
+            butacas_validadas = []
+            entradas_reutilizar = []
+            
+            for butaca_id in butacas_ids:
+                butaca = get_object_or_404(Butaca, id=butaca_id)
+                
+                # Lock pesimista: bloquear la fila para evitar condiciones de carrera
+                entrada_ocupada = Entrada.objects.select_for_update().filter(
+                    id_funcion=funcion,
+                    id_butaca=butaca,
+                    estado__in=['RESERVADA', 'VENDIDA', 'PENDIENTE']
+                ).first()
+                
+                if entrada_ocupada:
+                    # Excepción: Si es del mismo usuario y es reciente (< 2 min), permitir reutilizar
+                    if entrada_ocupada.reservado_por == request.user:
+                        tiempo_transcurrido = timezone.now() - entrada_ocupada.fecha_creacion
+                        if tiempo_transcurrido < timedelta(minutes=2):
+                            entradas_reutilizar.append((entrada_ocupada, butaca))
+                            continue
+                    
+                    # Butaca ocupada por otro usuario o expirada
+                    raise Exception(f'La butaca {butaca.fila}{butaca.numero} ya no está disponible. Por favor, actualiza la página y selecciona otra butaca.')
+                
+                butacas_validadas.append(butaca)
+            
+            # PASO 2: Todas las butacas están disponibles, ahora sí crear la venta
             cliente, created = Cliente.objects.get_or_create(
                 usuario=request.user,
                 defaults={
@@ -48,27 +78,22 @@ def procesar_compra(request, funcion_id):
                 }
             )
             
-            # Crear la venta
             venta = Venta.objects.create(
                 id_cliente=cliente,
                 tipo_venta='ONLINE',
                 estado='PENDIENTE'
             )
             
-            # Verificar que las butacas estén disponibles y crear/reutilizar las entradas
-            for butaca_id in butacas_ids:
-                butaca = get_object_or_404(Butaca, id=butaca_id)
-                
-                # Verificar que la butaca no esté ocupada (RESERVADA o VENDIDA)
-                entrada_existente = Entrada.objects.filter(
-                    id_funcion=funcion,
-                    id_butaca=butaca,
-                    estado__in=['RESERVADA', 'VENDIDA']
-                ).exists()
-                
-                if entrada_existente:
-                    raise Exception(f'La butaca {butaca.fila}{butaca.numero} ya está ocupada.')
-                
+            # PASO 3: Reutilizar entradas del mismo usuario
+            for entrada_ocupada, butaca in entradas_reutilizar:
+                entrada_ocupada.id_venta = venta
+                entrada_ocupada.estado = 'RESERVADA'
+                entrada_ocupada.fecha_creacion = timezone.now()  # Resetear timer
+                entrada_ocupada.save()
+            
+            # PASO 4: Crear nuevas entradas para butacas validadas
+            for butaca in butacas_validadas:
+                # Buscar entrada CANCELADA que podamos reutilizar
                 # Buscar entrada CANCELADA que podamos reutilizar
                 entrada_cancelada = Entrada.objects.filter(
                     id_funcion=funcion,
@@ -81,9 +106,10 @@ def procesar_compra(request, funcion_id):
                     entrada_cancelada.id_venta = venta
                     entrada_cancelada.estado = 'RESERVADA'
                     entrada_cancelada.reservado_por = request.user
+                    entrada_cancelada.fecha_creacion = timezone.now()
                     entrada_cancelada.save()
                 else:
-                    # Crear nueva entrada si no hay canceladas
+                    # Crear nueva entrada
                     Entrada.objects.create(
                         id_venta=venta,
                         id_funcion=funcion,

@@ -71,8 +71,9 @@ class Entrada(models.Model):
         verbose_name = 'Entrada'
         verbose_name_plural = 'Entradas'
         ordering = ['id_funcion', 'id_butaca']
-        # Evitar que se venda la misma butaca dos veces para la misma función
-        unique_together = [['id_funcion', 'id_butaca']]
+        constraints = [
+            models.UniqueConstraint(fields=['id_funcion', 'id_butaca'], name='UQ_entrada_funcion_butaca')
+        ]
     
     def __str__(self):
         return f"Entrada #{self.id_entrada} - {self.id_pelicula.titulo} - Butaca {self.id_butaca.fila}{self.id_butaca.numero}"

@@ -74,15 +74,6 @@
                 {% if form.nombre.errors %}{% for error in form.nombre.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
             </div>
 
-            {# Descripción #}
-            <div class="form-group">
-                <label for="{{ form.descripcion.id_for_label }}" class="form-label">
-                    {{ form.descripcion.label }}
-                </label>
-                {{ form.descripcion }}
-                {% if form.descripcion.errors %}{% for error in form.descripcion.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
-            </div>
-
             {# Tipo y Valor de Descuento #}
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
                 <div class="form-group">
@@ -139,6 +130,15 @@
                     </small>
                 {% endif %}
                 {% if form.aplica_en_estrenos.errors %}{% for error in form.aplica_en_estrenos.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+            </div>
+
+            {# Descripción #}
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label for="{{ form.descripcion.id_for_label }}" class="form-label">
+                    {{ form.descripcion.label }}
+                </label>
+                {{ form.descripcion }}
+                {% if form.descripcion.errors %}{% for error in form.descripcion.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
             </div>
 
             {# Checkbox de Aplicación Automática (Switch Destacado) #}

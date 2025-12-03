@@ -123,7 +123,15 @@ class NotificacionService:
         """
         cliente = venta.id_cliente
         usuario = cliente.usuario
-        entradas = list(venta.entradas.filter(estado__in=['RESERVADA', 'VENDIDA']))
+        
+        # Optimizar consulta con select_related para evitar N+1 queries
+        entradas = venta.entradas.filter(estado__in=['RESERVADA', 'VENDIDA']).select_related(
+            'id_funcion',
+            'id_funcion__pelicula',
+            'id_sala',
+            'id_butaca',
+            'id_pelicula'
+        )
 
         # Calcular total
         total = sum(entrada.id_funcion.precio_base for entrada in entradas)

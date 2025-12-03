@@ -75,15 +75,14 @@ class Venta(models.Model):
     medio_pago = models.CharField(
         max_length=20,
         choices=MEDIO_PAGO_CHOICES,
-        null=True,
+        default='',
         blank=True,
         verbose_name='Medio de Pago',
         help_text='Medio de pago utilizado para la venta'
     )
     codigo_compra = models.CharField(
         max_length=20,
-        unique=True,
-        null=True,
+        default='',
         blank=True,
         verbose_name='Código de Compra',
         help_text='Código único para canje de entradas (generado automáticamente)'
@@ -94,6 +93,9 @@ class Venta(models.Model):
         verbose_name = 'Venta'
         verbose_name_plural = 'Ventas'
         ordering = ['-fecha_compra']
+        constraints = [
+            models.UniqueConstraint(fields=['codigo_compra'], name='UQ_venta_codigo_compra')
+        ]
     
     def save(self, *args, **kwargs):
         """Generar código de compra automáticamente si no existe"""

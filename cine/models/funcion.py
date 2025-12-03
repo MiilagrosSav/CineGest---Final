@@ -83,7 +83,7 @@ class Funcion(models.Model):
         null=True,
         blank=True,
         related_name='funciones_con_oferta',
-        help_text='Promoción automática actualmente vigente para esta función'
+        help_text='Promoción automática actualmente vigente para esta función (puede ser null)'
     )
 
     def __str__(self):
@@ -230,6 +230,6 @@ class Funcion(models.Model):
         
         # Índices para mejorar el rendimiento de las consultas
         indexes = [
-            models.Index(fields=['fecha_hora', 'sala']),
-            models.Index(fields=['pelicula', 'fecha_hora']),
+            models.Index(fields=['fecha_hora', 'sala'], name='IDX_funcion_fecha_sala'),
+            models.Index(fields=['pelicula', 'fecha_hora'], name='IDX_funcion_pelicula_fecha'),
         ]

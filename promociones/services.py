@@ -21,6 +21,9 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
     from promociones.models.promocion import Promocion
     from decimal import Decimal, ROUND_HALF_UP
 
+    logger.info(f'[PROMO] Calculando precio para Función {funcion.id} ({funcion.pelicula.titulo}), '
+                f'{cantidad_entradas} entradas, promo_especifica={promocion_especifica}')
+
     precio_base = Decimal(funcion.precio_base)
     cantidad = int(cantidad_entradas)
     total_original = (precio_base * cantidad).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
@@ -58,6 +61,7 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
 
     # 1) Si viene promoción específica (cupón/session), aplicar directamente
     if promocion_especifica:
+        logger.info(f'[PROMO] Aplicando promoción específica: {promocion_especifica.codigo}')
         promo_aplicada = promocion_especifica
         total_final = _total_con_promocion(promo_aplicada)
         detalle['ahorro'] = total_original - total_final
@@ -66,29 +70,43 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
         detalle['precio_unitario_final'] = (total_final / cantidad).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if cantidad > 0 else precio_base
         if detalle['tipo_aplicado'] == '2X1' and (cantidad % 2 != 0):
             detalle['aviso'] = 'Tenés 2x1: agregá una entrada más para aprovecharla al máximo.'
+        logger.info(f'[PROMO] Total: ${total_final}, Ahorro: ${detalle["ahorro"]}')
         return total_final, promo_aplicada, detalle
 
     # 2) Buscar promociones automáticas válidas para la función
     from promociones.models.funcionPromocion import FuncionPromocion
     candidatos = list(Promocion.objects.filter(es_automatica=True))
+    logger.info(f'[PROMO] Evaluando {len(candidatos)} promociones automáticas')
+    
     candidatos_validos = []
     for p in candidatos:
+        logger.debug(f'[PROMO] Evaluando {p.codigo}: vigencia {p.fecha_inicio} a {p.fecha_fin}, '
+                    f'días="{p.dias_semana}"')
+        
         # Primero validar reglas generales (fechas, días, género, estreno, acepta_promociones)
         if not es_promocion_valida_para_funcion(p, funcion):
+            logger.debug(f'[PROMO] {p.codigo} NO válida según reglas generales')
             continue
 
         # Si existen filas en FuncionPromocion para esta promoción, requerimos que
         # la promoción esté vinculada explícitamente a la función o a la película.
         tiene_vinculos = FuncionPromocion.objects.filter(promocion=p).exists()
         if tiene_vinculos:
-            if not FuncionPromocion.objects.filter(promocion=p).filter(models.Q(funcion=funcion) | models.Q(pelicula=funcion.pelicula)).exists():
+            vinculada = FuncionPromocion.objects.filter(promocion=p).filter(models.Q(funcion=funcion) | models.Q(pelicula=funcion.pelicula)).exists()
+            if not vinculada:
                 # La promo existe pero no está vinculada a esta función/película
+                logger.debug(f'[PROMO] {p.codigo} tiene vínculos pero no está vinculada a esta función/película')
                 continue
+            logger.debug(f'[PROMO] {p.codigo} vinculada explícitamente')
+        else:
+            logger.debug(f'[PROMO] {p.codigo} sin vínculos, aplica a todas las funciones válidas')
 
         candidatos_validos.append(p)
+        logger.info(f'[PROMO] ✓ {p.codigo} es candidata válida')
 
     if not candidatos_validos:
         # No hay promociones automáticas aplicables
+        logger.info(f'[PROMO] No hay promociones válidas. Precio regular: ${total_original}')
         detalle['descripcion'] = 'Precio regular'
         detalle['precio_unitario_final'] = precio_base
         return total_original, None, detalle
@@ -117,6 +135,7 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
     if detalle['tipo_aplicado'] == '2X1' and (cantidad % 2 != 0):
         detalle['aviso'] = 'Tenés 2x1: agregá una entrada más para aprovecharla al máximo.'
 
+    logger.info(f'[PROMO] ✓ Aplicando {promo_aplicada.codigo}: Total ${total_final}, Ahorro ${detalle["ahorro"]}')
     return total_final, promo_aplicada, detalle
 
     # Fin de calcular_precio_final
@@ -134,59 +153,84 @@ def es_promocion_valida_para_funcion(promocion, funcion) -> bool:
 
     try:
         if not promocion:
+            logger.debug(f'[VALIDACION] Promoción None, retornando False')
             return False
+
+        logger.debug(f'[VALIDACION] Validando {promocion.codigo} para función {funcion.id}')
 
         # 1. Vigencia por fechas
         hoy = timezone.localdate()
         if promocion.fecha_inicio and promocion.fecha_fin:
-            if not (promocion.fecha_inicio <= hoy <= promocion.fecha_fin):
+            en_rango = promocion.fecha_inicio <= hoy <= promocion.fecha_fin
+            logger.debug(f'[VALIDACION] Fechas: {promocion.fecha_inicio} <= {hoy} <= {promocion.fecha_fin} = {en_rango}')
+            if not en_rango:
+                logger.debug(f'[VALIDACION] ✗ {promocion.codigo} fuera de vigencia')
                 return False
 
-        # 2. VALIDACIÓN DE DÍAS (CORREGIDA)
+        # 2. VALIDACIÓN DE DÍAS (MEJORADA CON LOGS)
         # Obtenemos el día de la función (0=Lunes, 6=Domingo)
         dia_funcion = funcion.fecha_hora.weekday()
+        dia_nombres = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
         
         dias_configurados = promocion.dias_semana
+        logger.debug(f'[VALIDACION] Día función: {dia_funcion} ({dia_nombres[dia_funcion]}), '
+                    f'Días config: "{dias_configurados}" (tipo: {type(dias_configurados).__name__})')
         
-        # Caso A: Es None o vacío -> Aplica todos los días (o ninguno, según tu lógica)
-        # Asumimos que si está vacío es "Todos"
+        # Caso A: Es None o vacío -> Aplica todos los días
         if not dias_configurados:
+            logger.debug(f'[VALIDACION] Días vacíos, aplica todos los días')
             pass 
             
         # Caso B: Es una lista (comportamiento normal de MultiSelectField)
         elif isinstance(dias_configurados, list):
             # Convertimos todo a string para comparar seguro ('0' vs 0)
             dias_str = [str(d) for d in dias_configurados]
+            logger.debug(f'[VALIDACION] Días como lista: {dias_str}')
             if str(dia_funcion) not in dias_str:
+                logger.debug(f'[VALIDACION] ✗ Día {dia_funcion} no está en {dias_str}')
                 return False
                 
         # Caso C: Es un string (comportamiento legacy o raw)
         elif isinstance(dias_configurados, str):
             # Limpiamos y convertimos '0, 1' a ['0', '1']
             dias_str = [d.strip() for d in dias_configurados.split(',') if d.strip()]
-            if str(dia_funcion) not in dias_str:
+            logger.debug(f'[VALIDACION] Días como string parseado: {dias_str}')
+            if dias_str and str(dia_funcion) not in dias_str:
+                logger.debug(f'[VALIDACION] ✗ Día {dia_funcion} no está en {dias_str}')
                 return False
+        
+        logger.debug(f'[VALIDACION] ✓ Día {dia_funcion} válido')
 
         # 3. Género requerido (Si aplica)
         if promocion.genero_requerido:
             # funcion.pelicula.generos es ManyToMany? O ForeignKey?
             # Ajusta según tu modelo exacto. Asumiendo ManyToMany:
-            if not funcion.pelicula.generos.filter(pk=promocion.genero_requerido.pk).exists():
+            tiene_genero = funcion.pelicula.generos.filter(pk=promocion.genero_requerido.pk).exists()
+            logger.debug(f'[VALIDACION] Género requerido: {promocion.genero_requerido}, película tiene: {tiene_genero}')
+            if not tiene_genero:
+                logger.debug(f'[VALIDACION] ✗ Género no coincide')
                 return False
 
         # 4. Estreno
-        if getattr(funcion.pelicula, 'es_estreno', False):
+        es_estreno = getattr(funcion.pelicula, 'es_estreno', False)
+        if es_estreno:
+            logger.debug(f'[VALIDACION] Es estreno, aplica_en_estrenos={promocion.aplica_en_estrenos}')
             if not promocion.aplica_en_estrenos:
+                logger.debug(f'[VALIDACION] ✗ Es estreno y promo no aplica en estrenos')
                 return False
 
         # 5. La película debe aceptar promociones
-        if not getattr(funcion.pelicula, 'acepta_promociones', True):
+        acepta_promos = getattr(funcion.pelicula, 'acepta_promociones', True)
+        logger.debug(f'[VALIDACION] Película acepta_promociones={acepta_promos}')
+        if not acepta_promos:
+            logger.debug(f'[VALIDACION] ✗ Película no acepta promociones')
             return False
 
+        logger.debug(f'[VALIDACION] ✓ {promocion.codigo} VÁLIDA para función {funcion.id}')
         return True
 
     except Exception as e:
-        logger.exception(f'Error validando promo {promocion.pk}: {str(e)}')
+        logger.exception(f'[VALIDACION] ✗ ERROR validando promo {promocion.pk}: {str(e)}')
         return False
 
 
@@ -235,7 +279,8 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
     pelicula_generos = list(pelicula.generos.all())
     hora_funcion = funcion_objeto.fecha_hora.time()
 
-    politicas = PoliticaPromocion.objects.filter(activa=True)
+    # Excluir políticas con activar_por_ocupacion=True (esas son solo para el cron)
+    politicas = PoliticaPromocion.objects.filter(activa=True, activar_por_ocupacion=False)
     # Filtrar por género: si la película tiene géneros, permitir políticas cuyo genero_pelicula
     # esté en esa lista o políticas sin género especificado.
     if pelicula_generos:
@@ -287,8 +332,8 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
         logger.info('No hay PoliticaPromocion con promociones no automáticas aplicables para la función %s', getattr(funcion_objeto, 'pk', None))
         return respuestas
 
-    # Ordenar por prioridad ASCENDENTE y elegir la primera entre las candidatas para envío
-    #politica = sorted(politicas_para_envio, key=lambda p: p.prioridad)[0]
+    # Ordenar por prioridad: 1 = máxima prioridad (primero), números altos = menor prioridad (último)
+    # En caso de empate, se usa -p.id (IDs más recientes primero)
     politicas_ordenadas = sorted(politicas_para_envio, key=lambda p: (p.prioridad, -p.id))
     
     # DEBUG: Imprimimos el ranking para ver quién ganó

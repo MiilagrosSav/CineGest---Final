@@ -16,7 +16,6 @@ class Sala(models.Model):
    
 
     numero = models.PositiveIntegerField(
-        unique=True,
         help_text="Número único de la sala (ej: 1, 2, 3...)"
     )
     
@@ -32,7 +31,7 @@ class Sala(models.Model):
     
     observaciones = models.TextField(
         blank=True,
-        null=True,
+        default='',
         help_text="Notas adicionales sobre la sala (equipamiento, mantenimiento, etc.)"
     )
     
@@ -59,6 +58,9 @@ class Sala(models.Model):
         verbose_name_plural = "Salas"
         ordering = ['numero']
         db_table = "sala"  # 🏛️ Nombre personalizado de la tabla
+        constraints = [
+            models.UniqueConstraint(fields=['numero'], name='UQ_sala_numero')
+        ]
 
     # historial de cambios
     history = HistoricalRecords()

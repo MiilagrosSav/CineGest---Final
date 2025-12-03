@@ -4,6 +4,7 @@ Modelo Pago - Representa el pago de una venta
 
 from django.db import models
 from django.utils import timezone
+from simple_history.models import HistoricalRecords
 
 
 class Pago(models.Model):
@@ -41,7 +42,7 @@ class Pago(models.Model):
     nro_transaccion = models.CharField(
         max_length=100,
         blank=True,
-        null=True,
+        default='',
         verbose_name='Número de Transacción',
         help_text='ID de transacción de Mercado Pago u otro procesador'
     )
@@ -60,3 +61,6 @@ class Pago(models.Model):
     
     def __str__(self):
         return f"Pago #{self.id_pago} - Venta #{self.id_venta.id_venta} - ${self.monto}"
+    
+    # historial de cambios
+    history = HistoricalRecords()
