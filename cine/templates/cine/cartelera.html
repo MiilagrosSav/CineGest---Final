@@ -162,6 +162,13 @@
                 {% endfor %}
             </select>
 
+            <input type="date" 
+                   name="dia" 
+                   value="{{ dia_seleccionado }}"
+                   class="form-input" 
+                   style="width: 145px; font-size: 0.8rem; padding: 0.4rem 0.6rem; cursor: pointer;"
+                   title="Seleccionar fecha">
+
             <select name="orden" class="form-select" style="width: 120px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
                 <option value="precio_asc" {% if filtro_orden == 'precio_asc' %}selected{% endif %}>Mejor Precio</option>
                 <option value="precio_desc" {% if filtro_orden == 'precio_desc' %}selected{% endif %}>Precio más alto</option>
