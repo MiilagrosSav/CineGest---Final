@@ -86,8 +86,13 @@ def cartelera_view(request):
     if formato:
         funciones = funciones.filter(formato_proyeccion=formato)
     
-    # Filtro por día seleccionado (desde la lista de días de la semana)
+    # Filtro por día seleccionado (desde la lista de días de la semana o calendario)
     dia_seleccionado = request.GET.get('dia')
+    
+    # Si no hay filtro de día seleccionado, usar HOY por defecto
+    if not dia_seleccionado:
+        dia_seleccionado = date.today().strftime('%Y-%m-%d')
+    
     if dia_seleccionado:
         try:
             from datetime import datetime

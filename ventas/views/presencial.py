@@ -80,6 +80,13 @@ def seleccionar_butacas_presencial(request, funcion_id):
     except Exception:
         pass
 
+    # Obtener tiempo de reserva desde configuración
+    try:
+        from cine.models.configuracion_cine import ConfiguracionCine
+        tiempo_limite = ConfiguracionCine.load().reserva_tiempo_espera
+    except Exception:
+        tiempo_limite = 10
+
     context = {
         'funcion': funcion,
         'sala': sala,
@@ -94,7 +101,7 @@ def seleccionar_butacas_presencial(request, funcion_id):
         'cantidad_requerida': None,
         'promo_2x1': False,
         'promo_codigo': None,
-        'expiracion_iso': (timezone.now() + timedelta(minutes=10)).isoformat(),
+        'expiracion_iso': (timezone.now() + timedelta(minutes=int(tiempo_limite))).isoformat(),
         'requiere_4d': requiere_4d,
     }
 
