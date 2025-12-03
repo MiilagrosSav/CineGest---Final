@@ -11,7 +11,6 @@ class MetodoPago(models.Model):
     id_metodo_pago = models.AutoField(primary_key=True)
     nombre = models.CharField(
         max_length=50,
-        unique=True,
         verbose_name='Nombre'
     )
     descripcion = models.TextField(
@@ -24,6 +23,9 @@ class MetodoPago(models.Model):
         verbose_name = 'Método de Pago'
         verbose_name_plural = 'Métodos de Pago'
         ordering = ['nombre']
+        constraints = [
+            models.UniqueConstraint(fields=['nombre'], name='UQ_metodo_pago_nombre')
+        ]
     
     def __str__(self):
         return self.nombre

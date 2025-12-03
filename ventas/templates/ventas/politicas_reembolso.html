@@ -1,14 +1,14 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Políticas de Reembolso - CineGest{% endblock %}
+{% block title %}Políticas de Intercambio - CineGest{% endblock %}
 
 {% block content %}
 <div class="container" style="max-width: 900px;">
     
     <div class="mb-lg">
-        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">💰 Políticas de Reembolso</h1>
-        <p class="card-subtitle">Consulta las condiciones para solicitar reembolsos de tus entradas</p>
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">💰 Políticas de Intercambio</h1>
+        <p class="card-subtitle">Consulta las condiciones para solicitar intercambios de tus entradas</p>
     </div>
 
     <div class="card glass-container">
@@ -43,7 +43,7 @@
             
             {% if porcentaje_aplicable > 0 %}
                 <p style="margin: 0 0 8px 0; font-size: 1.1rem; font-weight: 600; color: #4CAF50;">
-                    ✅ Tu compra es elegible para reembolso
+                    ✅ Tu compra es elegible para intercambio
                 </p>
                 <p style="margin: 0 0 var(--space-md) 0; font-size: 0.95rem; line-height: 1.6;">
                     Faltan <strong>{{ horas_restantes }} horas</strong> para el evento.
@@ -71,11 +71,11 @@
                             padding: var(--space-md); 
                             border-radius: 8px;">
                     <p style="margin: 0 0 8px 0; font-size: 1.1rem; font-weight: 600; color: #F44336;">
-                        ❌ Esta compra no es elegible para reembolso
+                        ❌ Esta compra no es elegible para Intercambio
                     </p>
                     <p style="margin: 0; font-size: 0.95rem; line-height: 1.6;">
                         Faltan <strong>{{ horas_restantes }} horas</strong> para el evento.
-                        No hay políticas de reembolso aplicables para este plazo.
+                        No hay políticas de intercambio aplicables para este plazo.
                     </p>
                 </div>
             {% endif %}

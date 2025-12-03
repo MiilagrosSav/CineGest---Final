@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import RegexValidator
+from simple_history.models import HistoricalRecords
 
 
 class ConfiguracionCine(models.Model):
@@ -17,8 +18,8 @@ class ConfiguracionCine(models.Model):
     
     logo = models.ImageField(
         upload_to='cine/logos/',
-        null=True,
         blank=True,
+        default='',
         verbose_name="Logo del Cine",
         help_text="Logo o imagen corporativa (opcional)"
     )
@@ -87,21 +88,21 @@ class ConfiguracionCine(models.Model):
     # Redes sociales (opcionales)
     facebook = models.URLField(
         blank=True,
-        null=True,
+        default='',
         verbose_name="Facebook",
         help_text="URL completa del perfil"
     )
     
     instagram = models.URLField(
         blank=True,
-        null=True,
+        default='',
         verbose_name="Instagram",
         help_text="URL completa del perfil"
     )
     
     twitter = models.URLField(
         blank=True,
-        null=True,
+        default='',
         verbose_name="Twitter/X",
         help_text="URL completa del perfil"
     )
@@ -109,7 +110,7 @@ class ConfiguracionCine(models.Model):
     # Información adicional
     descripcion = models.TextField(
         blank=True,
-        null=True,
+        default='',
         verbose_name="Descripción",
         help_text="Descripción breve del cine (para mostrar en el sitio)"
     )
@@ -160,3 +161,6 @@ class ConfiguracionCine(models.Model):
     
     def __str__(self):
         return self.nombre
+    
+    # historial de cambios
+    history = HistoricalRecords()

@@ -37,15 +37,23 @@ class Command(BaseCommand):
             action='store_true',
             help='Simula la ejecución sin enviar emails ni modificar la base de datos',
         )
+        parser.add_argument(
+            '--test-mode',
+            action='store_true',
+            help='[PRUEBAS] Revisa todas las funciones futuras y permite envíos múltiples',
+        )
 
     def handle(self, *args, **options):
         dry_run = options['dry_run']
+        test_mode = options.get('test_mode', False)
         verbosity = options['verbosity']
 
         if verbosity >= 1:
             self.stdout.write(self.style.SUCCESS('=== Iniciando Yield Management Automático ==='))
             if dry_run:
                 self.stdout.write(self.style.WARNING('[MODO DRY-RUN] No se realizarán cambios ni envíos'))
+            if test_mode:
+                self.stdout.write(self.style.WARNING('[MODO TEST] Revisa todas las funciones futuras, permite envíos múltiples'))
 
         # 1. Obtener políticas activas con yield management habilitado
         politicas_activas = PoliticaPromocion.objects.filter(
@@ -75,7 +83,11 @@ class Command(BaseCommand):
         for politica in politicas_activas:
             # Calcular ventana de tiempo
             inicio_ventana = now
-            fin_ventana = now + timedelta(hours=politica.horas_anticipacion)
+            if test_mode:
+                # En modo test, revisar TODAS las funciones futuras sin límite de tiempo
+                fin_ventana = now + timedelta(days=365)  # 1 año hacia adelante
+            else:
+                fin_ventana = now + timedelta(hours=politica.horas_anticipacion)
 
             if verbosity >= 2:
                 self.stdout.write(f'\n--- Procesando política: {politica.nombre} ---')
@@ -83,16 +95,21 @@ class Command(BaseCommand):
 
             # Buscar funciones candidatas:
             # - Futuras dentro de la ventana de anticipación
-            # - Estado NORMAL (no tienen oferta activa)
+            # - Estado NORMAL (no tienen oferta activa) [excepto en test_mode]
             # - Opcionalmente filtrar por género si la política lo especifica
             # - Opcionalmente filtrar por día de la semana
             # - Opcionalmente filtrar por horario
 
             funciones_query = Funcion.objects.filter(
                 fecha_hora__gte=inicio_ventana,
-                fecha_hora__lte=fin_ventana,
-                estado_promocion='NORMAL'
-            ).select_related('pelicula', 'sala').prefetch_related('pelicula__generos')
+                fecha_hora__lte=fin_ventana
+            )
+            
+            # En modo test, permitir procesar funciones múltiples veces
+            if not test_mode:
+                funciones_query = funciones_query.filter(estado_promocion='NORMAL')
+            
+            funciones_query = funciones_query.select_related('pelicula', 'sala').prefetch_related('pelicula__generos')
 
             # Filtrar por género si la política lo requiere
             if politica.genero_pelicula:
@@ -149,7 +166,7 @@ class Command(BaseCommand):
                     if verbosity >= 1:
                         self.stdout.write(
                             self.style.SUCCESS(
-                                f'✓ Activando promoción para función {funcion.id} '
+                                f'[OK] Activando promocion para funcion {funcion.id} '
                                 f'({funcion.pelicula.titulo} - {funcion.fecha_hora.strftime("%d/%m %H:%M")})'
                             )
                         )
@@ -258,8 +275,8 @@ class Command(BaseCommand):
                 usuario_id__in=clientes_activos_ids
             )
             
-            # Combinar priorizando los del género
-            clientes_objetivo = list(clientes_prioritarios[:50]) + list(clientes_resto[:20])
+            # Combinar priorizando los del género (limitado a 5 para pruebas)
+            clientes_objetivo = list(clientes_prioritarios[:5])
         else:
             # Sin género específico, tomar clientes activos
             # Obtener clientes con compras recientes y ordenar por frecuencia
@@ -267,7 +284,7 @@ class Command(BaseCommand):
                 fecha_compra__gte=fecha_limite
             ).values('id_cliente').annotate(
                 num_compras=Count('id_venta')
-            ).order_by('-num_compras').values_list('id_cliente', flat=True)[:50]
+            ).order_by('-num_compras').values_list('id_cliente', flat=True)[:5]
             
             clientes_objetivo = list(
                 clientes_query.filter(usuario_id__in=clientes_con_compras)
@@ -297,6 +314,8 @@ class Command(BaseCommand):
                 'pelicula': funcion.pelicula,
                 'sala': funcion.sala,
                 'descuento_texto': self._get_descuento_texto(promocion),
+                'fecha_funcion': funcion.fecha_hora,
+                'hora_funcion': funcion.fecha_hora,
             }
             
             # Enviar usando el servicio de notificaciones

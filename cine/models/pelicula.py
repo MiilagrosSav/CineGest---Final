@@ -39,7 +39,7 @@ class Pelicula(models.Model):
     imagen_portada = models.ImageField(
         upload_to='portadas_peliculas/', 
         blank=True, 
-        null=True, 
+        default='', 
         help_text="La imagen de portada o póster de la película."
     )
     

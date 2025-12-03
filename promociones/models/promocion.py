@@ -1,6 +1,7 @@
 import django.db.models as models
 from django.core.exceptions import ValidationError
 from django.apps import apps
+from simple_history.models import HistoricalRecords
 
 class Promocion(models.Model):
     """
@@ -13,9 +14,9 @@ class Promocion(models.Model):
         ('MONTO_FIJO', 'Monto fijo'),
     ]
 
-    codigo = models.CharField(max_length=50, unique=True)
+    codigo = models.CharField(max_length=50)
     nombre = models.CharField(max_length=200)
-    descripcion = models.TextField(blank=True)
+    descripcion = models.TextField(blank=True, default='')
     # Si es True, la promoción se aplica automáticamente cuando la función/película
     # esté vinculada en `FuncionPromocion`. Si es False, requiere código o cupón.
     es_automatica = models.BooleanField(default=False, help_text='Si está marcada, la promoción se aplicará automáticamente a funciones vinculadas.')
@@ -56,6 +57,9 @@ class Promocion(models.Model):
         db_table = 'promociones_promocion'
         verbose_name = 'Promoción'
         verbose_name_plural = 'Promociones'
+        constraints = [
+            models.UniqueConstraint(fields=['codigo'], name='UQ_promocion_codigo')
+        ]
 
     def __str__(self):
         return f"{self.codigo} - {self.nombre}"
@@ -122,3 +126,6 @@ class Promocion(models.Model):
         
         nombres = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
         return [nombres[d] for d in dias_list if 0 <= d <= 6]
+    
+    # historial de cambios
+    history = HistoricalRecords()

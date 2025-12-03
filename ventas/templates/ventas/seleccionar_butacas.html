@@ -59,7 +59,7 @@
         background: linear-gradient(135deg, rgba(139, 95, 191, 0.2), rgba(78, 205, 196, 0.1));
     }
     
-    .butaca:hover:not(.ocupada):not(.vip) {
+    .butaca:hover:not(.ocupada):not(.deshabilitada) {
         transform: scale(1.1);
         border-color: var(--primary);
         background: linear-gradient(135deg, rgba(78, 205, 196, 0.3), rgba(139, 95, 191, 0.2));
@@ -81,14 +81,26 @@
         opacity: 0.6;
     }
     
-    .butaca.vip {
-        background: linear-gradient(135deg, rgba(255, 193, 7, 0.3), rgba(255, 152, 0, 0.2));
-        border-color: #ffc107;
+    .butaca.tipo-4d {
+        background: linear-gradient(135deg, rgba(126, 211, 33, 0.3), rgba(106, 191, 13, 0.2));
+        border-color: #7ED321;
+        box-shadow: 0 0 8px rgba(126, 211, 33, 0.3);
     }
     
-    .butaca.vip.seleccionada {
-        background: linear-gradient(135deg, #ffc107, #ff9800);
-        border-color: #ffc107;
+    .butaca.tipo-4d.seleccionada {
+        background: linear-gradient(135deg, #7ED321, #6ABF0D);
+        border-color: #7ED321;
+        color: white;
+        box-shadow: 0 4px 15px rgba(126, 211, 33, 0.6);
+    }
+    
+    .butaca.deshabilitada {
+        background: rgba(60, 60, 60, 0.3);
+        border-color: #444;
+        cursor: not-allowed;
+        opacity: 0.3;
+        pointer-events: none;
+        filter: grayscale(100%);
     }
     
     .butaca.pasillo {
@@ -242,12 +254,15 @@
                         {% for butaca in butacas %}
                         <div class="butaca 
                                 {% if butaca.es_pasillo %}pasillo{% endif %}
-                                {% if butaca.ocupada and not butaca.es_pasillo %}ocupada{% endif %} 
-                                {% if butaca.tipo == 'VIP' and not butaca.es_pasillo %}vip{% endif %}"
+                                {% if butaca.ocupada and not butaca.es_pasillo %}ocupada{% endif %}
+                                {% if butaca.tipo == '4D' and not butaca.es_pasillo %}tipo-4d{% endif %}
+                                {% if requiere_4d and butaca.tipo != '4D' and not butaca.es_pasillo %}deshabilitada{% endif %}
+                                {% if not requiere_4d and butaca.tipo == '4D' and not butaca.es_pasillo %}deshabilitada{% endif %}"
                              data-butaca-id="{{ butaca.id }}"
+                             data-tipo-butaca="{{ butaca.tipo }}"
                              data-fila="{{ fila }}"
                              data-numero="{{ butaca.numero }}"
-                             {% if not butaca.ocupada and not butaca.es_pasillo %}onclick="toggleButaca(this)"{% endif %}>
+                             {% if not butaca.ocupada and not butaca.es_pasillo %}{% if requiere_4d and butaca.tipo == '4D' or not requiere_4d and butaca.tipo != '4D' %}onclick="toggleButaca(this)"{% endif %}{% endif %}>
                             {% if not butaca.es_pasillo %}{{ butaca.numero }}{% endif %}
                         </div>
                         {% endfor %}
@@ -270,8 +285,8 @@
                         <span>Ocupada</span>
                     </div>
                     <div class="leyenda-item">
-                        <div class="leyenda-cuadro" style="background: linear-gradient(135deg, rgba(255, 193, 7, 0.3), rgba(255, 152, 0, 0.2)); border-color: #ffc107;"></div>
-                        <span>VIP</span>
+                        <div class="leyenda-cuadro" style="background: linear-gradient(135deg, rgba(126, 211, 33, 0.3), rgba(106, 191, 13, 0.2)); border-color: #7ED321;"></div>
+                        <span>Butaca 4D</span>
                     </div>
                 </div>
             </form>
@@ -333,7 +348,6 @@
 </div>
 
 <script>
-    // @ts-nocheck
     const precioUnitario = parseFloat(document.getElementById('precio-data').getAttribute('data-precio'));
     const cantidadNecesariaEl = document.getElementById('cantidad-data');
     const cantidadNecesaria = cantidadNecesariaEl ? parseInt(cantidadNecesariaEl.getAttribute('data-cantidad')) : null;
@@ -345,17 +359,28 @@
     const tipoDescuento = infoDescuentoEl ? infoDescuentoEl.getAttribute('data-tipo') : null;
     const precioConDescuento = infoDescuentoEl ? parseFloat(infoDescuentoEl.getAttribute('data-precio-con-descuento')) : null;
     
+    // Leer si la función requiere butacas 4D
+    const requiere4DEl = document.getElementById('requiere-4d-data');
+    const requiere4D = requiere4DEl ? (requiere4DEl.getAttribute('data-requiere-4d') === 'true') : false;
+    
     let butacasSeleccionadas = [];
     
-    console.log('Script cargado. Precio unitario:', precioUnitario, 'Tipo descuento:', tipoDescuento);
+    console.log('Script cargado. Precio unitario:', precioUnitario, 'Tipo descuento:', tipoDescuento, 'Requiere 4D:', requiere4D);
     
     function toggleButaca(elemento) {
+        // Validación defensiva: no permitir toggle en butacas deshabilitadas, pasillo u ocupadas
+        if (elemento.classList.contains('deshabilitada') || elemento.classList.contains('pasillo') || elemento.classList.contains('ocupada')) {
+            console.log('Intento de seleccionar butaca no permitida');
+            return;
+        }
+        
         console.log('Toggle butaca clickeada:', elemento);
         const butacaId = elemento.getAttribute('data-butaca-id');
         const fila = elemento.getAttribute('data-fila');
         const numero = elemento.getAttribute('data-numero');
+        const tipoButaca = elemento.getAttribute('data-tipo-butaca');
         
-        console.log('Butaca ID:', butacaId, 'Fila:', fila, 'Numero:', numero);
+        console.log('Butaca ID:', butacaId, 'Fila:', fila, 'Numero:', numero, 'Tipo:', tipoButaca);
         
         if (elemento.classList.contains('seleccionada')) {
             console.log('Deseleccionando butaca');
@@ -489,7 +514,7 @@
                 }
             }catch(e){
                 console.error('Error handling expiry', e);
-                window.location.reload();
+                window.location.href = '{% url "cine:cartelera" %}';
             }
         }
 
@@ -498,6 +523,7 @@
         const interval = setInterval(tick, 1000);
     })();
 </script>
+<div id="requiere-4d-data" data-requiere-4d="{% if requiere_4d %}true{% else %}false{% endif %}" style="display:none"></div>
 {% if cantidad_requerida %}
 <div id="cantidad-data" data-cantidad="{{ cantidad_requerida }}" style="display:none"></div>
 {% endif %}

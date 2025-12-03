@@ -7,7 +7,7 @@ from django.http import HttpResponse
 import json
 import csv
 
-from .models import AuditEntry
+from .models import AuditEntry, AuditConfig
 
 
 @admin.register(AuditEntry)
@@ -158,3 +158,32 @@ class AuditEntryAdmin(admin.ModelAdmin):
         
         return response
     export_as_csv.short_description = 'Exportar como CSV'
+
+
+@admin.register(AuditConfig)
+class AuditConfigAdmin(admin.ModelAdmin):
+    fieldsets = (
+        ('Política de Retención', {
+            'fields': ('retention_days', 'auto_cleanup_enabled', 'last_cleanup'),
+            'description': 'Configura cuánto tiempo se conservan los registros de auditoría.'
+        }),
+        ('Exclusiones', {
+            'fields': ('excluded_models',),
+            'description': 'Modelos que no se registrarán en AuditEntry (separados por comas).'
+        }),
+        ('Información', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    readonly_fields = ('last_cleanup', 'created_at', 'updated_at')
+    
+    def has_add_permission(self, request):
+        # Solo puede existir una configuración (Singleton)
+        return not AuditConfig.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        # No se puede eliminar la configuración
+        return False
+

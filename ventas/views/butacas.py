@@ -224,6 +224,21 @@ def seleccionar_butacas(request, funcion_id):
                      }
                 
                 break # Encontramos una, nos quedamos con esa y salimos del bucle
+    
+    # Verificar si la función requiere butacas 4D (tiene formato 4DX o 4D en experiencia)
+    requiere_4d = False
+    try:
+        from cine.models.funcion_formato import FuncionFormato
+        formatos_funcion = FuncionFormato.objects.filter(funcion=funcion).select_related('formato')
+        for ff in formatos_funcion:
+            # Verificar si el formato es 4DX, 4D o D-BOX en la categoría EXPERIENCIA
+            formato_nombre_upper = ff.formato.nombre.upper()
+            if ff.formato.categoria == 'EXPERIENCIA' and ('4D' in formato_nombre_upper or 'D-BOX' in formato_nombre_upper):
+                requiere_4d = True
+                break
+    except Exception as e:
+        logger.exception('Error verificando formatos 4D')
+    
     context = {
         'funcion': funcion,
         'sala': sala,
@@ -239,6 +254,7 @@ def seleccionar_butacas(request, funcion_id):
         'promo_2x1': False,
         'promo_codigo': None,
         'expiracion_iso': expiracion_iso,
+        'requiere_4d': requiere_4d,
     }
     
     # Si hay una promoción 2x1 activa en sesión, requerir 2 butacas
@@ -392,6 +408,21 @@ def seleccionar_butacas_intercambio(request, venta_id, funcion_id):
         request.session.pop('promo_token', None)
         request.session.modified = True
 
+    # Verificar si la función requiere butacas 4D (tiene formato 4DX o 4D en experiencia)
+    requiere_4d = False
+    try:
+        from cine.models.funcion_formato import FuncionFormato
+        formatos_funcion = FuncionFormato.objects.filter(funcion=funcion).select_related('formato')
+        for ff in formatos_funcion:
+            # Verificar si el formato es 4DX, 4D o D-BOX en la categoría EXPERIENCIA
+            formato_nombre_upper = ff.formato.nombre.upper()
+            if ff.formato.categoria == 'EXPERIENCIA' and ('4D' in formato_nombre_upper or 'D-BOX' in formato_nombre_upper):
+                requiere_4d = True
+                break
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception('Error verificando formatos 4D en intercambio')
+
     context = {
         'funcion': funcion,
         'sala': sala,
@@ -407,6 +438,42 @@ def seleccionar_butacas_intercambio(request, venta_id, funcion_id):
         'promo_2x1': promo_2x1,
         'promo_codigo': promo_codigo,
         'expiracion_iso': expiracion_iso,
+        'requiere_4d': requiere_4d,
     }
 
     return render(request, 'ventas/seleccionar_butacas.html', context)
+
+
+from django.http import JsonResponse
+
+@login_required
+def verificar_butacas_ocupadas(request, funcion_id):
+    """Vista API que retorna las butacas ocupadas para sincronización en tiempo real"""
+    try:
+        funcion = get_object_or_404(Funcion, id=funcion_id)
+        
+        # Liberar reservas expiradas antes de verificar
+        try:
+            liberar_reservas_expiradas()
+        except Exception:
+            pass
+        
+        # Obtener butacas ocupadas (incluye PENDIENTE, RESERVADA, VENDIDA)
+        butacas_ocupadas = list(
+            Entrada.objects.filter(
+                id_funcion=funcion,
+                estado__in=EstadoEntrada.ESTADOS_OCUPADOS
+            ).values_list('id_butaca_id', flat=True)
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'butacas_ocupadas': butacas_ocupadas
+        })
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception('Error verificando butacas ocupadas')
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

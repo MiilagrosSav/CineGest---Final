@@ -4,7 +4,7 @@ from django.dispatch import receiver
 from django.apps import apps
 from django.db import models
 import logging
-from .models import AuditEntry
+from .models import AuditEntry, AuditConfig
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +89,16 @@ def capture_simple_history(sender, instance, created, **kwargs):
         if not clean_model_name:
             # Fallback: usar el nombre del modelo
             clean_model_name = model_name.replace('historical', '')
+        
+        # Verificar si el modelo está excluido en la configuración
+        try:
+            config = AuditConfig.load()
+            if config.is_model_excluded(clean_model_name):
+                logger.debug(f"Modelo {clean_model_name} excluido de auditoría consolidada")
+                return
+        except Exception as e:
+            logger.warning(f"Error verificando configuración de auditoría: {e}")
+            # Si falla, continuar con la auditoría por seguridad
 
         # Crear entrada de auditoría
         AuditEntry.objects.create(

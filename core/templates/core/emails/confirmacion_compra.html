@@ -136,7 +136,8 @@
         <div class="ticket-info">
             <h3 style="margin-top: 0; color: #27ae60;">📋 Detalles de la Función</h3>
             
-            {% with primera_entrada=entradas.first %}
+            {% if entradas %}
+            {% with primera_entrada=entradas|first %}
             <div class="ticket-detail">
                 <span class="label">🎬 Película:</span>
                 <span class="value">{{ primera_entrada.id_funcion.pelicula.titulo }}</span>
@@ -157,6 +158,12 @@
                 <span class="value">{{ primera_entrada.id_sala.nombre }}</span>
             </div>
             {% endwith %}
+            {% else %}
+            <div class="ticket-detail">
+                <span class="label">⚠️</span>
+                <span class="value">No hay entradas disponibles</span>
+            </div>
+            {% endif %}
             
             <div class="ticket-detail">
                 <span class="label">🎟️ Cantidad:</span>

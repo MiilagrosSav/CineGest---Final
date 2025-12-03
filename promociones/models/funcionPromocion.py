@@ -13,7 +13,9 @@ class FuncionPromocion(models.Model):
 
     class Meta:
         db_table = 'promociones_funcionpromocion'
-        unique_together = [['promocion', 'funcion', 'pelicula']]
+        constraints = [
+            models.UniqueConstraint(fields=['promocion', 'funcion', 'pelicula'], name='UQ_funcionpromocion_promocion_funcion_pelicula')
+        ]
 
     def clean(self):
         # Validaciones: al menos funcion o pelicula

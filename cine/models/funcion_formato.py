@@ -36,8 +36,10 @@ class FuncionFormato(models.Model):
         db_table = 'funcion_formato'
         verbose_name = 'Formato de Función'
         verbose_name_plural = 'Formatos de Función'
-        unique_together = ('funcion', 'formato')  # No repetir el mismo formato en una función
         ordering = ['funcion', 'formato']
+        constraints = [
+            models.UniqueConstraint(fields=['funcion', 'formato'], name='UQ_funcionformato_funcion_formato')
+        ]
     
     def clean(self):
         """

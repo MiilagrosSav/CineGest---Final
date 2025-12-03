@@ -14,7 +14,6 @@ class Butaca(models.Model):
     # Opciones para el tipo de butaca
     TIPO_CHOICES = [
         ('GENERAL', 'General'),
-        ('VIP', 'VIP'),
         ('DISCAPACITADO', 'Discapacitado'),
         ('4D', '4D'),
         ('PASILLO', 'Pasillo'),  # Nueva opción para pasillos
@@ -57,5 +56,7 @@ class Butaca(models.Model):
         verbose_name = "Butaca"
         verbose_name_plural = "Butacas"
         ordering = ['sala', 'fila', 'numero']
-        unique_together = ("sala", "fila", "numero")
-        indexes = [models.Index(fields=['sala', 'fila', 'numero'])]
+        constraints = [
+            models.UniqueConstraint(fields=['sala', 'fila', 'numero'], name='UQ_butaca_sala_fila_numero')
+        ]
+        indexes = [models.Index(fields=['sala', 'fila', 'numero'], name='IDX_butaca_sala_fila_numero')]

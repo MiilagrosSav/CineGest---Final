@@ -54,9 +54,8 @@
                 <div class="tool-section">
                     <label class="form-label">🎭 Tipo de Asiento</label>
                     <select id="tipoAsiento" class="form-select">
-                        <option value="GENERAL">🔵 General</option>
-                        <option value="VIP">🟠 VIP</option>
-                        <option value="4D">🟢 Soporta 4D</option>
+                        <option value="GENERAL">🟦 General</option>
+                        <option value="4D">🟩 4D</option>
                         <option value="DISCAPACITADO">🟣 Discapacitado</option>
                     </select>
                 </div>
@@ -72,7 +71,6 @@
 
                 <div class="seat-legend">
                     <div class="legend-item"><div class="legend-swatch general"></div><span>General</span></div>
-                    <div class="legend-item"><div class="legend-swatch vip"></div><span>VIP</span></div>
                     <div class="legend-item"><div class="legend-swatch cuatrod"></div><span>4D</span></div>
                     <div class="legend-item"><div class="legend-swatch discapacitado"></div><span>Discapacitado</span></div>
                     <div class="legend-item"><div class="legend-swatch pasillo"></div><span>Pasillo</span></div>
@@ -175,7 +173,6 @@
     border-radius: 4px;
 }
 .legend-swatch.general { background: #4A90E2; }
-.legend-swatch.vip { background: #F5A623; }
 .legend-swatch.cuatrod { background: #7ED321; }
 .legend-swatch.discapacitado { background: #9B59B6; }
 .legend-swatch.pasillo {
@@ -270,9 +267,6 @@
 }
 .asiento.GENERAL {
     background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
-}
-.asiento.VIP {
-    background: linear-gradient(135deg, #F5A623 0%, #E8890C 100%);
 }
 .asiento[data-tipo="4D"] {
     background: linear-gradient(135deg, #7ED321 0%, #6BB91C 100%);
@@ -566,11 +560,11 @@ window.addEventListener('DOMContentLoaded', function() {
         
         const tiposCount = {
             GENERAL: butacasReales.filter(b => b.tipo === 'GENERAL').length,
-            VIP: butacasReales.filter(b => b.tipo === 'VIP').length,
+            CUATROD: butacasReales.filter(b => b.tipo === '4D').length,
             DISCAPACITADO: butacasReales.filter(b => b.tipo === 'DISCAPACITADO').length
         };
 
-        const mensaje = `¿Guardar esta distribución?\n\n📊 Total: ${butacasReales.length} asientos\n🟦 General: ${tiposCount.GENERAL}\n🟨 VIP: ${tiposCount.VIP}\n🟩 Discapacitado: ${tiposCount.DISCAPACITADO}\n🚶 Pasillos: ${pasillos.length}`;
+        const mensaje = `¿Guardar esta distribución?\n\n📊 Total: ${butacasReales.length} asientos\n🟦 General: ${tiposCount.GENERAL}\n🟩 4D: ${tiposCount.CUATROD}\n🟣 Discapacitado: ${tiposCount.DISCAPACITADO}\n🚶 Pasillos: ${pasillos.length}`;
 
         if (!confirm(mensaje)) return;
 

@@ -12,15 +12,21 @@ Tu compra ha sido procesada exitosamente. A continuación encontrarás los detal
 PEDIDO #{{ venta.id_venta }}
 ================================================
 
-{% with primera_entrada=entradas.first %}
+{% if entradas %}
+{% with primera_entrada=entradas|first %}
 📋 DETALLES DE LA FUNCIÓN
 --------------------------------------------------
-🎬 Película:    {{ primera_entrada.id_funcion.id_pelicula.titulo }}
-📅 Fecha:       {{ primera_entrada.id_funcion.fecha|date:"d/m/Y" }}
-🕐 Hora:        {{ primera_entrada.id_funcion.hora_inicio|time:"H:i" }}h
-🏛️ Sala:        {{ primera_entrada.id_funcion.id_sala.nombre }}
+🎬 Película:    {{ primera_entrada.id_funcion.pelicula.titulo }}
+📅 Fecha:       {{ primera_entrada.id_funcion.fecha_hora|date:"d/m/Y" }}
+🕐 Hora:        {{ primera_entrada.id_funcion.fecha_hora|time:"H:i" }}h
+🏛️ Sala:        {{ primera_entrada.id_sala.nombre }}
 🎟️ Cantidad:    {{ cantidad }} entrada{{ cantidad|pluralize }}
 {% endwith %}
+{% else %}
+📋 DETALLES DE LA FUNCIÓN
+--------------------------------------------------
+⚠️ No hay entradas disponibles para mostrar
+{% endif %}
 
 
 🪑 TUS BUTACAS RESERVADAS

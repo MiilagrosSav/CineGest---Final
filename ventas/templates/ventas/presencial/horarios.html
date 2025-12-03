@@ -19,7 +19,7 @@
                     <div style="background: var(--primary); color: white; padding: 0.5rem 1rem; border-radius: 8px; font-weight: 700; text-transform: uppercase; font-size: 0.9rem; letter-spacing: 1px;">
                         {{ fecha|date:"l" }} </div>
                     <h3 style="margin: 0; font-size: 1.4rem; color: var(--text-light); font-weight: 400;">
-                        {{ fecha|date:"d 'de' F" }}
+                        {{ fecha|date:"d" }} de {{ fecha|date:"F" }}
                     </h3>
                     <span style="background: rgba(255,255,255,0.1); color: var(--text-secondary); padding: 0.2rem 0.6rem; border-radius: 20px; font-size: 0.8rem;">
                         {{ funciones|length }} funciones

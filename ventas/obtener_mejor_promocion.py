@@ -67,10 +67,12 @@ def obtener_mejor_promocion(funcion_obj):
         # que otorgan esta promoción y verificar si alguna permite este día.
         
         # Buscar políticas activas que otorgan esta promoción
+        # Excluir políticas de ocupación automática (esas son solo para el cron)
         from promociones.models.politicaPromocion import PoliticaPromocion
         politicas_asociadas = PoliticaPromocion.objects.filter(
             promocion_a_otorgar=promo,
-            activa=True
+            activa=True,
+            activar_por_ocupacion=False
         )
         
         # Si no hay políticas asociadas, asumimos que la promoción aplica sin restricción de día
