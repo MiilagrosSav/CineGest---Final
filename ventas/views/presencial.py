@@ -23,7 +23,7 @@ def dashboard_presencial(request):
     funciones = Funcion.objects.filter(
         fecha_hora__date=hoy,
         fecha_hora__gte=ahora
-    ).select_related('pelicula', 'sala').prefetch_related('formatos_funcion__formato').order_by('pelicula__titulo', 'fecha_hora')
+    ).exclude(estado='INACTIVA').select_related('pelicula', 'sala').prefetch_related('formatos_funcion__formato').order_by('pelicula__titulo', 'fecha_hora')
 
     agrupado = {}
     for f in funciones:
@@ -238,7 +238,7 @@ def ver_horarios(request):
     hoy = timezone.now()
     funciones = Funcion.objects.filter(
         fecha_hora__gte=hoy
-    ).select_related('pelicula', 'sala').order_by('fecha_hora', 'pelicula__titulo')[:50]  # Limitar a 50
+    ).exclude(estado='INACTIVA').select_related('pelicula', 'sala').order_by('fecha_hora', 'pelicula__titulo')[:50]  # Limitar a 50
 
     # Agrupar por fecha
     por_fecha = {}

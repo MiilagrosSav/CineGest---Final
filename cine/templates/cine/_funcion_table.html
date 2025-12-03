@@ -8,6 +8,7 @@
                     <th style="padding: var(--space-sm);">Formato</th>
                     <th style="padding: var(--space-sm);">Fecha y Hora</th>
                     <th style="padding: var(--space-sm);">Precio</th>
+                    <th style="padding: var(--space-sm);">Estado</th>
                     <th style="padding: var(--space-sm);">Duración</th>
                 </tr>
             </thead>
@@ -19,11 +20,14 @@
                     <td style="padding: var(--space-sm);"><span class="formato-badge">{{ funcion.get_formatos_destacados }}</span></td>
                     <td style="padding: var(--space-sm);">{{ funcion.fecha_hora|date:"d/m/Y H:i" }}</td>
                     <td style="padding: var(--space-sm);">${{ funcion.precio_base|floatformat:2 }}</td>
+                    <td style="padding: var(--space-sm);">
+                        <span class="estado-badge estado-{{ funcion.estado|lower }}">{{ funcion.get_estado_display }}</span>
+                    </td>
                     <td style="padding: var(--space-sm); color: var(--text-secondary);">{{ funcion.pelicula.duracion }} min</td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">
+                    <td colspan="7" class="text-center text-secondary" style="padding: var(--space-lg);">
                         {% if is_history %}
                             No hay funciones pasadas en el historial.
                         {% else %}

@@ -38,9 +38,34 @@ def audit_list(request):
     if model_filter:
         qs = qs.filter(model_name=model_filter)
     
+    # Filtro por tipo (flexible: acepta símbolos o nombres)
     type_filter = request.GET.get('type', '').strip()
-    if type_filter in ['+', '~', '-']:
-        qs = qs.filter(history_type=type_filter)
+    if type_filter:
+        # Mapeo flexible de tipo (insensible a mayúsculas/minúsculas/tildes)
+        type_map = {
+            '+': '+',
+            'creacion': '+',
+            'creación': '+',
+            'crear': '+',
+            'create': '+',
+            '~': '~',
+            'actualizacion': '~',
+            'actualización': '~',
+            'actualizar': '~',
+            'update': '~',
+            'modificacion': '~',
+            'modificación': '~',
+            '-': '-',
+            'eliminacion': '-',
+            'eliminación': '-',
+            'eliminar': '-',
+            'delete': '-',
+            'borrar': '-',
+        }
+        normalized_type = type_filter.lower().replace('á', 'a').replace('é', 'e').replace('í', 'i').replace('ó', 'o').replace('ú', 'u')
+        history_type_symbol = type_map.get(normalized_type) or type_map.get(type_filter)
+        if history_type_symbol:
+            qs = qs.filter(history_type=history_type_symbol)
 
     # Paginación
     paginator = Paginator(qs, 25)
