@@ -165,7 +165,8 @@ def buscar_venta_para_impresion(request):
 @solo_empleados
 def ticket_canje_view(request, venta_id):
     """
-    Vista para mostrar el ticket de canje (igual que ticket_exitoso presencial).
+    Vista para mostrar el ticket de canje con UN TICKET POR CADA ENTRADA.
+    Cada entrada tiene su propio QR único.
     """
     venta = get_object_or_404(Venta, id_venta=venta_id, tipo_venta='ONLINE', estado='CONFIRMADA')
     
@@ -177,12 +178,18 @@ def ticket_canje_view(request, venta_id):
     config = ConfiguracionCine.objects.first()
     nombre_cine = config.nombre if config else "CineGest"
     
+    # Calcular precio por entrada (dividir total entre cantidad)
+    total_venta = venta.calcular_total()
+    cantidad_entradas = entradas.count()
+    precio_por_entrada = total_venta / cantidad_entradas if cantidad_entradas > 0 else 0
+    
     context = {
         'venta': venta,
-        'entradas': entradas,
-        'primera_entrada': entradas.first(),
+        'entradas': entradas,  # Lista de todas las entradas para iterar
         'nombre_cine': nombre_cine,
-        'total': venta.calcular_total(),
+        'total_venta': total_venta,
+        'precio_por_entrada': precio_por_entrada,
+        'cantidad_entradas': cantidad_entradas,
     }
     
     return render(request, 'ventas/canje/ticket_canje.html', context)

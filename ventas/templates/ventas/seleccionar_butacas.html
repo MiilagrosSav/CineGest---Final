@@ -523,6 +523,133 @@
         const interval = setInterval(tick, 1000);
     })();
 </script>
+
+<!-- Sistema de Sincronización en Tiempo Real -->
+<script>
+    (function() {
+        const funcionId = "{{ funcion.id }}";
+        const urlVerificarButacas = '/ventas/api/verificar-butacas/' + funcionId + '/';
+        
+        // Polling cada 3 segundos para sincronizar butacas ocupadas
+        function sincronizarButacas() {
+            fetch(urlVerificarButacas)
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        const butacasOcupadasServidor = new Set(data.butacas_ocupadas);
+                        
+                        // Actualizar estado visual de las butacas
+                        const todosLosElementos = document.querySelectorAll('.butaca[data-butaca-id]');
+                        todosLosElementos.forEach(function(butacaEl) {
+                            const butacaId = parseInt(butacaEl.getAttribute('data-butaca-id'));
+                            const estaOcupadaServidor = butacasOcupadasServidor.has(butacaId);
+                            const estaOcupadaLocal = butacaEl.classList.contains('ocupada');
+                            
+                            // Si cambió el estado (ahora ocupada y antes no)
+                            if (estaOcupadaServidor && !estaOcupadaLocal) {
+                                butacaEl.classList.add('ocupada');
+                                
+                                // Si estaba seleccionada por este usuario, deseleccionar
+                                if (butacaEl.classList.contains('seleccionada')) {
+                                    butacaEl.classList.remove('seleccionada');
+                                    const fila = butacaEl.getAttribute('data-fila');
+                                    const numero = butacaEl.getAttribute('data-numero');
+                                    
+                                    // Remover de la lista local
+                                    butacasSeleccionadas = butacasSeleccionadas.filter(function(b) {
+                                        return !(b.fila === fila && b.numero === numero);
+                                    });
+                                    
+                                    // Remover input hidden
+                                    const input = document.querySelector('input[value="' + butacaId + '"]');
+                                    if (input) input.remove();
+                                    
+                                    // Animación visual de cambio
+                                    butacaEl.style.transform = 'scale(1.1)';
+                                    setTimeout(function() {
+                                        butacaEl.style.transform = '';
+                                    }, 300);
+                                    
+                                    actualizarResumen();
+                                }
+                            }
+                            // Si se liberó (antes ocupada, ahora no)
+                            else if (!estaOcupadaServidor && estaOcupadaLocal) {
+                                butacaEl.classList.remove('ocupada');
+                            }
+                        });
+                    }
+                })
+                .catch(function(error) {
+                    console.warn('Error al sincronizar butacas:', error);
+                });
+        }
+        
+        // Iniciar polling cada 3 segundos
+        setInterval(sincronizarButacas, 3000);
+        
+        // Primera sincronización inmediata
+        sincronizarButacas();
+        
+        // Validación antes de confirmar compra
+        const formButacas = document.getElementById('formButacas');
+        if (formButacas) {
+            formButacas.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                // Validar que las butacas seleccionadas sigan disponibles
+                fetch(urlVerificarButacas)
+                    .then(function(response) { return response.json(); })
+                    .then(function(data) {
+                        if (data.success) {
+                            const butacasOcupadasServidor = new Set(data.butacas_ocupadas);
+                            const inputsButacas = document.querySelectorAll('input[name="butacas[]"]');
+                            const butacasSeleccionadasIds = [];
+                            inputsButacas.forEach(function(input) {
+                                butacasSeleccionadasIds.push(parseInt(input.value));
+                            });
+                            
+                            // Verificar si alguna butaca seleccionada fue ocupada
+                            let conflicto = false;
+                            for (let i = 0; i < butacasSeleccionadasIds.length; i++) {
+                                if (butacasOcupadasServidor.has(butacasSeleccionadasIds[i])) {
+                                    conflicto = true;
+                                    break;
+                                }
+                            }
+                            
+                            if (conflicto) {
+                                if (window.Swal) {
+                                    Swal.fire({
+                                        title: '⚠️ Butacas No Disponibles',
+                                        text: 'Algunas butacas fueron ocupadas por otro usuario. Por favor selecciona otras.',
+                                        icon: 'warning',
+                                        confirmButtonText: 'Entendido'
+                                    });
+                                } else {
+                                    alert('⚠️ Algunas butacas fueron ocupadas. Por favor selecciona otras.');
+                                }
+                                // Forzar re-sincronización
+                                sincronizarButacas();
+                            } else {
+                                // Todo OK, enviar formulario
+                                formButacas.submit();
+                            }
+                        } else {
+                            // Error en la validación, enviar de todas formas
+                            formButacas.submit();
+                        }
+                    })
+                    .catch(function(error) {
+                        console.error('Error en validación final:', error);
+                        // En caso de error de red, enviar de todas formas
+                        formButacas.submit();
+                    });
+            });
+        }
+    })();
+</script>
+
 <div id="requiere-4d-data" data-requiere-4d="{% if requiere_4d %}true{% else %}false{% endif %}" style="display:none"></div>
 {% if cantidad_requerida %}
 <div id="cantidad-data" data-cantidad="{{ cantidad_requerida }}" style="display:none"></div>

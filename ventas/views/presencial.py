@@ -19,7 +19,11 @@ from promociones.services import calcular_precio_final
 def dashboard_presencial(request):
     """Lista funciones del día agrupadas por película para venta rápida en boletería."""
     hoy = timezone.localdate()
-    funciones = Funcion.objects.filter(fecha_hora__date=hoy).select_related('pelicula', 'sala').order_by('pelicula__titulo', 'fecha_hora')
+    ahora = timezone.now()
+    funciones = Funcion.objects.filter(
+        fecha_hora__date=hoy,
+        fecha_hora__gte=ahora
+    ).select_related('pelicula', 'sala').prefetch_related('formatos_funcion__formato').order_by('pelicula__titulo', 'fecha_hora')
 
     agrupado = {}
     for f in funciones:
@@ -291,7 +295,10 @@ def buscar_cliente(request):
 @login_required
 @solo_empleados
 def ticket_exitoso(request, venta_id):
-    """Muestra el ticket de venta exitosa estilo térmico para imprimir."""
+    """
+    Muestra el ticket de venta exitosa con UN TICKET POR CADA ENTRADA.
+    Cada entrada tiene su propio QR único.
+    """
     from cine.models.configuracion_cine import ConfiguracionCine
     
     venta = get_object_or_404(
@@ -313,16 +320,19 @@ def ticket_exitoso(request, venta_id):
     config = ConfiguracionCine.objects.first()
     nombre_cine = config.nombre if config else "CineGest"
     
-    # Obtener entradas agrupadas
+    # Calcular precio por entrada (dividir total entre cantidad)
     entradas = venta.entradas.all()
-    primera_entrada = entradas.first()
+    total_venta = venta.calcular_total()
+    cantidad_entradas = entradas.count()
+    precio_por_entrada = total_venta / cantidad_entradas if cantidad_entradas > 0 else 0
     
     context = {
         'venta': venta,
-        'entradas': entradas,
-        'primera_entrada': primera_entrada,
+        'entradas': entradas,  # Lista de todas las entradas para iterar
         'nombre_cine': nombre_cine,
-        'total': venta.calcular_total(),
+        'total_venta': total_venta,
+        'precio_por_entrada': precio_por_entrada,
+        'cantidad_entradas': cantidad_entradas,
     }
     
     return render(request, 'ventas/presencial/ticket_exitoso.html', context)
