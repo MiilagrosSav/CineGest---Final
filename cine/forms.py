@@ -1,4 +1,5 @@
 from django import forms
+from django.db import models
 from .models import Pelicula, Sala, Funcion, Formato, FuncionFormato, ConfiguracionCine, Genero
 from datetime import date, datetime, timedelta
 from django.core.exceptions import ValidationError
@@ -174,6 +175,20 @@ class SalaForm(forms.ModelForm):
             'max_value': 'El número no puede ser mayor a 100.'
         }
     )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Si estamos editando (instance existe), deshabilitar el campo número
+        if self.instance.pk:
+            self.fields['numero'].disabled = True
+            self.fields['numero'].widget.attrs['readonly'] = True
+            self.fields['numero'].help_text = 'El número de sala no puede modificarse una vez creada.'
+        else:
+            # Si estamos creando, sugerir el siguiente número disponible
+            ultimo_numero = Sala.objects.aggregate(models.Max('numero'))['numero__max']
+            siguiente_numero = (ultimo_numero or 0) + 1
+            self.fields['numero'].initial = siguiente_numero
+            self.fields['numero'].help_text = f'Siguiente número sugerido: {siguiente_numero}'
     
     nombre = forms.CharField(
         label='🏛️ Nombre de la sala',

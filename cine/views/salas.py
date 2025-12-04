@@ -84,8 +84,10 @@ class SalaUpdateView(AdminRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['titulo_pagina'] = 'Editar Sala'
-        context['nombre_boton'] = 'Guardar Cambios'
+        context['titulo_pagina'] = '🏛️ Editar Sala'
+        context['nombre_boton'] = '💾 Guardar Cambios'
+        # Verificar si la sala tiene butacas vendidas
+        context['tiene_butacas_vendidas'] = self.object.tiene_butacas_vendidas()
         return context
 
 # DELETE: Vista para confirmar la eliminación
