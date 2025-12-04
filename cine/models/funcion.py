@@ -233,6 +233,28 @@ class Funcion(models.Model):
         
         return ' + '.join(formatos_destacados) if formatos_destacados else '—'
 
+    def get_valoraciones_stats(self):
+        """Retorna estadísticas de valoraciones de esta función"""
+        from valoraciones.models import Valoracion
+        valoraciones = Valoracion.objects.filter(funcion=self)
+        
+        total = valoraciones.count()
+        if total > 0:
+            promedio = sum(v.puntuacion for v in valoraciones) / total
+            estrellas_llenas = int(promedio)  # Truncar, no redondear
+            estrellas_vacias = 5 - estrellas_llenas
+        else:
+            promedio = 0
+            estrellas_llenas = 0
+            estrellas_vacias = 5
+        
+        return {
+            'promedio': round(promedio, 1),
+            'total': total,
+            'estrellas_llenas': estrellas_llenas,
+            'estrellas_vacias': estrellas_vacias,
+        }
+
     # historial de cambios
     history = HistoricalRecords()
 
