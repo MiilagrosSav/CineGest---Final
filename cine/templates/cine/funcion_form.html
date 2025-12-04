@@ -38,7 +38,17 @@
                     {{ field.label }}
                     {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
                 </label>
-                {{ field }}
+                <div class="combobox-wrapper">
+                    <input type="text" 
+                           id="pelicula-search" 
+                           class="form-input combobox-input" 
+                           placeholder="Buscar o seleccionar película..."
+                           autocomplete="off">
+                    <div class="combobox-dropdown" id="pelicula-dropdown" style="display: none;">
+                        <!-- Las opciones se cargarán dinámicamente -->
+                    </div>
+                    <div style="display: none;">{{ field }}</div>
+                </div>
                 {% if field.help_text %}<small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">💡 {{ field.help_text }}</small>{% endif %}
                 {% if field.errors %}{% for error in field.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
             </div>
@@ -268,6 +278,67 @@
         accent-color: var(--primary);
         cursor: pointer;
     }
+
+    /* Estilos para el combobox de película */
+    .combobox-wrapper {
+        position: relative;
+    }
+
+    .combobox-input {
+        width: 100%;
+        cursor: text;
+    }
+
+    .combobox-dropdown {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        max-height: 300px;
+        overflow-y: auto;
+        background: rgba(30, 30, 50, 0.98);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        margin-top: 4px;
+        z-index: 1000;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .combobox-option {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: var(--text-light);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .combobox-option:last-child {
+        border-bottom: none;
+    }
+
+    .combobox-option:hover,
+    .combobox-option.selected {
+        background: rgba(var(--primary-rgb), 0.2);
+        color: var(--primary);
+    }
+
+    .combobox-option.active {
+        background: rgba(var(--primary-rgb), 0.3);
+        color: white;
+    }
+
+    .combobox-empty {
+        padding: 1rem;
+        text-align: center;
+        color: rgba(255, 255, 255, 0.5);
+        font-style: italic;
+    }
+
+    /* Estado inválido del input */
+    .combobox-input.invalid-input {
+        border-color: #ff6b6b !important;
+        background: rgba(255, 107, 107, 0.1) !important;
+    }
     
 </style>
 
@@ -291,6 +362,217 @@
 
 <script>
     window.CALCULAR_HORARIOS_URL = "{% url 'cine:calcular_horarios' %}";
+</script>
+
+<script>
+    // Combobox funcionalidad para el campo película
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('pelicula-search');
+        const dropdown = document.getElementById('pelicula-dropdown');
+        const realSelect = document.querySelector('select[name="pelicula"]');
+        const form = searchInput.closest('form');
+        
+        if (!searchInput || !dropdown || !realSelect || !form) return;
+        
+        // Extraer todas las opciones del select original
+        const peliculas = Array.from(realSelect.options)
+            .filter(opt => opt.value) // Filtrar la opción vacía
+            .map(opt => ({
+                value: opt.value,
+                text: opt.text
+            }));
+        
+        let selectedIndex = -1;
+        let lastValidValue = '';
+        
+        // Renderizar opciones en el dropdown
+        function renderOptions(filteredPeliculas) {
+            if (filteredPeliculas.length === 0) {
+                dropdown.innerHTML = '<div class="combobox-empty">No se encontraron películas</div>';
+                return;
+            }
+            
+            dropdown.innerHTML = filteredPeliculas.map((pel, idx) => 
+                `<div class="combobox-option" data-value="${pel.value}" data-index="${idx}">${pel.text}</div>`
+            ).join('');
+            
+            // Agregar event listeners a las opciones
+            dropdown.querySelectorAll('.combobox-option').forEach(opt => {
+                opt.addEventListener('click', function() {
+                    selectOption(this.dataset.value, this.textContent);
+                });
+            });
+        }
+        
+        // Seleccionar una opción
+        function selectOption(value, text) {
+            realSelect.value = value;
+            searchInput.value = text;
+            lastValidValue = text;
+            dropdown.style.display = 'none';
+            selectedIndex = -1;
+            searchInput.classList.remove('invalid-input');
+            
+            // Disparar evento change para que se actualicen los horarios
+            realSelect.dispatchEvent(new Event('change'));
+        }
+        
+        // Validar que el texto ingresado corresponde a una película existente
+        function validateInput() {
+            const inputValue = searchInput.value.trim();
+            
+            if (!inputValue) {
+                realSelect.value = '';
+                searchInput.classList.remove('invalid-input');
+                return false;
+            }
+            
+            // Buscar coincidencia exacta
+            const match = peliculas.find(pel => pel.text === inputValue);
+            
+            if (match) {
+                realSelect.value = match.value;
+                lastValidValue = inputValue;
+                searchInput.classList.remove('invalid-input');
+                return true;
+            } else {
+                // No hay coincidencia exacta - marcar como inválido
+                realSelect.value = '';
+                searchInput.classList.add('invalid-input');
+                return false;
+            }
+        }
+        
+        // Filtrar opciones según lo que se escribe
+        function filterOptions(searchTerm) {
+            const term = searchTerm.toLowerCase().trim();
+            if (!term) return peliculas;
+            
+            return peliculas.filter(pel => 
+                pel.text.toLowerCase().includes(term)
+            );
+        }
+        
+        // Mostrar dropdown al hacer clic o escribir
+        searchInput.addEventListener('focus', function() {
+            const filtered = filterOptions(this.value);
+            renderOptions(filtered);
+            dropdown.style.display = 'block';
+        });
+        
+        // Filtrar mientras se escribe
+        searchInput.addEventListener('input', function() {
+            const filtered = filterOptions(this.value);
+            renderOptions(filtered);
+            dropdown.style.display = 'block';
+            selectedIndex = -1;
+            
+            // Validar en tiempo real
+            validateInput();
+        });
+        
+        // Validar cuando pierde el foco
+        searchInput.addEventListener('blur', function(e) {
+            // Esperar un poco para permitir clics en el dropdown
+            setTimeout(() => {
+                if (!dropdown.contains(document.activeElement)) {
+                    const isValid = validateInput();
+                    
+                    if (!isValid && searchInput.value.trim()) {
+                        // Restaurar el último valor válido si había uno
+                        if (lastValidValue) {
+                            searchInput.value = lastValidValue;
+                            const match = peliculas.find(pel => pel.text === lastValidValue);
+                            if (match) {
+                                realSelect.value = match.value;
+                            }
+                        } else {
+                            searchInput.value = '';
+                            realSelect.value = '';
+                        }
+                        searchInput.classList.remove('invalid-input');
+                    }
+                }
+            }, 200);
+        });
+        
+        // Navegación con teclado
+        searchInput.addEventListener('keydown', function(e) {
+            const options = dropdown.querySelectorAll('.combobox-option');
+            
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                if (dropdown.style.display === 'none') {
+                    dropdown.style.display = 'block';
+                    const filtered = filterOptions(this.value);
+                    renderOptions(filtered);
+                }
+                selectedIndex = Math.min(selectedIndex + 1, options.length - 1);
+                updateSelectedOption(options);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                selectedIndex = Math.max(selectedIndex - 1, 0);
+                updateSelectedOption(options);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (selectedIndex >= 0 && options[selectedIndex]) {
+                    const opt = options[selectedIndex];
+                    selectOption(opt.dataset.value, opt.textContent);
+                } else {
+                    // Intentar validar el input actual
+                    validateInput();
+                }
+            } else if (e.key === 'Escape') {
+                dropdown.style.display = 'none';
+                selectedIndex = -1;
+            }
+        });
+        
+        function updateSelectedOption(options) {
+            options.forEach((opt, idx) => {
+                opt.classList.toggle('active', idx === selectedIndex);
+            });
+            
+            if (options[selectedIndex]) {
+                options[selectedIndex].scrollIntoView({ block: 'nearest' });
+            }
+        }
+        
+        // Cerrar dropdown al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            if (!searchInput.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+                selectedIndex = -1;
+            }
+        });
+        
+        // Validar antes de enviar el formulario
+        form.addEventListener('submit', function(e) {
+            const isValid = validateInput();
+            
+            if (!realSelect.value || !isValid) {
+                e.preventDefault();
+                searchInput.classList.add('invalid-input');
+                searchInput.focus();
+                
+                // Mostrar mensaje de error
+                alert('⚠️ Debe seleccionar una película válida de la lista.');
+                return false;
+            }
+        });
+        
+        // Si hay un valor pre-seleccionado, mostrarlo
+        if (realSelect.value) {
+            const selectedOption = Array.from(realSelect.options).find(opt => opt.value === realSelect.value);
+            if (selectedOption) {
+                searchInput.value = selectedOption.text;
+                lastValidValue = selectedOption.text;
+            }
+        }
+        
+        // Renderizar opciones iniciales (ocultas)
+        renderOptions(peliculas);
+    });
 </script>
 
 <script src="{% static 'js/funcion_form.js' %}" defer></script>

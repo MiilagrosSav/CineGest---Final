@@ -105,6 +105,24 @@ class PeliculaForm(forms.ModelForm):
         }
     )
     
+    clasificacion = forms.ChoiceField(
+        label='🔞 Clasificación',
+        choices=[
+            ('ATP', 'Apta para todo público'),
+            ('+13', 'Mayores de 13 años'),
+            ('+16', 'Mayores de 16 años'),
+            ('+18', 'Mayores de 18 años'),
+        ],
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'required': True,
+            'title': 'Selecciona la clasificación por edad de la película'
+        }),
+        error_messages={
+            'required': 'La clasificación es obligatoria.'
+        }
+    )
+    
     imagen_portada = forms.ImageField(
         label='🖼️ Imagen de portada',
         required=False,
@@ -272,9 +290,10 @@ class FuncionForm(forms.ModelForm):
         queryset=Pelicula.objects.all().order_by('titulo'),
         empty_label='Selecciona una película...',
         widget=forms.Select(attrs={
-            'class': 'form-select',
+            'class': 'form-select combobox-select',
             'required': True,
-            'title': 'Selecciona la película a proyectar'
+            'title': 'Selecciona o busca la película a proyectar',
+            'data-searchable': 'true'
         }),
         error_messages={
             'required': 'Debes seleccionar una película.',

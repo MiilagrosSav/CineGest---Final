@@ -80,13 +80,9 @@ class IntercambioService:
         if politica is None:
             politica = self.obtener_politica_activa()
         
-        # Validar que existe política
-        if not politica:
-            return (False, 'No hay política de intercambio configurada.')
-        
-        # Validar política permite intercambios
-        if not politica.permitir_intercambio:
-            return (False, 'Los intercambios están deshabilitados por la política vigente.')
+        # Validar que existe política activa
+        if not politica or not politica.activo:
+            return (False, 'No hay una política de intercambio activa en este momento.')
         
         # Validar venta tiene entradas
         entradas = venta.entradas.filter(estado__in=EstadoEntrada.ESTADOS_ACTIVOS)
