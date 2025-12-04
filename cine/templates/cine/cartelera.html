@@ -231,9 +231,30 @@
 
                         <div style="flex: 1; display: flex; flex-direction: column;">
                             
-                            <h3 class="text-gradient-accent" style="font-size: 1.3rem; margin-top: 0; margin-bottom: var(--space-sm);">
+                            <h3 class="text-gradient-accent" style="font-size: 1.3rem; margin-top: 0; margin-bottom: var(--space-xs);">
                                 {{ item.pelicula.titulo }}
                             </h3>
+                            
+                            {% with stats=item.pelicula.get_valoraciones_stats %}
+                            <div style="display: flex; align-items: center; gap: 0.3rem; margin-bottom: var(--space-sm);">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= stats.estrellas_llenas %}
+                                        <span style="color: #fbbf24; font-size: 1rem;">★</span>
+                                    {% else %}
+                                        <span style="color: #e5e7eb; font-size: 1rem;">★</span>
+                                    {% endif %}
+                                {% endfor %}
+                                {% if stats.total > 0 %}
+                                    <span style="color: #9ca3af; font-size: 0.85rem; margin-left: 0.3rem; font-weight: 500;">
+                                        {{ stats.promedio }}/5 ({{ stats.total }} valoracion{{ stats.total|pluralize:"es" }})
+                                    </span>
+                                {% else %}
+                                    <span style="color: #9ca3af; font-size: 0.85rem; margin-left: 0.3rem; font-style: italic;">
+                                        Sin valoraciones
+                                    </span>
+                                {% endif %}
+                            </div>
+                            {% endwith %}
                             
                             <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md); font-size: 0.9rem;">
                                 <div style="display: flex; align-items: center; gap: var(--space-xs);">
@@ -295,19 +316,19 @@
                             <div class="info-label" style="margin-bottom: var(--space-sm);">Horarios</div>
                             <div style="display: flex; flex-wrap: wrap; gap: var(--space-xs);">
                                 {% for funcion in item.funciones %}
-                                <button type="button" 
-                                        class="btn btn-outline horario-btn btn-compra"
-                                        data-pelicula="{{ item.pelicula.titulo|escapejs }}"
-                                        data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
-                                        data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
-                                        data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
-                                        data-funcion-id="{{ funcion.id }}"
-                                        data-clasificacion="{{ item.pelicula.get_clasificacion_display|escapejs }}"
-                                        style="padding: 0.5rem 1rem; min-width: 80px;">
-                                    <span style="font-weight: 700; font-size: 1.1rem; color: var(--primary);">
-                                        {{ funcion.fecha_hora|date:"H:i" }}
-                                    </span>
-                                </button>
+                                    <button type="button" 
+                                            class="btn btn-outline horario-btn btn-compra"
+                                            data-pelicula="{{ item.pelicula.titulo|escapejs }}"
+                                            data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
+                                            data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
+                                            data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
+                                            data-funcion-id="{{ funcion.id }}"
+                                            data-clasificacion="{{ item.pelicula.get_clasificacion_display|escapejs }}"
+                                            style="padding: 0.5rem 1rem; min-width: 80px;">
+                                        <span style="font-weight: 700; font-size: 1.1rem; color: var(--primary);">
+                                            {{ funcion.fecha_hora|date:"H:i" }}
+                                        </span>
+                                    </button>
                                 {% endfor %}
                             </div>
 

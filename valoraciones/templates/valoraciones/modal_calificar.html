@@ -14,7 +14,7 @@
         padding: 2rem;
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
         max-width: 500px;
-        margin: 0 auto; /* Centrado si no está en un modal */
+        margin: 0 auto;
         font-family: 'Segoe UI', system-ui, sans-serif;
     }
 
@@ -47,7 +47,7 @@
     .star {
         background: transparent;
         border: none;
-        font-size: 2.5rem; /* Más grandes */
+        font-size: 2.5rem;
         cursor: pointer;
         line-height: 1;
         color: var(--star-color-inactive);
@@ -55,13 +55,12 @@
         padding: 0;
     }
 
-    /* Animaciones de estrellas */
     .star:hover {
         transform: scale(1.2);
     }
 
     .star.selected, 
-    .star.hover { /* La clase hover se aplica via JS si tu lógica lo requiere, o por CSS nativo */
+    .star.hover {
         color: var(--star-color-active);
         filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.5));
     }
@@ -125,9 +124,60 @@
         box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
     }
     .btn-submit:hover {
-        background-color: #4338ca; /* Un poco más oscuro */
+        background-color: #4338ca;
         transform: translateY(-1px);
     }
+
+    /* Popup de éxito/error personalizado */
+    .success-popup-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+        animation: fadeIn 0.3s forwards;
+    }
+
+    @keyframes fadeIn { to { opacity: 1; } from { opacity: 0; } }
+
+    .success-popup {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 2.5rem;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        text-align: center;
+        max-width: 400px;
+        width: 90%;
+        transform: scale(0.8);
+        animation: popIn 0.3s forwards;
+    }
+
+    @keyframes popIn { to { transform: scale(1); } }
+
+    .success-popup-icon { font-size: 4rem; margin-bottom: 1rem; animation: bounce 0.6s; }
+    @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-20px); } }
+
+    .success-popup-title { color: white; font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    .success-popup-message { color: rgba(255, 255, 255, 0.95); font-size: 1rem; margin-bottom: 1.5rem; line-height: 1.5; }
+    
+    .success-popup-btn {
+        background-color: white;
+        color: #667eea;
+        padding: 0.75rem 2rem;
+        border-radius: 50px;
+        border: none;
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    .success-popup-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3); }
 </style>
 
 <div class="rating-card">
@@ -167,35 +217,30 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function(){
-    // Inicializar cada formulario de valoración (puede haber varios en la página)
+    // Inicializar cada formulario de valoración
     document.querySelectorAll('.valoracion-form').forEach(form => {
         const stars = Array.from(form.querySelectorAll('.star'));
         const estrellasInput = form.querySelector('[name="estrellas"]');
         let selected = parseInt(estrellasInput.value) || 5;
 
-        // Función para pintar estrellas
+        // Pintar estrellas
         function paint(upTo){
             stars.forEach(s => {
                 const v = parseInt(s.getAttribute('data-value'));
                 if (v <= upTo) {
                     s.classList.add('selected');
-                    // Nota: visualmente usamos CSS color, pero el caracter unicode se mantiene
-                    // s.textContent = '★'; 
                 } else {
                     s.classList.remove('selected');
-                    // s.textContent = '☆'; // Opcional: cambiar caracter si se desea outline
                 }
             });
         }
 
-        // Pintar estado inicial
         paint(selected);
 
-        // Eventos de mouse
+        // Eventos de estrellas
         stars.forEach(s => {
             s.addEventListener('mouseenter', () => {
-                const v = parseInt(s.getAttribute('data-value'));
-                paint(v);
+                paint(parseInt(s.getAttribute('data-value')));
             });
             s.addEventListener('mouseleave', () => {
                 paint(selected);
@@ -204,14 +249,12 @@ document.addEventListener('DOMContentLoaded', function(){
                 selected = parseInt(s.getAttribute('data-value'));
                 estrellasInput.value = selected;
                 paint(selected);
-                
-                // Pequeña animación de feedback al hacer click
+                // Animación click
                 s.style.transform = "scale(1.4)";
                 setTimeout(() => s.style.transform = "", 200);
             });
         });
 
-        // Helper para obtener cookie CSRF
         function getCookie(name) {
             let cookieValue = null;
             if (document.cookie && document.cookie !== '') {
@@ -227,17 +270,16 @@ document.addEventListener('DOMContentLoaded', function(){
             return cookieValue;
         }
 
-        // Submit via AJAX
+        // Submit AJAX
         form.addEventListener('submit', async function(e){
             e.preventDefault();
             const action = form.getAttribute('action');
             const formData = new FormData(form);
             const csrftoken = getCookie('csrftoken');
 
-            // Debug: verificar que tenemos CSRF token
             if (!csrftoken) {
                 console.error('No se encontró el token CSRF');
-                alert('Error de configuración: token CSRF no disponible.');
+                mostrarPopupError('Error de configuración: token CSRF no disponible.');
                 return;
             }
 
@@ -245,13 +287,6 @@ document.addEventListener('DOMContentLoaded', function(){
             const originalText = submitBtn.textContent;
             submitBtn.textContent = 'Enviando...';
             submitBtn.disabled = true;
-
-            console.log('Enviando valoración...', {
-                action: action,
-                csrf: csrftoken ? 'presente' : 'ausente',
-                funcionId: formData.get('funcion_id'),
-                estrellas: formData.get('estrellas')
-            });
 
             try {
                 const resp = await fetch(action, {
@@ -264,63 +299,38 @@ document.addEventListener('DOMContentLoaded', function(){
                     body: formData
                 });
 
-                console.log('Respuesta recibida:', resp.status, resp.statusText);
-
-                // Intentar parsear JSON siempre
-                let data = null;
+                // Verificar tipo de contenido
                 const contentType = resp.headers.get('content-type') || '';
-                
                 if (!contentType.includes('application/json')) {
-                    console.warn('Content-Type no es JSON:', contentType);
-                    const text = await resp.text();
-                    console.error('Respuesta del servidor:', text.substring(0, 500));
-                    alert('Error: el servidor no devolvió una respuesta JSON válida.');
-                    return;
+                    throw new Error('El servidor no devolvió JSON.');
                 }
 
-                try {
-                    data = await resp.json();
-                    console.log('JSON parseado:', data);
-                } catch (parseErr) {
-                    console.error('Error parseando JSON:', parseErr);
-                    alert('Error: respuesta del servidor inválida.');
-                    return;
-                }
+                const data = await resp.json();
 
-                // Comprobar success en la respuesta
                 if (data && data.success) {
-                    console.log('✓ Valoración registrada exitosamente');
-                    
-                    // Cerrar modal si existe (Bootstrap)
+                    // Éxito: cerrar modal si existe
                     const modalEl = form.closest('.modal');
                     if (modalEl) {
                         if (typeof $ !== 'undefined' && $.fn.modal) {
                             $(modalEl).modal('hide');
                         } else {
-                            // Fallback manual cierre modal
                             modalEl.classList.remove('show');
                             modalEl.style.display = 'none';
                             const backdrop = document.querySelector('.modal-backdrop');
                             if (backdrop) backdrop.remove();
                             document.body.classList.remove('modal-open');
                             document.body.style.overflow = '';
-                            document.body.style.paddingRight = '';
                         }
                     }
-
-                    // Feedback visual y recarga
-                    alert(data.message || '¡Gracias por tu valoración!');
-                    window.location.reload();
+                    mostrarPopupExito(data.message || '¡Gracias por tu valoración!', selected);
                 } else {
                     const msg = data && data.message ? data.message : 'Error al enviar la valoración.';
-                    console.error('Error en respuesta:', data);
-                    alert(msg);
+                    mostrarPopupError(msg);
                 }
             } catch (err) {
-                console.error('Error de red completo:', err);
-                alert('Error de red al enviar la valoración: ' + err.message);
+                console.error('Error de red:', err);
+                mostrarPopupError('Error de red al enviar la valoración: ' + err.message);
             } finally {
-                // Restaurar botón en caso de error
                 if(submitBtn) {
                     submitBtn.textContent = originalText;
                     submitBtn.disabled = false;
@@ -328,5 +338,37 @@ document.addEventListener('DOMContentLoaded', function(){
             }
         });
     });
+
+    // Funciones de Popup
+    window.mostrarPopupExito = function(mensaje, estrellas) {
+        const overlay = document.createElement('div');
+        overlay.className = 'success-popup-overlay';
+        const estrellasHTML = '★'.repeat(estrellas) + '☆'.repeat(5 - estrellas);
+        
+        overlay.innerHTML = `
+            <div class="success-popup">
+                <div class="success-popup-icon">🎉</div>
+                <div class="success-popup-title">¡Valoración enviada!</div>
+                <div class="success-popup-message">${mensaje}</div>
+                <div style="color: #fbbf24; font-size: 1.5rem; margin-bottom: 1.5rem;">${estrellasHTML}</div>
+                <button class="success-popup-btn" onclick="window.location.reload()">Aceptar</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    };
+
+    window.mostrarPopupError = function(mensaje) {
+        const overlay = document.createElement('div');
+        overlay.className = 'success-popup-overlay';
+        overlay.innerHTML = `
+            <div class="success-popup" style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 99%, #fecfef 100%);">
+                <div class="success-popup-icon">⚠️</div>
+                <div class="success-popup-title">Error</div>
+                <div class="success-popup-message">${mensaje}</div>
+                <button class="success-popup-btn" style="color: #ff6b6b;" onclick="this.closest('.success-popup-overlay').remove()">Cerrar</button>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+    };
 });
 </script>
