@@ -14,13 +14,12 @@
             <div style="padding: .75rem; border: 1px solid var(--glass-border); margin-bottom:1rem; border-radius:6px; background: rgba(255,255,255,0.02);">
                 <strong>Política vigente:</strong> {{ politica.nombre }}
                 <div style="font-size:0.95rem; opacity:0.9; margin-top:.4rem;">
-                    {% if not politica.permitir_intercambio %}
-                        Los intercambios están deshabilitados por la política vigente.
-                    {% else %}
-                        Se permiten intercambios con al menos <strong>{{ politica.dias_antes_minimo }}</strong> días de anticipación.
-                        {% if politica.penalidad_percent and politica.penalidad_percent|floatformat:2 != "0.00" %}
-                            <br>Se aplicará una penalidad del <strong>{{ politica.penalidad_percent }}%</strong> al realizar el intercambio.
-                        {% endif %}
+                    Se permiten intercambios con al menos <strong>{{ politica.dias_antes_minimo }}</strong> día{{ politica.dias_antes_minimo|pluralize }} de anticipación.
+                    {% if politica.penalidad_percent and politica.penalidad_percent|floatformat:2 != "0.00" %}
+                        <br>Se aplicará una penalidad del <strong>{{ politica.penalidad_percent }}%</strong> al realizar el intercambio.
+                    {% endif %}
+                    {% if politica.max_cambios_por_compra > 0 %}
+                        <br>Máximo de intercambios por compra: <strong>{{ politica.max_cambios_por_compra }}</strong>
                     {% endif %}
                 </div>
             </div>

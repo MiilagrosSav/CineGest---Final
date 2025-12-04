@@ -8,7 +8,7 @@
     
     <div class="mb-lg">
         <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">📋 Políticas de Intercambio</h1>
-        <p class="card-subtitle">Listado rápido de las políticas y sus tramos. Desde aquí podés editar la política.</p>
+        <p class="card-subtitle">Gestiona las políticas que regulan los intercambios de entradas.</p>
     </div>
 
     <div class="card glass-container">
@@ -18,8 +18,9 @@
                 <thead>
                     <tr style="border-bottom: 1px solid var(--glass-border);">
                         <th style="padding: var(--space-sm);">Nombre</th>
-                        <th style="padding: var(--space-sm);">Horas Mínimas Antes</th>
-                        <th style="padding: var(--space-sm);">Porcentaje %</th>
+                        <th style="padding: var(--space-sm);">Días Mínimos</th>
+                        <th style="padding: var(--space-sm);">Penalidad %</th>
+                        <th style="padding: var(--space-sm);">Máx. Cambios</th>
                         <th style="padding: var(--space-sm);">Activa</th>
                     </tr>
                 </thead>
@@ -27,10 +28,11 @@
                     {% for politica in politicas %}
                     <tr class="politica-row" data-id="{{ politica.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
                         <td style="padding: var(--space-sm); font-weight: 600;">{{ politica.nombre }}</td>
-                        <td style="padding: var(--space-sm);">{{ politica.horas_minimas_antes_evento }}</td>
-                        <td style="padding: var(--space-sm);">{{ politica.porcentaje_reembolso }}%</td>
+                        <td style="padding: var(--space-sm);">{{ politica.dias_antes_minimo }} día{{ politica.dias_antes_minimo|pluralize }}</td>
+                        <td style="padding: var(--space-sm);">{{ politica.penalidad_percent }}%</td>
+                        <td style="padding: var(--space-sm);">{% if politica.max_cambios_por_compra == 0 %}Ilimitado{% else %}{{ politica.max_cambios_por_compra }}{% endif %}</td>
                         <td style="padding: var(--space-sm);">
-                            {% if politica.is_active %}
+                            {% if politica.activo %}
                                 <span style="color: #38ef7d; font-weight: 600;">Sí</span>
                             {% else %}
                                 <span style="color: #ef4444; font-weight: 600;">No</span>
