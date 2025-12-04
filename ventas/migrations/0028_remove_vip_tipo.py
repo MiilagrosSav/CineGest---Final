@@ -13,56 +13,125 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RemoveField(
-            model_name='politicareembolso',
-            name='horas_minimas_antes_evento',
+        # Usar RunSQL para eliminar columnas de forma segura (IF EXISTS)
+        migrations.RunSQL(
+            sql="""
+                ALTER TABLE ventas_politicareembolso 
+                DROP COLUMN IF EXISTS horas_minimas_antes_evento CASCADE;
+                
+                ALTER TABLE ventas_politicareembolso 
+                DROP COLUMN IF EXISTS is_active CASCADE;
+                
+                ALTER TABLE ventas_politicareembolso 
+                DROP COLUMN IF EXISTS porcentaje_reembolso CASCADE;
+            """,
+            reverse_sql="""
+                -- No reversible: columnas eliminadas
+            """
         ),
-        migrations.RemoveField(
-            model_name='politicareembolso',
-            name='is_active',
+        # Agregar cupon_utilizado solo si no existe
+        migrations.RunSQL(
+            sql="""
+                DO $$
+                BEGIN
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='ventas_historicalventa' 
+                        AND column_name='cupon_utilizado_id'
+                    ) THEN
+                        ALTER TABLE ventas_historicalventa 
+                        ADD COLUMN cupon_utilizado_id INTEGER NULL;
+                    END IF;
+                END $$;
+            """,
+            reverse_sql="""
+                ALTER TABLE ventas_historicalventa DROP COLUMN IF EXISTS cupon_utilizado_id CASCADE;
+            """
         ),
-        migrations.RemoveField(
-            model_name='politicareembolso',
-            name='porcentaje_reembolso',
-        ),
-        migrations.AddField(
-            model_name='historicalventa',
-            name='cupon_utilizado',
-            field=models.ForeignKey(blank=True, db_constraint=False, help_text='Referencias al cupón usado para esta venta (si aplica)', null=True, on_delete=django.db.models.deletion.DO_NOTHING, related_name='+', to='promociones.cupongenerado', verbose_name='Cupón Utilizado'),
-        ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='activo',
-            field=models.BooleanField(default=True),
-        ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='created_at',
-            field=models.DateTimeField(default=django.utils.timezone.now),
-        ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='dias_antes_minimo',
-            field=models.IntegerField(default=1, help_text='Número mínimo de días antes de la función para permitir intercambio'),
-        ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='max_cambios_por_compra',
-            field=models.IntegerField(default=1, help_text='Máximo de intercambios permitidos por compra (0 = ilimitado)'),
-        ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='penalidad_percent',
-            field=models.DecimalField(decimal_places=2, default=0.0, help_text='Porcentaje de penalidad aplicado al intercambio (si aplica)', max_digits=5),
-        ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='permitir_intercambio',
-            field=models.BooleanField(default=True),
-        ),
-        migrations.AddField(
-            model_name='politicareembolso',
-            name='updated_at',
-            field=models.DateTimeField(auto_now=True),
+        # Agregar columnas a politicareembolso de forma segura
+        migrations.RunSQL(
+            sql="""
+                DO $$
+                BEGIN
+                    -- activo
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='ventas_politicareembolso' 
+                        AND column_name='activo'
+                    ) THEN
+                        ALTER TABLE ventas_politicareembolso 
+                        ADD COLUMN activo BOOLEAN DEFAULT true NOT NULL;
+                    END IF;
+                    
+                    -- created_at
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='ventas_politicareembolso' 
+                        AND column_name='created_at'
+                    ) THEN
+                        ALTER TABLE ventas_politicareembolso 
+                        ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL;
+                    END IF;
+                    
+                    -- dias_antes_minimo
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='ventas_politicareembolso' 
+                        AND column_name='dias_antes_minimo'
+                    ) THEN
+                        ALTER TABLE ventas_politicareembolso 
+                        ADD COLUMN dias_antes_minimo INTEGER DEFAULT 1 NOT NULL;
+                    END IF;
+                    
+                    -- max_cambios_por_compra
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='ventas_politicareembolso' 
+                        AND column_name='max_cambios_por_compra'
+                    ) THEN
+                        ALTER TABLE ventas_politicareembolso 
+                        ADD COLUMN max_cambios_por_compra INTEGER DEFAULT 1 NOT NULL;
+                    END IF;
+                    
+                    -- penalidad_percent
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='ventas_politicareembolso' 
+                        AND column_name='penalidad_percent'
+                    ) THEN
+                        ALTER TABLE ventas_politicareembolso 
+                        ADD COLUMN penalidad_percent NUMERIC(5, 2) DEFAULT 0.0 NOT NULL;
+                    END IF;
+                    
+                    -- permitir_intercambio
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='ventas_politicareembolso' 
+                        AND column_name='permitir_intercambio'
+                    ) THEN
+                        ALTER TABLE ventas_politicareembolso 
+                        ADD COLUMN permitir_intercambio BOOLEAN DEFAULT true NOT NULL;
+                    END IF;
+                    
+                    -- updated_at
+                    IF NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns 
+                        WHERE table_name='ventas_politicareembolso' 
+                        AND column_name='updated_at'
+                    ) THEN
+                        ALTER TABLE ventas_politicareembolso 
+                        ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL;
+                    END IF;
+                END $$;
+            """,
+            reverse_sql="""
+                ALTER TABLE ventas_politicareembolso DROP COLUMN IF EXISTS activo CASCADE;
+                ALTER TABLE ventas_politicareembolso DROP COLUMN IF EXISTS created_at CASCADE;
+                ALTER TABLE ventas_politicareembolso DROP COLUMN IF EXISTS dias_antes_minimo CASCADE;
+                ALTER TABLE ventas_politicareembolso DROP COLUMN IF EXISTS max_cambios_por_compra CASCADE;
+                ALTER TABLE ventas_politicareembolso DROP COLUMN IF EXISTS penalidad_percent CASCADE;
+                ALTER TABLE ventas_politicareembolso DROP COLUMN IF EXISTS permitir_intercambio CASCADE;
+                ALTER TABLE ventas_politicareembolso DROP COLUMN IF EXISTS updated_at CASCADE;
+            """
         ),
     ]

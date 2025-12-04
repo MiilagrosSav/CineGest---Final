@@ -13,16 +13,16 @@ def convert_vip_to_general(apps, schema_editor):
     
     if count > 0:
         vip_butacas.update(tipo='GENERAL')
-        print(f"✅ Convertidas {count} butacas VIP a GENERAL")
+        print(f"[OK] Convertidas {count} butacas VIP a GENERAL")
     else:
-        print("ℹ️ No se encontraron butacas VIP para convertir")
+        print("[INFO] No se encontraron butacas VIP para convertir")
 
 
 def reverse_conversion(apps, schema_editor):
     """
     Reversión: No hacemos nada porque no podemos saber cuáles eran VIP originalmente
     """
-    print("⚠️ Nota: No se puede revertir la conversión de VIP a GENERAL automáticamente")
+    print("[WARNING] Nota: No se puede revertir la conversion de VIP a GENERAL automaticamente")
 
 
 class Migration(migrations.Migration):
