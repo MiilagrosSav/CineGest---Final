@@ -596,8 +596,11 @@ window.addEventListener('DOMContentLoaded', function() {
                     mensaje += `\n⚠️ ${data.warning}`;
                 }
                 mostrarMensaje(mensaje, 'success');
-                document.querySelector('.card-subtitle').textContent =
-                    `{{ sala.nombre }} - Sala {{ sala.numero }} (Capacidad actual: ${data.capacidad} asientos)`;
+                
+                // Redirigir a la lista de salas después de 2 segundos
+                setTimeout(() => {
+                    window.location.href = "{% url 'cine:sala_list' %}";
+                }, 2000);
             } else {
                 let mensajeError = '❌ Error: ' + (data.message || 'Error desconocido');
                 if (data.duplicados && data.duplicados.length > 0) {

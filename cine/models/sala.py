@@ -52,6 +52,17 @@ class Sala(models.Model):
     def get_status_display(self):
         """Retorna el estado de la sala con icono"""
         return "🟢 Activa" if self.activa else "🔴 Inactiva"
+    
+    def tiene_butacas_vendidas(self):
+        """
+        Verifica si la sala tiene butacas vendidas en alguna función.
+        Retorna True si hay entradas vendidas, False en caso contrario.
+        """
+        from ventas.models import Entrada
+        return Entrada.objects.filter(
+            id_sala=self,
+            estado__in=['VENDIDA', 'ENTREGADA', 'USADA']
+        ).exists()
 
     class Meta:
         verbose_name = "Sala"
