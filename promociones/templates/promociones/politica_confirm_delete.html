@@ -3,39 +3,88 @@
 {% block title %}Confirmar Eliminación{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 500px; text-align: center;">
+<div class="container" style="max-width: 600px; text-align: center;">
 
-    <div class="mb-lg">
-        <h1 class="card-title text-gradient-secondary" style="margin-bottom: 0;">🗑️ ¿Estás seguro?</h1>
-        <p class="card-subtitle">
-            Estás a punto de eliminar permanentemente la política:
-        </p>
-    </div>
+    {% if puede_eliminar %}
+        <div class="mb-lg">
+            <h1 class="card-title text-gradient-secondary" style="margin-bottom: 0;">🗑️ ¿Estás seguro?</h1>
+            <p class="card-subtitle">
+                Estás a punto de eliminar permanentemente la política:
+            </p>
+        </div>
 
-    <div class="card glass-container text-center">
-        <div style="padding: var(--space-lg);">
-            
-            <div style="margin-bottom: var(--space-lg);">
-                <p style="font-size: 1.2rem; font-weight: 600; margin-bottom: var(--space-sm);">
-                    "{{ object.nombre }}"
-                </p>
+        <div class="card glass-container text-center">
+            <div style="padding: var(--space-lg);">
+                
+                <div style="margin-bottom: var(--space-lg);">
+                    <p style="font-size: 1.2rem; font-weight: 600; margin-bottom: var(--space-sm);">
+                        "{{ object.nombre }}"
+                    </p>
+                </div>
+
+                <p class="text-secondary" style="font-weight: 600;">Esta acción no se puede deshacer.</p>
+
+                <form method="post">
+                    {% csrf_token %}
+                    <div style="display: flex; gap: var(--space-md); margin-top: var(--space-lg); justify-content: center; flex-wrap: wrap;">
+                        <button type="submit" class="btn btn-secondary">
+                            Sí, Eliminar
+                        </button>
+                        <a href="{% url 'promociones:politica_list' %}" class="btn btn-outline">
+                            No, Cancelar
+                        </a>
+                    </div>
+                </form>
             </div>
+        </div>
+    {% else %}
+        <div class="mb-lg">
+            <h1 class="card-title text-gradient-secondary" style="margin-bottom: 0;">⚠️ No se puede eliminar</h1>
+            <p class="card-subtitle">
+                La política está siendo utilizada
+            </p>
+        </div>
 
-            <p class="text-secondary" style="font-weight: 600;">Esta acción no se puede deshacer.</p>
+        <div class="card glass-container">
+            <div style="padding: var(--space-lg);">
+                <div style="margin-bottom: var(--space-lg); text-align: center;">
+                    <p style="font-size: 1.2rem; font-weight: 600; margin-bottom: var(--space-sm);">
+                        "{{ object.nombre }}"
+                    </p>
+                </div>
 
-            <form method="post">
-                {% csrf_token %}
-                <div style="display: flex; gap: var(--space-md); margin-top: var(--space-lg); justify-content: center; flex-wrap: wrap;">
-                    <button type="submit" class="btn btn-secondary">
-                        Sí, Eliminar
-                    </button>
+                <div style="text-align: left; background: rgba(255, 107, 107, 0.1); border-left: 4px solid #ff6b6b; padding: var(--space-md); border-radius: 8px; margin-bottom: var(--space-lg);">
+                    <p style="font-weight: 600; margin-bottom: var(--space-sm); color: #ff6b6b;">❌ Esta política tiene asociaciones:</p>
+                    <ul style="margin: var(--space-sm) 0; padding-left: var(--space-lg);">
+                        {% if tiene_cupones %}
+                        <li><strong>Cupones Generados:</strong> {{ total_cupones }}
+                            {% if cupones_usados %}
+                                <br>&nbsp;&nbsp;&nbsp;→ Usados: {{ cupones_usados }}
+                            {% endif %}
+                            {% if cupones_disponibles %}
+                                <br>&nbsp;&nbsp;&nbsp;→ Disponibles: {{ cupones_disponibles }}
+                            {% endif %}
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+
+                <div style="text-align: left; background: rgba(99, 102, 241, 0.1); border-left: 4px solid var(--primary); padding: var(--space-md); border-radius: 8px; margin-bottom: var(--space-lg);">
+                    <p style="font-weight: 600; margin-bottom: var(--space-sm);">💡 Alternativas recomendadas:</p>
+                    <ol style="margin: var(--space-sm) 0; padding-left: var(--space-lg);">
+                        <li>Los cupones están vinculados a esta política y no pueden eliminarse</li>
+                        <li>Marcar la política como inactiva en lugar de eliminarla</li>
+                    </ol>
+                </div>
+
+                <div style="display: flex; gap: var(--space-md); justify-content: center; flex-wrap: wrap;">
                     <a href="{% url 'promociones:politica_list' %}" class="btn btn-outline">
-                        No, Cancelar
+                        Volver a la lista
                     </a>
                 </div>
-            </form>
+            </div>
         </div>
-    </div>
+    {% endif %}
 </div>
 
 <style>
