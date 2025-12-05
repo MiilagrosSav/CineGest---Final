@@ -6,10 +6,17 @@
 <div class="container-narrow">
     <div class="card glass-container text-center">
         <div class="card-header">
-            <h1 class="card-title text-gradient-secondary">🗑️ ¿Estás seguro?</h1>
-            <p class="card-subtitle">
-                Estás a punto de eliminar permanentemente la función:
-            </p>
+            {% if puede_eliminar %}
+                <h1 class="card-title text-gradient-secondary">🗑️ ¿Estás seguro?</h1>
+                <p class="card-subtitle">
+                    Estás a punto de eliminar permanentemente la función:
+                </p>
+            {% else %}
+                <h1 class="card-title" style="color: #ff6b6b;">⚠️ No se puede eliminar</h1>
+                <p class="card-subtitle">
+                    La función no puede ser eliminada.
+                </p>
+            {% endif %}
         </div>
         
         <div style="margin: var(--space-md) 0;">
@@ -24,19 +31,56 @@
             </p>
         </div>
 
-        <p class="text-secondary">Esta acción no se puede deshacer.</p>
+        {% if puede_eliminar %}
+            <p class="text-secondary">Esta acción no se puede deshacer.</p>
 
-        <form method="post">
-            {% csrf_token %}
-            <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-lg); justify-content: center; flex-wrap: wrap;">
-                <button type="submit" class="btn btn-secondary">
-                    Sí, Eliminar
-                </button>
-                <a href="{% url 'cine:funcion_list' %}" class="btn btn-outline">
-                    No, Cancelar
+            <form method="post">
+                {% csrf_token %}
+                <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-lg); justify-content: center; flex-wrap: wrap;">
+                    <button type="submit" class="btn btn-secondary">
+                        Sí, Eliminar
+                    </button>
+                    <a href="{% url 'cine:funcion_list' %}" class="btn btn-outline">
+                        No, Cancelar
+                    </a>
+                </div>
+            </form>
+        {% else %}
+            <div class="message message-error" style="margin: var(--space-lg) 0; text-align: left;">
+                <strong>🚫 Razones por las que no se puede eliminar:</strong>
+                <ul style="margin-top: var(--space-sm); padding-left: var(--space-lg);">
+                    {% if tiene_entradas %}
+                        <li>Esta función tiene <strong>{{ total_entradas }}</strong> entrada(s) asociada(s)
+                            {% if entradas_vendidas or entradas_reservadas %}
+                                <ul style="margin-top: 0.3rem;">
+                                    {% if entradas_vendidas %}<li>{{ entradas_vendidas }} VENDIDA(S)</li>{% endif %}
+                                    {% if entradas_reservadas %}<li>{{ entradas_reservadas }} RESERVADA(S)</li>{% endif %}
+                                    {% if entradas_canceladas %}<li>{{ entradas_canceladas }} CANCELADA(S)</li>{% endif %}
+                                </ul>
+                            {% endif %}
+                        </li>
+                    {% endif %}
+                    {% if tiene_intercambios %}
+                        <li>Esta función tiene <strong>{{ total_intercambios }}</strong> intercambio(s) asociado(s)</li>
+                    {% endif %}
+                    <li>Eliminar la función causaría pérdida de información de ventas e histórica</li>
+                </ul>
+            </div>
+
+            <div class="message message-info" style="margin: var(--space-lg) 0; text-align: left;">
+                <strong>💡 Alternativas:</strong>
+                <ul style="margin-top: var(--space-sm); padding-left: var(--space-lg);">
+                    <li><strong>Marcar como inactiva:</strong> Las funciones pasadas se marcan automáticamente como inactivas y no aparecen en cartelera.</li>
+                    <li><strong>Cancelar entradas:</strong> Si es necesario eliminar, primero debe cancelar todas las entradas asociadas.</li>
+                </ul>
+            </div>
+
+            <div style="margin-top: var(--space-lg);">
+                <a href="{% url 'cine:funcion_list' %}" class="btn btn-primary" style="width: 100%;">
+                    🔙 Volver a la lista de funciones
                 </a>
             </div>
-        </form>
+        {% endif %}
     </div>
 </div>
 

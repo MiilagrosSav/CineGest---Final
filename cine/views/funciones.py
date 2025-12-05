@@ -426,6 +426,86 @@ class FuncionDeleteView(AdminRequiredMixin, DeleteView):
     model = Funcion
     template_name = 'cine/funcion_confirm_delete.html'
     success_url = reverse_lazy('cine:funcion_list')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        funcion = self.get_object()
+        
+        # Verificar si tiene entradas asociadas
+        from ventas.models import Entrada, Intercambio
+        entradas = Entrada.objects.filter(id_funcion=funcion)
+        intercambios_origen = Intercambio.objects.filter(funcion_origen=funcion)
+        intercambios_destino = Intercambio.objects.filter(funcion_destino=funcion)
+        
+        tiene_entradas = entradas.exists()
+        tiene_intercambios = intercambios_origen.exists() or intercambios_destino.exists()
+        
+        context['tiene_entradas'] = tiene_entradas
+        context['total_entradas'] = entradas.count()
+        context['tiene_intercambios'] = tiene_intercambios
+        context['total_intercambios'] = intercambios_origen.count() + intercambios_destino.count()
+        context['puede_eliminar'] = not (tiene_entradas or tiene_intercambios)
+        
+        # Contar entradas por estado
+        if tiene_entradas:
+            context['entradas_vendidas'] = entradas.filter(estado='VENDIDA').count()
+            context['entradas_reservadas'] = entradas.filter(estado='RESERVADA').count()
+            context['entradas_canceladas'] = entradas.filter(estado='CANCELADA').count()
+        
+        return context
+    
+    def delete(self, request, *args, **kwargs):
+        """Sobrescribir delete para manejar ProtectedError"""
+        from django.db.models.deletion import ProtectedError
+        
+        self.object = self.get_object()
+        success_url = self.get_success_url()
+        
+        try:
+            self.object.delete()
+            messages.success(
+                request,
+                f'✓ La función de "{self.object.pelicula.titulo}" del {self.object.fecha_hora.strftime("%d/%m/%Y %H:%M")} ha sido eliminada exitosamente.'
+            )
+            return redirect(success_url)
+            
+        except ProtectedError as e:
+            # Extraer información de las entradas e intercambios protegidos
+            protected_objects = e.protected_objects
+            
+            # Contar entradas e intercambios
+            from ventas.models import Entrada, Intercambio
+            entradas = [obj for obj in protected_objects if isinstance(obj, Entrada)]
+            intercambios = [obj for obj in protected_objects if isinstance(obj, Intercambio)]
+            
+            # Construir mensaje detallado
+            msg_parts = [
+                f'❌ No se puede eliminar la función de "{self.object.pelicula.titulo}" '
+                f'del {self.object.fecha_hora.strftime("%d/%m/%Y a las %H:%M")} porque tiene:'
+            ]
+            
+            if entradas:
+                # Contar entradas por estado
+                estados_count = {}
+                for entrada in entradas:
+                    estado = entrada.estado
+                    estados_count[estado] = estados_count.get(estado, 0) + 1
+                
+                estados_str = ', '.join([f'{count} {estado}(S)' for estado, count in estados_count.items()])
+                msg_parts.append(f'• {len(entradas)} entrada(s) asociada(s) [{estados_str}]')
+            
+            if intercambios:
+                msg_parts.append(f'• {len(intercambios)} intercambio(s) asociado(s)')
+            
+            msg_parts.append('')
+            msg_parts.append('💡 Para poder eliminar esta función, primero debe:')
+            if entradas:
+                msg_parts.append('   1. Cancelar o eliminar las entradas asociadas')
+            if intercambios:
+                msg_parts.append(f'   {"2" if entradas else "1"}. Cancelar o eliminar los intercambios asociados')
+            
+            messages.error(request, '\n'.join(msg_parts))
+            return redirect('cine:funcion_list')
 
 
 # AJAX: Vista para calcular horarios disponibles

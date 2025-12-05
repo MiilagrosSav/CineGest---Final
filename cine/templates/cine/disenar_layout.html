@@ -625,7 +625,6 @@ window.addEventListener('DOMContentLoaded', function() {
             if (butacasExistentes && butacasExistentes.length > 0) {
                 
                 const filas = [...new Set(butacasExistentes.map(b => b.fila))].sort();
-                const maxColVisual = Math.max(0, ...butacasExistentes.map(b => b.numero));
                 
                 areaAsientos.innerHTML = '';
                 distribucionActual = [];
@@ -638,32 +637,53 @@ window.addEventListener('DOMContentLoaded', function() {
                     label.textContent = f;
                     row.appendChild(label);
 
-                    for (let j = 1; j <= maxColVisual; j++) { 
-                        const be = butacasExistentes.find(x => x.fila === f && x.numero === j);
-                        let b;
+                    // Obtener todas las butacas de esta fila específica, ordenadas por número
+                    const butacasDeFila = butacasExistentes
+                        .filter(x => x.fila === f)
+                        .sort((a, b) => a.numero - b.numero);
+
+                    // Encontrar el número máximo para esta fila
+                    const maxNum = Math.max(...butacasDeFila.map(b => b.numero));
+
+                    // Renderizar desde 1 hasta maxNum, respetando gaps
+                    for (let num = 1; num <= maxNum; num++) {
+                        const be = butacasDeFila.find(x => x.numero === num);
+                        
                         if (be) {
-                            // Existe en BD - agregar a distribucionActual
+                            // Existe en BD - renderizar como fue guardada
                             const esPasillo = be.es_pasillo || be.tipo === 'vacio';
                             const tipoFinal = esPasillo ? 'vacio' : be.tipo;
-                            b = crearAsiento(f, j, tipoFinal);
+                            const b = crearAsiento(f, be.numero, tipoFinal);
+                            
                             if (esPasillo) {
                                 b.textContent = '';
                             }
+                            
+                            row.appendChild(b);
+                            
+                            // Agregar a distribucionActual
                             distribucionActual.push({ 
                                 fila: f, 
-                                num: j, 
+                                num: be.numero, 
                                 tipo: tipoFinal,
                                 es_pasillo: esPasillo
                             });
                         } else {
-                            // NO existe en BD - solo renderizar visualmente como vacío
-                            // NO agregar a distribucionActual hasta que el usuario lo convierta
-                            b = crearAsiento(f, j, 'vacio');
+                            // No existe - crear pasillo visual (gap en la numeración)
+                            const b = crearAsiento(f, num, 'vacio');
                             b.textContent = '';
-                            // NO agregamos a distribucionActual - solo es visual
+                            row.appendChild(b);
+                            
+                            // Agregar a distribucionActual como pasillo
+                            distribucionActual.push({ 
+                                fila: f, 
+                                num: num, 
+                                tipo: 'vacio',
+                                es_pasillo: true
+                            });
                         }
-                        row.appendChild(b);
                     }
+                    
                     areaAsientos.appendChild(row);
                 });
                 

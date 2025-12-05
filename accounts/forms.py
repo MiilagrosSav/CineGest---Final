@@ -1,8 +1,15 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.db import transaction
+from django.core.validators import RegexValidator
 from .models import Usuario, Cliente, Empleado
 from ventas.models import PoliticaReembolso
+
+# Validador de DNI (7-8 dígitos numéricos)
+DNI_VALIDATOR = RegexValidator(
+    regex=r'^\d{7,8}$',
+    message='El DNI debe contener entre 7 y 8 dígitos numéricos, sin letras ni espacios.'
+)
 
 # --- Formulario de Registro de Clientes ---
 class CustomUserCreationForm(UserCreationForm):
@@ -21,7 +28,13 @@ class CustomUserCreationForm(UserCreationForm):
     )
     
     # Campos del Usuario (puedes añadir dni, telefono si quieres pedirlos en el registro)
-    dni = forms.CharField(label='DNI', max_length=20, required=False, widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Tu DNI'}))
+    dni = forms.CharField(
+        label='DNI', 
+        max_length=8, 
+        required=False, 
+        validators=[DNI_VALIDATOR],
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Ej: 12345678'})
+    )
     telefono = forms.CharField(label='Teléfono', max_length=20, required=False, widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Tu teléfono'}))
 
     class Meta(UserCreationForm.Meta):
@@ -72,8 +85,9 @@ class EmployeeCreationForm(UserCreationForm):
     # Campos adicionales del Usuario
     dni = forms.CharField(
         label='🆔 DNI',
-        max_length=20,
+        max_length=8,
         required=True,
+        validators=[DNI_VALIDATOR],
         widget=forms.TextInput(attrs={
             'class': 'form-input',
             'placeholder': 'Ej: 12345678'
@@ -233,7 +247,7 @@ class EmployeeUpdateForm(forms.ModelForm):
             }),
             'dni': forms.TextInput(attrs={
                 'class': 'form-input',
-                'placeholder': 'DNI'
+                'placeholder': 'DNI (7-8 dígitos)'
             }),
             'telefono': forms.TextInput(attrs={
                 'class': 'form-input',
@@ -252,6 +266,11 @@ class EmployeeUpdateForm(forms.ModelForm):
             'telefono': '📱 Teléfono',
             'is_active': '✅ Usuario activo'
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['dni'].validators = [DNI_VALIDATOR]
+        self.fields['dni'].max_length = 8
 
     def clean(self):
         cleaned = super().clean()
@@ -386,8 +405,9 @@ class ClienteProfileForm(forms.ModelForm):
     )
     dni = forms.CharField(
         label='DNI',
-        max_length=20,
+        max_length=8,
         required=False,
+        validators=[DNI_VALIDATOR],
         widget=forms.TextInput(attrs={
             'class': 'form-input',
             'placeholder': '12345678'
