@@ -1,6 +1,11 @@
 {% extends "accounts/base.html" %}
+{% load static %}
 
 {% block title %}Procesar Pago - CineGest{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'ventas/css/iniciar_pago.css' %}?v=1.0">
+{% endblock %}
 
 {% block content %}
 <script src="https://sdk.mercadopago.com/js/v2"></script>
@@ -113,74 +118,9 @@
 </div>
 
 <script>
-    // Inicializar Mercado Pago con la Public Key
-    const mp = new MercadoPago('{{ mercadopago_public_key }}', {
-        locale: 'es-AR'
-    });
-    
-    // Crear el botón de pago oficial
-    mp.checkout({
-        preference: {
-            id: '{{ preference_id }}'
-        },
-        render: {
-            container: '#wallet_container',
-            label: 'Pagar con Mercado Pago',
-        },
-        theme: {
-            elementsColor: '#009ee3',
-            headerColor: '#009ee3',
-        }
-    });
-    
-    // (Tu script de 'setTimeout' para 'init_point' va aquí, sin cambios)
-    console.log('init_point:', '{{ init_point }}');
-    setTimeout(() => {
-        console.log('Buscando botón inyectado por Mercado Pago...');
-        const container = document.getElementById('wallet_container');
-        if (!container) return;
-        const anchor = container.querySelector('a');
-        if (anchor && '{{ init_point }}') {
-            anchor.setAttribute('href', '{{ init_point }}');
-            anchor.setAttribute('target', '_blank');
-            anchor.setAttribute('rel', 'noopener noreferrer');
-            console.log('SDK button ajustado: ancla -> abrir en nueva pestaña');
-            return;
-        }
-        const btn = container.querySelector('button');
-        if (btn && '{{ init_point }}') {
-            try { btn.replaceWith(btn.cloneNode(true)); } catch (e) {}
-            const fresh = container.querySelector('button');
-            if (fresh) {
-                fresh.addEventListener('click', function (ev) {
-                    ev.preventDefault();
-                    window.open('{{ init_point }}', '_blank', 'noopener');
-                });
-                console.log('SDK button ajustado: botón -> abrir en nueva pestaña');
-            }
-        }
-    }, 700);
+    window.MERCADOPAGO_PUBLIC_KEY = '{{ mercadopago_public_key }}';
+    window.PREFERENCE_ID = '{{ preference_id }}';
+    window.INIT_POINT = '{{ init_point }}';
 </script>
-
-<style>
-    /* Estilo para el "chip" de la butaca */
-    .butaca-badge {
-        background: rgba(var(--primary-rgb), 0.15);
-        border: 1px solid var(--primary);
-        color: var(--text-light);
-        padding: 0.3rem 0.7rem;
-        border-radius: 6px;
-        font-weight: 600;
-        font-size: 0.9rem;
-        white-space: nowrap;
-    }
-
-    /* Estilos para el contenedor del botón de MP */
-    #wallet_container {
-        min-height: 45px; /* Altura estándar del botón de MP */
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-</style>
+<script src="{% static 'ventas/js/iniciar_pago.js' %}?v=1.0"></script>
 {% endblock %}

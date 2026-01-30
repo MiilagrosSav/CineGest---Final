@@ -1,0 +1,3 @@
+/* Enforce dark mode look */
+body { background: #121212; color: #e0e0e0; }
+.card, .glass-container { background: transparent; }

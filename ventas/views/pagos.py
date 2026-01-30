@@ -184,10 +184,16 @@ def pago_exitoso(request):
             print(f"✅ Venta actualizada a CONFIRMADA")
             
             # Crear o actualizar el registro de pago
-            metodo_pago, _ = MetodoPago.objects.get_or_create(
-                nombre='Mercado Pago',
-                defaults={'descripcion': 'Pago procesado por Mercado Pago'}
-            )
+            try:
+                metodo_pago = MetodoPago.objects.get(nombre='Mercado Pago')
+            except MetodoPago.DoesNotExist:
+                print("❌ ERROR: MetodoPago 'Mercado Pago' no existe en la BD")
+                print("   Ejecutar: python scripts/crear_metodos_pago_completos.py")
+                # Crear como fallback
+                metodo_pago = MetodoPago.objects.create(
+                    nombre='Mercado Pago',
+                    descripcion='Pago procesado por Mercado Pago'
+                )
             
             pago, created = Pago.objects.get_or_create(
                 id_venta=venta,
@@ -202,6 +208,7 @@ def pago_exitoso(request):
             if not created:
                 pago.estado = 'COMPLETADO'
                 pago.nro_transaccion = payment_id or f'MP-{venta.id_venta}'
+                pago.id_metodo_pago = metodo_pago
                 pago.save()
             
             print(f"💳 Pago registrado: {pago.nro_transaccion}")
@@ -358,10 +365,16 @@ def webhook_mercadopago(request):
                         print(f"Error marcando cupon de venta como usado (webhook): {e}")
                     
                     # Actualizar el pago
-                    metodo_pago, _ = MetodoPago.objects.get_or_create(
-                        nombre='Mercado Pago',
-                        defaults={'descripcion': 'Pago procesado por Mercado Pago'}
-                    )
+                    try:
+                        metodo_pago = MetodoPago.objects.get(nombre='Mercado Pago')
+                    except MetodoPago.DoesNotExist:
+                        print("❌ ERROR: MetodoPago 'Mercado Pago' no existe en la BD")
+                        print("   Ejecutar: python scripts/crear_metodos_pago_completos.py")
+                        # Crear como fallback
+                        metodo_pago = MetodoPago.objects.create(
+                            nombre='Mercado Pago',
+                            descripcion='Pago procesado por Mercado Pago'
+                        )
                     
                     pago, created = Pago.objects.get_or_create(
                         id_venta=venta,
@@ -376,6 +389,7 @@ def webhook_mercadopago(request):
                     if not created:
                         pago.estado = 'COMPLETADO'
                         pago.nro_transaccion = str(payment_id)
+                        pago.id_metodo_pago = metodo_pago
                         pago.save()
                     
                     # Actualizar entradas

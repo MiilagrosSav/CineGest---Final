@@ -19,7 +19,9 @@ env/
 
 # Medios y archivos subidos
 media/
+media/uploads/
 staticfiles/
+static_collected/
 
 # IDEs
 .vscode/
@@ -32,6 +34,8 @@ Thumbs.db
 
 # Logs
 *.log
+logs/
+logs/*.log
 
 # Migraciones locales
 */migrations/__pycache__/
@@ -39,3 +43,7 @@ Thumbs.db
 # Archivos temporales
 *.tmp
 *.cache
+
+#staticfiles (collectsatic)
+/staticfiles/
+/static_collected/

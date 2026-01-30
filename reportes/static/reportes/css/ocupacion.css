@@ -1,0 +1,114 @@
+/* --- Inputs --- */
+.form-label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+.form-input {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    color: var(--text-light);
+    font-family: inherit;
+    outline: none;
+    transition: all 0.3s;
+}
+.form-input:focus {
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* --- Chips --- */
+.filter-chip {
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    text-decoration: none;
+    transition: all 0.2s;
+}
+.filter-chip:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.1);
+}
+
+/* --- Botones --- */
+.btn {
+    border-radius: 9999px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-width: 2px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    border: 2px solid var(--primary);
+}
+.btn-primary:hover {
+    background: rgb(77, 19, 92);
+    border-color: rgb(77, 19, 92);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4);
+}
+.btn-outline {
+    background: transparent;
+    color: var(--text-light);
+    border: 2px solid rgba(22, 234, 68, 0.3);
+}
+.btn-outline:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.1);
+    transform: translateY(-1px);
+}
+.btn-secondary {
+    background: transparent;
+    color: #ff6b6b;
+    border: 2px solid #ff6b6b;
+}
+.btn-secondary:hover {
+    background: #ff6b6b;
+    color: white;
+    transform: translateY(-1px);
+}
+.btn-sm { padding: 0.4rem 1rem; font-size: 0.85rem; }
+
+/* --- Layout del Heatmap & Marketing --- */
+.analysis-row { display: grid; grid-template-columns: 2fr 1fr; gap: 2rem; }
+@media (max-width: 900px) { .analysis-row { grid-template-columns: 1fr; } }
+
+/* --- Estilos del Mapa de Calor --- */
+.heatmap-table th, .heatmap-table td { border: none; padding: 8px; vertical-align: middle; }
+.heatmap-table td.heatcell { border-radius: 8px; font-weight:700; text-align:center; cursor: default; font-size: 0.9rem; }
+
+/* Colores de celdas (Opacidad para glass) */
+.heat-verylow { background: rgba(255, 77, 77, 0.15); color: #ff8a80; border: 1px solid rgba(255, 77, 77, 0.3); }
+.heat-mid { background: rgba(255, 193, 7, 0.15); color: #ffd54f; border: 1px solid rgba(255, 193, 7, 0.3); }
+.heat-high { background: rgba(76, 175, 80, 0.15); color: #81c784; border: 1px solid rgba(76, 175, 80, 0.3); }
+
+/* Tooltip simple para heatmap */
+.heatcell[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%; left: 50%; transform: translateX(-50%);
+    background: #222; color: #fff; padding: 5px 10px;
+    border-radius: 4px; font-size: 0.8rem; white-space: nowrap;
+    pointer-events: none; z-index: 10; margin-bottom: 5px;
+    border: 1px solid #444;
+}
+.heatcell { position: relative; }
+
+/* Donut Chart Center */
+.donut-wrap { position: relative; }
+.donut-center { pointer-events: none; }

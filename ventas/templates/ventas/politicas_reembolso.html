@@ -3,6 +3,10 @@
 
 {% block title %}Políticas de Intercambio - CineGest{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'ventas/css/politicas_reembolso.css' %}?v=1.0">
+{% endblock %}
+
 {% block content %}
 <div class="container" style="max-width: 900px;">
     
@@ -125,67 +129,5 @@
 
     </div>
 </div>
-
-<style>
-    .politica-item.highlight {
-        /* Estilo sutil para resaltar la política activa */
-        background: rgba(var(--primary-rgb), 0.05);
-        border-radius: 8px;
-    }
-
-    /* CAMBIO 5: Estilos de botones (consistentes)
-    */
-    .card-footer .btn-primary,
-    .card-footer .btn-secondary,
-    .card-footer .btn-outline {
-        padding: 0.8rem 1.5rem;
-        font-size: 1rem;
-        font-weight: 600;
-        border-radius: 9999px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-width: 2px;
-        transition: all 0.3s ease;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-    }
-
-    .card-footer .btn-primary {
-        background: var(--primary);
-        color: white;
-        border: 2px solid var(--primary);
-    }
-    .card-footer .btn-primary:hover {
-        background: rgb(77, 19, 92);
-        border-color: rgb(77, 19, 92);
-        transform: translateY(-1px) scale(1.01);
-        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
-    }
-
-    /* (Usando 'btn-secondary' como el 'btn-outline' de otras pantallas) */
-    .card-footer .btn-secondary {
-        background: transparent;
-        color: var(--text-light);
-        border: 2px solid rgba(255,255,255,0.2);
-    }
-    .card-footer .btn-secondary:hover {
-        background: rgba(var(--primary-rgb), 0.25);
-        border-color: var(--primary);
-        color: var(--primary);
-        transform: translateY(-1px);
-    }
-    .card-footer .btn-secondary:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        background: var(--glass-border);
-        border-color: var(--glass-border);
-        color: var(--text-secondary);
-        transform: none;
-        box-shadow: none;
-    }
-</style>
 
 {% endblock %}

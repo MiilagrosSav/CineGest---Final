@@ -1,0 +1,136 @@
+/* --- PANEL DE CONTROL DE TAMAÑOS --- */
+:root {
+    --form-max-width: 768px;
+    --form-label-size: 1rem;
+    --form-input-size: 1rem;
+    --form-chip-size: 0.95rem;
+    --btn-main-size: 1rem;
+    --btn-main-radius: 9999px;
+}
+
+/* Estilos de Labels */
+form .form-label {
+    font-size: var(--form-label-size);
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    display: block;
+    color: var(--text-light);
+}
+
+/* Estilos de Inputs Generales */
+form .form-input,
+form .form-select,
+form textarea,
+form input[type="text"],
+form input[type="number"],
+form input[type="date"],
+form input[type="url"],
+form input[type="file"] {
+    font-size: var(--form-input-size);
+    padding: 0.8rem 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-light);
+    width: 100%;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+form input:focus,
+form select:focus,
+form textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
+}
+
+/* --- ESTILOS PARA GÉNEROS (CHIPS) --- */
+.genre-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+}
+
+.genre-option {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+}
+
+/* Ocultar el checkbox nativo */
+.genre-option input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* Estilo visual del Chip */
+.genre-option span {
+    display: inline-block;
+    font-size: var(--form-chip-size);
+    padding: 0.5rem 1rem;
+    border-radius: 50px; /* Forma de píldora */
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: var(--text-light);
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+/* Hover del Chip */
+.genre-option:hover span {
+    border-color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.1);
+    transform: translateY(-1px);
+}
+
+/* Estado Seleccionado del Chip */
+.genre-option input[type="checkbox"]:checked + span {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+    box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.3);
+    transform: translateY(-1px);
+}
+
+/* --- Estilos de Botones (Redondeados) --- */
+form .btn {
+    padding: 0.8rem 1.5rem;
+    font-size: var(--btn-main-size);
+    font-weight: 600;
+    border-radius: var(--btn-main-radius);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-width: 2px;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+form .btn-primary:hover {
+    background: rgb(77, 19, 92);
+    color: white;
+    border-color: rgb(77, 19, 92);
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
+}
+
+form .btn-outline:hover {
+    background: rgba(var(--primary-rgb), 0.25);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.form-error {
+    display: block;
+    color: #ff6b6b;
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+}

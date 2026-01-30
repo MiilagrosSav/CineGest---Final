@@ -1,51 +1,59 @@
 {% extends "accounts/base.html" %}
+{% load static %}
 
-{% block title %}Gestión de Empleados{% endblock %}
+{% block title %}Gestión de Empleados - CineGest{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'accounts/css/employee_list.css' %}?v=1.1">
+{% endblock %}
 
 {% block content %}
 <div class="container">
     
     <div class="mb-lg">
-        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">👥 Gestión de Empleados</h1>
+        <h1 class="card-title text-gradient-primary">👥 Gestión de Empleados</h1>
+        <p class="card-subtitle">Administre el personal del cine, sus accesos y estados.</p>
     </div>
 
     <div class="card glass-container">
         
-        <div style="overflow-x: auto;">
-            <table style="width: 100%; border-collapse: collapse; text-align: left;">
+        <div class="table-responsive">
+            <table class="employee-table">
                 <thead>
-                    <tr style="border-bottom: 1px solid var(--glass-border);">
-                        <th style="padding: var(--space-sm);">Usuario</th>
-                        <th style="padding: var(--space-sm);">Nombre Completo</th>
-                        <th style="padding: var(--space-sm);">DNI</th>
-                        <th style="padding: var(--space-sm);">Email</th>
-                        <th style="padding: var(--space-sm);">Fecha Ingreso</th>
-                        <th style="padding: var(--space-sm);">Estado</th>
+                    <tr>
+                        <th>Usuario</th>
+                        <th>Nombre Completo</th>
+                        <th>DNI</th>
+                        <th>Email</th>
+                        <th>Fecha Ingreso</th>
+                        <th>Estado</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for employee in employees %}
-                    <tr class="employee-row" data-id="{{ employee.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
-                        <td style="padding: var(--space-sm); font-weight: 600;">{{ employee.username }}</td>
-                        <td style="padding: var(--space-sm);">{{ employee.get_full_name|default:"-" }}</td>
-                        <td style="padding: var(--space-sm);">{{ employee.dni|default:"-" }}</td>
-                        <td style="padding: var(--space-sm); font-size: 0.9rem; color: var(--gray);">{{ employee.email }}</td>
-                        <td style="padding: var(--space-sm);">
+                    <tr class="employee-row" data-id="{{ employee.pk }}">
+                        <td class="font-semibold">{{ employee.username }}</td>
+                        <td>{{ employee.get_full_name|default:"-" }}</td>
+                        <td>{{ employee.dni|default:"-" }}</td>
+                        <td class="text-email">{{ employee.email }}</td>
+                        <td>
                             {% if employee.empleado %}
                                 {{ employee.empleado.fecha_ingreso|date:"d/m/Y" }}
                             {% else %}
                                 -
                             {% endif %}
                         </td>
-                        <td style="padding: var(--space-sm);">
+                        <td>
                             {% if employee.is_active %}
-                                <span style="color: #38ef7d; font-weight: 500;">🟢 Activo</span> {% else %}
-                                <span style="color: #ef4444; font-weight: 500;">🔴 Inactivo</span> {% endif %}
+                                <span class="status-active">🟢 Activo</span>
+                            {% else %}
+                                <span class="status-inactive">🔴 Inactivo</span>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-secondary" style="padding: var(--space-lg);">
+                        <td colspan="6" class="text-center no-data">
                             No hay empleados registrados todavía. ¡Añade el primero!
                         </td>
                     </tr>
@@ -54,197 +62,27 @@
             </table>
 
             {% include "cine/pagination.html" %}
-            
-            </div>
+        </div>
         
-        <div class="abm-panel" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-md); padding: var(--space-md); border-top: 1px solid var(--glass-border);">
-            <div>
-                <a href="{% url 'accounts:create_employee' %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+        <div class="abm-panel">
+            <div class="panel-left">
+                <a href="{% url 'accounts:create_employee' %}" class="btn btn-primary">
                     ✚ Crear Nuevo Empleado
                 </a>
             </div>
-            <div style="display: flex; gap: var(--space-sm);">
-                <button id="btn-modificar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
+            <div class="panel-right">
+                <button id="btn-modificar" class="btn btn-outline" disabled>
                     ✏️ Modificar
                 </button>
-                <button id="btn-eliminar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
+                <button id="btn-eliminar" class="btn btn-outline" disabled>
                     🗑️ Eliminar
                 </button>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
 
-<style>
-    /* --- Estilos para la Barra de Botones de la Lista --- */
-    /* Apunta a los botones dentro del 'abm-panel' */
-    .abm-panel .btn,
-    .abm-panel .btn-primary,
-    .abm-panel .btn-outline,
-    .abm-panel .btn-secondary {
-        padding: 0.7rem 1.3rem;
-        font-size: 0.9rem; 
-        font-weight: 600;
-        border-radius: 9999px; /* Forma de píldora */
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-width: 2px;
-        transition: all 0.3s ease-in-out;
-        position: relative;
-        overflow: hidden;
-    }
-
-    /* Hover para el botón PRIMARIO (Nuevo) */
-    .abm-panel .btn-primary:hover {
-        background: rgb(77, 19, 92); /* El estilo que te gusta */
-        color: white;
-        border: none;
-    }
-
-    /* Hover para botones OUTLINE (Modificar) */
-    .abm-panel .btn-outline:not(:disabled):hover {
-        background: rgba(var(--primary-rgb), 0.25);
-        border-color: var(--primary);
-        color: var(--primary);
-        transform: translateY(-1px) scale(1.01);
-        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
-    }
-    
-    /* Hover para botones SECONDARY (Eliminar) */
-    .abm-panel .btn-secondary:not(:disabled):hover {
-        --danger-color: #ff6b6b;
-        --danger-rgb: 255, 107, 107;
-        background: transparent;
-        border-color: var(--danger-color);
-        color: var(--danger-color);
-        transform: translateY(-1px) scale(1.01);
-        box-shadow: 0 4px 10px rgba(var(--danger-rgb), 0.2);
-    }
-
-    /* Estado DESHABILITADO */
-    .abm-panel .btn-outline:disabled,
-    .abm-panel .btn-secondary:disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        background: transparent;
-        border-color: var(--glass-border);
-        color: var(--text-secondary);
-        transform: none;
-        box-shadow: none;
-    }
-    .btn:disabled,
-    .btn-outline:disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    /* --- Tus estilos de fila (sin cambios) --- */
-    .employee-row {
-        transition: background-color 0.2s ease;
-    }
-    .employee-row:hover {
-        background-color: rgba(255, 255, 255, 0.05);
-    }
-    .employee-row.selected {
-        background-color: rgba(var(--primary-rgb), 0.15);
-        border-left: 3px solid var(--primary);
-    }
-    .selection-info {
-        display: inline-block;
-        margin-left: 10px;
-        font-size: 0.9em;
-        opacity: 0.7;
-    }
-</style>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Apunta a las filas DENTRO del 'overflow-x' div
-        const rows = document.querySelectorAll('.employee-row');
-        const btnModificar = document.getElementById('btn-modificar');
-        const btnEliminar = document.getElementById('btn-eliminar');
-        
-        // Variable para almacenar la selección actual
-        let selectedRows = [];
-        
-        // Función para actualizar la interfaz según la selección
-        function updateUI() {
-            // Chequeo de seguridad por si los botones no existen
-            if (!btnModificar || !btnEliminar) return;
-            
-            // Actualizar estado de botones
-            btnModificar.disabled = selectedRows.length !== 1;
-            btnEliminar.disabled = selectedRows.length === 0;
-            
-            // Actualizar texto del botón eliminar con contador
-            if (selectedRows.length > 0) {
-                btnEliminar.textContent = `🗑️ Eliminar ${selectedRows.length > 1 ? `(${selectedRows.length})` : ''}`;
-            } else {
-                btnEliminar.textContent = '🗑️ Eliminar';
-            }
-        }
-        
-        // Función para seleccionar/deseleccionar una fila
-        function toggleRowSelection(row) {
-            const rowId = row.dataset.id;
-            
-            if (row.classList.contains('selected')) {
-                // Deseleccionar
-                row.classList.remove('selected');
-                selectedRows = selectedRows.filter(id => id !== rowId);
-            } else {
-                // Seleccionar
-                row.classList.add('selected');
-                selectedRows.push(rowId);
-            }
-            
-            updateUI();
-        }
-        
-        // Evento para el clic en fila
-        rows.forEach(row => {
-            row.addEventListener('click', function(event) { // 'event' añadido
-
-                // Si se mantiene presionada la tecla Ctrl, permite selección múltiple
-                if (!event.ctrlKey && !event.metaKey) {
-                    // Si no se presiona Ctrl/Cmd, deseleccionar todas las demás
-                    rows.forEach(r => {
-                        if (r !== this && r.classList.contains('selected')) {
-                            r.classList.remove('selected');
-                        }
-                    });
-                    selectedRows = [];
-                }
-                
-                toggleRowSelection(this);
-            });
-        });
-        
-        // Evento para botón modificar
-        if(btnModificar) btnModificar.addEventListener('click', function() {
-            if (selectedRows.length === 1) {
-                window.location.href = `/accounts/employees/${selectedRows[0]}/edit/`;
-            }
-        });
-        
-        // Evento para botón eliminar
-        if(btnEliminar) btnEliminar.addEventListener('click', function() {
-            if (selectedRows.length === 0) return;
-            
-            if (selectedRows.length === 1) {
-                window.location.href = `/accounts/employees/${selectedRows[0]}/delete/`;
-            } else {
-                if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} empleados seleccionados?`)) {
-                    // Aquí implementaríamos la eliminación masiva
-                    alert('Función de eliminación masiva en desarrollo');
-                }
-            }
-        });
-        
-        // Inicializar UI (si los botones existen)
-        if(btnModificar && btnEliminar) {
-            updateUI();
-        }
-    });
-</script>
+{% block extra_js %}
+    <script src="{% static 'accounts/js/employee_list.js' %}?v=1.1"></script>
 {% endblock %}

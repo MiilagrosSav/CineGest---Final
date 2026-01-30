@@ -1,0 +1,54 @@
+
+    /* --- Estilos para la Barra de Botones de la Lista --- */
+    #politicasTableContainer + div .btn,
+    #politicasTableContainer + div .btn-primary,
+    #politicasTableContainer + div .btn-outline {
+        padding: 0.7rem 1.3rem;
+        font-size: 0.9rem; 
+        font-weight: 600;
+        border-radius: 9999px; /* Forma de píldora */
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-width: 2px;
+        transition: all 0.3s ease-in-out;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    #politicasTableContainer + div .btn-primary:hover {
+        background: rgb(77, 19, 92);
+        color: white;
+        border: none;
+    }
+    #politicasTableContainer + div .btn-outline:not(:disabled):hover {
+        background: rgba(var(--primary-rgb), 0.25);
+        border-color: var(--primary);
+        transform: translateY(-1px) scale(1.01);
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
+    }
+    #politicasTableContainer + div .btn-outline:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background: transparent;
+        border-color: var(--glass-border);
+        color: var(--text-secondary);
+        transform: none;
+        box-shadow: none;
+    }
+    .btn:disabled,
+    .btn-outline:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* --- Estilos de Fila (Nuevos) --- */
+    .politica-row {
+        transition: background-color 0.2s ease;
+    }
+    .politica-row:hover {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    .politica-row.selected {
+        background-color: rgba(var(--primary-rgb), 0.15);
+        border-left: 3px solid var(--primary);
+    }

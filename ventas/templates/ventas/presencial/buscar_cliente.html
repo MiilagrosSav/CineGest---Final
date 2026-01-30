@@ -108,8 +108,7 @@
                                             {% endif %}
                                             
                                             <p style="margin: 6px 0 0 0; font-size: 0.85rem; opacity: 0.6;">
-                                                {{ venta.cantidad_entradas }} entrada(s) • {{ venta.tipo_venta }}
-                                                {% if venta.medio_pago %} • {{ venta.get_medio_pago_display }}{% endif %}
+                                                {{ venta.cantidad_entradas }} entrada(s) • {{ venta.tipo_venta }} • {{ venta.get_metodo_pago_normalizado }}
                                             </p>
                                         </div>
                                         

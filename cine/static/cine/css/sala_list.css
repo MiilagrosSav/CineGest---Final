@@ -1,0 +1,80 @@
+/* --- Estilos para la Barra de Botones de la Lista --- */
+#salaTableContainer + div .btn,
+#salaTableContainer + div .btn-primary,
+#salaTableContainer + div .btn-outline {
+    padding: 0.7rem 1.3rem;
+    font-size: 0.9rem; 
+    font-weight: 600;
+    border-radius: 9999px; /* Forma de píldora */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-width: 2px;
+    transition: all 0.3s ease-in-out;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Hover para el botón PRIMARIO */
+#salaTableContainer + div .btn-primary:hover {
+    background: rgb(77, 19, 92); /* El estilo que te gusta */
+    color: white;
+    border: none;
+}
+
+/* Hover para botones OUTLINE (activos) */
+#salaTableContainer + div .btn-outline:not(:disabled):hover {
+    background: rgba(var(--primary-rgb), 0.25);
+    border-color: var(--primary);
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
+}
+
+/* Estado DESHABILITADO */
+#salaTableContainer + div .btn-outline:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+    border-color: var(--glass-border);
+    color: var(--text-secondary);
+    transform: none;
+    box-shadow: none;
+}
+.btn:disabled,
+.btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- Tus estilos de fila (adaptados) --- */
+.sala-row {
+    transition: background-color 0.2s ease;
+}
+.sala-row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+.sala-row.selected {
+    background-color: rgba(var(--primary-rgb), 0.15);
+    border-left: 3px solid var(--primary);
+}
+
+/* Estilo para badge de sala */
+.badge-sala {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-radius: 50px;
+    background: rgba(139, 95, 191, 0.15);
+    border: 1px solid rgba(139, 95, 191, 0.3);
+    color: #e0e0e0;
+    white-space: nowrap;
+}
+
+/* Estilo para botón de layout */
+.btn-layout:hover {
+    background: rgba(78, 205, 196, 0.3) !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(78, 205, 196, 0.3);
+}

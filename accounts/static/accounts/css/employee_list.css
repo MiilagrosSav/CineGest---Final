@@ -1,0 +1,113 @@
+/* accounts/static/accounts/css/employee_list.css */
+
+/* --- Estructura de Tabla --- */
+.table-responsive {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: var(--space-md);
+}
+
+.employee-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+.employee-table th, 
+.employee-table td {
+    padding: 1.2rem var(--space-sm); /* Más espacio vertical para que no se vea amontonado */
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.employee-table th {
+    font-family: inherit;
+    text-transform: capitalize;
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    color: white; /* Encabezados morados como en tu imagen */
+    font-weight: 700;
+}
+
+/* --- Filas Seleccionables --- */
+.employee-row {
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+}
+
+.employee-row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.employee-row.selected {
+    background-color: rgba(var(--primary-rgb), 0.15) !important;
+    border-left: 3px solid var(--primary);
+}
+
+/* --- Panel de Acciones (ABM) --- */
+.abm-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--space-md);
+    padding: 2rem var(--space-md); /* Más padding para separar de la tabla */
+    border-top: 1px solid var(--glass-border);
+}
+
+/* --- BOTONES (Copiados de tu imagen de Películas) --- */
+
+.abm-panel .btn {
+    padding: 0.6rem 1.5rem;
+    font-size: 0.9rem; 
+    font-weight: 700;
+    border-radius: 9999px; 
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-width: 2px;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+/* Botón "CREAR NUEVO" (Fondo Morado) */
+.abm-panel .btn-primary {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: white;
+}
+
+.abm-panel .btn-primary:hover {
+    background: rgb(77, 19, 92); 
+    border-color: rgb(77, 19, 92);
+    transform: translateY(-2px);
+}
+
+/* Botones "MODIFICAR" y "ELIMINAR" (Borde y Letras Moradas) */
+.abm-panel .btn-outline {
+    background: rgba(var(--primary-rgb), 0.1); /* Fondo morado muy sutil */
+    border: 2px solid var(--primary);           /* Borde Morado */
+    color: var(--primary);                      /* LETRAS MORADAS */
+}
+
+.abm-panel .btn-outline:not(:disabled):hover {
+    background: rgba(var(--primary-rgb), 0.2);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
+}
+
+/* --- ESTADO DESHABILITADO (Gris suave como en tu imagen) --- */
+.abm-panel .btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: var(--glass-border) !important;
+    color: var(--text-secondary) !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Iconos y utilidades */
+.status-active { color: #38ef7d; }
+.status-inactive { color: #ef4444; }
