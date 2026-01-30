@@ -1,0 +1,232 @@
+/* --- NUEVA ESTRUCTURA DEL DISEÑADOR --- */
+.designer-page {
+    padding: var(--space-md);
+}
+.generation-panel {
+    margin-bottom: var(--space-md);
+    padding: var(--space-md);
+}
+.generation-header {
+    text-align: center;
+    margin-bottom: var(--space-lg);
+}
+.generation-header .card-title {
+    font-size: 2rem;
+}
+.generation-controls {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: var(--space-lg);
+    flex-wrap: wrap;
+}
+.generation-controls > div {
+    flex-grow: 1;
+    max-width: 250px;
+}
+.generation-controls .btn {
+    height: 44px; /* Alinea con los inputs */
+    flex-shrink: 0;
+}
+
+.designer-main-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px; /* Columna principal y sidebar */
+    gap: var(--space-md);
+    align-items: flex-start;
+}
+
+.designer-canvas .card {
+    padding: var(--space-md);
+}
+
+.designer-sidebar .card {
+    padding: var(--space-md);
+    position: sticky;
+    top: var(--space-md);
+}
+.sidebar-title {
+    text-align: center;
+    font-weight: 600;
+    color: var(--primary);
+    margin-bottom: var(--space-lg);
+    font-size: 1.3rem;
+}
+.tool-section {
+    margin-bottom: var(--space-md);
+}
+.instructions-box {
+    background: rgba(139, 95, 191, 0.1);
+    padding: var(--space-sm);
+    border-radius: var(--radius);
+    margin-bottom: var(--space-md);
+    font-size: 0.9rem;
+}
+.instructions-box ul {
+    margin: 0.5rem 0 0 1.5rem;
+    padding: 0;
+}
+.seat-legend {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-lg);
+}
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+.legend-swatch {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+}
+.legend-swatch.general { background: #4A90E2; }
+.legend-swatch.cuatrod { background: #7ED321; }
+.legend-swatch.discapacitado { background: #9B59B6; }
+.legend-swatch.pasillo {
+    background: #3a3a3a;
+    border: 2px solid #555;
+}
+.button-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-sm);
+}
+.button-bar .btn-save {
+    grid-column: 1 / -1; /* Ocupa todo el ancho */
+}
+.btn-save {
+    background: #4ecdc4;
+}
+.btn-save:hover {
+    background: #45b8b0;
+}
+
+/* Pantalla */
+.screen-container {
+    text-align: center;
+    margin-bottom: var(--space-md);
+}
+.screen-display {
+    background: linear-gradient(to bottom, rgba(139, 95, 191, 0.3), transparent);
+    padding: var(--space-sm);
+    border-radius: var(--radius);
+    display: inline-block;
+    min-width: 80%;
+    font-weight: 600;
+    letter-spacing: 2px;
+}
+
+/* Área de Asientos */
+#areaAsientos {
+    padding: var(--space-lg);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: var(--radius);
+    min-height: 450px;
+    overflow-x: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: center;
+}
+#areaAsientos .placeholder-text {
+    color: var(--gray);
+    text-align: center;
+    padding: 2rem;
+    font-size: 1.1rem;
+}
+
+/* Contador */
+.seat-counter-box {
+    text-align: center;
+    margin-top: var(--space-md);
+    padding: var(--space-sm);
+    background: rgba(139, 95, 191, 0.1);
+    border-radius: var(--radius);
+}
+.seat-counter-box strong {
+    color: var(--primary);
+}
+#contadorAsientos {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #4ecdc4;
+}
+
+
+/* --- ESTILOS DE ASIENTOS --- */
+.asiento {
+    width: 32px;
+    height: 32px;
+    border-radius: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.7rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.asiento:hover {
+    transform: scale(1.15);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+.asiento.GENERAL {
+    background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+}
+.asiento[data-tipo="4D"] {
+    background: linear-gradient(135deg, #7ED321 0%, #6BB91C 100%);
+}
+.asiento.DISCAPACITADO {
+    background: linear-gradient(135deg, #9B59B6 0%, #8E44AD 100%);
+}
+.asiento.vacio {
+    background: #3a3a3a;
+    border: 2px solid #555;
+    color: #666;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.asiento.vacio:hover {
+    background: #454545;
+    border-color: #777;
+}
+.fila-asientos {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.label-fila {
+    width: 30px;
+    text-align: center;
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 0.85rem;
+    background: rgba(139, 95, 191, 0.1);
+    padding: 0.3rem;
+    border-radius: 4px;
+}
+
+/* Media query para pantallas más pequeñas */
+@media (max-width: 992px) {
+    .designer-main-layout {
+        grid-template-columns: 1fr; /* Apila las columnas */
+    }
+    .designer-sidebar .card {
+        position: static; /* Elimina el sticky en móvil */
+    }
+}
+
+/* --- ESTILOS DE NOTIFICACIÓN --- */
+@keyframes slideIn {
+    from { transform: translateX(400px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+@keyframes slideOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(400px); opacity: 0; }
+}

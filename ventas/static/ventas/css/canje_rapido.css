@@ -1,0 +1,148 @@
+/* --- Input del Escáner --- */
+.scanner-wrapper {
+    position: relative;
+    margin-bottom: var(--space-lg);
+}
+.scanner-input {
+    width: 100%;
+    padding: 1.2rem 3.5rem 1.2rem 1.2rem;
+    font-size: 1.2rem;
+    font-weight: 600;
+    border: 3px solid var(--glass-border);
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.05);
+    color: white;
+    transition: all 0.3s ease;
+    text-align: center;
+    letter-spacing: 2px;
+}
+.scanner-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 20px rgba(var(--primary-rgb), 0.3);
+}
+.scanner-icon {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.8rem;
+    color: var(--primary);
+    pointer-events: none;
+}
+
+/* --- Loading --- */
+.loading-container {
+    text-align: center;
+    padding: 2rem;
+    display: none;
+}
+.loading-container.show { display: block; }
+.spinner {
+    border: 4px solid rgba(255, 255, 255, 0.1);
+    border-top: 4px solid var(--primary);
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }
+
+/* --- Tarjetas de Resultado (Inyectadas por JS) --- */
+.result-card {
+    padding: var(--space-lg);
+    border-radius: var(--radius);
+    margin-bottom: var(--space-md);
+    animation: slideIn 0.4s ease;
+}
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Éxito */
+.result-card.success {
+    background: rgba(76, 175, 80, 0.1);
+    border: 2px solid #4CAF50;
+}
+.success-title { color: #4CAF50; margin: 0; display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; }
+
+/* Error */
+.result-card.error {
+    background: rgba(255, 107, 107, 0.1);
+    border: 2px solid #ff6b6b;
+}
+.error-title { color: #ff6b6b; margin: 0; display: flex; align-items: center; gap: 0.5rem; font-size: 1.5rem; }
+
+/* Detalles del Resultado */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-md);
+    margin: var(--space-md) 0;
+    padding: var(--space-md);
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: var(--radius);
+}
+.info-item small { display: block; color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+.info-item strong { display: block; color: white; font-size: 1.1rem; margin-top: 2px; }
+
+/* Botones de Acción en Resultado */
+.result-actions {
+    display: flex;
+    gap: var(--space-sm);
+    justify-content: center;
+    margin-top: var(--space-md);
+}
+
+/* --- Historial --- */
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+    max-height: 300px;
+    overflow-y: auto;
+}
+.empty-history { text-align: center; color: var(--text-secondary); font-style: italic; padding: 1rem; }
+
+.history-item {
+    padding: var(--space-sm);
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: var(--radius);
+    border: 1px solid var(--glass-border);
+    font-size: 0.9rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.history-item strong { color: var(--primary); }
+.history-time { font-size: 0.8rem; color: var(--text-secondary); }
+
+/* Botones Generales */
+.btn {
+    padding: 0.8rem 1.5rem; font-size: 1rem; font-weight: 600; border-radius: 9999px; text-transform: uppercase; letter-spacing: 0.5px; border-width: 2px; transition: all 0.3s ease; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.btn-success { background: #4CAF50; color: white; border: 2px solid #4CAF50; }
+.btn-success:hover { background: #388E3C; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4); }
+
+.btn-danger { background: transparent; color: #ff6b6b; border: 2px solid #ff6b6b; }
+.btn-danger:hover { background: #ff6b6b; color: white; transform: translateY(-2px); }
+
+/* PRINT */
+@media print {
+    body * { visibility: hidden; }
+    #ticket-print-area, #ticket-print-area * { visibility: visible; }
+    #ticket-print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    .scanner-wrapper,
+    .card,
+    .mb-lg,
+    .result-actions,
+    nav,
+    footer { display: none !important; }
+}

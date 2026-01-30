@@ -7,7 +7,7 @@ from datetime import timedelta
 from django.db.models import Q
 
 from cine.models import Funcion, Butaca
-from ventas.models import Venta, Entrada
+from ventas.models import Venta, Entrada, Pago, MetodoPago
 from accounts.models import Cliente
 from accounts.utils import get_or_create_consumidor_final
 from accounts.decorators import solo_empleados
@@ -173,7 +173,7 @@ def procesar_venta_presencial(request):
         messages.error(request, 'Método no permitido.')
         return redirect('ventas:dashboard_presencial')
 
-    medio_pago = request.POST.get('medio_pago', 'EFECTIVO')
+    medio_pago_str = request.POST.get('medio_pago', 'EFECTIVO')
     datos_venta = request.session.get('venta_presencial')
 
     if not datos_venta:
@@ -186,14 +186,26 @@ def procesar_venta_presencial(request):
     funcion = get_object_or_404(Funcion, id=funcion_id)
     cliente = get_or_create_consumidor_final()
 
+    # Mapeo: String del formulario → Nombre en MetodoPago
+    metodo_map = {
+        'EFECTIVO': 'Efectivo',
+        'TARJETA': 'Tarjeta',
+        'MERCADOPAGO': 'Mercado Pago',
+    }
+    
+    metodo_nombre = metodo_map.get(medio_pago_str, 'Efectivo')
+
     try:
+        # Obtener el MetodoPago desde la BD
+        metodo_pago_obj = MetodoPago.objects.get(nombre=metodo_nombre)
+        
         with transaction.atomic():
             venta = Venta.objects.create(
                 id_cliente=cliente,
                 id_empleado=getattr(request.user, 'empleado', None),
                 tipo_venta='PRESENCIAL',
                 estado='CONFIRMADA',
-                medio_pago=medio_pago
+                medio_pago=medio_pago_str
             )
 
             # Crear entradas y marcar como VENDIDA
@@ -219,6 +231,16 @@ def procesar_venta_presencial(request):
                     reservado_por=request.user
                 )
 
+            # Crear Pago con FK a MetodoPago
+            Pago.objects.create(
+                id_venta=venta,
+                monto=venta.calcular_total(),
+                fecha_pago=timezone.now(),
+                estado='COMPLETADO',
+                nro_transaccion=f'PRES-{venta.id_venta}',
+                id_metodo_pago=metodo_pago_obj
+            )
+
             # Limpiar sesión
             if 'venta_presencial' in request.session:
                 del request.session['venta_presencial']
@@ -226,6 +248,13 @@ def procesar_venta_presencial(request):
             # Redirigir a ticket exitoso en lugar de detalle_venta
             return redirect('ventas:ticket_exitoso', venta_id=venta.id_venta)
 
+    except MetodoPago.DoesNotExist:
+        messages.error(
+            request, 
+            f'❌ Método de pago "{metodo_nombre}" no encontrado. '
+            'Ejecuta: python scripts/crear_metodos_pago_completos.py'
+        )
+        return redirect('ventas:dashboard_presencial')
     except Exception as e:
         messages.error(request, f'Error procesando venta: {e}')
         return redirect('ventas:dashboard_presencial')

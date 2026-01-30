@@ -1,6 +1,11 @@
 {% extends "accounts/base.html" %}
+{% load static %}
 
 {% block title %}{{ titulo_pagina }} - CineGest{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'cine/css/sala_form.css' %}?v=1.0">
+{% endblock %}
 
 {% block content %}
 <div class="container" style="max-width: var(--form-max-width, 768px);">
@@ -54,10 +59,33 @@
                 </div>
             {% endfor %}
 
-            <div style="display: flex; gap: var(--space-md); margin-top: var(--space-lg);">
+            {% if object.pk and tiene_butacas_vendidas %}
+            <div class="message message-warning" style="margin-top: var(--space-md); text-align: left;">
+                <strong>⚠️ Advertencia:</strong>
+                <p style="margin-top: var(--space-xs); font-size: 0.9rem;">
+                    Esta sala tiene <strong>butacas vendidas</strong> y no se puede reconfigurar el layout por seguridad. 
+                    Solo puedes modificar el nombre, estado activo y observaciones de la sala.
+                </p>
+            </div>
+            {% endif %}
+
+            <div style="display: flex; gap: var(--space-md); margin-top: var(--space-lg); flex-wrap: wrap;">
                 <button type="submit" class="btn btn-primary" style="flex: 1;">
                     {{ nombre_boton }}
                 </button>
+                
+                {% if object.pk %}
+                    {% if tiene_butacas_vendidas %}
+                        <button type="button" class="btn btn-accent btn-disabled" style="flex: 1; cursor: not-allowed;" disabled title="No se puede modificar: tiene butacas vendidas">
+                            🔒 Layout Bloqueado
+                        </button>
+                    {% else %}
+                        <a href="{% url 'cine:disenar_layout_sala' object.pk %}" class="btn btn-accent" style="flex: 1; text-align: center; text-decoration: none;">
+                            ✨ Configurar Layout
+                        </a>
+                    {% endif %}
+                {% endif %}
+                
                 <a href="{% url 'cine:sala_list' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">
                     🔙 Cancelar
                 </a>
@@ -66,100 +94,5 @@
     </div>
 </div>
 
-<style>
-    /* --- (NUEVO) PANEL DE CONTROL DE TAMAÑOS --- */
-    :root {
-        --form-max-width: 768px;
-        --form-label-size: 1rem;
-        --form-input-size: 1rem;
-        --form-chip-size: 1rem;
-        --btn-main-size: 1rem;
-        --btn-main-radius: 9999px;
-    }
-    /* --- FIN DEL PANEL DE CONTROL --- */
-
-    form .form-label {
-        font-size: var(--form-label-size);
-        margin-bottom: var(--space-sm);
-        font-weight: 600;
-    }
-    form .form-input,
-    form .form-select {
-        font-size: var(--form-input-size);
-        padding: 0.8rem 1rem;
-    }
-    form .btn {
-        padding: 0.8rem 1.5rem;
-        font-size: var(--btn-main-size);
-        font-weight: 600;
-        border-radius: var(--btn-main-radius);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    .formato-option span {
-        font-size: var(--form-chip-size);
-        font-weight: 500;
-        line-height: 1;
-    }
-    .formato-option {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 1.15rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        border-radius: 6px;
-        user-select: none;
-        background: transparent;
-        border: 2px solid rgba(139, 95, 191, 0.4);
-        color: var(--text-light);
-    }
-    .formato-option:hover {
-        border-color: var(--primary);
-        background: rgba(var(--primary-rgb), 0.1);
-    }
-    .formato-option input[type="radio"] {
-        appearance: auto !important;
-        -webkit-appearance: auto !important;
-        -moz-appearance: auto !important;
-        opacity: 1 !important;
-        width: 1.1em !important;
-        height: 1.1em !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        flex-shrink: 0;
-        accent-color: var(--primary);
-        cursor: pointer;
-    }
-</style>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const form = document.querySelector('form');
-        
-        const password1 = document.querySelector('input[name="password1"]');
-        const password2 = document.querySelector('input[name="password2"]');
-        
-        if (password1 && password2) {
-            password2.addEventListener('input', function() {
-                if (password1.value !== password2.value) {
-                    password2.setCustomValidity('Las contraseñas no coinciden');
-                } else {
-                    password2.setCustomValidity('');
-                }
-            });
-        }
-        
-        const inputs = form.querySelectorAll('input, select, textarea');
-        inputs.forEach(input => {
-            input.addEventListener('blur', function() {
-                if (this.validity.valid) {
-                    this.style.borderColor = '#4ecdc4';
-                } else if (this.value) {
-                    this.style.borderColor = '#ff6b6b';
-                }
-            });
-        });
-    });
-</script>
+<script src="{% static 'cine/js/sala_form.js' %}?v=1.0"></script>
 {% endblock %}

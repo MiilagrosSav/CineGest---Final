@@ -1,6 +1,10 @@
 {% extends "accounts/base.html" %}
-
+{% load static %}
 {% block title %}Editar Perfil - CineGest{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'accounts/css/profile_form.css' %}?v=1.0">
+{% endblock %}
 
 {% block content %}
 <div class="container" style="max-width: 600px;">
@@ -62,101 +66,4 @@
         </form>
     </div>
 </div>
-
-<style>
-    /* --- Estilos de Formulario --- */
-    .form-group {
-        margin-bottom: 1.2rem;
-    }
-    
-    .form-label {
-        display: block;
-        margin-bottom: 0.5rem;
-        font-weight: 600;
-        font-size: 1rem;
-        color: var(--text-light);
-    }
-
-    /* Inputs */
-    form input[type="text"],
-    form input[type="email"] {
-        font-size: 1rem;
-        padding: 0.8rem 1rem;
-        width: 100%;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--glass-border);
-        border-radius: 8px;
-        color: var(--text-light);
-        font-family: inherit;
-        transition: all 0.3s ease;
-    }
-    
-    form input:focus {
-        outline: none;
-        border-color: var(--primary);
-        background: rgba(255, 255, 255, 0.08);
-        box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.15);
-    }
-
-    /* --- Estilos de Botones (Ajustados) --- */
-    .btn {
-        /* CAMBIO: Padding y tamaño de letra reducidos */
-        padding: 0.6rem 1.2rem; 
-        font-size: 0.95rem;
-        
-        font-weight: 600;
-        border-radius: 9999px; /* Píldora */
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-width: 2px;
-        transition: all 0.3s ease;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-    }
-
-    /* Botón Primario */
-    .btn-primary {
-        background: var(--primary);
-        color: white;
-        border: 2px solid var(--primary);
-    }
-    .btn-primary:hover {
-        background: rgb(77, 19, 92);
-        border-color: rgb(77, 19, 92);
-        transform: translateY(-1px) scale(1.01);
-        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
-    }
-
-    /* Botón Outline (Cancelar) */
-    .btn-outline {
-        background: transparent;
-        color: var(--text-light);
-        
-        /* CAMBIO: Borde más visible para que se note */
-        border: 2px solid rgba(255, 255, 255, 0.3); 
-    }
-    .btn-outline:hover {
-        background: rgba(var(--primary-rgb), 0.25);
-        border-color: var(--primary);
-        color: var(--primary);
-        transform: translateY(-1px) scale(1.01);
-    }
-
-    /* Botón Secundario (Cambiar Contraseña) */
-    .btn-secondary {
-        background: transparent;
-        color: var(--text-secondary);
-        border: 2px solid rgba(255, 255, 255, 0.1);
-        font-size: 0.9rem;
-    }
-    .btn-secondary:hover {
-        background: rgba(255, 255, 255, 0.05);
-        border-color: var(--text-light);
-        color: var(--text-light);
-        transform: translateY(-1px);
-    }
-</style>
 {% endblock %}

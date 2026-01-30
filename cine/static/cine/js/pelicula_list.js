@@ -1,8 +1,10 @@
-// JS extracted from templates/cine/pelicula_list.html
 var selectedRows = [];
 var btnModificar = null;
 var btnEliminar = null;
 
+/**
+ * Función para ordenar por columna
+ */
 function ordenarPor(columna) {
     const urlParams = new URLSearchParams(window.location.search);
     const ordenActual = urlParams.get('orden');
@@ -13,6 +15,9 @@ function ordenarPor(columna) {
     window.location.href = '?' + urlParams.toString();
 }
 
+/**
+ * Actualiza la UI de los botones
+ */
 function updateUI() {
     if (!btnModificar || !btnEliminar) return;
     btnModificar.disabled = selectedRows.length !== 1;
@@ -21,9 +26,12 @@ function updateUI() {
     else btnEliminar.textContent = '🗑️ Eliminar';
 }
 
+/**
+ * Adjunta los listeners de click a las filas de la tabla.
+ */
 function attachRowListeners(container) {
     if (!container) return;
-    const rows = container.querySelectorAll('.pelicula-row');
+    const rows = container.querySelectorAll('.pelicula-row'); // <- APUNTA A .pelicula-row
     rows.forEach(row => {
         row.addEventListener('click', function(event) {
             if (!event.ctrlKey && !event.metaKey) {
@@ -43,24 +51,32 @@ function attachRowListeners(container) {
     });
 }
 
+/**
+ * Lógica de Carga Inicial (se ejecuta 1 vez)
+ */
 document.addEventListener('DOMContentLoaded', function() {
+    // 1. Encontrar los botones (son estáticos)
     btnModificar = document.getElementById('btn-modificar');
     btnEliminar = document.getElementById('btn-eliminar');
+    
+    // 2. Adjuntar listeners a los botones (apuntando a URLs de PELÍCULAS)
     if(btnModificar) btnModificar.addEventListener('click', function() {
         if (selectedRows.length === 1) {
-            window.location.href = `/peliculas/${selectedRows[0]}/editar/`;
+            window.location.href = `/peliculas/${selectedRows[0]}/editar/`; // <- URL de Película
         }
     });
     if(btnEliminar) btnEliminar.addEventListener('click', function() {
         if (selectedRows.length === 0) return;
         if (selectedRows.length === 1) {
-            window.location.href = `/peliculas/${selectedRows[0]}/eliminar/`;
+            window.location.href = `/peliculas/${selectedRows[0]}/eliminar/`; // <- URL de Película
         } else {
             if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} películas seleccionadas?`)) {
                 alert('Función de eliminación masiva en desarrollo');
             }
         }
     });
+
+    // 3. Adjuntar listeners a los filtros (son estáticos)
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
         let searchTimeout;
@@ -69,36 +85,78 @@ document.addEventListener('DOMContentLoaded', function() {
             searchTimeout = setTimeout(() => { document.getElementById('form-filtros').submit(); }, 500);
         });
     }
+    
+    // (El filtro de género usa 'onchange' en el HTML, no necesita JS aquí)
+
+    // 4. Adjuntar listeners a las filas de la tabla cargada inicialmente
     attachRowListeners(document.getElementById('peliculaTableContainer'));
+    
+    // 5. Inicializar estado de botones
     updateUI();
 });
 
-// AJAX pagination handling
+/**
+ * Lógica de Paginación AJAX (se ejecuta 1 vez)
+ */
 (function(){
     const container = document.getElementById('peliculaTableContainer');
     if (!container) return;
+
+    // Listener para paginación y ordenamiento
     container.addEventListener('click', function(e){
         const a = e.target.closest('a');
         if (!a) return;
         const href = a.getAttribute('href');
+        // Asegurarse que el link sea de paginación u orden
         if (!href || (!a.href.includes('page=') && !a.href.includes('orden=')) || !container.contains(a)) return;
+        
         e.preventDefault();
         container.style.opacity = '0.6';
+
         fetch(href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(r => { if (!r.ok) throw new Error('Network response not ok'); return r.text(); })
             .then(html => {
                 container.innerHTML = html;
-                attachRowListeners(container);
-                selectedRows = [];
-                updateUI();
+                attachRowListeners(container); // Re-adjuntar listeners a las nuevas filas
+                selectedRows = [];             // Resetear selección
+                updateUI();                    // Actualizar botones
                 history.pushState(null, '', href);
             })
             .catch(err => { console.error('AJAX error', err); })
             .finally(()=>{ container.style.opacity = ''; });
     });
+
+    // Listener para botones de historial del navegador
     window.addEventListener('popstate', function(){
          fetch(window.location.href, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
             .then(r => r.text())
-            .then(html => { container.innerHTML = html; attachRowListeners(container); selectedRows = []; updateUI(); });
+            .then(html => { 
+                container.innerHTML = html; 
+                attachRowListeners(container);
+                selectedRows = [];
+                updateUI();
+            });
     });
 })();
+
+/*
+ * Funciones de Modal (si las usás para películas)
+ * (Este código estaba en tu ejemplo de Funciones, lo copio por consistencia)
+ */
+function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? decodeURIComponent(v.pop()) : '';
+}
+
+function openDeleteModal(url) {
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => { if (!r.ok) throw new Error('Network response not ok'); return r.text(); })
+        .then(html => {
+            const tmp = document.createElement('div'); tmp.innerHTML = html;
+            const overlay = tmp.querySelector('#deleteModalOverlay') || tmp.firstElementChild;
+            if (!overlay) { console.error('No modal fragment returned'); window.location.href = url; return; }
+            document.body.appendChild(overlay);
+            if (window.initDeleteModal) window.initDeleteModal();
+        })
+        .catch(err => { console.error('Error loading delete modal', err); window.location.href = url; });
+}

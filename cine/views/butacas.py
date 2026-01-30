@@ -1,4 +1,4 @@
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth.decorators import login_required, user_passes_test
@@ -6,6 +6,7 @@ import json
 from cine.models import Butaca
 from django.shortcuts import render
 from cine.models import Sala
+from django.contrib import messages
 
 
 # --- Vistas para el Diseñador de Butacas ---
@@ -20,8 +21,19 @@ def disenar_layout_sala(request, sala_id):
     """
     Muestra la página del diseñador visual para una sala específica.
     Solo accesible para administradores.
+    Bloquea la edición si la sala tiene butacas vendidas.
     """
     sala = get_object_or_404(Sala, id=sala_id)
+    
+    # Verificar si la sala tiene butacas vendidas
+    if sala.tiene_butacas_vendidas():
+        messages.error(
+            request, 
+            f'No se puede modificar el layout de la Sala {sala.numero} porque tiene butacas vendidas. '
+            'Por seguridad, no es posible reconfigurar una sala con ventas activas.'
+        )
+        return redirect('cine:sala_list')
+    
     butacas = list(sala.butacas.all().order_by('fila', 'numero').values('fila', 'numero', 'tipo', 'es_pasillo'))
     context = {
         'sala': sala,
@@ -38,9 +50,18 @@ def api_guardar_layout_sala(request, sala_id):
     Recibe un JSON con el nuevo layout (incluyendo pasillos), 
     borra las butacas antiguas y crea las nuevas.
     Solo accesible para administradores.
+    Bloquea el guardado si la sala tiene butacas vendidas.
     """
     try:
         sala = get_object_or_404(Sala, id=sala_id)
+        
+        # Verificar si la sala tiene butacas vendidas
+        if sala.tiene_butacas_vendidas():
+            return JsonResponse({
+                'status': 'error', 
+                'message': 'No se puede modificar el layout porque la sala tiene butacas vendidas.'
+            }, status=403)
+        
         data = json.loads(request.body)
 
         # Borrar butacas antiguas

@@ -166,6 +166,30 @@ class Venta(models.Model):
     def cantidad_entradas(self):
         """Retorna la cantidad de entradas de esta venta"""
         return self.entradas.count()
+    
+    def get_metodo_pago_normalizado(self):
+        """
+        Retorna el nombre del método de pago normalizado.
+        Prioriza el método del Pago (FK) sobre el campo medio_pago.
+        
+        Returns:
+            str: Nombre del método de pago normalizado ('Efectivo', 'Mercado Pago', 'Tarjeta')
+        """
+        # Prioridad 1: Si existe un registro de Pago con método asignado
+        if hasattr(self, 'pago') and self.pago and self.pago.id_metodo_pago:
+            return self.pago.id_metodo_pago.nombre
+        
+        # Prioridad 2: Mapear desde el campo medio_pago (legacy)
+        if self.medio_pago:
+            mapeo = {
+                'EFECTIVO': 'Efectivo',
+                'MERCADOPAGO': 'Mercado Pago',
+                'TARJETA': 'Tarjeta',
+            }
+            return mapeo.get(self.medio_pago, self.get_medio_pago_display())
+        
+        # Fallback: Si no hay información disponible
+        return 'No especificado'
 
     # historial de cambios
     history = HistoricalRecords()

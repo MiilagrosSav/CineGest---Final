@@ -273,25 +273,77 @@ class EmployeeUpdateForm(forms.ModelForm):
 
 # --- Formulario para Politica de Reembolso (Admin) ---
 class PoliticaReembolsoForm(forms.ModelForm):
+    
+    nombre = forms.CharField(
+        label='📝 Nombre de la Política',
+        max_length=140,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej: Política de Intercambio 2025',
+            'required': True
+        })
+    )
+    
+    activo = forms.BooleanField(
+        label='🟢 Política activa',
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Si está activa, esta política permite intercambios. Solo una política puede estar activa a la vez.'
+    )
+    
+    dias_antes_minimo = forms.IntegerField(
+        label='📅 Días mínimos antes del evento',
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'placeholder': '1',
+            'required': True,
+            'min': '0'
+        }),
+        help_text='Número mínimo de días de anticipación requeridos para realizar un intercambio.'
+    )
+    
+    penalidad_percent = forms.DecimalField(
+        label='💰 Penalidad (%)',
+        min_value=0,
+        max_value=100,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'placeholder': '0.00',
+            'step': '0.01',
+            'min': '0',
+            'max': '100'
+        }),
+        help_text='Porcentaje de penalidad aplicado al intercambio (0 = sin penalidad).'
+    )
+    
+    max_cambios_por_compra = forms.IntegerField(
+        label='🔄 Máximo de cambios por compra',
+        min_value=0,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'placeholder': '1',
+            'required': True,
+            'min': '0'
+        }),
+        help_text='Número máximo de intercambios permitidos por compra (0 = ilimitado).'
+    )
+    
+    activo = forms.BooleanField(
+        label='🟢 Política activa',
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Si está activa, esta política permite intercambios. Solo una política puede estar activa a la vez.'
+    )
+    
     class Meta:
         model = PoliticaReembolso
-        fields = ['nombre', 'permitir_intercambio', 'dias_antes_minimo', 'penalidad_percent', 'max_cambios_por_compra', 'activo']
-        widgets = {
-            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
-            'permitir_intercambio': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'dias_antes_minimo': forms.NumberInput(attrs={'class': 'form-control'}),
-            'penalidad_percent': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
-            'max_cambios_por_compra': forms.NumberInput(attrs={'class': 'form-control'}),
-            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-        }
-        labels = {
-            'nombre': 'Nombre de la Política',
-            'permitir_intercambio': 'Permitir intercambio',
-            'dias_antes_minimo': 'Días mínimos antes del evento',
-            'penalidad_percent': 'Penalidad (%)',
-            'max_cambios_por_compra': 'Máximo de cambios por compra (0 = ilimitado)',
-            'activo': 'Activa',
-        }
+        fields = ['nombre', 'activo', 'dias_antes_minimo', 'penalidad_percent', 'max_cambios_por_compra']
 
 
 # --- Formulario para Editar Perfil de Cliente ---

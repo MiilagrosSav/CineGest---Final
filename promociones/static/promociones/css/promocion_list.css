@@ -1,0 +1,111 @@
+/* --- Estilos para la Barra de Botones --- */
+#promocionTableContainer + div .btn,
+#promocionTableContainer + div .btn-primary,
+#promocionTableContainer + div .btn-outline {
+    padding: 0.7rem 1.3rem;
+    font-size: 0.9rem; 
+    font-weight: 600;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-width: 2px;
+    transition: all 0.3s ease-in-out;
+    position: relative;
+    overflow: hidden;
+}
+
+#promocionTableContainer + div .btn-primary:hover {
+    background: rgb(77, 19, 92);
+    color: white;
+    border: none;
+}
+#promocionTableContainer + div .btn-outline:not(:disabled):hover {
+    background: rgba(var(--primary-rgb), 0.25);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
+}
+#promocionTableContainer + div .btn-outline:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+    border-color: var(--glass-border);
+    color: var(--text-secondary);
+    transform: none;
+    box-shadow: none;
+}
+.btn:disabled,
+.btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- Estilos de Fila --- */
+.promocion-row {
+    transition: background-color 0.2s ease;
+}
+.promocion-row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+.promocion-row.selected {
+    background-color: rgba(var(--primary-rgb), 0.15);
+    border-left: 3px solid var(--primary);
+}
+
+/* --- Badges --- */
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Badges de TIPO: AUTO vs CUPÓN */
+.badge-auto {
+    background: rgba(168, 85, 247, 0.15);
+    color: #a855f7;
+    border: 1px solid rgba(168, 85, 247, 0.3);
+    font-weight: 600;
+}
+.badge-cupon {
+    background: rgba(170, 170, 170, 0.15);
+    color: #aaa;
+    border: 1px solid rgba(170, 170, 170, 0.3);
+    font-weight: 600;
+}
+
+/* Badges de TIPO DESCUENTO */
+.badge-tipo-porcentaje { background: rgba(76, 175, 80, 0.2); color: #81c784; }
+.badge-tipo-2x1 { background: rgba(255, 152, 0, 0.2); color: #ffb74d; }
+.badge-tipo-monto_fijo { background: rgba(33, 150, 243, 0.2); color: #64b5f6; }
+
+/* Mini-badges de DÍAS (pequeños y oscuros) */
+.day-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #e0e0e0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Badge de Género (heredado de otros templates) */
+.genre-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-radius: 50px;
+    background: rgba(139, 95, 191, 0.15);
+    border: 1px solid rgba(139, 95, 191, 0.3);
+    color: #e0e0e0;
+    white-space: nowrap;
+}

@@ -1,0 +1,71 @@
+.estado-badge {
+    padding: 0.4rem 1rem;
+    border-radius: var(--radius);
+    border: 2px solid;
+    display: inline-block;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.5px;
+}
+
+.estado-confirmada { 
+    background: rgba(78, 205, 196, 0.1); 
+    border-color: var(--primary); 
+}
+
+.estado-pendiente { 
+    background: rgba(255, 193, 7, 0.1); 
+    border-color: #ffc107; 
+}
+
+.estado-cancelada { 
+    background: rgba(255, 107, 107, 0.1); 
+    border-color: #ff6b6b; 
+}
+
+.butaca-badge {
+    background: rgba(var(--primary-rgb), 0.15);
+    border: 1px solid var(--primary);
+    color: var(--text-light);
+    padding: 0.3rem 0.7rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.card-footer .btn-primary,
+.card-footer .btn-outline,
+.card-footer .btn-secondary,
+.btn {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-width: 2px;
+    transition: all 0.3s ease;
+    min-width: 180px; 
+    text-decoration: none; 
+    display: inline-flex; 
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.card-footer .btn-primary:hover, 
+.btn-primary:hover { 
+    background: rgb(77, 19, 92); 
+    color: white; 
+    border-color: rgb(77, 19, 92); 
+    transform: translateY(-1px); 
+}
+
+.card-footer .btn-outline:hover, 
+.btn-outline:hover { 
+    background: rgba(var(--primary-rgb), 0.25); 
+    border-color: var(--primary); 
+    color: var(--primary); 
+    transform: translateY(-1px); 
+}

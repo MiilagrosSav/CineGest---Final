@@ -44,8 +44,8 @@ class VentaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
         }),
     )
 class PoliticaReembolsoAdmin(admin.ModelAdmin):
-    list_display = ['id', 'nombre', 'permitir_intercambio', 'dias_antes_minimo', 'penalidad_percent', 'activo']
-    list_filter = ['activo', 'permitir_intercambio']
+    list_display = ['id', 'nombre', 'activo', 'dias_antes_minimo', 'penalidad_percent', 'max_cambios_por_compra']
+    list_filter = ['activo']
     search_fields = ['nombre']
     readonly_fields = ['created_at', 'updated_at']
 

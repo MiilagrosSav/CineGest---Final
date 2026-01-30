@@ -1,4 +1,5 @@
 from django import forms
+from django.db import models
 from .models import Pelicula, Sala, Funcion, Formato, FuncionFormato, ConfiguracionCine, Genero
 from datetime import date, datetime, timedelta
 from django.core.exceptions import ValidationError
@@ -104,6 +105,24 @@ class PeliculaForm(forms.ModelForm):
         }
     )
     
+    clasificacion = forms.ChoiceField(
+        label='🔞 Clasificación',
+        choices=[
+            ('ATP', 'Apta para todo público'),
+            ('+13', 'Mayores de 13 años'),
+            ('+16', 'Mayores de 16 años'),
+            ('+18', 'Mayores de 18 años'),
+        ],
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'required': True,
+            'title': 'Selecciona la clasificación por edad de la película'
+        }),
+        error_messages={
+            'required': 'La clasificación es obligatoria.'
+        }
+    )
+    
     imagen_portada = forms.ImageField(
         label='🖼️ Imagen de portada',
         required=False,
@@ -174,6 +193,20 @@ class SalaForm(forms.ModelForm):
             'max_value': 'El número no puede ser mayor a 100.'
         }
     )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Si estamos editando (instance existe), deshabilitar el campo número
+        if self.instance.pk:
+            self.fields['numero'].disabled = True
+            self.fields['numero'].widget.attrs['readonly'] = True
+            self.fields['numero'].help_text = 'El número de sala no puede modificarse una vez creada.'
+        else:
+            # Si estamos creando, sugerir el siguiente número disponible
+            ultimo_numero = Sala.objects.aggregate(models.Max('numero'))['numero__max']
+            siguiente_numero = (ultimo_numero or 0) + 1
+            self.fields['numero'].initial = siguiente_numero
+            self.fields['numero'].help_text = f'Siguiente número sugerido: {siguiente_numero}'
     
     nombre = forms.CharField(
         label='🏛️ Nombre de la sala',
@@ -257,9 +290,10 @@ class FuncionForm(forms.ModelForm):
         queryset=Pelicula.objects.all().order_by('titulo'),
         empty_label='Selecciona una película...',
         widget=forms.Select(attrs={
-            'class': 'form-select',
+            'class': 'form-select combobox-select',
             'required': True,
-            'title': 'Selecciona la película a proyectar'
+            'title': 'Selecciona o busca la película a proyectar',
+            'data-searchable': 'true'
         }),
         error_messages={
             'required': 'Debes seleccionar una película.',

@@ -3,6 +3,10 @@
 
 {% block title %}Compra Exitosa - CineGest{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'ventas/css/pago_exitoso_simple.css' %}?v=1.0">
+{% endblock %}
+
 {% block content %}
 <div class="container" style="max-width: 900px;">
     
@@ -104,60 +108,4 @@
     </div>
 </div>
 
-<style>
-    .success-icon {
-        animation: scaleIn 0.5s ease-out;
-    }
-
-    @keyframes scaleIn {
-        from { transform: scale(0); }
-        to { transform: scale(1); }
-    }
-
-    @media print {
-        .btn, nav, footer, .card-footer { display: none; }
-        .card { background: none !important; box-shadow: none !important; }
-        .card-body, div[style*="padding"] { padding: 0 !important; }
-    }
-
-    /* --- Estilos para lista de entradas --- */
-    .ticket-list {
-        max-width: 100%;
-    }
-    
-    .ticket-item-detail {
-        transition: all 0.2s ease;
-    }
-    
-    .ticket-item-detail:hover {
-        background: rgba(255,255,255,0.1) !important;
-        transform: translateX(4px);
-    }
-    /* --- Fin Estilos --- */
-
-
-    /* --- Estilos para el botón del footer --- */
-    .card-footer .btn-primary {
-        padding: 0.8rem 1.5rem;
-        font-size: 1rem;
-        font-weight: 600;
-        border-radius: 9999px; /* Píldora */
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-width: 2px;
-        transition: all 0.3s ease;
-        min-width: 180px; 
-        text-decoration: none; 
-        display: inline-flex; 
-        align-items: center;
-        justify-content: center;
-    }
-    .card-footer .btn-primary:hover {
-        background: rgb(77, 19, 92);
-        color: white;
-        border-color: rgb(77, 19, 92);
-        transform: translateY(-1px) scale(1.01);
-        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
-    }
-</style>
 {% endblock %}

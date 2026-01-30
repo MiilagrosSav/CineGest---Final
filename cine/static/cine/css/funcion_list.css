@@ -1,0 +1,117 @@
+/* --- Estilos para la Barra de Botones de la Lista (Ahora como en Películas) --- */
+/* Apunta a los botones que están después del contenedor de la tabla de funciones */
+#funcionTableContainer + div .btn,
+#funcionTableContainer + div .btn-primary,
+#funcionTableContainer + div .btn-outline {
+    padding: 0.7rem 1.3rem;
+    font-size: 0.9rem; 
+    font-weight: 600;
+    border-radius: 9999px; /* Forma de píldora */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-width: 2px;
+    transition: all 0.3s ease-in-out;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Hover para el botón PRIMARIO (Ahora el de "Nueva Función") */
+#funcionTableContainer + div .btn-primary:hover {
+    background: rgb(77, 19, 92); /* <- El estilo de hover que estaba en tu pelicula_list.html */
+    color: white;
+    border: none;
+}
+
+/* Hover para botones OUTLINE (Modificar/Eliminar) */
+#funcionTableContainer + div .btn-outline:not(:disabled):hover {
+    background: rgba(var(--primary-rgb), 0.25);
+    border-color: var(--primary);
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
+}
+
+/* Estado DESHABILITADO */
+#funcionTableContainer + div .btn-outline:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+    border-color: var(--glass-border);
+    color: var(--text-secondary);
+    transform: none;
+    box-shadow: none;
+}
+.btn:disabled,
+.btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- Tus otros estilos (sin cambios, ya que no son de botones) --- */
+
+/* Selector de fecha */
+input[type="date"] {
+    color-scheme: dark;
+    background: rgba(26, 22, 37, 0.8);
+    color: #ffffff;
+    border: 1px solid rgba(139, 95, 191, 0.3);
+    padding: 0.4rem;
+    border-radius: 6px;
+    font-family: inherit;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    cursor: pointer;
+    font-size: 1.1rem;
+}
+input[type="date"]:hover {
+    border-color: var(--primary);
+}
+input[type="date"]:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(139, 95, 191, 0.2);
+}
+
+/* Estilos de Fila */
+.funcion-row {
+    transition: background-color 0.2s ease;
+}
+.funcion-row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+.funcion-row.selected {
+    background-color: rgba(var(--primary-rgb), 0.15);
+    border-left: 3px solid var(--primary);
+}
+
+/* Badges de formato */
+.formato-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.formato-2D { background: linear-gradient(135deg, #4A90E2, #357ABD); color: white; }
+.formato-3D { background: linear-gradient(135deg, #9B59B6, #8E44AD); color: white; }
+.formato-4D { background: linear-gradient(135deg, #7ED321, #5FA518); color: white; }
+.formato-IMAX { background: linear-gradient(135deg, #E74C3C, #C0392B); color: white; }
+.formato-2D_3D { background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #9B59B6 50%, #9B59B6 100%); color: white; }
+.formato-2D_4D { background: linear-gradient(135deg, #4A90E2 0%, #4A90E2 50%, #7ED321 50%, #7ED321 100%); color: white; }
+.formato-3D_4D { background: linear-gradient(135deg, #9B59B6 0%, #9B59B6 50%, #7ED321 50%, #7ED321 100%); color: white; }
+
+/* Badges de estado */
+.estado-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 600;
+    white-space: nowrap;
+    text-transform: uppercase;
+}
+.estado-activa { background: linear-gradient(135deg, #4ecdc4, #44a3a0); color: white; }
+.estado-preventa { background: linear-gradient(135deg, #ffc107, #ff9800); color: white; }
+.estado-agotada { background: linear-gradient(135deg, #ff6b6b, #ee5a52); color: white; }
+.estado-inactiva { background: linear-gradient(135deg, #95a5a6, #7f8c8d); color: white; }

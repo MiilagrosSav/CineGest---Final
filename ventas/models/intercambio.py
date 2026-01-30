@@ -160,8 +160,8 @@ class Intercambio(models.Model):
         Returns:
             tuple: (bool, str) - (puede_intercambiar, mensaje_error)
         """
-        if not politica or not politica.permitir_intercambio:
-            return (False, 'Los intercambios están deshabilitados.')
+        if not politica or not politica.activo:
+            return (False, 'No hay una política de intercambio activa en este momento.')
         
         if politica.max_cambios_por_compra > 0:
             count = Intercambio.contar_intercambios_venta(venta)

@@ -1,6 +1,10 @@
 {% extends "accounts/base.html" %}
 {% load static %} {% block title %}{{ titulo_pagina|default:'Política' }}{% endblock %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'accounts/css/politica_form.css' %}?v=1.0">
+{% endblock %}
+
 {% block content %}
 <div class="container" style="max-width: var(--form-max-width, 768px);">
     
@@ -25,12 +29,19 @@
 
             {% for field in form %}
                 <div class="form-group">
-                    <label for="{{ field.id_for_label }}" class="form-label">
-                        {{ field.label }}
-                        {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                    <label for="{{ field.id_for_label }}" class="form-label" {% if field.field.widget.input_type == 'checkbox' %}style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;"{% endif %}>
+                        {% if field.field.widget.input_type == 'checkbox' %}
+                            {{ field }}
+                            <span>{{ field.label }}</span>
+                        {% else %}
+                            {{ field.label }}
+                            {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                        {% endif %}
                     </label>
                     
-                    {{ field }}
+                    {% if field.field.widget.input_type != 'checkbox' %}
+                        {{ field }}
+                    {% endif %}
                     
                     {% if field.help_text %}
                         <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">
@@ -57,98 +68,5 @@
         </form>
     </div>
 </div>
-
-<style>
-    /* --- (NUEVO) PANEL DE CONTROL DE TAMAÑOS --- */
-    :root {
-        --form-max-width: 768px;
-        --form-label-size: 1rem;
-        --form-input-size: 1rem;
-        --form-chip-size: 1rem;
-        --btn-main-size: 1rem;
-        --btn-main-radius: 9999px;
-    }
-    /* --- FIN DEL PANEL DE CONTROL --- */
-
-    form .form-label {
-        font-size: var(--form-label-size);
-        margin-bottom: var(--space-sm);
-        font-weight: 600;
-    }
-    /* Estilos para inputs, selects y textareas */
-    form input[type="text"],
-    form input[type="number"],
-    form input[type="email"],
-    form input[type="password"],
-    form input[type="date"],
-    form .form-input,
-    form .form-select,
-    form select,
-    form textarea {
-        font-size: var(--form-input-size);
-        padding: 0.8rem 1rem;
-        width: 100%;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid var(--glass-border);
-        border-radius: var(--radius);
-        color: var(--text-light);
-        font-family: inherit; /* Asegurar que la fuente sea la misma */
-    }
-    
-    form textarea {
-        min-height: 120px;
-    }
-    form input[type="checkbox"] {
-        width: 1.2em;
-        height: 1.2em;
-        accent-color: var(--primary);
-    }
-
-    form .btn {
-        padding: 0.8rem 1.5rem;
-        font-size: var(--btn-main-size);
-        font-weight: 600;
-        border-radius: var(--btn-main-radius);
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* (Estilos de 'formato-option' - no se usan aquí pero no molestan) */
-    .formato-option span {
-        font-size: var(--form-chip-size);
-        font-weight: 500;
-        line-height: 1;
-    }
-    .formato-option {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        padding: 0.75rem 1.15rem;
-        cursor: pointer;
-        transition: all 0.2s;
-        border-radius: 6px;
-        user-select: none;
-        background: transparent;
-        border: 2px solid rgba(139, 95, 191, 0.4);
-        color: var(--text-light);
-    }
-    .formato-option:hover {
-        border-color: var(--primary);
-        background: rgba(var(--primary-rgb), 0.1);
-    }
-    .formato-option input[type="radio"] {
-        appearance: auto !important;
-        -webkit-appearance: auto !important;
-        -moz-appearance: auto !important;
-        opacity: 1 !important;
-        width: 1.1em !important;
-        height: 1.1em !important;
-        margin: 0 !important;
-        padding: 0 !important;
-        flex-shrink: 0;
-        accent-color: var(--primary);
-        cursor: pointer;
-    }
-</style>
 
 {% endblock %}

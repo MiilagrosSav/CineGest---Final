@@ -1,6 +1,11 @@
 {% extends "accounts/base.html" %}
+{% load static %}
 
 {% block title %}Confirmar Eliminación{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'cine/css/confirm_delete.css' %}?v=1.0">
+{% endblock %}
 
 {% block content %}
 <div class="container-narrow">
@@ -62,68 +67,4 @@
         {% endif %}
     </div>
 </div>
-
-<style>
-    /* Centrar el contenedor y el card vertical y horizontalmente */
-    .container-narrow {
-        max-width: 600px;
-        width: 100%;
-        margin: 0 auto;
-        padding: 0 var(--space-md);
-        min-height: 1vh;              /* altura completa para centrar verticalmente */
-        display: flex;
-        align-items: center;            /* centrado vertical */
-        justify-content: center;        /* centrado horizontal */
-    }
-
-    /* Asegurar que el card ocupe el ancho permitido */
-    .card {
-        width: 100%;
-    }
-
-    .card .btn-primary,
-    .card .btn-secondary,
-    .card .btn-outline {
-        padding: 0.8rem 1.5rem;
-        font-size: 1rem;
-        font-weight: 600;
-        border-radius: 9999px; /* Píldora */
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-        border-width: 2px;
-        transition: all 0.3s ease;
-        min-width: 180px;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .card .btn-primary:hover {
-        background: rgb(77, 19, 92);
-        color: white;
-        border-color: rgb(77, 19, 92);
-        transform: translateY(-1px) scale(1.01);
-        box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
-    }
-    .card .btn-outline:hover {
-        background: rgba(var(--primary-rgb), 0.25);
-        border-color: var(--primary);
-        color: var(--primary);
-        transform: translateY(-1px);
-    }
-    .card .btn-secondary {
-        --danger-color: #ff6b6b;
-        --danger-rgb: 255, 107, 107;
-        background-color: var(--danger-color);
-        border-color: var(--danger-color);
-        color: #FFF;
-    }
-    .card .btn-secondary:hover {
-        background-color: transparent;
-        border-color: var(--danger-color);
-        color: var(--danger-color);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 15px rgba(var(--danger-rgb), 0.4);
-    }
-</style>
 {% endblock %}

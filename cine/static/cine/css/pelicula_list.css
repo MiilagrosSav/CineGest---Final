@@ -1,0 +1,77 @@
+/* --- Estilos para la Barra de Botones de la Lista --- */
+/* Apunta a los botones que están después del contenedor de la tabla de películas */
+#peliculaTableContainer + div .btn,
+#peliculaTableContainer + div .btn-primary,
+#peliculaTableContainer + div .btn-outline {
+    padding: 0.7rem 1.3rem;
+    font-size: 0.9rem; 
+    font-weight: 600;
+    border-radius: 9999px; /* Forma de píldora */
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-width: 2px;
+    transition: all 0.3s ease-in-out;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Hover para el botón PRIMARIO */
+#peliculaTableContainer + div .btn-primary:hover {
+    background: rgb(77, 19, 92); /* <- Tu estilo de hover de ejemplo */
+    color: white;
+    border: none;
+}
+
+/* Hover para botones OUTLINE (activos) */
+#peliculaTableContainer + div .btn-outline:not(:disabled):hover {
+    background: rgba(var(--primary-rgb), 0.25);
+    border-color: var(--primary);
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
+}
+
+/* Estado DESHABILITADO */
+#peliculaTableContainer + div .btn-outline:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: transparent;
+    border-color: var(--glass-border);
+    color: var(--text-secondary);
+    transform: none;
+    box-shadow: none;
+}
+.btn:disabled,
+.btn-outline:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- Tus estilos de fila (sin cambios) --- */
+.pelicula-row {
+    transition: background-color 0.2s ease;
+}
+.pelicula-row:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+.pelicula-row.selected {
+    background-color: rgba(var(--primary-rgb), 0.15);
+    border-left: 3px solid var(--primary);
+}
+
+/* Estilo para los Badges de Género */
+.genre-badge {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;     /* Padding pequeño */
+    font-size: 0.75rem;         /* Letra más chica y elegante */
+    font-weight: 600;
+    text-transform: uppercase;  /* Opcional: todo mayúsculas queda muy pro */
+    letter-spacing: 0.5px;
+    border-radius: 50px;        /* Borde completamente redondeado (Píldora) */
+    
+    /* Colores estilo Glass/Neon sutil */
+    background: rgba(139, 95, 191, 0.15); /* Fondo violeta muy transparente */
+    border: 1px solid rgba(139, 95, 191, 0.3); /* Borde sutil */
+    color: #e0e0e0;             /* Texto claro */
+    
+    white-space: nowrap;        /* Evita que el texto del badge se rompa */
+}
