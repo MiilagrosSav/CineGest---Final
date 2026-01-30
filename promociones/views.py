@@ -128,6 +128,63 @@ class PoliticaPromocionDeleteView(AdminRequiredMixin, DeleteView):
     template_name = 'promociones/politica_confirm_delete.html'
     success_url = reverse_lazy('promociones:politica_list')
 
+    def get_context_data(self, **kwargs):
+        from django.contrib import messages
+        from .models.cuponGenerado import CuponGenerado
+        context = super().get_context_data(**kwargs)
+        politica = self.get_object()
+        
+        # Verificar si tiene cupones generados
+        cupones = CuponGenerado.objects.filter(politica_origen=politica)
+        
+        context['tiene_cupones'] = cupones.exists()
+        context['total_cupones'] = cupones.count()
+        context['puede_eliminar'] = not cupones.exists()
+        
+        if cupones.exists():
+            context['cupones_usados'] = cupones.filter(usado=True).count()
+            context['cupones_disponibles'] = cupones.filter(usado=False).count()
+        
+        return context
+    
+    def delete(self, request, *args, **kwargs):
+        from django.db.models.deletion import ProtectedError
+        from django.contrib import messages
+        from .models.cuponGenerado import CuponGenerado
+        
+        self.object = self.get_object()
+        success_url = self.get_success_url()
+        
+        try:
+            self.object.delete()
+            messages.success(request, f'La política "{self.object.nombre}" ha sido eliminada exitosamente.')
+            return redirect(success_url)
+        except ProtectedError as e:
+            # Construir mensaje detallado
+            cupones = CuponGenerado.objects.filter(politica_origen=self.object)
+            
+            mensaje_partes = [
+                f'No se puede eliminar la política "{self.object.nombre}" porque está asociada a:',
+                f'<br><strong>• {cupones.count()} cupón(es) generado(s)</strong>'
+            ]
+            
+            usados = cupones.filter(usado=True).count()
+            disponibles = cupones.filter(usado=False).count()
+            if usados:
+                mensaje_partes.append(f'  - {usados} usado(s)')
+            if disponibles:
+                mensaje_partes.append(f'  - {disponibles} disponible(s)')
+            
+            mensaje_partes.extend([
+                '<br><br><strong>Alternativas:</strong>',
+                '1. Los cupones están vinculados a esta política y no pueden eliminarse',
+                '2. Marcar la política como inactiva en lugar de eliminarla'
+            ])
+            
+            mensaje_final = '<br>'.join(mensaje_partes)
+            messages.error(request, mensaje_final, extra_tags='safe')
+            return redirect('promociones:politica_list')
+
 
 # Vistas CRUD para Promociones
 class PromocionListView(AdminRequiredMixin, ListView):
@@ -198,6 +255,63 @@ class PromocionDeleteView(AdminRequiredMixin, DeleteView):
     model = Promocion
     template_name = 'promociones/promocion_confirm_delete.html'
     success_url = reverse_lazy('promociones:promocion_list')
+
+    def get_context_data(self, **kwargs):
+        from django.contrib import messages
+        from .models.politicaPromocion import PoliticaPromocion
+        context = super().get_context_data(**kwargs)
+        promocion = self.get_object()
+        
+        # Verificar si tiene políticas asociadas
+        politicas = PoliticaPromocion.objects.filter(promocion_a_otorgar=promocion)
+        
+        context['tiene_politicas'] = politicas.exists()
+        context['total_politicas'] = politicas.count()
+        context['puede_eliminar'] = not politicas.exists()
+        
+        if politicas.exists():
+            context['politicas_activas'] = politicas.filter(activa=True).count()
+            context['politicas_inactivas'] = politicas.filter(activa=False).count()
+        
+        return context
+    
+    def delete(self, request, *args, **kwargs):
+        from django.db.models.deletion import ProtectedError
+        from django.contrib import messages
+        from .models.politicaPromocion import PoliticaPromocion
+        
+        self.object = self.get_object()
+        success_url = self.get_success_url()
+        
+        try:
+            self.object.delete()
+            messages.success(request, f'La promoción "{self.object.nombre}" ha sido eliminada exitosamente.')
+            return redirect(success_url)
+        except ProtectedError as e:
+            # Construir mensaje detallado
+            politicas = PoliticaPromocion.objects.filter(promocion_a_otorgar=self.object)
+            
+            mensaje_partes = [
+                f'No se puede eliminar la promoción "{self.object.nombre}" porque está asociada a:',
+                f'<br><strong>• {politicas.count()} política(s) de promoción</strong>'
+            ]
+            
+            activas = politicas.filter(activa=True).count()
+            inactivas = politicas.filter(activa=False).count()
+            if activas:
+                mensaje_partes.append(f'  - {activas} activa(s)')
+            if inactivas:
+                mensaje_partes.append(f'  - {inactivas} inactiva(s)')
+            
+            mensaje_partes.extend([
+                '<br><br><strong>Alternativas:</strong>',
+                '1. Eliminar o modificar las políticas de promoción que la referencian',
+                '2. Marcar la promoción como inactiva en lugar de eliminarla'
+            ])
+            
+            mensaje_final = '<br>'.join(mensaje_partes)
+            messages.error(request, mensaje_final, extra_tags='safe')
+            return redirect('promociones:promocion_list')
 
 
 @login_required
