@@ -72,7 +72,7 @@ INSTALLED_APPS = [
     'accounts',
     'cine', #agregado por mi maneja el cine
     'ventas', #agregado por mi maneja las ventas
-    'core', # ✅ App core para notificaciones y servicios compartidos
+    'core', # App core para notificaciones y servicios compartidos
     'promociones',
     'social_django', #  esta línea para la autenticación social
     'widget_tweaks', #  esta línea para personalizar widgets en templates
@@ -294,7 +294,6 @@ if DEBUG:
     EMAIL_USE_SSL = False
     EMAIL_HOST_USER = ''
     EMAIL_HOST_PASSWORD = ''
-    DEFAULT_FROM_EMAIL = 'CineGest <noreply@cinegest.local>'
 else:
     # Configuración para producción (ejemplo con Gmail/SendGrid/etc)
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

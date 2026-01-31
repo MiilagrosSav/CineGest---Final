@@ -31,7 +31,22 @@ PEDIDO #{{ venta.id_venta }}
 
 🪑 TUS BUTACAS RESERVADAS
 --------------------------------------------------
-{% for entrada in entradas %}{{ entrada.id_butaca.numero }}{% if not forloop.last %}, {% endif %}{% endfor %}
+{% for entrada in entradas %}{{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}{% if not forloop.last %}, {% endif %}{% endfor %}
+
+{% if promocion_aplicada %}
+
+🎉 PROMOCIÓN APLICADA
+--------------------------------------------------
+{{ promocion_aplicada.nombre }}
+{% if promocion_aplicada.descripcion %}{{ promocion_aplicada.descripcion }}{% endif %}
+
+{% if descuento_info %}
+Subtotal:       ${{ descuento_info.subtotal }}
+Descuento:      -${{ descuento_info.descuento }}
+--------------------------------------------------
+Total Final:    ${{ descuento_info.total_final }}
+{% endif %}
+{% endif %}
 
 
 TOTAL PAGADO: ${{ total }}

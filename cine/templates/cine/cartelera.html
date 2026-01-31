@@ -17,6 +17,10 @@
 
         <form method="get" action="{% url 'cine:cartelera' %}" id="filtrosForm" style="display: flex; gap: var(--space-xs); align-items: center;">
             
+            {% if intercambio_for %}
+                <input type="hidden" name="intercambio_for" value="{{ intercambio_for }}">
+            {% endif %}
+            
             <div class="search-container" id="searchContainer">
                 <button type="button" class="search-btn" id="searchBtn">🔍</button>
                 <input type="text" 
@@ -58,7 +62,7 @@
             </button>
             
             {% if filtro_search or filtro_genero or filtro_formato or dia_seleccionado %}
-            <a href="{% url 'cine:cartelera' %}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.6rem;" title="Limpiar">
+            <a href="{% url 'cine:cartelera' %}{% if intercambio_for %}?intercambio_for={{ intercambio_for }}{% endif %}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.6rem;" title="Limpiar">
                 ✖
             </a>
             {% endif %}
@@ -69,7 +73,7 @@
     <div style="margin-bottom: var(--space-lg); overflow-x: auto; padding: var(--space-xs) 0; display: flex; justify-content: center;">
         <div style="display: flex; gap: var(--space-xs); min-width: max-content;">
             {% for dia in dias_semana %}
-                <a href="?dia={{ dia.fecha }}{% if filtro_genero %}&genero={{ filtro_genero }}{% endif %}{% if filtro_formato %}&formato={{ filtro_formato }}{% endif %}{% if filtro_search %}&search={{ filtro_search }}{% endif %}{% if filtro_orden %}&orden={{ filtro_orden }}{% endif %}" 
+                <a href="?dia={{ dia.fecha }}{% if filtro_genero %}&genero={{ filtro_genero }}{% endif %}{% if filtro_formato %}&formato={{ filtro_formato }}{% endif %}{% if filtro_search %}&search={{ filtro_search }}{% endif %}{% if filtro_orden %}&orden={{ filtro_orden }}{% endif %}{% if intercambio_for %}&intercambio_for={{ intercambio_for }}{% endif %}" 
                    class="glass-container dia-item{% if dia_seleccionado == dia.fecha %} activo{% endif %}">
                     <div class="dia-nombre">
                         {{ dia.dia_nombre }}

@@ -209,6 +209,11 @@
                     <button class="btn btn-secondary" style="background:#6c757d; border-color:#6c757d; color:white; opacity:0.6; cursor:not-allowed;" title="{{ motivo_no_intercambio|default:'Intercambio no disponible' }}" disabled>
                         🔁 Intercambiar Entrada
                     </button>
+                    {% if motivo_no_intercambio %}
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-top: 0.5rem; padding: 0.5rem;">
+                        ℹ️ {{ motivo_no_intercambio }}
+                    </div>
+                    {% endif %}
                 {% endif %}
             {% endif %}
             

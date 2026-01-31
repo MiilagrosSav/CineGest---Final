@@ -104,7 +104,20 @@
         
         <div>
             <div class="resumen-compra">
-                <h3 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">📋 Resumen de Compra</h3>
+                <h3 style="margin: 0 0 var(--space-md) 0; color: var(--primary);">
+                    {% if venta_id %}🔄 Intercambio de Entradas{% else %}📋 Resumen de Compra{% endif %}
+                </h3>
+                
+                {% if venta_id %}
+                <div style="background: rgba(78, 205, 196, 0.1); border-left: 3px solid #4ecdc4; padding: var(--space-md); margin-bottom: var(--space-md); border-radius: 4px;">
+                    <div style="font-size: 0.95rem; color: var(--text-light); margin-bottom: 8px;">
+                        <strong>📝 Seleccioná exactamente {{ cantidad_requerida }} butaca(s)</strong>
+                    </div>
+                    <div style="font-size: 0.85rem; opacity: 0.9;">
+                        Este intercambio no requiere pago adicional. Tus entradas originales serán canceladas y se crearán nuevas reservas.
+                    </div>
+                </div>
+                {% endif %}
                 
                 <div id="butacasSeleccionadas" style="margin-bottom: var(--space-md); min-height: 100px;">
                     <p style="opacity: 0.7; text-align: center; padding: var(--space-lg) 0;">
@@ -119,6 +132,7 @@
                     <strong id="cantidadButacas">0</strong>
                 </div>
                 
+                {% if not venta_id %}
                 <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-sm);">
                     <span>Precio unitario:</span>
                     <span id="precioUnitarioMostrado">${{ precio }}</span>
@@ -144,9 +158,10 @@
                     <span>Total:</span>
                     <span style="color: var(--primary);" id="totalCompra">$0</span>
                 </div>
+                {% endif %}
                 
                 <button type="submit" form="formButacas" class="btn btn-primary" id="btnConfirmar" style="width: 100%; margin-top: var(--space-lg);" disabled>
-                    Confirmar compra
+                    {% if venta_id %}🔄 Confirmar intercambio{% else %}✅ Confirmar compra{% endif %}
                 </button>
                 
                 <a href="{% url 'cine:cartelera' %}" class="btn btn-outline" style="width: 100%; margin-top: var(--space-md); text-align: center; text-decoration: none;">
@@ -162,7 +177,7 @@
     window.FUNCION_ID = "{{ funcion.id }}";
     window.CARTELERA_URL = "{% url 'cine:cartelera' %}";
 </script>
-<script src="{% static 'ventas/js/seleccionar_butacas.js' %}?v=1.0"></script>
+<script src="{% static 'ventas/js/seleccionar_butacas.js' %}?v=3.0"></script>
 
 <div id="requiere-4d-data" data-requiere-4d="{% if requiere_4d %}true{% else %}false{% endif %}" style="display:none"></div>
 {% if cantidad_requerida %}

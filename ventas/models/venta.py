@@ -159,7 +159,7 @@ class Venta(models.Model):
         
         # 4. Retorno según lo que pida el llamador
         if include_detalle:
-            return total_final, detalle
+            return total_final, promo_aplicada, detalle
             
         return total_final
     

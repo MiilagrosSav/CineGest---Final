@@ -68,7 +68,12 @@ function actualizarResumen() {
     console.log('Actualizando resumen. Cantidad:', cantidad, 'Total:', total, 'Tipo:', tipoDescuento);
     
     document.getElementById('cantidadButacas').textContent = cantidad;
-    document.getElementById('totalCompra').textContent = `$${total.toFixed(2)}`;
+    
+    // Solo actualizar total si el elemento existe (no existe en modo intercambio)
+    const totalElement = document.getElementById('totalCompra');
+    if (totalElement) {
+        totalElement.textContent = `$${total.toFixed(2)}`;
+    }
     
     const contenedor = document.getElementById('butacasSeleccionadas');
     if (cantidad === 0) {
@@ -80,10 +85,18 @@ function actualizarResumen() {
         butacasSeleccionadas.forEach((butaca, idx) => {
             const precio = (tipoDescuento === '2X1' && cantidad === 2 && idx === 1) ? 0 : precioUnitario;
             const precioTexto = precio === 0 ? 'GRATIS 🎉' : `$${precio.toFixed(2)}`;
-            html += `<div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
-                <span>💺 Butaca ${butaca.fila}${butaca.numero}</span>
-                <span style="color: ${precio === 0 ? 'var(--accent)' : 'var(--primary)'};">${precioTexto}</span>
-            </div>`;
+            
+            // En modo intercambio no mostrar precio
+            if (cantidadNecesaria) {
+                html += `<div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>💺 Butaca ${butaca.fila}${butaca.numero}</span>
+                </div>`;
+            } else {
+                html += `<div style="background: rgba(0,0,0,0.3); padding: 0.5rem; border-radius: 6px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>💺 Butaca ${butaca.fila}${butaca.numero}</span>
+                    <span style="color: ${precio === 0 ? 'var(--accent)' : 'var(--primary)'};">${precioTexto}</span>
+                </div>`;
+            }
         });
         html += '</div>';
         contenedor.innerHTML = html;
@@ -215,10 +228,100 @@ function actualizarResumen() {
     setInterval(sincronizarButacas, 3000);
     sincronizarButacas();
     
+    // Función para mostrar el indicador de carga
+    function mostrarIndicadorCarga() {
+        console.log('🔄 Mostrando indicador de carga...');
+        
+        // Deshabilitar el botón de confirmar
+        const btnConfirmar = document.getElementById('btnConfirmar');
+        if (btnConfirmar) {
+            btnConfirmar.disabled = true;
+            const textoBoton = cantidadNecesaria ? 
+                '<span style="display: inline-flex; align-items: center; gap: 8px;"><span class="spinner"></span> Procesando...</span>' :
+                '<span style="display: inline-flex; align-items: center; gap: 8px;"><span class="spinner"></span> Procesando...</span>';
+            btnConfirmar.innerHTML = textoBoton;
+        }
+        
+        // Crear overlay con spinner
+        const overlay = document.createElement('div');
+        overlay.id = 'loading-overlay';
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            animation: fadeIn 0.2s ease-out;
+        `;
+        
+        const tituloTexto = cantidadNecesaria ? '🔄 Procesando intercambio' : '💳 Procesando compra';
+        
+        overlay.innerHTML = `
+            <div style="background: rgba(18, 18, 23, 0.95); padding: 30px 40px; border-radius: 16px; text-align: center; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); border: 1px solid rgba(78, 205, 196, 0.3);">
+                <div class="loading-spinner"></div>
+                <p style="color: #4ecdc4; margin: 16px 0 0 0; font-size: 1.1rem; font-weight: 600;">
+                    ${tituloTexto}
+                </p>
+            </div>
+        `;
+        
+        document.body.appendChild(overlay);
+        console.log('✅ Overlay agregado al body');
+        
+        // Agregar estilos para el spinner si no existen
+        if (!document.getElementById('loading-styles')) {
+            const styles = document.createElement('style');
+            styles.id = 'loading-styles';
+            styles.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; }
+                    to { opacity: 1; }
+                }
+                
+                .loading-spinner {
+                    width: 40px;
+                    height: 40px;
+                    border: 3px solid rgba(78, 205, 196, 0.2);
+                    border-top: 3px solid #4ecdc4;
+                    border-radius: 50%;
+                    animation: spin 0.8s linear infinite;
+                    margin: 0 auto;
+                }
+                
+                .spinner {
+                    display: inline-block;
+                    width: 14px;
+                    height: 14px;
+                    border: 2px solid rgba(255, 255, 255, 0.3);
+                    border-top: 2px solid white;
+                    border-radius: 50%;
+                    animation: spin 0.6s linear infinite;
+                }
+                
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(styles);
+            console.log('✅ Estilos de spinner agregados');
+        }
+    }
+    
     const formButacas = document.getElementById('formButacas');
     if (formButacas) {
         formButacas.addEventListener('submit', function(e) {
             e.preventDefault();
+            
+            console.log('📝 SUBMIT DEL FORMULARIO');
+            console.log('   Action:', formButacas.action);
+            console.log('   Method:', formButacas.method);
+            console.log('   Butacas:', butacasSeleccionadas.length);
             
             fetch(urlVerificarButacas)
                 .then(function(response) { return response.json(); })
@@ -252,15 +355,26 @@ function actualizarResumen() {
                             }
                             sincronizarButacas();
                         } else {
-                            formButacas.submit();
+                            // Mostrar indicador de carga antes de enviar el formulario
+                            mostrarIndicadorCarga();
+                            // Pequeño delay para asegurar que el overlay se renderice antes del submit
+                            setTimeout(function() {
+                                formButacas.submit();
+                            }, 100);
                         }
                     } else {
-                        formButacas.submit();
+                        mostrarIndicadorCarga();
+                        setTimeout(function() {
+                            formButacas.submit();
+                        }, 100);
                     }
                 })
                 .catch(function(error) {
                     console.error('Error en validación final:', error);
-                    formButacas.submit();
+                    mostrarIndicadorCarga();
+                    setTimeout(function() {
+                        formButacas.submit();
+                    }, 100);
                 });
         });
     }

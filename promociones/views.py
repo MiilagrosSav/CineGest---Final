@@ -5,6 +5,7 @@ from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.db import models
+from django.utils import timezone as dj_tz
 
 from .models.promocion import Promocion
 from .models.politicaPromocion import PoliticaPromocion
@@ -391,13 +392,10 @@ def activar_promocion_por_link(request, token):
     ahora = timezone.now()
     expira = None
     if cupon.expira_en:
-        expira = cupon.expira_en
-        try:
-            from django.utils import timezone as dj_tz
-            if dj_tz.is_naive(expira):
-                expira = dj_tz.make_aware(expira, dj_tz.get_default_timezone())
-        except Exception:
-            pass
+        if dj_tz.is_naive(cupon.expira_en):
+            expira = dj_tz.make_aware(cupon.expira_en)
+        else:
+            expira = cupon.expira_en    
 
     try:
         logger.debug("[PROMO ACT] Hora Expiracion Cupón (aware): %r", expira)
@@ -415,10 +413,6 @@ def activar_promocion_por_link(request, token):
             request.session['promo_activa_id'] = promocion.pk
             request.session['promo_activada_timestamp'] = timezone.now().isoformat()
             logger.debug('[PROMO ACT] Seteando session promo_activa_id=%s promo_token=%s para usuario=%s', promocion.pk, str(cupon.token), getattr(request.user, 'pk', None))
-            try:
-                print(f"[PROMO ACT - PRINT] setting session promo_activa_id={promocion.pk} promo_token={str(cupon.token)} user={getattr(request.user,'pk',None)}")
-            except Exception:
-                pass
     except Exception:
         request.session['promo_activa_id'] = None
 
@@ -427,10 +421,6 @@ def activar_promocion_por_link(request, token):
         request.session.modified = True
         request.session.save()
         logger.debug('[PROMO ACT] Sesión guardada con promo_activa_id=%s promo_token=%s', request.session.get('promo_activa_id'), request.session.get('promo_token'))
-        try:
-            print(f"[PROMO ACT - PRINT] session saved promo_activa_id={request.session.get('promo_activa_id')} promo_token={request.session.get('promo_token')}")
-        except Exception:
-            pass
     except Exception:
         logger.exception('Error al guardar sesión')
 

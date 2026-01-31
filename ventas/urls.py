@@ -29,6 +29,7 @@ urlpatterns = [
     path('pago/pendiente/', pagos.pago_pendiente, name='pago_pendiente'),
     path('webhook/mercadopago/', pagos.webhook_mercadopago, name='webhook_mercadopago'),
     path('compra/<int:venta_id>/intercambiar/', reembolsos.intercambiar_entrada_view, name='intercambiar_entrada'),
+    path('intercambio/exitoso/<int:intercambio_id>/', reembolsos.intercambio_exitoso_view, name='intercambio_exitoso'),
     # Presencial / Boletería
     path('presencial/', presencial.dashboard_presencial, name='dashboard_presencial'),
     path('presencial/seleccionar/<int:funcion_id>/', presencial.seleccionar_butacas_presencial, name='seleccionar_butacas_presencial'),

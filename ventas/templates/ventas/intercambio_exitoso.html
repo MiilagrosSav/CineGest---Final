@@ -1,0 +1,109 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Intercambio Exitoso - CineGest{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 768px;">
+    
+    <div class="mb-lg text-center">
+        <div style="font-size: 4rem; margin-bottom: var(--space-sm);">✅</div>
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">¡Intercambio Exitoso!</h1>
+        <p class="card-subtitle">Tus entradas han sido actualizadas correctamente</p>
+    </div>
+
+    <div class="card glass-container">
+        <div style="padding: var(--space-lg);">
+            
+            <div style="background: rgba(78, 205, 196, 0.1); 
+                        border: 1px solid rgba(78, 205, 196, 0.3); 
+                        padding: var(--space-md); 
+                        border-radius: var(--radius); 
+                        margin-bottom: var(--space-lg); 
+                        text-align: center;">
+                <p style="font-size: 1rem; margin: 0; line-height: 1.5;">
+                    Tus entradas originales han sido canceladas y se han creado nuevas reservas.
+                    <br><strong>No se requiere ningún pago adicional.</strong>
+                </p>
+            </div>
+
+            <h3 style="margin-bottom: var(--space-md); font-size: 1.2rem;">📋 Resumen de tu nueva función</h3>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
+                <div style="grid-column: 1 / -1;">
+                    <h4 style="margin: 0; color: var(--primary); font-size: 1.3rem;">
+                        🎬 {{ funcion_nueva.pelicula.titulo }}
+                    </h4>
+                </div>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">📅 Fecha</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">{{ funcion_nueva.fecha_hora|date:"d/m/Y" }}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">🕒 Hora</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">{{ funcion_nueva.fecha_hora|date:"H:i" }}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">🏛️ Sala</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">{{ funcion_nueva.sala.nombre }}</p>
+                </div>
+                <div>
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">🎫 Compra</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 500;">#{{ venta.id_venta }}</p>
+                </div>
+            </div>
+
+            <hr style="margin: var(--space-lg) 0; border-color: rgba(255,255,255,0.1);">
+
+            <div style="display: flex; align-items: center; gap: var(--space-md); opacity: 0.9;">
+                <div style="font-size: 1.5rem;">📧</div>
+                <p style="margin: 0; font-size: 0.95rem;">
+                    Te enviamos los detalles a: <strong>{{ venta.id_cliente.usuario.email }}</strong>
+                </p>
+            </div>
+        </div>
+
+        <div class="card-footer" style="padding: var(--space-lg); border-top: 1px solid var(--glass-border); background: rgba(0,0,0,0.1);">
+            <div style="display: flex; flex-direction: column; gap: var(--space-md);">
+                
+                <div style="display: flex; gap: var(--space-md); flex-wrap: wrap;">
+                    <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" 
+                       class="btn btn-primary" 
+                       style="flex: 1; border-radius: 50px; padding: 0.8rem; text-align: center; text-decoration: none; min-width: 200px; font-weight: 600;">
+                        👁️ Ver Detalles
+                    </a>
+                    
+                    <a href="{% url 'ventas:mis_ventas' %}" 
+                       class="btn btn-outline" 
+                       style="flex: 1; border-radius: 50px; padding: 0.8rem; text-align: center; text-decoration: none; min-width: 200px; font-weight: 600; border: 1px solid var(--primary);">
+                        🎫 Mis Compras
+                    </a>
+                </div>
+
+                <a href="{% url 'cine:cartelera' %}" 
+                   class="btn btn-secondary" 
+                   style="border-radius: 50px; padding: 0.8rem; text-align: center; text-decoration: none; font-weight: 500; background: rgba(255,255,255,0.05);">
+                    🎬 Volver a Cartelera
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Estilos adicionales para asegurar que los botones luzcan redondeados y el gradiente funcione */
+    .btn {
+        transition: all 0.3s ease;
+    }
+    .btn:hover {
+        transform: translateY(-2px);
+        filter: brightness(1.1);
+    }
+    .text-center { text-align: center; }
+    
+    /* Si el CSS global no lo cubre, esto fuerza el redondeo tipo píldora */
+    .btn-primary, .btn-outline, .btn-secondary {
+        border-radius: 50px !important;
+    }
+</style>
+{% endblock %}

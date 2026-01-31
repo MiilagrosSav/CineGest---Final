@@ -59,9 +59,16 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
         # Fallback: sin descuento
         return total_original
 
-    # 1) Si viene promoción específica (cupón/session), aplicar directamente
+    # 1) Si viene promoción específica (cupón/session), validar vigencia antes de aplicar
     if promocion_especifica:
         logger.info(f'[PROMO] Aplicando promoción específica: {promocion_especifica.codigo}')
+        
+        # Validar que la promoción sigue siendo válida
+        if not es_promocion_valida_para_funcion(promocion_especifica, funcion):
+            logger.warning(f'[PROMO] Promoción específica {promocion_especifica.codigo} NO es válida para función {funcion.pk} (expirada o no aplica). Aplicando precio normal.')
+            detalle['aviso'] = f'La promoción "{promocion_especifica.nombre}" no es válida para esta función.'
+            return total_original, None, detalle
+        
         promo_aplicada = promocion_especifica
         total_final = _total_con_promocion(promo_aplicada)
         detalle['ahorro'] = total_original - total_final
@@ -336,14 +343,12 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
     # En caso de empate, se usa -p.id (IDs más recientes primero)
     politicas_ordenadas = sorted(politicas_para_envio, key=lambda p: (p.prioridad, -p.id))
     
-    # DEBUG: Imprimimos el ranking para ver quién ganó
-    ranking_log = [f"{p.nombre} (Prioridad: {p.prioridad})" for p in politicas_ordenadas]
-    # POR ESTO (Para verlo seguro en la pantalla negra):
-    print("\n" + "="*50)
-    print(f"🏆 RANKING DE PRIORIDADES:")
+    # Log de ranking de prioridades
+    logger.info('='*50)
+    logger.info('🏆 RANKING DE PRIORIDADES para funcion %s:', getattr(funcion_objeto, 'pk', None))
     for p in politicas_ordenadas:
-        print(f"   -> {p.nombre} (Prioridad: {p.prioridad})")
-    print("="*50 + "\n")
+        logger.info('   -> %s (Prioridad: %d)', p.nombre, p.prioridad)
+    logger.info('='*50)
 
     # Tomamos la ganadora (la primera de la lista)
     politica = politicas_ordenadas[0]
@@ -412,6 +417,18 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
     logger.info('procesar_butaca_liberada: politica=%s promocion=%s candidatos=%d (excluido=%s) politicas_match=%s', getattr(politica, 'pk', None), getattr(promocion, 'pk', None), total_candidatos, getattr(cliente_excluido, 'pk', None) if cliente_excluido else None, [p.pk for p in politicas_match])
 
     for cliente in candidatos:
+        # TODO: DESCOMENTAR EN PRODUCCIÓN - Verificar límite de cupones activos por cliente (max 3)
+        # cupones_activos = CuponGenerado.objects.filter(
+        #     cliente=cliente,
+        #     usado=False,
+        #     expira_en__gte=timezone.now()
+        # ).count()
+        # 
+        # if cupones_activos >= 3:
+        #     logger.info('Cliente %s ya tiene %d cupones activos, omitiendo envío', 
+        #                getattr(cliente, 'pk', None), cupones_activos)
+        #     continue
+        
         # calcular expiración
         ahora = timezone.now()
         expira = ahora + timedelta(minutes=getattr(politica, 'minutos_validez', 60))

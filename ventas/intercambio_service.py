@@ -76,6 +76,10 @@ class IntercambioService:
         Returns:
             Tuple[bool, str]: (es_valido, mensaje_error)
         """
+        # Validar que la venta no usó un cupón (las compras con cupón no permiten intercambio)
+        if venta.cupon_utilizado:
+            return (False, 'Las compras realizadas con cupón no son elegibles para intercambio.')
+        
         # Obtener política si no se proveyó
         if politica is None:
             politica = self.obtener_politica_activa()
@@ -254,14 +258,14 @@ class IntercambioService:
                             id_butaca=butaca,
                             estado__in=[EstadoEntrada.CANCELADA, EstadoEntrada.EXPIRADA] 
                         ).delete()
-                        # 2. CREACIÓN: Nueva entrada
+                        # 2. CREACIÓN: Nueva entrada en estado VENDIDA (ya confirmada, no requiere pago)
                         entrada = Entrada.objects.create(
                             id_venta=venta,
                             id_funcion=funcion_destino,
                             id_sala=funcion_destino.sala,
                             id_butaca=butaca,
                             id_pelicula=funcion_destino.pelicula,
-                            estado=EstadoEntrada.RESERVADA
+                            estado=EstadoEntrada.VENDIDA  # VENDIDA porque el intercambio no requiere pago
                         )
                         nuevas_entradas.append(entrada)
                     
@@ -269,7 +273,37 @@ class IntercambioService:
                         f"Creadas {len(nuevas_entradas)} nuevas entradas para venta {venta.id_venta}"
                     )
                     
-                    # 5. Registrar intercambio en auditoría
+                    # 5. Actualizar estado de la venta a CONFIRMADA si no lo está
+                    if venta.estado != 'CONFIRMADA':
+                        venta.estado = 'CONFIRMADA'
+                        venta.save()
+                        self.logger.info(f"Estado de venta {venta.id_venta} actualizado a CONFIRMADA")
+                    
+                    # 6. Crear o actualizar registro de pago para intercambio (sin costo adicional)
+                    from ventas.models import MetodoPago, Pago
+                    try:
+                        metodo_intercambio = MetodoPago.objects.get(nombre='Intercambio')
+                    except MetodoPago.DoesNotExist:
+                        # Crear método de pago "Intercambio" si no existe
+                        metodo_intercambio = MetodoPago.objects.create(
+                            nombre='Intercambio',
+                            descripcion='Intercambio de entradas sin costo adicional'
+                        )
+                    
+                    # Actualizar pago existente o crear uno nuevo
+                    pago, created = Pago.objects.update_or_create(
+                        id_venta=venta,
+                        defaults={
+                            'monto': Decimal('0.00'),
+                            'estado': 'COMPLETADO',
+                            'id_metodo_pago': metodo_intercambio,
+                            'nro_transaccion': f'INTERCAMBIO-{venta.id_venta}'
+                        }
+                    )
+                    action = "creado" if created else "actualizado"
+                    self.logger.info(f"Registro de pago {action} para intercambio venta {venta.id_venta}")
+                    
+                    # 7. Registrar intercambio en auditoría
                     intercambio = Intercambio.objects.create(
                         venta=venta,
                         funcion_origen=funcion_origen,
@@ -288,7 +322,7 @@ class IntercambioService:
                         f"Intercambio #{intercambio.id_intercambio} registrado exitosamente"
                     )
                 
-                # 6. Enviar email de confirmación (fuera de la transacción)
+                # 8. Enviar email de confirmación (fuera de la transacción)
                 try:
                     from core.services import notificacion_service
                     notificacion_service.enviar_confirmacion_intercambio(

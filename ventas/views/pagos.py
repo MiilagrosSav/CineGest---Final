@@ -24,6 +24,14 @@ def iniciar_pago(request, venta_id):
     Iniciar el proceso de pago con Mercado Pago
     Muestra página con botón oficial de MP
     """
+    print("\n" + "="*80)
+    print("💳 ACCESO A INICIAR_PAGO")
+    print(f"   Venta ID: {venta_id}")
+    print(f"   Método HTTP: {request.method}")
+    print(f"   URL completa: {request.get_full_path()}")
+    print(f"   Referer: {request.META.get('HTTP_REFERER', 'Sin referer')}")
+    print("="*80 + "\n")
+    
     from decimal import Decimal
     from django.conf import settings
     from ventas.models import Venta
@@ -177,6 +185,12 @@ def pago_exitoso(request):
         try:
             venta = Venta.objects.get(id_venta=external_reference)
             print(f"📦 Procesando venta #{venta.id_venta} - Estado actual: {venta.estado}")
+            
+            # VERIFICAR SI LA VENTA YA FUE CONFIRMADA POR INTERCAMBIO
+            if hasattr(venta, 'pago') and venta.pago and venta.pago.id_metodo_pago.nombre == 'Intercambio':
+                print(f"⚠️ Venta #{venta.id_venta} ya fue confirmada por intercambio. Ignorando webhook de Mercado Pago.")
+                messages.info(request, '✅ Tu compra ya está confirmada.')
+                return redirect('ventas:detalle_venta', venta_id=venta.id_venta)
             
             # Actualizar el estado de la venta
             venta.estado = 'CONFIRMADA'

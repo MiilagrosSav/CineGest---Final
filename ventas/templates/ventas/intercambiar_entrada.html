@@ -54,7 +54,7 @@
 
                             <div style="display:flex; flex-wrap:wrap; gap:0.5rem;">
                                 {% for f in grupo.list %}
-                                    <a href="{% url 'cine:cartelera' %}?intercambio_for={{ venta.id_venta }}&dia={{ f.fecha_hora|date:'Y-m-d' }}&search={{ f.pelicula.titulo|urlencode }}" class="btn btn-outline horario-btn" style="padding:0.4rem 0.6rem; min-width:100px; text-decoration:none;">
+                                    <a href="{% url 'ventas:seleccionar_butacas_intercambio' venta.id_venta f.id %}" class="btn btn-outline horario-btn" style="padding:0.4rem 0.6rem; min-width:100px; text-decoration:none;">
                                         <strong style="color:var(--primary);">{{ f.fecha_hora|date:"H:i" }}</strong>
                                         <div style="font-size:0.75rem; opacity:0.85;">{{ f.fecha_hora|date:"d/m" }} · Sala {{ f.sala.numero }}</div>
                                         <div style="font-size:0.75rem; opacity:0.85;">Disp: {{ f.asientos_disponibles }}</div>
