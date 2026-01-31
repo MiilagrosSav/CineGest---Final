@@ -11,6 +11,7 @@ import logging
 import base64
 import io
 import urllib.parse
+from decimal import Decimal
 from typing import Optional, Dict, Any, List
 try:
     import qrcode  # type: ignore
@@ -133,8 +134,32 @@ class NotificacionService:
             'id_pelicula'
         )
 
-        # Calcular total
-        total = sum(entrada.id_funcion.precio_base for entrada in entradas)
+        # Calcular total CON descuentos de promociones
+        total_final, promo_aplicada, detalle = venta.calcular_total(request=request, include_detalle=True)
+        
+        # Información de la promoción aplicada
+        promocion_aplicada = None
+        descuento_info = None
+        
+        if promo_aplicada:
+            promocion_aplicada = {
+                'nombre': promo_aplicada.nombre,
+                'descripcion': promo_aplicada.descripcion or '',
+                'tipo': promo_aplicada.tipo_descuento,
+                'valor': promo_aplicada.valor_descuento
+            }
+            
+            # Calcular descuento para mostrar
+            subtotal = detalle.get('total_original', Decimal('0.00'))
+            ahorro = detalle.get('ahorro', Decimal('0.00'))
+            
+            descuento_info = {
+                'subtotal': subtotal,
+                'descuento': ahorro,
+                'total_final': total_final
+            }
+        
+        total = total_final
 
         # Generar QR ÚNICO para la venta completa (usando codigo_compra o ID)
         qr_data_value = venta.codigo_compra if venta.codigo_compra else f"VENTA-{venta.id_venta}"
@@ -162,6 +187,8 @@ class NotificacionService:
             'total': total,
             'cantidad': len(entradas),
             'request': request,
+            'promocion_aplicada': promocion_aplicada,
+            'descuento_info': descuento_info,
         }
         
         return self._enviar_email(

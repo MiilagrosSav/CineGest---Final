@@ -235,6 +235,15 @@ def procesar_intercambio(request, venta_id, funcion_id):
         return redirect('ventas:seleccionar_butacas_intercambio', venta_id=venta_id, funcion_id=funcion_id)
 
     # Ejecutar intercambio usando el servicio
+    print("\n" + "="*80)
+    print("🔄 INICIANDO INTERCAMBIO")
+    print(f"   Venta ID: {venta_id}")
+    print(f"   Estado ANTES: {venta.estado}")
+    print(f"   Tiene pago ANTES: {hasattr(venta, 'pago') and venta.pago is not None}")
+    if hasattr(venta, 'pago') and venta.pago:
+        print(f"   Método pago ANTES: {venta.pago.id_metodo_pago.nombre}")
+    print("="*80 + "\n")
+    
     exitoso, mensaje, intercambio = intercambio_service.ejecutar_intercambio(
         venta=venta,
         funcion_destino=funcion,
@@ -242,11 +251,31 @@ def procesar_intercambio(request, venta_id, funcion_id):
         motivo=MotivoIntercambio.OTRO,
         request=request
     )
+    
+    print("\n" + "="*80)
+    print("🔄 INTERCAMBIO COMPLETADO")
+    print(f"   Exitoso: {exitoso}")
+    print(f"   Mensaje: {mensaje}")
+    if exitoso:
+        venta.refresh_from_db()
+        print(f"   Estado DESPUÉS: {venta.estado}")
+        print(f"   Tiene pago DESPUÉS: {hasattr(venta, 'pago') and venta.pago is not None}")
+        if hasattr(venta, 'pago') and venta.pago:
+            print(f"   Método pago DESPUÉS: {venta.pago.id_metodo_pago.nombre}")
+            print(f"   Monto pago DESPUÉS: {venta.pago.monto}")
+            print(f"   Estado pago DESPUÉS: {venta.pago.estado}")
+        print(f"   Entradas estado: {list(venta.entradas.values_list('estado', flat=True))}")
+    print("="*80 + "\n")
 
     if exitoso:
         logger.info(f"Intercambio exitoso: venta {venta_id}, intercambio #{intercambio.id_intercambio}")
-        messages.success(request, f'✅ {mensaje}')
-        return redirect('ventas:detalle_venta', venta_id=venta.id_venta)
+        
+        print("✅ REDIRIGIENDO A: intercambio_exitoso")
+        
+        # IMPORTANTE: Usar redirect() para implementar el patrón Post/Redirect/Get (PRG)
+        # Esto previene que al recargar la página se re-ejecute el POST
+        messages.success(request, f'🔄 ¡Intercambio realizado con éxito! Tus entradas han sido actualizadas.')
+        return redirect('ventas:intercambio_exitoso', intercambio_id=intercambio.id_intercambio)
     else:
         logger.error(f"Intercambio fallido para venta {venta_id}: {mensaje}")
         messages.error(request, f'❌ {mensaje}')

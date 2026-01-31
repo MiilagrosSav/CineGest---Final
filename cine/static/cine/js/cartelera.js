@@ -45,13 +45,22 @@ function cerrarPopupCompra() {
 
 function comprarEntrada() {
     if (funcionIdSeleccionada) {
+        console.log('🎬 COMPRAR ENTRADA');
+        console.log('   Función ID:', funcionIdSeleccionada);
+        console.log('   Modo intercambio:', intercambioVentaId);
+        console.log('   Intercambio venta ID:', intercambioVentaId);
+        
         // Si estamos en modo intercambio (se pasó intercambio_for), redirigir al selector en modo intercambio
         if (intercambioVentaId && intercambioVentaId.length > 0) {
-            window.location.href = `/ventas/seleccionar-butacas/intercambio/${intercambioVentaId}/${funcionIdSeleccionada}/`;
+            const urlIntercambio = `/ventas/seleccionar-butacas/intercambio/${intercambioVentaId}/${funcionIdSeleccionada}/`;
+            console.log('✅ Redirigiendo a INTERCAMBIO:', urlIntercambio);
+            window.location.href = urlIntercambio;
             return;
         }
         // Redirigir a la página de selección de butacas (compra normal)
-        window.location.href = `/ventas/seleccionar-butacas/${funcionIdSeleccionada}/`;
+        const urlNormal = `/ventas/seleccionar-butacas/${funcionIdSeleccionada}/`;
+        console.log('📝 Redirigiendo a COMPRA NORMAL:', urlNormal);
+        window.location.href = urlNormal;
     }
 }
 

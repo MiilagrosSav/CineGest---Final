@@ -175,6 +175,7 @@ def detalle_venta(request, venta_id):
 
     # Determinar si la venta todavía puede intercambiarse:
     # - Debe estar confirmada y tener pago
+    # - No debe haber usado un cupón (las compras con cupón no permiten intercambio)
     # - No debe haber intercambios previos (entradas canceladas)
     # - La política, si existe, debe permitir el intercambio
     politica = PoliticaReembolso.objects.filter(activo=True).first()
@@ -184,6 +185,10 @@ def detalle_venta(request, venta_id):
     # Evaluar condiciones y proporcionar motivo legible cuando no se permite
     if venta.estado != 'CONFIRMADA':
         motivo_no_intercambio = 'La venta no está confirmada.'
+    elif venta.cupon_utilizado:
+        # Las compras con cupón no permiten intercambio
+        motivo_no_intercambio = 'Las compras realizadas con cupón no son elegibles para intercambio.'
+        puede_intercambiar = False
     elif entradas_canceladas.count() > 0:
         motivo_no_intercambio = 'La venta ya tiene intercambios previos (entradas canceladas).'
     elif venta.tipo_venta == 'PRESENCIAL':
@@ -211,108 +216,13 @@ def detalle_venta(request, venta_id):
         'entradas_canceladas': entradas_canceladas,
         'politica': politica,
         'puede_intercambiar': puede_intercambiar,
+        'motivo_no_intercambio': motivo_no_intercambio,
         'can_valorar_info': can_valorar_info,
     }
     
     return render(request, 'ventas/detalle_venta.html', context)
 
 
-@login_required
-def intercambiar_entrada_view(request, venta_id):
-    """Vista para intercambiar las entradas de una venta por otra función válida."""
-    venta = get_object_or_404(Venta, id_venta=venta_id, id_cliente__usuario=request.user)
-
-    # Obtener funciones candidatas
-    candidatas = obtener_funciones_candidatas(venta)
-
-    # Consultar política activa (si existe) y validarla respecto a la venta
-    politica = PoliticaReembolso.objects.filter(activo=True).first()
-    if politica:
-        permite, motivo = politica.permite_intercambio_para_venta(venta)
-        if not permite:
-            messages.error(request, motivo)
-            return redirect('ventas:detalle_venta', venta_id=venta.id_venta)
-
-    # Si no hay candidatas, mostrar mensaje informativo
-    if not candidatas.exists():
-        precio = None
-        entradas = venta.entradas.all()
-        if entradas.exists():
-            precio = entradas[0].id_funcion.precio_base
-
-        context = {
-            'venta': venta,
-            'mensaje_no_candidatas': True,
-            'precio': precio,
-        }
-        return render(request, 'ventas/intercambiar_entrada.html', context)
-
-    # Instanciar form
-    if request.method == 'POST':
-        # Soportar dos modos de envío: el form select (nueva_funcion) o botones individuales que envían 'nueva_funcion_id'
-        nueva_funcion = None
-        if 'nueva_funcion_id' in request.POST:
-            try:
-                nueva_funcion = Funcion.objects.get(pk=int(request.POST.get('nueva_funcion_id')))
-            except Exception:
-                nueva_funcion = None
-            form = IntercambioEntradaForm(request.POST, compra=venta)
-        else:
-            form = IntercambioEntradaForm(request.POST, compra=venta)
-            if form.is_valid():
-                nueva_funcion = form.cleaned_data.get('nueva_funcion')
-        # Si no se obtuvo una función válida, mostrar error
-        if not nueva_funcion:
-            messages.error(request, 'Seleccioná una función válida para el intercambio.')
-        else:
-            cantidad = venta.entradas.count()
-
-            # Ejecutar la operación de intercambio dentro de una transacción
-            try:
-                with transaction.atomic():
-                    # Determinar butacas ya asociadas a la nueva función (cualquier estado)
-                    ocupadas_ids_all = set(
-                        Entrada.objects.filter(
-                            id_funcion=nueva_funcion
-                        ).values_list('id_butaca_id', flat=True)
-                    )
-
-                    # Buscar butacas disponibles (excluir las que ya tienen una Entrada para esa función,
-                    # independientemente de su estado, para no violar la restricción UNIQUE)
-                    disponibles_qs = Butaca.objects.filter(
-                        sala=nueva_funcion.sala,
-                        es_pasillo=False
-                    ).exclude(id__in=ocupadas_ids_all).order_by('fila', 'numero')
-
-                    disponibles = list(disponibles_qs[:cantidad])
-                    if len(disponibles) < cantidad:
-                        raise Exception('No hay suficientes butacas disponibles en la nueva función.')
-
-                    # Marcar entradas antiguas como canceladas para dejar registro
-                    venta.entradas.update(estado='CANCELADA')
-
-                    # Crear nuevas entradas asignando las butacas
-                    for butaca in disponibles:
-                        Entrada.objects.create(
-                            id_venta=venta,
-                            id_funcion=nueva_funcion,
-                            id_sala=nueva_funcion.sala,
-                            id_butaca=butaca,
-                            id_pelicula=nueva_funcion.pelicula,
-                            estado='RESERVADA'
-                        )
-
-                messages.success(request, '✅ Intercambio realizado con éxito.')
-                return redirect('ventas:detalle_venta', venta_id=venta.id_venta)
-            except Exception as e:
-                messages.error(request, f'❌ No se pudo completar el intercambio: {str(e)}')
-    else:
-        form = IntercambioEntradaForm(compra=venta)
-
-    context = {
-        'venta': venta,
-        'form': form,
-        'candidatas': candidatas,
-        'politica': politica,
-    }
-    return render(request, 'ventas/intercambiar_entrada.html', context)
+# NOTA: Vista intercambiar_entrada_view deprecada y movida a reembolsos.py
+# El flujo ahora redirige a la cartelera con ?intercambio_for para seleccionar película/función
+# Ver: ventas.views.reembolsos.intercambiar_entrada_view

@@ -214,6 +214,38 @@
             {% endfor %}
         </div>
         
+        {% if promocion_aplicada %}
+        <!-- INFORMACIÓN DE PROMOCIÓN APLICADA -->
+        <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); border-radius: 10px; padding: 25px; margin: 20px 0; color: white; text-align: center;">
+            <h3 style="margin-top: 0; color: white;">🎉 ¡Promoción Aplicada!</h3>
+            <div style="background: rgba(255,255,255,0.2); border-radius: 8px; padding: 15px; margin: 15px 0;">
+                <div style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">{{ promocion_aplicada.nombre }}</div>
+                {% if promocion_aplicada.descripcion %}
+                <div style="font-size: 14px; opacity: 0.95;">{{ promocion_aplicada.descripcion }}</div>
+                {% endif %}
+            </div>
+            
+            {% if descuento_info %}
+            <div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 15px; margin-top: 15px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px;">
+                    <span>Subtotal:</span>
+                    <span>${{ descuento_info.subtotal }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: #90EE90;">
+                    <span>Descuento:</span>
+                    <span>-${{ descuento_info.descuento }}</span>
+                </div>
+                <div style="border-top: 2px solid rgba(255,255,255,0.3); padding-top: 8px; margin-top: 8px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 18px; font-weight: bold;">
+                        <span>Total Final:</span>
+                        <span>${{ descuento_info.total_final }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
         <div class="total-section">
             <div>TOTAL PAGADO</div>
             <div class="total-amount">${{ total }}</div>
