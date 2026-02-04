@@ -33,8 +33,14 @@ def mis_ventas(request):
         return redirect('accounts:dashboard')
     
     # Obtener todas las ventas del cliente actual
+    # ✅ OPTIMIZACIÓN: Agregado select_related para evitar N+1 queries
     ventas_todas = Venta.objects.filter(
         id_cliente__usuario=request.user
+    ).select_related(
+        'id_cliente__usuario',
+        'pago',
+        'pago__id_metodo_pago',
+        'id_empleado__usuario'
     ).prefetch_related('entradas', 'entradas__id_funcion', 'entradas__id_pelicula', 'intercambios').order_by('-fecha_compra')
     
     # Leer filtro de categoría desde GET (confirmadas, intercambiadas, canceladas)

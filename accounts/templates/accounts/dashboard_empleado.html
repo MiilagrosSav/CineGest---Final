@@ -5,12 +5,17 @@
 {% block content %}
 <div class="container">
     
-    <div class="mb-lg">
-        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🎯 Panel de Empleado</h1>
-        <p class="card-subtitle">
-            Hola <strong>{{ user.first_name|default:user.username|title }}</strong>, 
-            gestiona las operaciones diarias del cine de manera eficiente.
-        </p>
+    <div class="mb-lg" style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-lg);">
+        <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline" style="padding: 0.5rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; border-radius: 50px; font-weight: 500;">
+            ← VOLVER
+        </a>
+        <div>
+            <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🎯 Panel de Empleado</h1>
+            <p class="card-subtitle">
+                Hola <strong>{{ user.first_name|default:user.username|title }}</strong>, 
+                gestiona las operaciones diarias del cine de manera eficiente.
+            </p>
+        </div>
     </div>
 
     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-lg, 2rem);">

@@ -4,7 +4,7 @@ from django.http import HttpResponseForbidden
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db import models
+from django.db import models, transaction
 from django.utils import timezone as dj_tz
 
 from .models.promocion import Promocion
@@ -16,19 +16,16 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import render, redirect
 from django.utils import timezone
 from django.http import Http404
+from cine.mixins import AdminRequiredMixin, ProtectedDeleteMixin
 
 import uuid
 from django.contrib import messages
 from django.urls import reverse
 import logging
+from io import StringIO
+from django.core.management import call_command
 
 logger = logging.getLogger(__name__)
-
-
-class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):
-    """Mixin que requiere que el usuario sea admin o superuser"""
-    def test_func(self):
-        return self.request.user.is_superuser or getattr(self.request.user, 'rol', None) == 'admin'
 
 
 @login_required
@@ -46,10 +43,24 @@ def dashboard_promociones(request):
         'token', 'politica_origen__nombre', 'usado', 'creado_en', 'cliente__usuario__email'
     ))
 
+    # Métricas adicionales
+    cupones_total = CuponGenerado.objects.count()
+    cupones_usados = CuponGenerado.objects.filter(usado=True).count()
+    cupones_disponibles = CuponGenerado.objects.filter(usado=False, expira_en__gte=timezone.now()).count()
+    tasa_conversion = round((cupones_usados / cupones_total * 100), 1) if cupones_total > 0 else 0
+
     context = {
         'promociones_count': Promocion.objects.count(),
+        'promociones_automaticas': Promocion.objects.filter(es_automatica=True).count(),
+        'promociones_cupon': Promocion.objects.filter(es_automatica=False).count(),
         'politicas_count': PoliticaPromocion.objects.count(),
+        'politicas_activas': PoliticaPromocion.objects.filter(activa=True).count(),
+        'politicas_inactivas': PoliticaPromocion.objects.filter(activa=False).count(),
         'cupones_recientes': cupones_recientes,
+        'cupones_total': cupones_total,
+        'cupones_usados': cupones_usados,
+        'cupones_disponibles': cupones_disponibles,
+        'tasa_conversion': tasa_conversion,
     }
 
     return render(request, 'promociones/dashboard.html', context)
@@ -124,13 +135,21 @@ class PoliticaPromocionUpdateView(AdminRequiredMixin, UpdateView):
         return ctx
 
 
-class PoliticaPromocionDeleteView(AdminRequiredMixin, DeleteView):
+class PoliticaPromocionDeleteView(ProtectedDeleteMixin, AdminRequiredMixin, DeleteView):
     model = PoliticaPromocion
     template_name = 'promociones/politica_confirm_delete.html'
     success_url = reverse_lazy('promociones:politica_list')
+    
+    # Configuración para ProtectedDeleteMixin
+    protected_filter_field = 'politica_origen'
+    related_name = 'cupón(es) generado(s)'
+    
+    @property
+    def protected_model(self):
+        from .models.cuponGenerado import CuponGenerado
+        return CuponGenerado
 
     def get_context_data(self, **kwargs):
-        from django.contrib import messages
         from .models.cuponGenerado import CuponGenerado
         context = super().get_context_data(**kwargs)
         politica = self.get_object()
@@ -148,43 +167,29 @@ class PoliticaPromocionDeleteView(AdminRequiredMixin, DeleteView):
         
         return context
     
-    def delete(self, request, *args, **kwargs):
-        from django.db.models.deletion import ProtectedError
-        from django.contrib import messages
-        from .models.cuponGenerado import CuponGenerado
+    def get_protected_message_parts(self, obj, protected_objects):
+        """Sobrescribe para agregar detalles de cupones usados/disponibles."""
+        mensaje_partes = [
+            f'No se puede eliminar la política "{obj.nombre}" porque está asociada a:',
+            f'<br><strong>• {protected_objects.count()} cupón(es) generado(s)</strong>'
+        ]
         
-        self.object = self.get_object()
-        success_url = self.get_success_url()
+        usados = protected_objects.filter(usado=True).count()
+        disponibles = protected_objects.filter(usado=False).count()
+        if usados:
+            mensaje_partes.append(f'  - {usados} usado(s)')
+        if disponibles:
+            mensaje_partes.append(f'  - {disponibles} disponible(s)')
         
-        try:
-            self.object.delete()
-            messages.success(request, f'La política "{self.object.nombre}" ha sido eliminada exitosamente.')
-            return redirect(success_url)
-        except ProtectedError as e:
-            # Construir mensaje detallado
-            cupones = CuponGenerado.objects.filter(politica_origen=self.object)
-            
-            mensaje_partes = [
-                f'No se puede eliminar la política "{self.object.nombre}" porque está asociada a:',
-                f'<br><strong>• {cupones.count()} cupón(es) generado(s)</strong>'
-            ]
-            
-            usados = cupones.filter(usado=True).count()
-            disponibles = cupones.filter(usado=False).count()
-            if usados:
-                mensaje_partes.append(f'  - {usados} usado(s)')
-            if disponibles:
-                mensaje_partes.append(f'  - {disponibles} disponible(s)')
-            
-            mensaje_partes.extend([
-                '<br><br><strong>Alternativas:</strong>',
-                '1. Los cupones están vinculados a esta política y no pueden eliminarse',
-                '2. Marcar la política como inactiva en lugar de eliminarla'
-            ])
-            
-            mensaje_final = '<br>'.join(mensaje_partes)
-            messages.error(request, mensaje_final, extra_tags='safe')
-            return redirect('promociones:politica_list')
+        return mensaje_partes
+    
+    def get_alternative_messages(self):
+        """Sobrescribe para personalizar alternativas específicas de políticas."""
+        return [
+            '<br><br><strong>Alternativas:</strong>',
+            '1. Los cupones están vinculados a esta política y no pueden eliminarse',
+            '2. Marcar la política como inactiva en lugar de eliminarla'
+        ]
 
 
 # Vistas CRUD para Promociones
@@ -195,6 +200,9 @@ class PromocionListView(AdminRequiredMixin, ListView):
     
     def get_queryset(self):
         qs = super().get_queryset()
+        
+        # ✅ OPTIMIZACIÓN: Prefetch vínculos para mostrar en tabla
+        qs = qs.prefetch_related('vinculos')
         
         # Filtro por búsqueda (nombre, código)
         search = self.request.GET.get('search', '').strip()
@@ -236,7 +244,71 @@ class PromocionCreateView(AdminRequiredMixin, CreateView):
         ctx = super().get_context_data(**kwargs)
         ctx['titulo_pagina'] = 'Crear Promoción'
         ctx['nombre_boton'] = 'Crear'
+        
+        # ✅ Agregar formset de vínculos
+        from .forms import VinculoPromocionalFormSet
+        if self.request.POST:
+            ctx['vinculo_formset'] = VinculoPromocionalFormSet(self.request.POST, instance=self.object)
+        else:
+            ctx['vinculo_formset'] = VinculoPromocionalFormSet(instance=self.object)
+        
         return ctx
+
+    def form_valid(self, form):
+        from django.db import transaction
+        from .forms import VinculoPromocionalFormSet
+        context = self.get_context_data()
+        vinculo_formset = context['vinculo_formset']
+        
+        # Validar formset
+        if vinculo_formset.is_valid():
+            # ✅ Usar transaction.atomic() para asegurar integridad
+            with transaction.atomic():
+                self.object = form.save()
+                vinculo_formset.instance = self.object
+                vinculo_formset.save()
+            messages.success(self.request, f'Promoción "{self.object.nombre}" creada exitosamente.')
+            return redirect(self.success_url)
+        else:
+            # Si el formset no es válido, volver a mostrar el formulario
+            return self.form_invalid(form)
+    
+    def post(self, request, *args, **kwargs):
+        """
+        ✅ CORRECCIÓN: Interceptar POST para verificar vínculos ANTES de validar el formulario.
+        Esto permite que model.clean() sepa que habrá vínculos específicos.
+        """
+        try:
+            self.object = None
+            form = self.get_form()
+            
+            from .forms import VinculoPromocionalFormSet
+            vinculo_formset = VinculoPromocionalFormSet(self.request.POST, instance=self.object)
+            
+            # Verificar si hay vínculos pendientes en el formset
+            tiene_vinculos_pendientes = False
+            if vinculo_formset.is_valid():
+                tiene_vinculos_pendientes = any(
+                    vinculo_form.cleaned_data and not vinculo_form.cleaned_data.get('DELETE', False)
+                    for vinculo_form in vinculo_formset
+                )
+            
+            # Setear flag en el formulario ANTES de validarlo
+            if tiene_vinculos_pendientes:
+                form._tiene_vinculos_pendientes = True
+            
+            # Ahora validar el formulario (que llamará a model.clean())
+            if form.is_valid():
+                return self.form_valid(form)
+            else:
+                return self.form_invalid(form)
+                
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error al crear promoción: {str(e)}", exc_info=True)
+            messages.error(self.request, f'❌ Error al crear la promoción: {str(e)}')
+            return self.form_invalid(form) if 'form' in locals() else redirect('promociones:promocion_list')
 
 
 class PromocionUpdateView(AdminRequiredMixin, UpdateView):
@@ -249,22 +321,95 @@ class PromocionUpdateView(AdminRequiredMixin, UpdateView):
         ctx = super().get_context_data(**kwargs)
         ctx['titulo_pagina'] = 'Editar Promoción'
         ctx['nombre_boton'] = 'Guardar cambios'
+        
+        # ✅ Agregar formset de vínculos
+        from .forms import VinculoPromocionalFormSet
+        if self.request.POST:
+            ctx['vinculo_formset'] = VinculoPromocionalFormSet(self.request.POST, instance=self.object)
+        else:
+            ctx['vinculo_formset'] = VinculoPromocionalFormSet(instance=self.object)
+        
         return ctx
 
+    def form_valid(self, form):
+        from django.db import transaction
+        from .forms import VinculoPromocionalFormSet
+        context = self.get_context_data()
+        vinculo_formset = context['vinculo_formset']
+        
+        # Validar formset
+        if vinculo_formset.is_valid():
+            # ✅ Usar transaction.atomic() para asegurar integridad
+            with transaction.atomic():
+                self.object = form.save()
+                vinculo_formset.instance = self.object
+                vinculo_formset.save()
+            messages.success(self.request, f'Promoción "{self.object.nombre}" actualizada exitosamente.')
+            return redirect(self.success_url)
+        else:
+            # Si el formset no es válido, volver a mostrar el formulario
+            return self.form_invalid(form)
+    
+    def post(self, request, *args, **kwargs):
+        """
+        ✅ CORRECCIÓN: Interceptar POST para verificar vínculos ANTES de validar el formulario.
+        """
+        try:
+            self.object = self.get_object()
+            form = self.get_form()
+            
+            from .forms import VinculoPromocionalFormSet
+            vinculo_formset = VinculoPromocionalFormSet(self.request.POST, instance=self.object)
+            
+            # Verificar si hay vínculos pendientes en el formset
+            tiene_vinculos_pendientes = False
+            if vinculo_formset.is_valid():
+                tiene_vinculos_pendientes = any(
+                    vinculo_form.cleaned_data and not vinculo_form.cleaned_data.get('DELETE', False)
+                    for vinculo_form in vinculo_formset
+                )
+            
+            # Setear flag en el formulario ANTES de validarlo
+            if tiene_vinculos_pendientes:
+                form._tiene_vinculos_pendientes = True
+            
+            # Ahora validar el formulario
+            if form.is_valid():
+                return self.form_valid(form)
+            else:
+                return self.form_invalid(form)
+                
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error al actualizar promoción: {str(e)}", exc_info=True)
+            messages.error(self.request, f'❌ Error al actualizar la promoción: {str(e)}')
+            return self.form_invalid(form) if 'form' in locals() else redirect('promociones:promocion_list')
 
-class PromocionDeleteView(AdminRequiredMixin, DeleteView):
+
+class PromocionDeleteView(ProtectedDeleteMixin, AdminRequiredMixin, DeleteView):
     model = Promocion
     template_name = 'promociones/promocion_confirm_delete.html'
     success_url = reverse_lazy('promociones:promocion_list')
+    
+    # Configuración para ProtectedDeleteMixin
+    protected_filter_field = 'promocion_a_otorgar'
+    related_name = 'política(s) de promoción'
+    
+    @property
+    def protected_model(self):
+        from .models.politicaPromocion import PoliticaPromocion
+        return PoliticaPromocion
 
     def get_context_data(self, **kwargs):
-        from django.contrib import messages
         from .models.politicaPromocion import PoliticaPromocion
         context = super().get_context_data(**kwargs)
         promocion = self.get_object()
         
-        # Verificar si tiene políticas asociadas
-        politicas = PoliticaPromocion.objects.filter(promocion_a_otorgar=promocion)
+        # ✅ OPTIMIZACIÓN: Usar only() para limitar campos cargados
+        politicas = PoliticaPromocion.objects.filter(
+            promocion_a_otorgar=promocion
+        ).only('id', 'activa')
         
         context['tiene_politicas'] = politicas.exists()
         context['total_politicas'] = politicas.count()
@@ -276,43 +421,29 @@ class PromocionDeleteView(AdminRequiredMixin, DeleteView):
         
         return context
     
-    def delete(self, request, *args, **kwargs):
-        from django.db.models.deletion import ProtectedError
-        from django.contrib import messages
-        from .models.politicaPromocion import PoliticaPromocion
+    def get_protected_message_parts(self, obj, protected_objects):
+        """Sobrescribe para agregar detalles de políticas activas/inactivas."""
+        mensaje_partes = [
+            f'No se puede eliminar la promoción "{obj.nombre}" porque está asociada a:',
+            f'<br><strong>• {protected_objects.count()} política(s) de promoción</strong>'
+        ]
         
-        self.object = self.get_object()
-        success_url = self.get_success_url()
+        activas = protected_objects.filter(activa=True).count()
+        inactivas = protected_objects.filter(activa=False).count()
+        if activas:
+            mensaje_partes.append(f'  - {activas} activa(s)')
+        if inactivas:
+            mensaje_partes.append(f'  - {inactivas} inactiva(s)')
         
-        try:
-            self.object.delete()
-            messages.success(request, f'La promoción "{self.object.nombre}" ha sido eliminada exitosamente.')
-            return redirect(success_url)
-        except ProtectedError as e:
-            # Construir mensaje detallado
-            politicas = PoliticaPromocion.objects.filter(promocion_a_otorgar=self.object)
-            
-            mensaje_partes = [
-                f'No se puede eliminar la promoción "{self.object.nombre}" porque está asociada a:',
-                f'<br><strong>• {politicas.count()} política(s) de promoción</strong>'
-            ]
-            
-            activas = politicas.filter(activa=True).count()
-            inactivas = politicas.filter(activa=False).count()
-            if activas:
-                mensaje_partes.append(f'  - {activas} activa(s)')
-            if inactivas:
-                mensaje_partes.append(f'  - {inactivas} inactiva(s)')
-            
-            mensaje_partes.extend([
-                '<br><br><strong>Alternativas:</strong>',
-                '1. Eliminar o modificar las políticas de promoción que la referencian',
-                '2. Marcar la promoción como inactiva en lugar de eliminarla'
-            ])
-            
-            mensaje_final = '<br>'.join(mensaje_partes)
-            messages.error(request, mensaje_final, extra_tags='safe')
-            return redirect('promociones:promocion_list')
+        return mensaje_partes
+    
+    def get_alternative_messages(self):
+        """Sobrescribe para personalizar alternativas específicas de promociones."""
+        return [
+            '<br><br><strong>Alternativas:</strong>',
+            '1. Eliminar o modificar las políticas de promoción que la referencian',
+            '2. Marcar la promoción como inactiva en lugar de eliminarla'
+        ]
 
 
 @login_required
@@ -417,20 +548,24 @@ def activar_promocion_por_link(request, token):
         request.session['promo_activa_id'] = None
 
     request.session['promo_token'] = str(cupon.token)
-    try:
-        request.session.modified = True
-        request.session.save()
-        logger.debug('[PROMO ACT] Sesión guardada con promo_activa_id=%s promo_token=%s', request.session.get('promo_activa_id'), request.session.get('promo_token'))
-    except Exception:
-        logger.exception('Error al guardar sesión')
+    
+    # ✅ CORRECCIÓN: Usar transaction.atomic() para garantizar consistencia
+    with transaction.atomic():
+        try:
+            request.session.modified = True
+            request.session.save()
+            logger.debug('[PROMO ACT] Sesión guardada con promo_activa_id=%s promo_token=%s', request.session.get('promo_activa_id'), request.session.get('promo_token'))
+        except Exception:
+            logger.exception('Error al guardar sesión')
+            raise  # Rollback si falla guardado de sesión
 
-    # Marcar como usado sólo después de guardar la sesión
-    cupon.usado = True
-    cupon.save()
-    try:
-        logger.debug("[PROMO ACT] Cupón %s marcado como usado a las %s", cupon.token, timezone.now().isoformat())
-    except Exception:
-        logger.exception('Error al loggear marcado como usado')
+        # Marcar como usado sólo después de guardar la sesión
+        cupon.usado = True
+        cupon.save()
+        try:
+            logger.debug("[PROMO ACT] Cupón %s marcado como usado a las %s", cupon.token, timezone.now().isoformat())
+        except Exception:
+            logger.exception('Error al loggear marcado como usado')
 
     messages.success(request, '¡Promoción activada! Elige tu película')
     # Si el cupón tiene función origen, dirigir directamente a selección de butacas (yield management)
@@ -444,3 +579,68 @@ def activar_promocion_por_link(request, token):
 
     # Si no tiene función origen, ir a cartelera (cupones normales)
     return redirect(reverse('cine:cartelera'))
+
+
+@login_required
+def verificar_ocupacion_salas(request):
+    """
+    Ejecuta manualmente el comando de yield management y devuelve los resultados.
+    Solo accesible por administradores.
+    """
+    user = request.user
+    if not (user.is_superuser or getattr(user, 'rol', None) == 'admin'):
+        return JsonResponse({'error': 'Acceso denegado'}, status=403)
+
+    try:
+        # Capturar la salida del comando
+        out = StringIO()
+        call_command('ejecutar_yield_management', verbosity=2, stdout=out)
+        output = out.getvalue()
+        
+        # Parsear información relevante del output
+        lines = output.split('\n')
+        resultado = {
+            'success': True,
+            'output': output,
+            'politicas_activas': 0,
+            'funciones_evaluadas': 0,
+            'ofertas_activadas': 0,
+            'cupones_generados': 0,
+            'emails_enviados': 0,
+        }
+        
+        for line in lines:
+            if 'Políticas activas encontradas:' in line:
+                try:
+                    resultado['politicas_activas'] = int(line.split(':')[1].strip())
+                except:
+                    pass
+            elif 'Funciones evaluadas:' in line:
+                try:
+                    resultado['funciones_evaluadas'] = int(line.split(':')[1].strip())
+                except:
+                    pass
+            elif 'Funciones con oferta activada:' in line:
+                try:
+                    resultado['ofertas_activadas'] = int(line.split(':')[1].strip())
+                except:
+                    pass
+            elif 'Cupones generados:' in line:
+                try:
+                    resultado['cupones_generados'] = int(line.split(':')[1].strip())
+                except:
+                    pass
+            elif 'Emails enviados:' in line:
+                try:
+                    resultado['emails_enviados'] = int(line.split(':')[1].strip())
+                except:
+                    pass
+        
+        return JsonResponse(resultado)
+        
+    except Exception as e:
+        logger.error(f'Error al ejecutar yield management: {e}')
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

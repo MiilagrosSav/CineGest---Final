@@ -1,6 +1,8 @@
 from django import forms
+from django.forms import inlineformset_factory
 from .models.politicaPromocion import PoliticaPromocion
 from .models.promocion import Promocion
+from .models.vinculo_promocional import VinculoPromocional
 
 
 class PromocionForm(forms.ModelForm):
@@ -99,6 +101,20 @@ class PromocionForm(forms.ModelForm):
         if not val:
             return ''  # Vacío = todos los días
         return ','.join(sorted(val))
+    
+    def clean(self):
+        """
+        ✅ CORRECCIÓN: Marcar flag temporal si el usuario está intentando crear vínculos.
+        Esto permite que model.clean() sepa que habrá vínculos específicos incluso antes
+        de guardarlos en la BD.
+        """
+        cleaned_data = super().clean()
+        
+        # Verificar si hay un flag temporal pasado desde la vista
+        if hasattr(self, '_tiene_vinculos_pendientes'):
+            self.instance._tiene_vinculos_pendientes = self._tiene_vinculos_pendientes
+        
+        return cleaned_data
 
 
 class PoliticaPromocionForm(forms.ModelForm):
@@ -182,3 +198,123 @@ class PoliticaPromocionForm(forms.ModelForm):
             return ''
         vals = [str(int(x)) for x in val]
         return ','.join(vals)
+
+
+# ============================================
+# Formset para Vínculos Promocionales
+# ============================================
+
+class VinculoPromocionalForm(forms.ModelForm):
+    """
+    Formulario para gestionar vínculos específicos de promoción a películas/funciones.
+    Se usa en formset inline dentro de PromocionForm.
+    
+    ✅ MEJORAS:
+    - Filtra opciones ya vinculadas (evita duplicados en UI)
+    - Usa TomSelect para búsqueda rápida
+    - Restaura opciones al eliminar vínculos
+    """
+    class Meta:
+        model = VinculoPromocional
+        fields = ['pelicula', 'funcion']
+        widgets = {
+            'pelicula': forms.Select(attrs={
+                'class': 'form-control vinculo-select-pelicula tomselect-input',
+                'data-type': 'pelicula',
+                'data-placeholder': 'Buscar película...'
+            }),
+            'funcion': forms.Select(attrs={
+                'class': 'form-control vinculo-select-funcion tomselect-input',
+                'data-type': 'funcion',
+                'data-placeholder': 'Buscar función...'
+            }),
+        }
+        labels = {
+            'pelicula': 'Película (todas sus funciones)',
+            'funcion': 'Función específica (solo esa proyección)',
+        }
+        help_texts = {
+            'pelicula': 'Aplica la promoción a TODAS las funciones de esta película',
+            'funcion': 'Aplica la promoción SOLO a esta función específica',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from cine.models import Pelicula, Funcion
+        from django.utils import timezone
+        
+        # ✅ OPTIMIZACIÓN: select_related para evitar N+1
+        peliculas_base = Pelicula.objects.filter(
+            acepta_promociones=True
+        ).order_by('titulo')
+        
+        funciones_base = Funcion.objects.filter(
+            fecha_hora__gte=timezone.now(),
+            estado='ACTIVA'
+        ).select_related('pelicula', 'sala').order_by('fecha_hora')
+        
+        # ✅ FILTRADO EXCLUYENTE: Excluir películas/funciones ya vinculadas
+        # Obtener promoción desde el parent del formset (si estamos en edición)
+        promocion = None
+        if hasattr(self, 'parent') and self.parent and hasattr(self.parent, 'instance'):
+            promocion = self.parent.instance
+        elif hasattr(self, 'instance') and self.instance and self.instance.pk:
+            # Si estamos editando un vínculo existente
+            promocion = self.instance.promocion
+        
+        if promocion and promocion.pk:
+            # Obtener IDs de películas ya vinculadas (excepto la actual si estamos editando)
+            vinculos_existentes = VinculoPromocional.objects.filter(promocion=promocion)
+            if self.instance and self.instance.pk:
+                vinculos_existentes = vinculos_existentes.exclude(pk=self.instance.pk)
+            
+            peliculas_vinculadas_ids = vinculos_existentes.filter(
+                pelicula__isnull=False
+            ).values_list('pelicula_id', flat=True)
+            
+            funciones_vinculadas_ids = vinculos_existentes.filter(
+                funcion__isnull=False
+            ).values_list('funcion_id', flat=True)
+            
+            # Excluir las ya vinculadas
+            peliculas_base = peliculas_base.exclude(id__in=peliculas_vinculadas_ids)
+            funciones_base = funciones_base.exclude(id__in=funciones_vinculadas_ids)
+        
+        self.fields['pelicula'].queryset = peliculas_base
+        self.fields['funcion'].queryset = funciones_base
+        
+        # Hacer ambos campos opcionales (el clean validará que haya exactamente uno)
+        self.fields['pelicula'].required = False
+        self.fields['funcion'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        pelicula = cleaned_data.get('pelicula')
+        funcion = cleaned_data.get('funcion')
+
+        # Validar que haya exactamente UNO (no ambos, no ninguno)
+        if not pelicula and not funcion:
+            raise forms.ValidationError(
+                'Debe seleccionar una PELÍCULA o una FUNCIÓN (no puede dejar ambos vacíos).'
+            )
+        
+        if pelicula and funcion:
+            raise forms.ValidationError(
+                'Debe seleccionar SOLO una PELÍCULA o SOLO una FUNCIÓN (no ambas).'
+            )
+        
+        return cleaned_data
+
+        return cleaned_data
+
+
+# Formset factory para gestionar múltiples vínculos
+VinculoPromocionalFormSet = inlineformset_factory(
+    Promocion,
+    VinculoPromocional,
+    form=VinculoPromocionalForm,
+    extra=1,  # Mostrar 1 formulario vacío por defecto
+    can_delete=True,  # Permitir eliminar vínculos
+    min_num=0,  # Mínimo 0 vínculos (pueden no tener vínculos específicos)
+    validate_min=True,
+)

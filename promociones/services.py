@@ -81,7 +81,7 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
         return total_final, promo_aplicada, detalle
 
     # 2) Buscar promociones automáticas válidas para la función
-    from promociones.models.funcionPromocion import FuncionPromocion
+    from promociones.models.vinculo_promocional import VinculoPromocional
     candidatos = list(Promocion.objects.filter(es_automatica=True))
     logger.info(f'[PROMO] Evaluando {len(candidatos)} promociones automáticas')
     
@@ -95,11 +95,11 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
             logger.debug(f'[PROMO] {p.codigo} NO válida según reglas generales')
             continue
 
-        # Si existen filas en FuncionPromocion para esta promoción, requerimos que
+        # Si existen filas en VinculoPromocional para esta promoción, requerimos que
         # la promoción esté vinculada explícitamente a la función o a la película.
-        tiene_vinculos = FuncionPromocion.objects.filter(promocion=p).exists()
+        tiene_vinculos = VinculoPromocional.objects.filter(promocion=p).exists()
         if tiene_vinculos:
-            vinculada = FuncionPromocion.objects.filter(promocion=p).filter(models.Q(funcion=funcion) | models.Q(pelicula=funcion.pelicula)).exists()
+            vinculada = VinculoPromocional.objects.filter(promocion=p).filter(models.Q(funcion=funcion) | models.Q(pelicula=funcion.pelicula)).exists()
             if not vinculada:
                 # La promo existe pero no está vinculada a esta función/película
                 logger.debug(f'[PROMO] {p.codigo} tiene vínculos pero no está vinculada a esta función/película')
@@ -250,7 +250,7 @@ from core.services import notificacion_service
 import django.db.models as models
 
 from promociones.models.politicaPromocion import PoliticaPromocion
-from promociones.models.funcionPromocion import FuncionPromocion
+from promociones.models.vinculo_promocional import VinculoPromocional
 from promociones.models.cuponGenerado import CuponGenerado
 from accounts.models import Cliente
 from ventas.models.entrada import Entrada
@@ -271,7 +271,7 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
 
     1) Buscar PoliticaPromocion activa que coincida con el género de la película y cuyo rango horario incluya
        la hora de la función liberada.
-    2) Obtener la promocion_a_otorgar y verificar en FuncionPromocion que la promoción aplica a la función
+    2) Obtener la promocion_a_otorgar y verificar en VinculoPromocional que la promoción aplica a la función
        o a la película; si no, abortar para esa política.
     3) Buscar clientes candidatos en el historial de `Entradas` que hayan visto el mismo género o hayan
        asistido en el mismo rango horario. Excluir `cliente_excluido`.
@@ -368,8 +368,8 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
     promocion = politica.promocion_a_otorgar
     logger.debug('procesar_butaca_liberada: politica_elegida=%s, promocion=%s, promocion_es_automatica=%s', getattr(politica, 'pk', None), getattr(promocion, 'pk', None), getattr(promocion, 'es_automatica', None))
 
-    # Verificar existencia en FuncionPromocion
-    aplica = FuncionPromocion.objects.filter(promocion=promocion).filter(
+    # Verificar existencia en VinculoPromocional
+    aplica = VinculoPromocional.objects.filter(promocion=promocion).filter(
         Q(funcion=funcion_objeto) | Q(pelicula=pelicula)
     ).exists()
 
@@ -429,42 +429,49 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
         #                getattr(cliente, 'pk', None), cupones_activos)
         #     continue
         
-        # calcular expiración
-        ahora = timezone.now()
-        expira = ahora + timedelta(minutes=getattr(politica, 'minutos_validez', 60))
-
-        cupon = CuponGenerado.objects.create(
-            cliente=cliente,
-            politica_origen=politica,
-            expira_en=expira,
-            funcion_origen=funcion_objeto
-        )
-
-        # Construir link absoluto: priorizamos `settings.SITE_BASE_URL` si está definido,
-        # sino usamos el dominio pedido en requerimiento.
-        base = getattr(settings, 'SITE_BASE_URL', 'https://uncategorized-noncommodiously-floy.ngrok-free.dev')
-        link = f"{base}/promociones/activar/{cupon.token}"
-
-        # Envío usando NotificacionService y plantillas HTML/texto
         try:
-            # Sólo enviar si la promoción asociada no es automática (es_automatica == False).
-            if getattr(promocion, 'es_automatica', False):
-                logger.info('Promocion %s es automática; no se envía email de oferta (solo cupones se envían).', getattr(promocion, 'pk', None))
-                continue
+            # ✅ CORRECCIÓN: Usar transaction.atomic() para garantizar integridad
+            with models.transaction.atomic():
+                # calcular expiración
+                ahora = timezone.now()
+                expira = ahora + timedelta(minutes=getattr(politica, 'minutos_validez', 60))
 
-            logger.debug('Llamando notificacion_service.enviar_oferta_promocion: cliente=%s promocion=%s cupon=%s link=%s', getattr(cliente, 'pk', None), getattr(promocion, 'pk', None), getattr(cupon, 'token', None), link)
-            sent = notificacion_service.enviar_oferta_promocion(
-                cliente=cliente,
-                promocion=promocion,
-                cupon=cupon,
-                link=link,
-                funcion=funcion_objeto
-            )
-            if sent:
-                enviados += 1
-        except Exception:
-            # No hacemos rollback; sólo registramos intento fallido
-            logger.exception('Error enviando oferta promocion %s al cliente %s', getattr(promocion, 'pk', None), getattr(cliente, 'pk', None))
+                cupon = CuponGenerado.objects.create(
+                    cliente=cliente,
+                    politica_origen=politica,
+                    expira_en=expira,
+                    funcion_origen=funcion_objeto
+                )
+
+                # Construir link absoluto: priorizamos `settings.SITE_BASE_URL` si está definido,
+                # sino usamos el dominio pedido en requerimiento.
+                base = getattr(settings, 'SITE_BASE_URL', 'https://uncategorized-noncommodiously-floy.ngrok-free.dev')
+                link = f"{base}/promociones/activar/{cupon.token}"
+
+                # Envío usando NotificacionService y plantillas HTML/texto
+                # Sólo enviar si la promoción asociada no es automática (es_automatica == False).
+                if getattr(promocion, 'es_automatica', False):
+                    logger.info('Promocion %s es automática; no se envía email de oferta (solo cupones se envían).', getattr(promocion, 'pk', None))
+                    continue
+
+                logger.debug('Llamando notificacion_service.enviar_oferta_promocion: cliente=%s promocion=%s cupon=%s link=%s', getattr(cliente, 'pk', None), getattr(promocion, 'pk', None), getattr(cupon, 'token', None), link)
+                sent = notificacion_service.enviar_oferta_promocion(
+                    cliente=cliente,
+                    promocion=promocion,
+                    cupon=cupon,
+                    link=link,
+                    funcion=funcion_objeto
+                )
+                if sent:
+                    enviados += 1
+                else:
+                    # Si falla envío, hacer rollback del cupón creado
+                    raise Exception(f"Error enviando email a cliente {getattr(cliente, 'pk', None)}")
+        except Exception as e:
+            # No hacemos rollback general; transaction.atomic() ya hizo rollback del cupón
+            # Solo registramos intento fallido y continuamos con siguiente cliente
+            logger.exception('Error enviando oferta promocion %s al cliente %s: %s', 
+                           getattr(promocion, 'pk', None), getattr(cliente, 'pk', None), str(e))
 
     logger.info('procesar_butaca_liberada resultado: politica=%s promocion=%s candidatos=%d enviados=%d', getattr(politica, 'pk', None), getattr(promocion, 'pk', None), total_candidatos, enviados)
     respuestas.append({'politica': politica, 'status': 'procesada', 'candidatos': total_candidatos, 'enviados': enviados})

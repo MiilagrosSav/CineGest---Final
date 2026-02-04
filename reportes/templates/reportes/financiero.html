@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Reporte Financiero - CineGest{% endblock %}
+{% block title %}Reporte Financiero - {{ configuracion_cine.nombre|default:'Sistema de Cine' }}{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'reportes/css/financiero.css' %}?v=1.0">
@@ -74,11 +74,8 @@
                     <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Distribución de la recaudación</p>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
-                    <a href="{% url 'reportes:exportar_financiero_excel' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="btn btn-outline btn-sm">
-                        📊 Excel
-                    </a>
-                    <button id="exportPdfBtn" class="btn btn-secondary btn-sm">
-                        📄 PDF
+                    <button id="exportPdfBtn" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.5rem;">
+                        📄 EXPORTAR COMO PDF
                     </button>
                 </div>
             </div>

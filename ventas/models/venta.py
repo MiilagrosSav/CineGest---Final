@@ -95,6 +95,12 @@ class Venta(models.Model):
         ordering = ['-fecha_compra']
         # NOTA: El constraint de unicidad para codigo_compra se maneja
         # mediante un índice parcial en la migración (solo valores no vacíos)
+        # ✅ OPTIMIZACIÓN: Índices para mejorar rendimiento de reportes y dashboards
+        indexes = [
+            models.Index(fields=['estado', 'fecha_compra'], name='idx_venta_estado_fecha'),
+            models.Index(fields=['id_cliente', '-fecha_compra'], name='idx_venta_cliente_fecha'),
+            models.Index(fields=['tipo_venta', 'estado'], name='idx_venta_tipo_estado'),
+        ]
     
     def save(self, *args, **kwargs):
         """Generar código de compra automáticamente si no existe"""

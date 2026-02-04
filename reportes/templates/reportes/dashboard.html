@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Dashboard Gerencial - CineGest{% endblock %}
+{% block title %}Dashboard Gerencial - {{ configuracion_cine.nombre|default:'Sistema de Cine' }}{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'reportes/css/dashboard.css' %}?v=1.0">
@@ -9,7 +9,12 @@
 
 {% block content %}
 <div style="background:#121212; min-height:80vh; color:#e0e0e0; padding:24px;">
-  <h1 style="color:#e0e0e0; margin-bottom:16px">Dashboard Gerencial</h1>
+  <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem;">
+    <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline" style="padding: 0.5rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; border-radius: 50px; font-weight: 500; background: transparent; color: #e0e0e0; border: 2px solid rgba(255, 255, 255, 0.2);">
+      ← VOLVER
+    </a>
+    <h1 style="color:#e0e0e0; margin:0">Dashboard Gerencial</h1>
+  </div>
 
   <!-- Filter form -->
   <form method="get" style="display:flex; gap:12px; align-items:center; margin-bottom:18px;">
@@ -35,34 +40,22 @@
     </div>
   </form>
 
-  <!-- Download buttons -->
+  <!-- Export buttons -->
   <div style="display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap;">
     <div style="flex:1; min-width:200px;">
       <div style="font-size:13px; color:#cfcfcf; margin-bottom:6px;">📊 Reporte Financiero</div>
-      <div style="display:flex; gap:8px;">
-        <a href="{% url 'reportes:exportar_financiero_pdf' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" 
-           style="flex:1; text-align:center; background:#ef4444; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:13px;">
-          📄 PDF
-        </a>
-        <a href="{% url 'reportes:exportar_financiero_excel' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" 
-           style="flex:1; text-align:center; background:#10b981; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:13px;">
-          📊 Excel
-        </a>
-      </div>
+      <a href="{% url 'reportes:exportar_financiero_pdf' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" 
+         style="width:100%; text-align:center; background:#ef4444; color:white; padding:10px 16px; border-radius:8px; text-decoration:none; font-size:14px; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+        📄 EXPORTAR COMO PDF
+      </a>
     </div>
     
     <div style="flex:1; min-width:200px;">
       <div style="font-size:13px; color:#cfcfcf; margin-bottom:6px;">🎯 Reporte Operativo</div>
-      <div style="display:flex; gap:8px;">
-        <a href="{% url 'reportes:exportar_operativo_pdf' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" 
-           style="flex:1; text-align:center; background:#ef4444; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:13px;">
-          📄 PDF
-        </a>
-        <a href="{% url 'reportes:exportar_operativo_excel' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" 
-           style="flex:1; text-align:center; background:#10b981; color:white; padding:8px 12px; border-radius:6px; text-decoration:none; font-size:13px;">
-          📊 Excel
-        </a>
-      </div>
+      <a href="{% url 'reportes:exportar_operativo_pdf' %}?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" 
+         style="width:100%; text-align:center; background:#ef4444; color:white; padding:10px 16px; border-radius:8px; text-decoration:none; font-size:14px; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
+        📄 EXPORTAR COMO PDF
+      </a>
     </div>
   </div>
 

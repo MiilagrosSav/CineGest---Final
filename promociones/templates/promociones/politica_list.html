@@ -10,9 +10,14 @@
 {% block content %}
 <div class="container" style="max-width: 1400px; margin: 2rem auto;">
     
-    <div class="mb-lg">
-        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">⚙️ Políticas de Marketing</h1>
-        <p class="card-subtitle">Define cuándo enviar promociones automáticamente al liberarse butacas.</p>
+    <div class="mb-lg" style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-lg);">
+        <a href="{% url 'promociones:dashboard' %}" class="btn btn-outline" style="padding: 0.5rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; border-radius: 50px; font-weight: 500;">
+            ← VOLVER
+        </a>
+        <div>
+            <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">⚙️ Políticas de Marketing</h1>
+            <p class="card-subtitle">Define cuándo enviar promociones automáticamente al liberarse butacas.</p>
+        </div>
     </div>
 
     <div class="card glass-container">

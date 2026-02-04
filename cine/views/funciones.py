@@ -190,38 +190,41 @@ def funcion_create_view(request):
             current_tz = timezone.get_current_timezone() # Para crear datetimes "aware"
             
             # 3. Hacé un bucle por cada horario y creá la función
-            for hora_obj in horarios_obj_lista:
-                try:
-                    # Combina la fecha (date) y la hora (time)
-                    fecha_y_hora_final_naive = datetime.combine(fecha, hora_obj)
+            # ✅ CORRECCIÓN CRÍTICA: Envuelto en transaction.atomic() para garantizar rollback
+            with transaction.atomic():
+                for hora_obj in horarios_obj_lista:
+                    try:
+                        # Combina la fecha (date) y la hora (time)
+                        fecha_y_hora_final_naive = datetime.combine(fecha, hora_obj)
+                        
+                        # Convierte a datetime "aware" (consciente de zona horaria)
+                        fecha_y_hora_final_aware = timezone.make_aware(fecha_y_hora_final_naive, current_tz)
+                        
+                        # Crea y guarda el objeto Funcion con el campo idioma
+                        funcion = Funcion.objects.create(
+                            pelicula=pelicula,
+                            sala=sala,
+                            fecha_hora=fecha_y_hora_final_aware,
+                            precio_base=precio,
+                            idioma=idioma,  # Guardar el idioma en el modelo
+                            estado=estado   # Guardar el estado en el modelo
+                        )
+                        
+                        # Crea las relaciones con los formatos en la tabla intermedia
+                        from cine.models import FuncionFormato
+                        for formato in (formato_visual, formato_pantalla, formato_experiencia):
+                            if formato:
+                                FuncionFormato.objects.create(
+                                    funcion=funcion,
+                                    formato=formato
+                                )
+                        
+                        funciones_creadas += 1
                     
-                    # Convierte a datetime "aware" (consciente de zona horaria)
-                    fecha_y_hora_final_aware = timezone.make_aware(fecha_y_hora_final_naive, current_tz)
-                    
-                    # Crea y guarda el objeto Funcion con el campo idioma
-                    funcion = Funcion.objects.create(
-                        pelicula=pelicula,
-                        sala=sala,
-                        fecha_hora=fecha_y_hora_final_aware,
-                        precio_base=precio,
-                        idioma=idioma,  # Guardar el idioma en el modelo
-                        estado=estado   # Guardar el estado en el modelo
-                    )
-                    
-                    # Crea las relaciones con los formatos en la tabla intermedia
-                    from cine.models import FuncionFormato
-                    for formato in (formato_visual, formato_pantalla, formato_experiencia):
-                        if formato:
-                            FuncionFormato.objects.create(
-                                funcion=funcion,
-                                formato=formato
-                            )
-                    
-                    funciones_creadas += 1
-                
-                except Exception as e:
-                    # Si algo falla (aunque el form debería atajar todo)
-                    messages.error(request, f"Error al crear horario {hora_obj.strftime('%H:%M')}: {e}")
+                    except Exception as e:
+                        # Si algo falla (aunque el form debería atajar todo)
+                        messages.error(request, f"Error al crear horario {hora_obj.strftime('%H:%M')}: {e}")
+                        raise  # Re-lanzar para activar rollback automático
 
             if funciones_creadas > 0:
                 messages.success(request, f"¡Se crearon {funciones_creadas} funciones exitosamente!")

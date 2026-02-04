@@ -27,8 +27,18 @@ class VinculoPromocional(models.Model):
         verbose_name = 'Vínculo Promocional'
         verbose_name_plural = 'Vínculos Promocionales'
         constraints = [
-            models.UniqueConstraint(fields=['promocion', 'funcion', 'pelicula'], name='UQ_funcionpromocion_promocion_funcion_pelicula'),
-            # ✅ NUEVO: Garantiza exactamente UNO de película o función (no ambos, no ninguno)
+            # ✅ UNICIDAD: Una promoción NO puede tener el mismo vínculo duplicado
+            models.UniqueConstraint(
+                fields=['promocion', 'funcion'],
+                condition=Q(funcion__isnull=False),
+                name='UQ_vinculo_promocion_funcion'
+            ),
+            models.UniqueConstraint(
+                fields=['promocion', 'pelicula'],
+                condition=Q(pelicula__isnull=False),
+                name='UQ_vinculo_promocion_pelicula'
+            ),
+            # ✅ CONSISTENCIA: Garantiza exactamente UNO de película o función (no ambos, no ninguno)
             models.CheckConstraint(
                 check=Q(pelicula__isnull=False, funcion__isnull=True) | Q(pelicula__isnull=True, funcion__isnull=False),
                 name='check_vinculo_exactamente_uno'
@@ -42,8 +52,32 @@ class VinculoPromocional(models.Model):
         """
         from django.core.exceptions import ValidationError
         
+        # Validación 1: Exactamente uno de película o función
         if not self.funcion and not self.pelicula:
             raise ValidationError('Debe especificarse una función O una película (no ambas, no ninguna).')
         
         if self.funcion and self.pelicula:
             raise ValidationError('Solo puede vincular UNA función O UNA película, no ambas simultáneamente.')
+        
+        # Validación 2: No duplicar vínculos en la misma promoción
+        # ⚠️ IMPORTANTE: Solo validar si la promoción ya existe en DB (tiene PK)
+        if self.promocion and self.promocion.pk:
+            duplicados = VinculoPromocional.objects.filter(promocion=self.promocion)
+            
+            # Excluir el propio registro si ya existe (update)
+            if self.pk:
+                duplicados = duplicados.exclude(pk=self.pk)
+            
+            # Verificar duplicado de función
+            if self.funcion:
+                if duplicados.filter(funcion=self.funcion).exists():
+                    raise ValidationError({
+                        'funcion': f'La función "{self.funcion}" ya está vinculada a esta promoción. No se permiten duplicados.'
+                    })
+            
+            # Verificar duplicado de película
+            if self.pelicula:
+                if duplicados.filter(pelicula=self.pelicula).exists():
+                    raise ValidationError({
+                        'pelicula': f'La película "{self.pelicula}" ya está vinculada a esta promoción. No se permiten duplicados.'
+                    })

@@ -115,6 +115,13 @@ def generar_pdf_financiero(kpis, fin_data, fecha_inicio, fecha_fin, chart_base64
     Returns:
         BytesIO: buffer con el archivo PDF
     """
+    # Obtener configuración del cine para el template
+    from cine.models import ConfiguracionCine
+    try:
+        configuracion_cine = ConfiguracionCine.load()
+    except Exception:
+        configuracion_cine = None
+    
     context = {
         'titulo': 'Reporte Financiero Ejecutivo',
         'fecha_inicio': fecha_inicio,
@@ -123,6 +130,7 @@ def generar_pdf_financiero(kpis, fin_data, fecha_inicio, fecha_fin, chart_base64
         'peliculas': fin_data.get('detalle', []),
         'chart_base64': chart_base64,
         'requested_by': requested_by,
+        'configuracion_cine': configuracion_cine,
     }
     
     html_string = render_to_string('reportes/pdf_financiero.html', context)
@@ -207,6 +215,13 @@ def generar_pdf_operativo(occ_data, fecha_inicio, fecha_fin, chart_base64=None, 
     Returns:
         BytesIO: buffer con el archivo PDF
     """
+    # Obtener configuración del cine para el template
+    from cine.models import ConfiguracionCine
+    try:
+        configuracion_cine = ConfiguracionCine.load()
+    except Exception:
+        configuracion_cine = None
+    
     context = {
         'titulo': 'Reporte Operativo de Salas',
         'fecha_inicio': fecha_inicio,
@@ -216,6 +231,7 @@ def generar_pdf_operativo(occ_data, fecha_inicio, fecha_fin, chart_base64=None, 
         'heatmap_base64': heatmap_base64,
         'marketing_base64': marketing_base64,
         'requested_by': requested_by,
+        'configuracion_cine': configuracion_cine,
     }
     
     html_string = render_to_string('reportes/pdf_operativo.html', context)

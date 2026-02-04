@@ -46,6 +46,54 @@
     cursor: not-allowed;
 }
 
+/* --- Estilos Globales para Botones (incluyendo VOLVER) --- */
+.btn {
+    padding: 0.7rem 1.5rem;
+    font-size: 0.9rem; 
+    font-weight: 600;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-width: 2px;
+    transition: all 0.3s ease-in-out;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+}
+
+.btn-primary {
+    background: var(--primary);
+    color: white;
+    border: 2px solid var(--primary);
+}
+.btn-primary:hover {
+    background: rgb(77, 19, 92);
+    border-color: rgb(77, 19, 92);
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--text-light);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+.btn-outline:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.1);
+    transform: translateY(-1px) scale(1.01);
+}
+.btn-outline:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    background: transparent;
+}
+
 /* --- Tus otros estilos (sin cambios, ya que no son de botones) --- */
 
 /* Selector de fecha */

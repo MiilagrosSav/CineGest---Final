@@ -1,11 +1,11 @@
 from .promocion import Promocion
 from .politicaPromocion import PoliticaPromocion
-from .funcionPromocion import FuncionPromocion
+from .vinculo_promocional import VinculoPromocional
 from .cuponGenerado import CuponGenerado
 
 __all__ = [
     'Promocion',
     'PoliticaPromocion',
-    'FuncionPromocion',
+    'VinculoPromocional',
     'CuponGenerado',
 ]

@@ -75,33 +75,69 @@ class Promocion(models.Model):
     
     def clean(self):
         """
-        Seguridad: evitar que el campo `codigo` sea modificado si existen
-        instancias de `PoliticaPromocion` relacionadas que estén `activa=True`.
-
-        Si esta promoción ya existe en la base y el administrador intenta
-        cambiar su `codigo`, se comprobará la existencia de políticas activas
-        que referencien la promoción; si existen, se lanzará ValidationError
-        para impedir el cambio.
+        Validaciones de integridad:
+        1. Evita modificar el campo `codigo` si existen políticas activas relacionadas.
+        2. ✅ NUEVA VALIDACIÓN: Advierte sobre superposición de fechas en promociones automáticas.
         """
-        # Solo aplica si ya existe la instancia en DB
-        if not self.pk:
-            return
-
-        try:
-            original = self.__class__.objects.get(pk=self.pk)
-        except self.__class__.DoesNotExist:
-            return
-
-        # Si el código no cambia, nada que validar
-        if original.codigo == self.codigo:
-            return
-
-        # Consultar PoliticaPromocion evitando importaciones circulares
-        PoliticaPromocion = apps.get_model('promociones', 'PoliticaPromocion')
-        # Buscar políticas activas que referencien esta promoción
-        existe_activa = PoliticaPromocion.objects.filter(promocion_a_otorgar=original, activa=True).exists()
-        if existe_activa:
-            raise ValidationError({'codigo': 'No se puede modificar el código: existen políticas de recuperación activas que dependen de esta promoción. Desactívelas primero o elimínelas antes de cambiar el código.'})
+        super().clean()
+        
+        # ========== VALIDACIÓN 1: Proteger código de promociones en uso ==========
+        if self.pk:
+            try:
+                original = self.__class__.objects.get(pk=self.pk)
+            except self.__class__.DoesNotExist:
+                original = None
+            
+            # Si el código cambió, validar que no haya políticas activas
+            if original and original.codigo != self.codigo:
+                PoliticaPromocion = apps.get_model('promociones', 'PoliticaPromocion')
+                existe_activa = PoliticaPromocion.objects.filter(
+                    promocion_a_otorgar=original, 
+                    activa=True
+                ).exists()
+                if existe_activa:
+                    raise ValidationError({
+                        'codigo': 'No se puede modificar el código: existen políticas de recuperación activas que dependen de esta promoción. Desactívelas primero o elimínelas antes de cambiar el código.'
+                    })
+        
+        # ========== VALIDACIÓN 2: Advertir superposición de fechas en automáticas ==========
+        if self.es_automatica and self.fecha_inicio and self.fecha_fin:
+            # ✅ Verificar si esta promoción tiene vínculos específicos (existentes o pendientes)
+            VinculoPromocional = apps.get_model('promociones', 'VinculoPromocional')
+            tiene_vinculos_especificos = False
+            
+            # Verificar vínculos ya guardados en BD
+            if self.pk:
+                tiene_vinculos_especificos = VinculoPromocional.objects.filter(promocion=self).exists()
+            
+            # ✅ CORRECCIÓN: Verificar si hay vínculos pendientes de guardar (flag temporal de la vista)
+            if hasattr(self, '_tiene_vinculos_pendientes') and self._tiene_vinculos_pendientes:
+                tiene_vinculos_especificos = True
+            
+            # Solo validar superposición si NO tiene vínculos específicos (es global)
+            if not tiene_vinculos_especificos:
+                # Buscar otras promociones automáticas sin vínculos específicos con fechas solapadas
+                conflictos_base = self.__class__.objects.filter(
+                    es_automatica=True,
+                    fecha_inicio__lte=self.fecha_fin,
+                    fecha_fin__gte=self.fecha_inicio
+                )
+                
+                # Excluir la propia promoción si ya existe
+                if self.pk:
+                    conflictos_base = conflictos_base.exclude(pk=self.pk)
+                
+                # Filtrar solo las que NO tienen vínculos específicos (globales)
+                conflictos = []
+                for promo in conflictos_base:
+                    if not VinculoPromocional.objects.filter(promocion=promo).exists():
+                        conflictos.append(promo)
+                
+                if conflictos:
+                    codigos_conflicto = ', '.join([p.codigo for p in conflictos[:3]])
+                    raise ValidationError({
+                        'es_automatica': f'⚠️ ADVERTENCIA: Existe superposición de fechas con otras promociones automáticas globales ({codigos_conflicto}). El sistema aplicará automáticamente la que ofrezca el mayor descuento al cliente.'
+                    })
     
     def get_dias_list(self):
         """Devuelve la lista de días como enteros. Si vacío -> todos los días ([])"""

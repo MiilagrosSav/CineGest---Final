@@ -1,0 +1,55 @@
+name: Yield Management Automático
+
+# Se ejecuta cada hora, todos los días
+on:
+  schedule:
+    # Ejecutar a los 5 minutos de cada hora (0 5 * * * en cron)
+    - cron: '5 * * * *'
+  
+  # Permitir ejecución manual desde GitHub
+  workflow_dispatch:
+
+jobs:
+  ejecutar-yield:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📋 Checkout código
+        uses: actions/checkout@v3
+      
+      - name: 🐍 Configurar Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: 📦 Instalar dependencias
+        run: |
+          pip install -r requirements.txt
+      
+      - name: ⚙️ Configurar variables de entorno
+        env:
+          DJANGO_SECRET_KEY: ${{ secrets.DJANGO_SECRET_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          NGROK_URL: ${{ secrets.NGROK_URL }}
+        run: |
+          echo "SECRET_KEY=$DJANGO_SECRET_KEY" >> .env
+          echo "DATABASE_URL=$DATABASE_URL" >> .env
+          echo "SITE_BASE_URL=$NGROK_URL" >> .env
+          echo "DEBUG=False" >> .env
+      
+      - name: 🔍 Verificar configuración
+        run: |
+          echo "Verificando que las variables estén configuradas..."
+          python -c "from django.conf import settings; print('✅ Django configurado correctamente')"
+      
+      - name: 🎯 Ejecutar Yield Management
+        run: |
+          python manage.py ejecutar_yield_management --verbosity=2
+      
+      - name: 📊 Reporte de ejecución
+        if: always()
+        run: |
+          echo "=========================================="
+          echo "Ejecución finalizada: $(date)"
+          echo "=========================================="

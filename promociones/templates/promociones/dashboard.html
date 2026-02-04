@@ -15,21 +15,84 @@
         <p class="card-subtitle">Gestiona descuentos y políticas de marketing automático</p>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 2rem; margin-bottom: 3rem;">
+    <!-- Botón de verificación de ocupación -->
+    <div class="card glass-container" style="margin-bottom: 2rem; padding: var(--space-lg);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <div>
+                <h3 style="margin: 0; font-size: 1.1rem;">🔍 Gestión Automática de Ocupación</h3>
+                <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">
+                    Verifica la ocupación de salas y activa promociones automáticas para funciones con baja asistencia
+                </p>
+            </div>
+            <button id="btnVerificarOcupacion" class="btn btn-primary" style="white-space: nowrap;">
+                🎯 Verificar Ocupación de Salas
+            </button>
+        </div>
+        
+        <!-- Área de resultados -->
+        <div id="resultadosVerificacion" style="display: none; margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--glass-border);">
+            <div id="loadingVerificacion" style="display: none; text-align: center; padding: 2rem;">
+                <div style="font-size: 2rem; margin-bottom: 1rem;">⏳</div>
+                <p style="color: var(--text-secondary);">Analizando funciones y ocupación de salas...</p>
+            </div>
+            
+            <div id="resultadosContenido" style="display: none;">
+                <h4 style="margin-bottom: 1rem;">📊 Resultados de la Verificación</h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
+                    <div style="background: rgba(124, 58, 237, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(124, 58, 237, 0.2);">
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Políticas Activas</div>
+                        <div id="stat-politicas" style="font-size: 1.8rem; font-weight: 700; color: var(--primary);">-</div>
+                    </div>
+                    <div style="background: rgba(59, 130, 246, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.2);">
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Funciones Evaluadas</div>
+                        <div id="stat-funciones" style="font-size: 1.8rem; font-weight: 700; color: #3b82f6;">-</div>
+                    </div>
+                    <div style="background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Ofertas Activadas</div>
+                        <div id="stat-ofertas" style="font-size: 1.8rem; font-weight: 700; color: var(--success);">-</div>
+                    </div>
+                    <div style="background: rgba(245, 158, 11, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.2);">
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Cupones Generados</div>
+                        <div id="stat-cupones" style="font-size: 1.8rem; font-weight: 700; color: #f59e0b;">-</div>
+                    </div>
+                    <div style="background: rgba(236, 72, 153, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(236, 72, 153, 0.2);">
+                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.25rem;">Emails Enviados</div>
+                        <div id="stat-emails" style="font-size: 1.8rem; font-weight: 700; color: #ec4899;">-</div>
+                    </div>
+                </div>
+                
+                <details style="background: rgba(0, 0, 0, 0.2); padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border);">
+                    <summary style="cursor: pointer; font-weight: 600; margin-bottom: 0.5rem;">📋 Ver Log Completo</summary>
+                    <pre id="logOutput" style="background: rgba(0, 0, 0, 0.3); padding: 1rem; border-radius: 6px; font-size: 0.8rem; color: var(--text-secondary); overflow-x: auto; max-height: 400px; overflow-y: auto; margin-top: 1rem;"></pre>
+                </details>
+            </div>
+            
+            <div id="errorVerificacion" style="display: none; padding: 1rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
+                <strong style="color: #ef4444;">❌ Error:</strong>
+                <p id="errorMensaje" style="color: var(--text-secondary); margin-top: 0.5rem;"></p>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem; margin-bottom: 3rem;">
         
         <div class="card glass-container" style="display: flex; flex-direction: column; padding: var(--space-lg);">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
                 <div>
-                    <h3 style="margin: 0;">📊 Promociones</h3>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
-                        Códigos y descuentos manuales (%, 2x1).
+                    <h3 style="margin: 0; font-size: 1.1rem;">📊 Promociones</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">
+                        Códigos y descuentos
                     </p>
                 </div>
                 <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary); line-height: 1;">
                     {{ promociones_count }}
                 </div>
             </div>
-            
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; font-size: 0.85rem;">
+                <span style="color: var(--text-secondary);">🛒 {{ promociones_automaticas }} Auto</span>
+                <span style="color: var(--glass-border);">|</span>
+                <span style="color: var(--text-secondary);">📧 {{ promociones_cupon }} Cupón</span>
+            </div>
             <div style="margin-top: auto; display: flex; gap: var(--space-sm);">
                 <a href="{% url 'promociones:promocion_list' %}" class="btn btn-primary" style="flex: 1;">Ver Todas</a>
                 <a href="{% url 'promociones:promocion_create' %}" class="btn btn-outline" style="flex: 1;">+ Crear</a>
@@ -39,19 +102,47 @@
         <div class="card glass-container" style="display: flex; flex-direction: column; padding: var(--space-lg);">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
                 <div>
-                    <h3 style="margin: 0;">⚙️ Políticas Automáticas</h3>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.5rem;">
-                        Reglas de envío automático por liberación de butacas.
+                    <h3 style="margin: 0; font-size: 1.1rem;">⚙️ Políticas</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">
+                        Reglas automáticas
                     </p>
                 </div>
                 <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary); line-height: 1;">
                     {{ politicas_count }}
                 </div>
             </div>
-            
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; font-size: 0.85rem;">
+                <span style="color: var(--success);">✓ {{ politicas_activas }} Activas</span>
+                <span style="color: var(--glass-border);">|</span>
+                <span style="color: var(--text-secondary); opacity: 0.6;">✗ {{ politicas_inactivas }} Inactivas</span>
+            </div>
             <div style="margin-top: auto; display: flex; gap: var(--space-sm);">
                 <a href="{% url 'promociones:politica_list' %}" class="btn btn-primary" style="flex: 1;">Ver Todas</a>
                 <a href="{% url 'promociones:politica_create' %}" class="btn btn-outline" style="flex: 1;">+ Crear</a>
+            </div>
+        </div>
+
+        <div class="card glass-container" style="display: flex; flex-direction: column; padding: var(--space-lg);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1rem;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1.1rem;">🎟️ Cupones</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.5rem; opacity: 0.8;">
+                        Totales generados
+                    </p>
+                </div>
+                <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary); line-height: 1;">
+                    {{ cupones_total }}
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem; font-size: 0.85rem;">
+                <span style="color: var(--success);">✓ {{ cupones_usados }} Usados</span>
+                <span style="color: var(--glass-border);">|</span>
+                <span style="color: var(--text-secondary);">○ {{ cupones_disponibles }} Disponibles</span>
+            </div>
+            <div style="margin-top: auto; padding-top: 0.5rem; border-top: 1px solid var(--glass-border);">
+                <div style="font-size: 0.85rem; color: var(--text-secondary); opacity: 0.8;">
+                    Tasa de conversión: <span style="color: var(--primary); font-weight: 600;">{{ tasa_conversion }}%</span>
+                </div>
             </div>
         </div>
     </div>
@@ -104,4 +195,74 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const btnVerificar = document.getElementById('btnVerificarOcupacion');
+    const resultadosDiv = document.getElementById('resultadosVerificacion');
+    const loadingDiv = document.getElementById('loadingVerificacion');
+    const contenidoDiv = document.getElementById('resultadosContenido');
+    const errorDiv = document.getElementById('errorVerificacion');
+    
+    btnVerificar.addEventListener('click', function() {
+        // Mostrar sección de resultados y loading
+        resultadosDiv.style.display = 'block';
+        loadingDiv.style.display = 'block';
+        contenidoDiv.style.display = 'none';
+        errorDiv.style.display = 'none';
+        btnVerificar.disabled = true;
+        btnVerificar.textContent = '⏳ Verificando...';
+        
+        // Hacer petición AJAX
+        fetch('{% url "promociones:verificar_ocupacion" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            loadingDiv.style.display = 'none';
+            
+            if (data.success) {
+                // Limpiar mensajes anteriores
+                const oldInfoMsg = contenidoDiv.querySelector('.info-message');
+                if (oldInfoMsg) oldInfoMsg.remove();
+                
+                // Mostrar resultados
+                contenidoDiv.style.display = 'block';
+                document.getElementById('stat-politicas').textContent = data.politicas_activas;
+                document.getElementById('stat-funciones').textContent = data.funciones_evaluadas;
+                document.getElementById('stat-ofertas').textContent = data.ofertas_activadas;
+                document.getElementById('stat-cupones').textContent = data.cupones_generados;
+                document.getElementById('stat-emails').textContent = data.emails_enviados;
+                document.getElementById('logOutput').textContent = data.output;
+                
+                // Mostrar mensaje informativo si no se generaron cupones
+                if (data.cupones_generados === 0) {
+                    const infoMsg = document.createElement('div');
+                    infoMsg.className = 'info-message';
+                    infoMsg.style.cssText = 'margin-top: 1rem; padding: 1rem; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;';
+                    infoMsg.innerHTML = '<strong style="color: #3b82f6;">ℹ️ Información:</strong><p style="color: var(--text-secondary); margin-top: 0.5rem;">No se generaron cupones nuevos. Esto es normal si:<br>• No hay funciones con baja ocupación (&lt; 30%)<br>• Ya se enviaron cupones recientemente a los clientes<br>• Las funciones no cumplen las condiciones de las políticas activas</p>';
+                    contenidoDiv.appendChild(infoMsg);
+                }
+            } else {
+                // Mostrar error
+                errorDiv.style.display = 'block';
+                document.getElementById('errorMensaje').textContent = data.error || 'Error desconocido';
+            }
+        })
+        .catch(error => {
+            loadingDiv.style.display = 'none';
+            errorDiv.style.display = 'block';
+            document.getElementById('errorMensaje').textContent = 'Error de conexión: ' + error.message;
+        })
+        .finally(() => {
+            btnVerificar.disabled = false;
+            btnVerificar.textContent = '🎯 Verificar Ocupación de Salas';
+        });
+    });
+});
+</script>
 {% endblock %}

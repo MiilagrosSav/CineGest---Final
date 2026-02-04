@@ -10,9 +10,14 @@
 {% block content %}
 <div class="container" style="max-width: 800px;">
     
-    <div class="mb-lg">
-        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">{{ titulo_pagina }}</h1>
-        <p class="card-subtitle">Configura las reglas de automatización de marketing.</p>
+    <div class="mb-lg" style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-lg);">
+        <a href="{% url 'promociones:politica_list' %}" class="btn btn-outline" style="padding: 0.5rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; border-radius: 50px; font-weight: 500;">
+            ← VOLVER
+        </a>
+        <div>
+            <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">{{ titulo_pagina }}</h1>
+            <p class="card-subtitle">Configura las reglas de automatización de marketing.</p>
+        </div>
     </div>
 
     <div class="card glass-container">

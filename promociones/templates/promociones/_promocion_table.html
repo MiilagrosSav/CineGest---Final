@@ -10,6 +10,7 @@
                 <th style="padding: var(--space-sm);">Días</th>
                 <th style="padding: var(--space-sm); text-align: center;">Estrenos</th>
                 <th style="padding: var(--space-sm);">Género</th>
+                <th style="padding: var(--space-sm); text-align: center;">Vínculos</th>
                 <th style="padding: var(--space-sm);">Vigencia</th>
             </tr>
         </thead>
@@ -87,6 +88,25 @@
                         {% else %}
                             <span style="opacity: 0.6; font-size: 0.85rem;">Todos</span>
                         {% endif %}
+                    {% else %}
+                        <span style="opacity: 0.4; font-size: 0.85rem;">—</span>
+                    {% endif %}
+                </td>
+                
+                {# Columna VÍNCULOS ESPECÍFICOS (Películas/Funciones) #}
+                <td style="padding: var(--space-sm); text-align: center;">
+                    {% if promocion.es_automatica %}
+                        {% with vinculos_count=promocion.vinculos.count %}
+                            {% if vinculos_count > 0 %}
+                                <span style="color: #4ecdc4; font-weight: 600; font-size: 0.85rem;" title="Tiene {{ vinculos_count }} vínculo(s) específico(s)">
+                                    🎯 {{ vinculos_count }}
+                                </span>
+                            {% else %}
+                                <span style="opacity: 0.6; font-size: 0.85rem;" title="Sin vínculos específicos (aplica universalmente)">
+                                    Universal
+                                </span>
+                            {% endif %}
+                        {% endwith %}
                     {% else %}
                         <span style="opacity: 0.4; font-size: 0.85rem;">—</span>
                     {% endif %}

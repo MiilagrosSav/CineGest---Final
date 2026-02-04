@@ -18,7 +18,11 @@ urlpatterns = [
     path('promociones/<int:pk>/editar/', views.PromocionUpdateView.as_view(), name='promocion_update'),
     path('promociones/<int:pk>/eliminar/', views.PromocionDeleteView.as_view(), name='promocion_delete'),
     path('promocion/<int:pk>/is_automatica/', views.promocion_is_automatica, name='promocion_is_automatica'),
+    
     # Redeem link público (token UUID)
     path('redeem/<uuid:token>/', views.redeem_cupon, name='promocion_redeem'),
     path('activar/<uuid:token>/', views.activar_promocion_por_link, name='activar_promo'),
+    
+    # Verificación manual de ocupación
+    path('verificar-ocupacion/', views.verificar_ocupacion_salas, name='verificar_ocupacion'),
 ]

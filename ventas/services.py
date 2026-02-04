@@ -11,6 +11,8 @@ def liberar_reservas_expiradas():
 
     Retorna el número de entradas liberadas (marcadas como CANCELADA).
     """
+    from django.db import transaction
+    
     try:
         minutos = ConfiguracionCine.load().reserva_tiempo_espera
     except Exception:
@@ -28,9 +30,10 @@ def liberar_reservas_expiradas():
     liberadas = 0
     for entrada in qs.select_related('id_butaca', 'id_funcion'):
         try:
-            entrada.estado = 'CANCELADA'
-            entrada.reservado_por = None
-            entrada.save()
+            with transaction.atomic():
+                entrada.estado = 'CANCELADA'
+                entrada.reservado_por = None
+                entrada.save()
             liberadas += 1
         except Exception:
             # continuar con las siguientes entradas si hay error individual

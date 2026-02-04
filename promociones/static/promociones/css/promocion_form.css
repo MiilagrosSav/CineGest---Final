@@ -163,3 +163,70 @@ form .btn-outline:hover {
     font-size: 0.85rem;
     margin-top: 0.4rem;
 }
+/* --- BOTÓN ELIMINAR VÍNCULO --- */
+.btn-remove-vinculo:hover {
+    opacity: 1 !important;
+    transform: scale(1.1);
+}
+
+/* ============================================ */
+/* ESTILOS COMBOBOX (Películas y Funciones)    */
+/* ============================================ */
+.combobox-wrapper {
+    position: relative;
+}
+
+.combobox-input {
+    width: 100%;
+    cursor: text;
+}
+
+.combobox-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    background: rgba(30, 30, 50, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    margin-top: 4px;
+    z-index: 1000;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.combobox-option {
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-light);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.combobox-option:last-child {
+    border-bottom: none;
+}
+
+.combobox-option:hover,
+.combobox-option.selected {
+    background: rgba(var(--primary-rgb), 0.2);
+    color: var(--primary);
+}
+
+.combobox-option.active {
+    background: rgba(var(--primary-rgb), 0.3);
+    color: white;
+}
+
+.combobox-empty {
+    padding: 1rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-style: italic;
+}
+
+.combobox-input.invalid-input {
+    border-color: #ff6b6b !important;
+    background: rgba(255, 107, 107, 0.1) !important;
+}

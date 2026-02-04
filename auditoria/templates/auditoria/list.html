@@ -6,8 +6,13 @@
 {% block content %}
 <div class="container" id="audit-list" data-last-id="{{ page_obj.object_list.0.pk|default:'' }}">
     
-    <div class="mb-lg">
-        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🛡️ Auditoría del Sistema</h1>
+    <div class="mb-lg" style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-lg);">
+        <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline" style="padding: 0.5rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; border-radius: 50px; font-weight: 500;">
+            ← VOLVER
+        </a>
+        <div>
+            <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🛡️ Auditoría del Sistema</h1>
+        </div>
     </div>
 
     <div id="audit-new-banner" style="display:none; margin-bottom:1rem;"></div>

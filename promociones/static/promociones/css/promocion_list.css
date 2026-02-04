@@ -1,8 +1,6 @@
-/* --- Estilos para la Barra de Botones --- */
-#promocionTableContainer + div .btn,
-#promocionTableContainer + div .btn-primary,
-#promocionTableContainer + div .btn-outline {
-    padding: 0.7rem 1.3rem;
+/* --- Botones --- */
+.btn {
+    padding: 0.7rem 1.5rem;
     font-size: 0.9rem; 
     font-weight: 600;
     border-radius: 9999px;
@@ -10,30 +8,35 @@
     letter-spacing: 0.5px;
     border-width: 2px;
     transition: all 0.3s ease-in-out;
-    position: relative;
-    overflow: hidden;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 
-#promocionTableContainer + div .btn-primary:hover {
-    background: rgb(77, 19, 92);
+.btn-primary {
+    background: var(--primary);
     color: white;
-    border: none;
+    border: 2px solid var(--primary);
 }
-#promocionTableContainer + div .btn-outline:not(:disabled):hover {
-    background: rgba(var(--primary-rgb), 0.25);
+.btn-primary:hover {
+    background: rgb(77, 19, 92);
+    border-color: rgb(77, 19, 92);
+    transform: translateY(-1px) scale(1.01);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4);
+}
+.btn-outline {
+    background: transparent;
+    color: var(--text-light);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+}
+.btn-outline:hover {
     border-color: var(--primary);
     color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.1);
     transform: translateY(-1px) scale(1.01);
     box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
-}
-#promocionTableContainer + div .btn-outline:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-    background: transparent;
-    border-color: var(--glass-border);
-    color: var(--text-secondary);
-    transform: none;
-    box-shadow: none;
 }
 .btn:disabled,
 .btn-outline:disabled {
@@ -108,4 +111,24 @@
     border: 1px solid rgba(139, 95, 191, 0.3);
     color: #e0e0e0;
     white-space: nowrap;
+}
+/* --- Estilos para Vínculos Específicos --- */
+.vinculo-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.6rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    background: rgba(78, 205, 196, 0.15);
+    color: #4ecdc4;
+    border: 1px solid rgba(78, 205, 196, 0.3);
+}
+
+.vinculo-indicator.universal {
+    background: rgba(170, 170, 170, 0.1);
+    color: #999;
+    border: 1px solid rgba(170, 170, 170, 0.2);
+    font-weight: 400;
 }
