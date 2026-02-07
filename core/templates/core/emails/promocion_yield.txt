@@ -20,4 +20,4 @@ Esta es una oferta por tiempo limitado para ayudarte a disfrutar de esta funció
 ¡No te lo pierdas!
 
 ---
-CineGest - Tu cine de confianza
+{{ configuracion_cine.nombre|default:"CineGest" }} - Tu cine de confianza

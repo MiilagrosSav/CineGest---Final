@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Resultado de Reembolso - CineGest{% endblock %}
+{% block title %}Resultado de Reembolso - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'ventas/css/resultado_reembolso.css' %}?v=1.0">

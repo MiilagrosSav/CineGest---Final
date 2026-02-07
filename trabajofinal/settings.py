@@ -116,7 +116,8 @@ TEMPLATES = [
                 'social_django.context_processors.login_redirect',
                 
                 # ✅ Context processor para configuración del cine
-                'cine.context_processors.configuracion_cine',
+                'accounts.context_processors.configuracion_cine',
+
             ],
         },
     },

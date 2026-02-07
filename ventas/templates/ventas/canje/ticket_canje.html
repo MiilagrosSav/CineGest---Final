@@ -13,7 +13,7 @@
     <div class="ticket">
         
         <div class="header">
-            <div class="cine-name">{{ nombre_cine|default:"CINEGEST" }}</div>
+            <div class="cine-name">{{ configuracion_cine.nombre|default:"CineGest" }}</div>
             <div class="meta-info">
                 TICKET DE ENTRADA<br>
                 {{ venta.fecha_compra|date:"d/m/Y H:i" }}<br>
@@ -59,7 +59,7 @@
         </div>
 
         <div class="qr-container">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=CINEGEST-ENTRADA-{{ entrada.id_entrada }}" 
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={{ configuracion_cine.nombre|default:"CineGest"|upper }}-ENTRADA-{{ entrada.id_entrada }}" 
                  alt="QR Entrada #{{ entrada.id_entrada }}" class="qr-code">
             <div class="meta-info" style="margin-top: 5px;">Entrada {{ forloop.counter }} de {{ cantidad_entradas }}</div>
         </div>

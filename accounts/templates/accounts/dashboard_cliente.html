@@ -1,6 +1,6 @@
 {% extends "accounts/base.html" %}
 
-{% block title %}Mi Cuenta - CineGest{% endblock %}
+{% block title %}Mi Cuenta - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block content %}
 <div class="container">
@@ -9,7 +9,7 @@
         <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🎭 Mi Cuenta</h1>
         <p class="card-subtitle">
             Bienvenido <strong>{{ user.first_name|default:user.username|title }}</strong>, 
-            disfruta de la mejor experiencia cinematográfica con CineGest.
+            disfruta de la mejor experiencia cinematográfica con {{ configuracion_cine.nombre|default:"CineGest" }}.
         </p>
     </div>
 

@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Detalle de Compra - CineGest{% endblock %}
+{% block title %}Detalle de Compra - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'ventas/css/detalle_venta.css' %}?v=1.0">

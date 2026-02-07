@@ -1,6 +1,6 @@
 {% extends "accounts/base.html" %}
 
-{% block title %}Horarios - CineGest{% endblock %}
+{% block title %}Horarios - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block content %}
 <div class="container" style="max-width: 1200px; margin: 2rem auto;">

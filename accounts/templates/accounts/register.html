@@ -3,7 +3,7 @@
 
 {% block body_class %}login-page{% endblock %}
 
-{% block title %}Registro - CineGest{% endblock %}
+{% block title %}Registro - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block content %}
 
@@ -14,7 +14,7 @@
       <div class="card-header text-center">
         <h1 class="card-title">Crear Cuenta</h1>
         <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 5px;">
-            Únete a CineGest para disfrutar del cine
+            Únete a {{ configuracion_cine.nombre|default:"CineGest" }} para disfrutar del cine
         </p>
       </div>
 

@@ -1,6 +1,6 @@
 {% extends "accounts/base.html" %}
 
-{% block title %}Pago Pendiente - CineGest{% endblock %}
+{% block title %}Pago Pendiente - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block content %}
 <div class="container" style="max-width: 800px; margin: 0 auto;">

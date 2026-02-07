@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>¡Bienvenido a CineGest!</title>
+    <title>¡Bienvenido a {{ configuracion_cine.nombre|default:"CineGest" }}!</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -82,19 +82,19 @@
 <body>
     <div class="email-container">
         <div class="header">
-            <h1 class="logo">🎬 CineGest</h1>
+            <h1 class="logo">🎬 {{ configuracion_cine.nombre|default:"CineGest" }}</h1>
         </div>
         
         <h2 class="welcome-message">¡Bienvenido, {{ nombre_completo }}! 🎉</h2>
         
         <div class="content">
-            <p>Nos alegra mucho que te hayas unido a <strong>CineGest</strong>, tu plataforma de confianza para reservar entradas de cine.</p>
+            <p>Nos alegra mucho que te hayas unido a <strong>{{ configuracion_cine.nombre|default:"CineGest" }}</strong>, tu plataforma de confianza para reservar entradas de cine.</p>
             
             <p>Tu cuenta ha sido creada exitosamente y ya puedes comenzar a disfrutar de todas nuestras funcionalidades.</p>
         </div>
         
         <div class="benefits">
-            <h3>¿Qué puedes hacer con CineGest?</h3>
+            <h3>¿Qué puedes hacer con {{ configuracion_cine.nombre|default:"CineGest" }}?</h3>
             <ul>
                 <li>🎟️ <strong>Comprar entradas</strong> para tus películas favoritas</li>
                 <li>🔄 <strong>Intercambiar entradas</strong> si tus planes cambian</li>

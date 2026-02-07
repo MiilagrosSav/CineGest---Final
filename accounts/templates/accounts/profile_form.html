@@ -1,6 +1,6 @@
 {% extends "accounts/base.html" %}
 {% load static %}
-{% block title %}Editar Perfil - CineGest{% endblock %}
+{% block title %}Editar Perfil - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'accounts/css/profile_form.css' %}?v=1.0">

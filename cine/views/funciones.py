@@ -12,6 +12,7 @@ import json
 from cine.models import Funcion, Pelicula, Sala
 from cine.forms import FuncionForm, FuncionBatchForm
 from cine.mixins import AdminRequiredMixin
+from django.db import transaction  
 
 
 # --- Vistas del CRUD de Funciones ---

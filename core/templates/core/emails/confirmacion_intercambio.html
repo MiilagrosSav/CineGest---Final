@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Confirmación de Intercambio - CineGest</title>
+    <title>Confirmación de Intercambio - {{ configuracion_cine.nombre|default:"CineGest" }}</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -221,7 +221,7 @@
         </div>
 
         <div class="footer">
-            <p><strong>CineGest</strong> - Tu experiencia cinematográfica</p>
+            <p><strong>{{ configuracion_cine.nombre|default:"CineGest" }}</strong> - Tu experiencia cinematográfica</p>
             <p>Si tienes alguna pregunta, contáctanos respondiendo a este email.</p>
             <p style="color: #999; margin-top: 10px;">
                 Este es un email automático, por favor no respondas directamente.

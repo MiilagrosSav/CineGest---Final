@@ -1,7 +1,7 @@
 {% extends 'accounts/base.html' %}
 {% load static %}
 
-{% block title %}Compra Exitosa - CineGest{% endblock %}
+{% block title %}Compra Exitosa - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'ventas/css/pago_exitoso_simple.css' %}?v=1.0">

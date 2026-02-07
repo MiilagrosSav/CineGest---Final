@@ -25,12 +25,6 @@ class Venta(models.Model):
         ('PRESENCIAL', 'Presencial'),
     ]
     
-    MEDIO_PAGO_CHOICES = [
-        ('EFECTIVO', 'Efectivo'),
-        ('MERCADOPAGO', 'Mercado Pago'),
-        ('TARJETA', 'Tarjeta'),
-    ]
-    
     id_venta = models.AutoField(primary_key=True)
     id_cliente = models.ForeignKey(
         Cliente, 
@@ -72,13 +66,14 @@ class Venta(models.Model):
         default='PENDIENTE',
         verbose_name='Estado'
     )
-    medio_pago = models.CharField(
-        max_length=20,
-        choices=MEDIO_PAGO_CHOICES,
-        default='',
+    id_metodo_pago = models.ForeignKey(
+        'ventas.MetodoPago',
+        on_delete=models.PROTECT,
+        null=True,
         blank=True,
-        verbose_name='Medio de Pago',
-        help_text='Medio de pago utilizado para la venta'
+        related_name='ventas',
+        verbose_name='Método de Pago',
+        help_text='Método de pago utilizado para la venta'
     )
     codigo_compra = models.CharField(
         max_length=20,
@@ -86,6 +81,14 @@ class Venta(models.Model):
         blank=True,
         verbose_name='Código de Compra',
         help_text='Código único para canje de entradas (generado automáticamente)'
+    )
+    total = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Total',
+        help_text='Total de la venta calculado y persistido para precisión financiera'
     )
     
     class Meta:
@@ -103,7 +106,8 @@ class Venta(models.Model):
         ]
     
     def save(self, *args, **kwargs):
-        """Generar código de compra automáticamente si no existe"""
+        """Generar código de compra automáticamente si no existe y calcular total"""
+        # 1. Generar código de compra para ventas online
         if not self.codigo_compra and self.tipo_venta == 'ONLINE':
             import random
             import string
@@ -116,6 +120,17 @@ class Venta(models.Model):
                 if not Venta.objects.filter(codigo_compra=codigo).exists():
                     self.codigo_compra = codigo
                     break
+        
+        # 2. Calcular y guardar total si es una venta confirmada y tiene entradas
+        if self.estado == 'CONFIRMADA' and self.pk:
+            # Solo calcular si ya existe en DB (tiene entradas asociadas)
+            try:
+                total_calculado = self.calcular_total()
+                if total_calculado:
+                    self.total = total_calculado
+            except Exception:
+                pass  # Si falla el cálculo, mantener el valor actual
+        
         super().save(*args, **kwargs)
     
     def __str__(self):
@@ -125,7 +140,14 @@ class Venta(models.Model):
         """
         Calcula el total delegando la lógica al servicio centralizado de promociones.
         Garantiza que Mercado Pago cobre EXACTAMENTE lo mismo que se muestra en pantalla.
+        
+        Si la venta ya tiene un total persistido, lo retorna directamente para evitar
+        discrepancias en reportes financieros.
         """
+        # ✅ OPTIMIZACIÓN: Si ya hay un total guardado y es confirmada, usarlo
+        if self.total is not None and self.estado == 'CONFIRMADA' and not include_detalle:
+            return self.total
+        
         # 1. Preparar datos básicos
         entradas = self.entradas.all()
         if not entradas.exists():
@@ -176,23 +198,17 @@ class Venta(models.Model):
     def get_metodo_pago_normalizado(self):
         """
         Retorna el nombre del método de pago normalizado.
-        Prioriza el método del Pago (FK) sobre el campo medio_pago.
         
         Returns:
-            str: Nombre del método de pago normalizado ('Efectivo', 'Mercado Pago', 'Tarjeta')
+            str: Nombre del método de pago ('Efectivo', 'Mercado Pago', 'Tarjeta')
         """
-        # Prioridad 1: Si existe un registro de Pago con método asignado
+        # Prioridad 1: Si existe un método de pago asignado directamente
+        if self.id_metodo_pago:
+            return self.id_metodo_pago.nombre
+        
+        # Prioridad 2: Si existe un registro de Pago con método asignado
         if hasattr(self, 'pago') and self.pago and self.pago.id_metodo_pago:
             return self.pago.id_metodo_pago.nombre
-        
-        # Prioridad 2: Mapear desde el campo medio_pago (legacy)
-        if self.medio_pago:
-            mapeo = {
-                'EFECTIVO': 'Efectivo',
-                'MERCADOPAGO': 'Mercado Pago',
-                'TARJETA': 'Tarjeta',
-            }
-            return mapeo.get(self.medio_pago, self.get_medio_pago_display())
         
         # Fallback: Si no hay información disponible
         return 'No especificado'

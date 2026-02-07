@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Mis Compras - CineGest{% endblock %}
+{% block title %}Mis Compras - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'ventas/css/mis_ventas.css' %}?v=1.0">
