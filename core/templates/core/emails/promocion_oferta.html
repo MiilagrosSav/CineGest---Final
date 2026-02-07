@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>¡Tenés un regalo de CineGest!</title>
+    <title>¡Tenés un regalo de {{ configuracion_cine.nombre|default:"CineGest" }}!</title>
     <style>
         /* Reset básico limpio */
         body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
@@ -23,7 +23,7 @@
             <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 600px;" class="wrapper">
                 <tr>
                     <td align="center" valign="top" style="padding: 40px 0 30px 0;">
-                        <h1 style="margin: 0; font-size: 32px; font-weight: 800; color: #9B59B6; letter-spacing: 1px; font-family: sans-serif;">CineGest 🍿</h1>
+                        <h1 style="margin: 0; font-size: 32px; font-weight: 800; color: #9B59B6; letter-spacing: 1px; font-family: sans-serif;">{{ configuracion_cine.nombre|default:"CineGest" }} 🍿</h1>
                     </td>
                 </tr>
             </table>
@@ -111,7 +111,7 @@
                     <td align="center" style="padding: 30px 0 0 0; color: #666666; font-family: sans-serif; font-size: 12px; line-height: 18px;">
                         <p style="margin: 0;">Este enlace es personal e intransferible.</p>
                         <p style="margin: 10px 0 0 0;">
-                            &copy; {% now "Y" %} <strong>CineGest</strong>. Todos los derechos reservados.
+                            &copy; {% now "Y" %} <strong>{{ configuracion_cine.nombre|default:"CineGest" }}</strong>. Todos los derechos reservados.
                         </p>
                     </td>
                 </tr>

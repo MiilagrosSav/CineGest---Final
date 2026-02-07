@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Cartelera - CineGest{% endblock %}
+{% block title %}Cartelera - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'cine/css/cartelera.css' %}?v=2.0">

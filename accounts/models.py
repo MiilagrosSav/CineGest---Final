@@ -26,9 +26,9 @@ class Usuario(AbstractUser):
     
     # Sobrescribir email para hacerlo único (AbstractUser no lo tiene unique por defecto)
     email = models.EmailField(
-        'email address', 
+        'Correo Electrónico', 
         unique=True,  
-        help_text='Dirección de email única para cada usuario'
+        help_text='Dirección de email única'
     )
 
     def __str__(self):

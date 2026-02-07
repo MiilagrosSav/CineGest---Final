@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}{{ titulo_pagina }} - CineGest{% endblock %}
+{% block title %}{{ titulo_pagina }} - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'cine/css/sala_form.css' %}?v=1.0">

@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Confirmar Pago - CineGest{% endblock %}
+{% block title %}Confirmar Pago - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block content %}
 <div class="container" style="max-width: 700px; margin: 2rem auto;">

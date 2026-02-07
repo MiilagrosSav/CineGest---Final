@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Intercambiar Entradas - CineGest{% endblock %}
+{% block title %}Intercambiar Entradas - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block content %}
 <div class="container">

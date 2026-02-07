@@ -1,15 +1,15 @@
 ================================================
-    🎬 BIENVENIDO A CINEGEST 🎬
+    🎬 BIENVENIDO A {{ configuracion_cine.nombre|default:"CineGest" }} 🎬
 ================================================
 
 ¡Hola {{ nombre_completo }}!
 
-Nos alegra mucho que te hayas unido a CineGest, tu plataforma de confianza para reservar entradas de cine.
+Nos alegra mucho que te hayas unido a {{ configuracion_cine.nombre|default:"CineGest" }}, tu plataforma de confianza para reservar entradas de cine.
 
 Tu cuenta ha sido creada exitosamente y ya puedes comenzar a disfrutar de todas nuestras funcionalidades.
 
 
-¿QUÉ PUEDES HACER CON CINEGEST?
+¿QUÉ PUEDES HACER CON {{ configuracion_cine.nombre|default:"CineGest" }}?
 --------------------------------------------------
 
 🎟️  Comprar entradas para tus películas favoritas

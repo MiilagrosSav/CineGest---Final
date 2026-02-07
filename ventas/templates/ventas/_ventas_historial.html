@@ -30,7 +30,7 @@
                 </div>
                 <div>
                     <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">Total</p>
-                    <p style="margin: 4px 0 0 0; font-weight: 600; color: var(--primary); font-size: 1.1rem;">${{ venta.calcular_total }}</p>
+                    <p style="margin: 4px 0 0 0; font-weight: 600; color: var(--primary); font-size: 1.1rem;">${{ venta.calcular_total|floatformat:2 }}</p>
                 </div>
                 <div style="text-align: right;">
                     <a href="{% url 'ventas:detalle_venta' venta.id_venta %}" class="btn-ver-detalle" style="text-decoration: none;">

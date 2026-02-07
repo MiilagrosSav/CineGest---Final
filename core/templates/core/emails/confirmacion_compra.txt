@@ -1,5 +1,5 @@
 ================================================
-    🎬 CONFIRMACIÓN DE COMPRA - CINEGEST
+    🎬 CONFIRMACIÓN DE COMPRA - {{ configuracion_cine.nombre|default:"CineGest" }}
 ================================================
 
 ✅ COMPRA CONFIRMADA
@@ -65,5 +65,5 @@ TOTAL PAGADO: ${{ total }}
 
 
 --------------------------------------------------
-CineGest
+{{ configuracion_cine.nombre|default:"CineGest" }}
 Este es un email automático, por favor no respondas a este mensaje.

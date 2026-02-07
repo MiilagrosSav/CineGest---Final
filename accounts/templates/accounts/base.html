@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CineGest{% endblock %}</title>
+    <title>{% block title %}{{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}</title>
     {% load static %}
     <link rel="stylesheet" href="{% static 'css/forms.css' %}?v=1.0">
     {% block extra_css %}{% endblock %}

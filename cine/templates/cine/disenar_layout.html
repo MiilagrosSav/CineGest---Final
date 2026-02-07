@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Configurar Sala - {{ sala.nombre }} - CineGest{% endblock %}
+{% block title %}Configurar Sala - {{ sala.nombre }} - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'cine/css/disenar_layout.css' %}?v=1.0">

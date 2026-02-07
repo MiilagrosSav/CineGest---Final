@@ -205,7 +205,7 @@ def procesar_venta_presencial(request):
                 id_empleado=getattr(request.user, 'empleado', None),
                 tipo_venta='PRESENCIAL',
                 estado='CONFIRMADA',
-                medio_pago=medio_pago_str
+                id_metodo_pago=metodo_pago_obj
             )
 
             # Crear entradas y marcar como VENDIDA
@@ -306,9 +306,23 @@ def buscar_cliente(request):
         if cliente_id:
             try:
                 cliente_seleccionado = Cliente.objects.select_related('usuario').get(pk=cliente_id)
+                
+                # ✅ FILTRO: Excluir ventas cuyas entradas hayan expirado
+                # Obtener tiempo de reserva desde configuración
+                try:
+                    from cine.models.configuracion_cine import ConfiguracionCine
+                    minutos = ConfiguracionCine.load().reserva_tiempo_espera
+                except Exception:
+                    minutos = 10
+                
+                threshold = timezone.now() - timedelta(minutes=int(minutos))
+                
                 ventas_cliente = Venta.objects.filter(
                     id_cliente=cliente_seleccionado
-                ).prefetch_related('entradas__id_funcion__pelicula').order_by('-fecha_compra')[:20]
+                ).prefetch_related('entradas__id_funcion__pelicula').exclude(
+                    # Excluir ventas PENDIENTES cuyas entradas hayan expirado
+                    Q(estado='PENDIENTE') & Q(entradas__fecha_creacion__lt=threshold)
+                ).order_by('-fecha_compra')[:20]
             except Cliente.DoesNotExist:
                 messages.error(request, 'Cliente no encontrado.')
 

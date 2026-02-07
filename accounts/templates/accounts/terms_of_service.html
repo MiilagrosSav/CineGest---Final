@@ -1,107 +1,62 @@
 {% extends "accounts/base.html" %}
 
-{% block title %}Términos de Servicio - CineGest{% endblock %}
+{% block title %}Términos de Servicio - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="card glass-container">
-        <h1 class="text-gradient-primary">Términos de Servicio</h1>
-        <p class="text-secondary mb-lg">Última actualización: Octubre 2024</p>
+<div class="container" style="max-width: 800px; margin: 2rem auto; position: relative;">
+    <div style="position: absolute; top: -50px; left: -50px; width: 200px; height: 200px; background: rgba(139, 92, 246, 0.05); filter: blur(80px); pointer-events: none;"></div>
+
+    <div class="card glass-container" style="padding: 3rem; border-radius: 20px; background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px);">
         
-        <div style="line-height: 1.6; color: var(--text-primary);">
-            <h2>1. Aceptación de Términos</h2>
-            <p>Al acceder y usar CineGest, aceptas estar sujeto a estos términos de servicio y todas las leyes y regulaciones aplicables.</p>
+        <header style="margin-bottom: 2.5rem;">
+            <h1 class="text-gradient-primary" style="font-size: 2.2rem; font-weight: 700; margin-bottom: 0.5rem; letter-spacing: -0.5px;">Términos de Servicio</h1>
+            <p style="color: rgba(255,255,255,0.3); font-size: 0.85rem;">Última actualización: Octubre 2024</p>
+        </header>
+        
+        <div class="terms-content" style="line-height: 1.7; color: rgba(255,255,255,0.75); font-size: 0.9rem;">
             
-            <h2>2. Descripción del Servicio</h2>
-            <p>CineGest es una plataforma digital que te permite:</p>
-            <ul>
-                <li>Ver la cartelera de películas disponibles</li>
-                <li>Comprar entradas para funciones de cine</li>
-                <li>Gestionar tus reservas y entradas</li>
-                <li>Recibir información sobre próximos estrenos</li>
-                <li>Acceder a promociones y descuentos especiales</li>
-            </ul>
+            <section style="margin-bottom: 2rem;">
+                <h2 style="color: #a78bfa; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">1. Aceptación de Términos</h2>
+                <p>Al acceder y usar {{ configuracion_cine.nombre|default:"nuestra plataforma" }}, aceptas estar sujeto a estos términos y a todas las regulaciones aplicables.</p>
+            </section>
             
-            <h2>3. Registro y Cuentas de Usuario</h2>
-            <p>Para usar nuestros servicios, debes:</p>
-            <ul>
-                <li>Ser mayor de 18 años o tener autorización parental</li>
-                <li>Proporcionar información precisa y actualizada</li>
-                <li>Mantener la confidencialidad de tu cuenta</li>
-                <li>Notificar inmediatamente cualquier uso no autorizado</li>
-                <li>Ser responsable de todas las actividades en tu cuenta</li>
-            </ul>
+            <section style="margin-bottom: 2rem;">
+                <h2 style="color: #a78bfa; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">2. Descripción del Servicio</h2>
+                <p>{{ configuracion_cine.nombre|default:"El sistema" }} permite visualizar la cartelera, comprar entradas de forma digital y gestionar tus reservas y promociones especiales.</p>
+            </section>
             
-            <h2>4. Compras y Pagos</h2>
-            <p>Respecto a las compras de entradas:</p>
-            <ul>
-                <li>Todas las compras están sujetas a disponibilidad</li>
-                <li>Los precios pueden cambiar sin previo aviso</li>
-                <li>El pago debe completarse al momento de la reserva</li>
-                <li>Las entradas son válidas solo para la función específica</li>
-                <li>Se requiere confirmación de pago para garantizar el asiento</li>
-            </ul>
+            <section style="margin-bottom: 2rem;">
+                <h2 style="color: #a78bfa; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">4. Compras y Pagos</h2>
+                <p>Todas las transacciones están sujetas a disponibilidad. Los precios pueden variar y la reserva solo se garantiza una vez confirmado el pago íntegro.</p>
+            </section>
             
-            <h2>5. Política de Cancelación y Reembolsos</h2>
-            <p>Para cancelaciones y reembolsos:</p>
-            <ul>
-                <li>Las cancelaciones deben realizarse con al menos 2 horas de anticipación</li>
-                <li>Los reembolsos se procesarán en 5-10 días hábiles</li>
-                <li>No se permiten reembolsos después del horario de la función</li>
-                <li>En caso de cancelación por parte del cine, se realizará reembolso completo</li>
-            </ul>
+            <section style="margin-bottom: 2rem;">
+                <h2 style="color: #a78bfa; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">5. Cancelaciones</h2>
+                <p>Las cancelaciones deben realizarse con un mínimo de horas de antelación. No se procesarán reembolsos una vez iniciado el horario de la función.</p>
+            </section>
             
-            <h2>6. Uso Aceptable</h2>
-            <p>Te comprometes a NO:</p>
-            <ul>
-                <li>Usar el servicio para actividades ilegales</li>
-                <li>Intentar acceder a cuentas de otros usuarios</li>
-                <li>Transmitir virus o código malicioso</li>
-                <li>Hacer uso comercial no autorizado del servicio</li>
-                <li>Interferir con el funcionamiento normal del sistema</li>
-            </ul>
+            <section style="margin-bottom: 2rem;">
+                <h2 style="color: #a78bfa; font-size: 1.1rem; font-weight: 600; margin-bottom: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">6. Propiedad Intelectual</h2>
+                <p>Logotipos, software y diseños son propiedad exclusiva de {{ configuracion_cine.nombre|default:"la empresa" }} y están protegidos por leyes de autor.</p>
+            </section>
             
-            <h2>7. Propiedad Intelectual</h2>
-            <p>Todo el contenido de CineGest, incluyendo:</p>
-            <ul>
-                <li>Logotipos, diseños y marcas</li>
-                <li>Software y código fuente</li>
-                <li>Textos, imágenes y multimedia</li>
-                <li>Está protegido por derechos de autor y otras leyes de propiedad intelectual</li>
-            </ul>
-            
-            <h2>8. Limitación de Responsabilidad</h2>
-            <p>CineGest no será responsable por:</p>
-            <ul>
-                <li>Interrupciones del servicio por mantenimiento</li>
-                <li>Pérdida de datos debido a fallos técnicos</li>
-                <li>Daños indirectos o consecuenciales</li>
-                <li>Cambios en la programación de películas por parte de los cines</li>
-            </ul>
-            
-            <h2>9. Modificaciones del Servicio</h2>
-            <p>Nos reservamos el derecho de:</p>
-            <ul>
-                <li>Modificar o discontinuar el servicio en cualquier momento</li>
-                <li>Actualizar estos términos cuando sea necesario</li>
-                <li>Cambiar precios y políticas con previo aviso</li>
-            </ul>
-            
-            <h2>10. Ley Aplicable</h2>
-            <p>Estos términos se rigen por las leyes de la República Argentina. Cualquier disputa será resuelta en los tribunales de la Ciudad Autónoma de Buenos Aires.</p>
-            
-            <h2>11. Contacto</h2>
-            <p>Para consultas sobre estos términos, contáctanos en:</p>
-            <ul>
-                <li>Email: legal@cinegest.com</li>
-                <li>Teléfono: +54 11 1234-5678</li>
-                <li>Dirección: Av. Corrientes 1234, Ciudad de Buenos Aires</li>
-            </ul>
+            <section style="margin-top: 3rem; padding: 1.5rem; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                <h2 style="color: #a78bfa; font-size: 1rem; margin-bottom: 0.5rem;">Contacto Legal</h2>
+                <p style="margin: 0; font-size: 0.85rem; opacity: 0.8;">Email: legal@{{ configuracion_cine.nombre|default:"cine"|lower|cut:" " }}.com</p>
+                <p style="margin: 0; font-size: 0.85rem; opacity: 0.8;">Ubicación: Av. Corrientes 1234, CABA.</p>
+            </section>
         </div>
         
-        <div style="margin-top: var(--space-lg); padding-top: var(--space-md); border-top: 1px solid rgba(255,255,255,0.1);">
-            <a href="{% url 'accounts:login' %}" class="btn btn-outline">Volver al Login</a>
+        <div style="margin-top: 3rem; padding-top: 2rem; border-top: 1px solid rgba(255,255,255,0.08); text-align: center;">
+            <a href="{% url 'accounts:login' %}" class="btn-back" style="text-decoration: none; color: rgba(255,255,255,0.4); font-size: 0.85rem; font-weight: 500; transition: 0.3s;">
+                ← Volver al Login
+            </a>
         </div>
     </div>
 </div>
+
+<style>
+    .btn-back:hover { color: #fff !important; }
+    .terms-content b { color: rgba(255,255,255,0.9); }
+</style>
 {% endblock %}

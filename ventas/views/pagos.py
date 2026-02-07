@@ -194,20 +194,30 @@ def pago_exitoso(request):
             
             # Actualizar el estado de la venta
             venta.estado = 'CONFIRMADA'
-            venta.save()
-            print(f"✅ Venta actualizada a CONFIRMADA")
             
-            # Crear o actualizar el registro de pago
+            # Buscar dinámicamente el MetodoPago
             try:
-                metodo_pago = MetodoPago.objects.get(nombre='Mercado Pago')
-            except MetodoPago.DoesNotExist:
+                metodo_pago = MetodoPago.objects.filter(
+                    nombre__icontains='Mercado Pago'
+                ).first() or MetodoPago.objects.filter(
+                    nombre__icontains='Online'
+                ).first()
+                
+                if not metodo_pago:
+                    raise MetodoPago.DoesNotExist
+                    
+            except (MetodoPago.DoesNotExist, AttributeError):
                 print("❌ ERROR: MetodoPago 'Mercado Pago' no existe en la BD")
-                print("   Ejecutar: python scripts/crear_metodos_pago_completos.py")
-                # Crear como fallback
+                print("   Creando MetodoPago como fallback...")
                 metodo_pago = MetodoPago.objects.create(
                     nombre='Mercado Pago',
                     descripcion='Pago procesado por Mercado Pago'
                 )
+            
+            # ✅ ASIGNAR id_metodo_pago A LA VENTA
+            venta.id_metodo_pago = metodo_pago
+            venta.save()
+            print(f"✅ Venta actualizada a CONFIRMADA con método de pago: {metodo_pago.nombre}")
             
             pago, created = Pago.objects.get_or_create(
                 id_venta=venta,
@@ -365,7 +375,28 @@ def webhook_mercadopago(request):
                 
                 # Actualizar según el estado del pago
                 if payment_status == 'approved':
+                    # Buscar dinámicamente el MetodoPago
+                    try:
+                        metodo_pago = MetodoPago.objects.filter(
+                            nombre__icontains='Mercado Pago'
+                        ).first() or MetodoPago.objects.filter(
+                            nombre__icontains='Online'
+                        ).first()
+                        
+                        if not metodo_pago:
+                            raise MetodoPago.DoesNotExist
+                            
+                    except (MetodoPago.DoesNotExist, AttributeError):
+                        print("❌ ERROR: MetodoPago 'Mercado Pago' no existe en la BD")
+                        print("   Creando MetodoPago como fallback...")
+                        metodo_pago = MetodoPago.objects.create(
+                            nombre='Mercado Pago',
+                            descripcion='Pago procesado por Mercado Pago'
+                        )
+                    
+                    # ✅ ASIGNAR id_metodo_pago A LA VENTA
                     venta.estado = 'CONFIRMADA'
+                    venta.id_metodo_pago = metodo_pago
                     venta.save()
 
                     # Si la venta tiene un cupón referenciado, marcarlo como usado.
@@ -379,16 +410,6 @@ def webhook_mercadopago(request):
                         print(f"Error marcando cupon de venta como usado (webhook): {e}")
                     
                     # Actualizar el pago
-                    try:
-                        metodo_pago = MetodoPago.objects.get(nombre='Mercado Pago')
-                    except MetodoPago.DoesNotExist:
-                        print("❌ ERROR: MetodoPago 'Mercado Pago' no existe en la BD")
-                        print("   Ejecutar: python scripts/crear_metodos_pago_completos.py")
-                        # Crear como fallback
-                        metodo_pago = MetodoPago.objects.create(
-                            nombre='Mercado Pago',
-                            descripcion='Pago procesado por Mercado Pago'
-                        )
                     
                     pago, created = Pago.objects.get_or_create(
                         id_venta=venta,

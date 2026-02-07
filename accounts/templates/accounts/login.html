@@ -4,7 +4,7 @@
 
 {% block body_class %}login-page{% endblock %}
 
-{% block title %}Iniciar Sesión - CineGest{% endblock %}
+{% block title %}Iniciar Sesión - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block content %}
 
@@ -64,7 +64,7 @@
 
       <div class="text-center" style="margin-top: var(--space-lg); font-size: 0.9rem; color: var(--gray);">
         <p class="mb-md">
-          ¿Nuevo en CineGest? 
+          ¿Nuevo en {{ configuracion_cine.nombre|default:"CineGest" }}? 
           <a href="{% url 'accounts:register' %}" style="color: var(--primary); text-decoration: none; font-weight: 500;">
             Crear cuenta aquí
           </a>

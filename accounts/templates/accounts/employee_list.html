@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Gestión de Empleados - CineGest{% endblock %}
+{% block title %}Gestión de Empleados - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'accounts/css/employee_list.css' %}?v=1.1">

@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Seleccionar Butacas - CineGest{% endblock %}
+{% block title %}Seleccionar Butacas - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'ventas/css/seleccionar_butacas.css' %}?v=1.0">
@@ -135,7 +135,7 @@
                 {% if not venta_id %}
                 <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-sm);">
                     <span>Precio unitario:</span>
-                    <span id="precioUnitarioMostrado">${{ precio }}</span>
+                    <span id="precioUnitarioMostrado">${{ precio|floatformat:2 }}</span>
                 </div>
                 
                 {% if info_descuento %}

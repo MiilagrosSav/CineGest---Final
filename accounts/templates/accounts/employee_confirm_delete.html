@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Confirmar Eliminación - CineGest{% endblock %}
+{% block title %}Confirmar Eliminación - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'accounts/css/employee_confirm_delete.css' %}?v=1.0">

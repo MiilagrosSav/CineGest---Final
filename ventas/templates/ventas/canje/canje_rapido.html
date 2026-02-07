@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Canje de Entradas - CineGest{% endblock %}
+{% block title %}Canje de Entradas - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'ventas/css/canje_rapido.css' %}?v=1.0">
