@@ -7,7 +7,7 @@ from django.utils import timezone
 from ventas.models.venta import Venta
 from cine.models import Funcion
 from simple_history.models import HistoricalRecords
-
+from django.core.exceptions import ValidationError
 
 class Intercambio(models.Model):
     """
@@ -124,6 +124,41 @@ class Intercambio(models.Model):
     def __str__(self):
         return f"Intercambio #{self.id_intercambio} - Venta #{self.venta.id_venta} ({self.fecha_intercambio.strftime('%d/%m/%Y %H:%M')})"
     
+
+    def clean(self):
+        super().clean()
+        
+        # 1. Validación de estados para evitar el -1
+        if self.motivo not in dict(self.MOTIVO_CHOICES):
+            raise ValidationError({'motivo': f"'{self.motivo}' no es un motivo de intercambio válido."})
+            
+        if self.estado not in dict(self.ESTADO_CHOICES):
+            raise ValidationError({'estado': f"'{self.estado}' no es un estado de intercambio válido."})
+
+        # 2. Bloqueo de campos de auditoría en edición
+        if self.pk:
+            original = Intercambio.objects.get(pk=self.pk)
+            errores = {}
+            
+            # Lista de campos que NO se pueden tocar jamás
+            campos_bloqueados = [
+                'venta', 'funcion_origen', 'funcion_destino', 
+                'fecha_intercambio', 'cantidad_entradas', 
+                'penalidad_aplicada', 'usuario_email'
+            ]
+            
+            for campo in campos_bloqueados:
+                if getattr(original, campo) != getattr(self, campo):
+                    errores[campo] = "Este campo es parte de la auditoría y no puede modificarse."
+            
+            if errores:
+                raise ValidationError(errores)
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+
     @property
     def dias_anticipacion_origen(self):
         """Calcula cuántos días de anticipación tenía respecto a la función original"""

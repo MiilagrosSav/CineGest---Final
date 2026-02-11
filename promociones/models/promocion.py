@@ -22,11 +22,10 @@ class Promocion(models.Model):
     es_automatica = models.BooleanField(default=False, help_text='Si está marcada, la promoción se aplicará automáticamente a funciones vinculadas.')
     tipo_descuento = models.CharField(max_length=20, choices=TIPO_DESCUENTO_CHOICES)
     valor_descuento = models.DecimalField(
-        max_digits=8, 
+        max_digits=10, 
         decimal_places=2, 
-        null=True, 
-        blank=True,
-        help_text="Porcentaje (0-100) o monto fijo. No se usa para 2x1."
+        default=0, # Valor por defecto
+        null=False 
     )
     fecha_inicio = models.DateField()
     fecha_fin = models.DateField()
@@ -52,6 +51,7 @@ class Promocion(models.Model):
         default='',
         help_text='Días permitidos como CSV de índices (0=Lunes,..6=Domingo). Ej: "0,2,4". Vacío = todos los días.'
     )
+    activo = models.BooleanField(default=True)
 
     class Meta:
         db_table = 'promociones_promocion'
@@ -80,26 +80,48 @@ class Promocion(models.Model):
         2. ✅ NUEVA VALIDACIÓN: Advierte sobre superposición de fechas en promociones automáticas.
         """
         super().clean()
-        
-        # ========== VALIDACIÓN 1: Proteger código de promociones en uso ==========
+        # ========== VALIDACIÓN 1: Proteger código e integridad de fechas ==========
         if self.pk:
             try:
                 original = self.__class__.objects.get(pk=self.pk)
             except self.__class__.DoesNotExist:
                 original = None
             
-            # Si el código cambió, validar que no haya políticas activas
-            if original and original.codigo != self.codigo:
-                PoliticaPromocion = apps.get_model('promociones', 'PoliticaPromocion')
-                existe_activa = PoliticaPromocion.objects.filter(
-                    promocion_a_otorgar=original, 
-                    activa=True
-                ).exists()
-                if existe_activa:
-                    raise ValidationError({
-                        'codigo': 'No se puede modificar el código: existen políticas de recuperación activas que dependen de esta promoción. Desactívelas primero o elimínelas antes de cambiar el código.'
-                    })
-        
+            if original:
+                # --- A: Proteger Código ---
+                if original.codigo != self.codigo:
+                    PoliticaPromocion = apps.get_model('promociones', 'PoliticaPromocion')
+                    existe_activa = PoliticaPromocion.objects.filter(
+                        promocion_a_otorgar=original, 
+                        activa=True
+                    ).exists()
+                    if existe_activa:
+                        raise ValidationError({
+                            'codigo': 'No se puede modificar el código: existen políticas de recuperación activas que dependen de esta promoción.'
+                        })
+
+                from django.utils import timezone
+                hoy = timezone.now().date()
+
+                # Si la promo ya empezó o ya terminó (ya está en el historial/uso)
+                if original.fecha_inicio <= hoy:
+                    # Bloqueamos que muevan la fecha de inicio hacia el futuro (altera el pasado)
+                    if original.fecha_inicio != self.fecha_inicio:
+                        raise ValidationError({
+                            'fecha_inicio': f'La promoción ya inició el {original.fecha_inicio}. No se puede modificar la fecha de inicio para proteger la integridad del historial.'
+                        })
+                    
+                    # Bloqueamos que la fecha de fin sea anterior a hoy (terminarla "por la fuerza" antes de tiempo)
+                    if self.fecha_fin < hoy and original.fecha_fin >= hoy:
+                         raise ValidationError({
+                            'fecha_fin': 'No podés poner una fecha de fin pasada si la promoción está vigente. Usá el campo "Activo" para suspenderla manualmente.'
+                        })
+                if self.fecha_inicio and self.fecha_fin:
+                    if self.fecha_fin < self.fecha_inicio:
+                        raise ValidationError({
+                            'fecha_fin': 'La fecha de fin no puede ser anterior a la fecha de inicio.'
+                        })
+                    
         # ========== VALIDACIÓN 2: Advertir superposición de fechas en automáticas ==========
         if self.es_automatica and self.fecha_inicio and self.fecha_fin:
             # ✅ Verificar si esta promoción tiene vínculos específicos (existentes o pendientes)

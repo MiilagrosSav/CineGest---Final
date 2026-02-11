@@ -134,3 +134,40 @@ form .btn-outline:hover {
     font-size: 0.85rem;
     margin-top: 0.4rem;
 }
+/* --- BLOQUEO TOTAL DE INTEGRIDAD (BÚNKER) --- */
+
+/* Forzamos que CUALQUIER campo deshabilitado cambie drásticamente */
+form .form-input:disabled,
+form .form-select:disabled,
+form input:disabled,
+form select:disabled,
+form textarea:disabled,
+form input[type="date"]:disabled {
+    /* Fondo negro casi sólido para que se note el contraste */
+    background-color: #1a1a1a !important; 
+    background-image: none !important;
+    
+    /* Texto gris oscuro/apagado */
+    color: #555555 !important;
+    -webkit-text-fill-color: #555555 !important; /* Forzado para Safari/Chrome */
+    
+    /* Borde casi invisible */
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    
+    /* Quitar cualquier brillo o sombra */
+    box-shadow: none !important;
+    pointer-events: none; /* Evita cualquier interacción */
+    cursor: not-allowed !important;
+}
+
+/* Ajuste específico para el icono del calendario en input date */
+form input[type="date"]:disabled::-webkit-calendar-picker-indicator {
+    filter: invert(0.3); /* Oscurece el icono del calendario */
+    opacity: 0.2;
+}
+
+/* Ajuste para la flecha del select */
+form .form-select:disabled {
+    appearance: none;
+    background-image: none !important;
+}

@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Pelicula, Sala, Butaca, Formato, FuncionFormato, ConfiguracionCine
+from .forms import PeliculaForm
 from simple_history.admin import SimpleHistoryAdmin
 
 @admin.register(Pelicula)
@@ -7,12 +8,13 @@ class PeliculaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
     """
     Configuración personalizada para el modelo Pelicula en el panel de admin.
     """
+    form = PeliculaForm  # Usar formulario personalizado con protección de campos
     list_display = ('titulo', 'get_generos_display', 'director', 'fecha_estreno', 'duracion')
     list_filter = ('fecha_estreno',)
     search_fields = ('titulo', 'director', 'sinopsis')
     ordering = ('-fecha_estreno',)
     filter_horizontal = ('generos',)  # widget mejorado para M2M
-    
+
     fieldsets = (
         (None, {
             'fields': ('titulo', 'sinopsis', 'imagen_portada')
@@ -21,7 +23,7 @@ class PeliculaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
             'fields': ('director', 'generos', 'duracion', 'fecha_estreno')
         }),
     )
-    
+
     def get_generos_display(self, obj):
         """Mostrar géneros separados por coma"""
         return ', '.join([g.nombre for g in obj.generos.all()])

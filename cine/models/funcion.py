@@ -5,6 +5,7 @@ from django.utils import timezone
 from cine.models.pelicula import Pelicula
 from cine.models.sala import Sala
 from simple_history.models import HistoricalRecords
+from django.core.validators import MinValueValidator
 #----------------------------------------------------------------------------------------------
 #--------------------------------creamos la clase FUNCION---------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -53,6 +54,7 @@ class Funcion(models.Model):
     precio_base = models.DecimalField(
         max_digits=8,
         decimal_places=2,
+        validators=[MinValueValidator(0)],
         help_text="Precio base de la entrada para esta función (puede variar del precio de la sala)"
     )
     
@@ -77,14 +79,6 @@ class Funcion(models.Model):
         default='NORMAL',
         help_text='Estado de promoción automática para esta función'
     )
-    promocion_aplicada = models.ForeignKey(
-        'promociones.Promocion',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='funciones_con_oferta',
-        help_text='Promoción automática actualmente vigente para esta función (puede ser null)'
-    )
 
     # Estado de la función
     ESTADO_CHOICES = [
@@ -106,47 +100,85 @@ class Funcion(models.Model):
     
     def clean(self):
         """
-        Validaciones personalizadas del modelo Funcion
+        BÚNKER DE INTEGRIDAD - Cine El Artesano
+        Centraliza todas las validaciones de negocio e integridad de datos.
         """
         super().clean()
+        ahora = timezone.now()
+
+        # 1. VALIDACIÓN DE PRECIO (Cero tolerancia a números negativos)
+        if self.precio_base is not None and self.precio_base < 0:
+            raise ValidationError({'precio_base': "El precio no puede ser un número negativo."})
+
+        # 2. VALIDACIONES PARA EDICIÓN (Cuando el registro ya existe en la BD)
+        if self.pk:
+            try:
+                original = Funcion.objects.get(pk=self.pk)
+
+                # A. INMUTABILIDAD DE AUDITORÍA: La fecha de creación no se toca
+                if self.fecha_creacion != original.fecha_creacion:
+                    raise ValidationError({'fecha_creacion': "La fecha de creación es inmutable por seguridad del sistema."})
+
+                # B. BLOQUEO POR VENTAS: Protección de contrato con el cliente
+                # Verificamos entradas en estados: RESERVADA, VENDIDA, ENTREGADA, USADA
+                tiene_ventas = self.entradas.filter(
+                    estado__in=['RESERVADA', 'VENDIDA', 'ENTREGADA', 'USADA']
+                ).exists()
+
+                if tiene_ventas:
+                    errores = {}
+                    if original.pelicula_id != self.pelicula_id:
+                        errores['pelicula'] = "No se puede cambiar la película con entradas vendidas."
+                    if original.sala_id != self.sala_id:
+                        errores['sala'] = "No se puede cambiar la sala con entradas vendidas."
+                    if original.fecha_hora != self.fecha_hora:
+                        errores['fecha_hora'] = "No se puede cambiar el horario con entradas vendidas."
+                    if original.precio_base != self.precio_base:
+                        errores['precio_base'] = "El precio base es inmutable si ya hay ventas."
+                    
+                    if errores:
+                        raise ValidationError(errores)
+            except Funcion.DoesNotExist:
+                pass
+
+        # 3. VALIDACIÓN TEMPORAL (No permitir funciones en el pasado)
+        if self.fecha_hora:
+            # Si es nueva o si cambiaron la fecha en una edición
+            if not self.pk or (self.pk and original.fecha_hora != self.fecha_hora):
+                if self.fecha_hora < ahora:
+                    raise ValidationError({'fecha_hora': 'La fecha y hora de la función no puede ser en el pasado.'})
+
+        # 4. SANEAMIENTO DE ESTADOS (Evita inyección de valores no permitidos o basura)
+        if self.estado_promocion not in dict(self.ESTADO_PROMOCION_CHOICES):
+            raise ValidationError({'estado_promocion': f"El valor '{self.estado_promocion}' no es un estado de promoción válido."})
         
-        # Validar que la fecha_hora no sea en el pasado
-        if self.fecha_hora and self.fecha_hora < timezone.now():
-            raise ValidationError({
-                'fecha_hora': 'La fecha y hora de la función no puede ser en el pasado.'
-            })
-        
-        # Validar que no haya solapamiento de funciones en la misma sala
+        if self.estado not in dict(self.ESTADO_CHOICES):
+            raise ValidationError({'estado': f"El valor '{self.estado}' no es un estado de función válido."})
+
+        # 5. INTEGRIDAD FÍSICA Y SOLAPAMIENTO
+        # Validar que la sala esté operativa
+        if self.sala and not self.sala.activa:
+            raise ValidationError({'sala': 'No se pueden programar funciones en salas que figuran como inactivas.'})
+
+        # Validar solapamiento de horarios en la misma sala (incluye 30 min de limpieza)
         if self.sala and self.pelicula and self.fecha_hora:
-            # Calcular el tiempo de finalización de esta función (duración + 30 min de limpieza)
             from datetime import timedelta
             duracion_total = timedelta(minutes=self.pelicula.duracion + 30)
             fin_funcion = self.fecha_hora + duracion_total
-            
-            # Buscar funciones que se solapen en la misma sala
+
             funciones_solapadas = Funcion.objects.filter(
                 sala=self.sala,
                 fecha_hora__lt=fin_funcion,
             ).exclude(pk=self.pk if self.pk else None)
-            
-            for funcion in funciones_solapadas:
-                duracion_otra = timedelta(minutes=funcion.pelicula.duracion + 30)
-                fin_otra = funcion.fecha_hora + duracion_otra
-                
-                # Si hay solapamiento
-                if funcion.fecha_hora < fin_funcion and self.fecha_hora < fin_otra:
-                    raise ValidationError({
-                        'fecha_hora': f'Esta función se solapa con otra función en la misma sala: '
-                                    f'{funcion.pelicula.titulo} a las {funcion.fecha_hora.strftime("%H:%M")}. '
-                                    f'Debe haber al menos 30 minutos entre funciones.'
-                    })
-        
-        # Validar que la sala esté activa
-        if self.sala and not self.sala.activa:
-            raise ValidationError({
-                'sala': 'No se pueden programar funciones en salas inactivas.'
-            })
 
+            for f in funciones_solapadas:
+                duracion_otra = timedelta(minutes=f.pelicula.duracion + 30)
+                fin_otra = f.fecha_hora + duracion_otra
+                if f.fecha_hora < fin_funcion and self.fecha_hora < fin_otra:
+                    raise ValidationError({
+                        'fecha_hora': f'Conflicto de horario: La sala ya está ocupada por "{f.pelicula.titulo}" ({f.fecha_hora.strftime("%H:%M")}).'
+                    })
+    
     def save(self, *args, **kwargs):
         """
         Ejecutar validaciones antes de guardar

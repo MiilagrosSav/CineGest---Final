@@ -170,9 +170,11 @@ def ticket_canje_view(request, venta_id):
     """
     venta = get_object_or_404(Venta, id_venta=venta_id, tipo_venta='ONLINE', estado='CONFIRMADA')
     
-    # Obtener entradas y marcarlas como ENTREGADA
+    # Obtener entradas y marcarlas como ENTREGADA (usando .save() para disparar validaciones)
     entradas = venta.entradas.all()
-    entradas.update(estado='ENTREGADA')
+    for entrada in entradas:
+        entrada.estado = 'ENTREGADA'
+        entrada.save()
     
     # Obtener configuración del cine
     config = ConfiguracionCine.objects.first()
@@ -215,10 +217,15 @@ def marcar_como_impreso(request):
         
         venta = get_object_or_404(Venta, id_venta=venta_id, tipo_venta='ONLINE', estado='CONFIRMADA')
         
-        # Actualizar estado de todas las entradas a ENTREGADA
-        entradas_actualizadas = venta.entradas.filter(
+        # Actualizar estado de todas las entradas a ENTREGADA (usando .save() para disparar validaciones)
+        entradas_a_actualizar = venta.entradas.filter(
             estado__in=['VENDIDA', 'RESERVADA']
-        ).update(estado='ENTREGADA')
+        )
+        entradas_actualizadas = 0
+        for entrada in entradas_a_actualizar:
+            entrada.estado = 'ENTREGADA'
+            entrada.save()
+            entradas_actualizadas += 1
         
         return JsonResponse({
             'success': True,

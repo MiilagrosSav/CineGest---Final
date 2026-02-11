@@ -124,6 +124,39 @@ class ConfiguracionCine(models.Model):
         verbose_name = 'Configuración del Cine'
         verbose_name_plural = 'Configuración del Cine'
     
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        super().clean()
+        
+        # 1. Validación de Minutos de Limpieza (Evita -1 o valores nulos)
+        if self.minutos_limpieza is not None and self.minutos_limpieza < 0:
+            raise ValidationError({
+                'minutos_limpieza': "El tiempo de limpieza no puede ser un valor negativo."
+            })
+        if self.minutos_limpieza > 240: # 4 horas máximo como límite lógico
+            raise ValidationError({
+                'minutos_limpieza': "El tiempo de limpieza parece excesivo. Máximo permitido: 240 min."
+            })
+
+        # 2. Validación de Tiempo de Reserva (Evita -1)
+        if self.reserva_tiempo_espera is not None and self.reserva_tiempo_espera < 1:
+            raise ValidationError({
+                'reserva_tiempo_espera': "El tiempo de reserva debe ser de al menos 1 minuto."
+            })
+        if self.reserva_tiempo_espera > 60:
+            raise ValidationError({
+                'reserva_tiempo_espera': "El tiempo de reserva no puede superar los 60 minutos."
+            })
+
+        # 3. Validación de Horarios (Cierre no puede ser antes de Apertura)
+        if self.horario_apertura and self.horario_cierre:
+            if self.horario_cierre <= self.horario_apertura:
+                raise ValidationError({
+                    'horario_cierre': "El horario de cierre debe ser posterior al de apertura."
+                })
+
+
     def save(self, *args, **kwargs):
         """
         Override save para implementar patrón Singleton.

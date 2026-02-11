@@ -237,8 +237,13 @@ def pago_exitoso(request):
             
             print(f"💳 Pago registrado: {pago.nro_transaccion}")
             
-            # Actualizar el estado de las entradas
-            entradas_actualizadas = venta.entradas.all().update(estado='VENDIDA')
+            # Actualizar el estado de las entradas (usando .save() para disparar validaciones)
+            entradas = venta.entradas.all()
+            entradas_actualizadas = 0
+            for entrada in entradas:
+                entrada.estado = 'VENDIDA'
+                entrada.save()
+                entradas_actualizadas += 1
             print(f"🎟️ {entradas_actualizadas} entradas actualizadas a VENDIDA")
             
             messages.success(request, '✅ ¡Pago procesado exitosamente! Tu compra ha sido confirmada.')
@@ -427,8 +432,10 @@ def webhook_mercadopago(request):
                         pago.id_metodo_pago = metodo_pago
                         pago.save()
                     
-                    # Actualizar entradas
-                    venta.entradas.all().update(estado='VENDIDA')
+                    # Actualizar entradas (usando .save() para disparar validaciones)
+                    for entrada in venta.entradas.all():
+                        entrada.estado = 'VENDIDA'
+                        entrada.save()
                     # Enviar email de confirmación desde webhook (no hay request)
                     try:
                         notificacion_service.enviar_confirmacion_compra(venta, None)
