@@ -50,11 +50,11 @@ class PoliticaPromocion(models.Model):
     
     # Yield Management: ventana de urgencia
     horas_antes_de_funcion = models.PositiveIntegerField(
-        null=True,
-        blank=True,
+        default=24,
+        null=False,
         help_text='Horas mínimas antes de la función para disparar el envío. Si no se define, envía siempre.'
     )
-    
+        
     # Yield Management Automático: activación por ocupación baja
     activar_por_ocupacion = models.BooleanField(
         default=False,

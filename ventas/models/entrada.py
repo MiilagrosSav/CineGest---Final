@@ -1,10 +1,12 @@
 """
-Modelo Entrada - Representa cada entrada/butaca vendida
+Modelo Entrada - Representa cada entrada/butaca 
 """
 
 from django.db import models
 from django.conf import settings
 from simple_history.models import HistoricalRecords
+from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 
 class Entrada(models.Model):
@@ -59,11 +61,16 @@ class Entrada(models.Model):
     fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name='Fecha de creación')
     reservado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
+        on_delete=models.PROTECT,  
         related_name='reservas',
         verbose_name='Reservado por'
+    )
+
+    precio_unitario = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=0.00,
+        verbose_name='Precio Unitario Real'
     )
     
     class Meta:
@@ -74,7 +81,59 @@ class Entrada(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['id_funcion', 'id_butaca'], name='UQ_entrada_funcion_butaca')
         ]
-    
+        indexes = [
+            models.Index(fields=['id_funcion', 'id_butaca', 'estado'], name='idx_lock_butaca'),
+        ]
+    def clean(self):
+        super().clean()
+        
+        # 1. Saneamiento del campo estado (evita el -1 o basura)
+        if self.estado not in dict(self.ESTADO_CHOICES):
+            raise ValidationError({'estado': f"El valor '{self.estado}' no es un estado válido."})
+
+        # 2. Inmutabilidad de campos críticos
+        if self.pk:
+            original = Entrada.objects.get(pk=self.pk)
+            errores = {}
+            
+            # Lista de campos que NO se pueden cambiar jamás
+            campos_prohibidos = [
+                'id_venta', 'id_funcion', 'id_sala', 
+                'id_butaca', 'id_pelicula', 'reservado_por', 'precio_unitario'
+            ]
+            
+            for campo in campos_prohibidos:
+                if getattr(original, campo) != getattr(self, campo):
+                    errores[campo] = "Este campo es inmutable una vez creada la entrada."
+            
+            if errores:
+                raise ValidationError(errores)
+
+    def save(self, *args, **kwargs):
+        # 1. Validación de transición de estados (ANTES de full_clean)
+        if self.pk:
+            original = Entrada.objects.get(pk=self.pk)
+            # FLUJO PERMITIDO: RESERVADA → VENDIDA → ENTREGADA → USADA
+            # PROHIBIDO: USADA → RESERVADA, ENTREGADA → VENDIDA, etc.
+            estados_validos = {
+                'RESERVADA': ['VENDIDA', 'CANCELADA'],
+                'VENDIDA': ['ENTREGADA', 'CANCELADA'],
+                'ENTREGADA': ['USADA'],
+                'USADA': [],  # Estado terminal
+                'CANCELADA': []  # Estado terminal
+            }
+            if original.estado != self.estado:
+                if self.estado not in estados_validos.get(original.estado, []):
+                    raise ValidationError(
+                        f"Transición de estado inválida: {original.estado} → {self.estado}"
+                    )
+        
+        # 2. Ejecutar todas las validaciones de clean() + validators
+        self.full_clean()
+        
+        # 3. Guardar en BD
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"Entrada #{self.id_entrada} - {self.id_pelicula.titulo} - Butaca {self.id_butaca.fila}{self.id_butaca.numero}"
 

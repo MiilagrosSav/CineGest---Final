@@ -152,6 +152,33 @@ class PeliculaForm(forms.ModelForm):
         except Exception:
             # En entornos donde el modelo no existe aún (migrations) fallamos silenciosamente
             self.fields['generos'].queryset = []
+
+        # ========================================================================
+        # PROTECCIÓN DE DATOS: Bloqueo de campos si hay entradas vendidas
+        # ========================================================================
+        # Si estamos editando una película existente, verificar si tiene ventas
+        if self.instance and self.instance.pk:
+            try:
+                # Verificar si la película tiene funciones con entradas vendidas
+                if self.instance.tiene_entradas_vendidas():
+                    # Deshabilitar título y fecha de estreno en la interfaz
+                    self.fields['titulo'].disabled = True
+                    self.fields['titulo'].widget.attrs['readonly'] = True
+                    self.fields['titulo'].help_text = (
+                        '⚠️ El título no puede modificarse porque esta película tiene funciones con entradas vendidas. '
+                        'Por contrato con el cliente, esta información es INMUTABLE.'
+                    )
+
+                    self.fields['fecha_estreno'].disabled = True
+                    self.fields['fecha_estreno'].widget.attrs['readonly'] = True
+                    self.fields['fecha_estreno'].help_text = (
+                        '⚠️ La fecha de estreno no puede modificarse porque esta película tiene funciones con entradas vendidas. '
+                        'Por contrato con el cliente, esta información es INMUTABLE.'
+                    )
+            except Exception:
+                # Si hay algún error al verificar, seguir adelante sin bloquear
+                # La validación en clean() del modelo seguirá protegiéndolo
+                pass
     
     def clean_duracion(self):
         """Validación personalizada para la duración"""
@@ -405,6 +432,42 @@ class FuncionForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         # Si estamos editando, cargar los formatos actuales
         if self.instance and self.instance.pk:
+            # ========================================================================
+            # PROTECCIÓN DE DATOS: Bloqueo de campos si hay entradas vendidas
+            # ========================================================================
+            try:
+                # Verificar si la función tiene entradas vendidas
+                tiene_entradas_vendidas = self.instance.entradas.filter(
+                    estado__in=['VENDIDA', 'ENTREGADA', 'USADA', 'RESERVADA']
+                ).exists()
+
+                if tiene_entradas_vendidas:
+                    # Deshabilitar campos críticos en la interfaz
+                    self.fields['pelicula'].disabled = True
+                    self.fields['pelicula'].widget.attrs['readonly'] = True
+                    self.fields['pelicula'].help_text = (
+                        '⚠️ La película no puede modificarse porque esta función tiene entradas vendidas. '
+                        'Por contrato con el cliente, esta información es INMUTABLE.'
+                    )
+
+                    self.fields['sala'].disabled = True
+                    self.fields['sala'].widget.attrs['readonly'] = True
+                    self.fields['sala'].help_text = (
+                        '⚠️ La sala no puede modificarse porque esta función tiene entradas vendidas. '
+                        'Por contrato con el cliente, esta información es INMUTABLE.'
+                    )
+
+                    self.fields['fecha_hora'].disabled = True
+                    self.fields['fecha_hora'].widget.attrs['readonly'] = True
+                    self.fields['fecha_hora'].help_text = (
+                        '⚠️ La fecha y hora no pueden modificarse porque esta función tiene entradas vendidas. '
+                        'Por contrato con el cliente, esta información es INMUTABLE.'
+                    )
+            except Exception:
+                # Si hay algún error al verificar, seguir adelante sin bloquear
+                # La validación en clean() del modelo seguirá protegiéndolo
+                pass
+
             # Cargar los formatos ya asignados
             formatos_actuales = self.instance.formatos_funcion.select_related('formato').all()
             # Inicializar por categoría (tomando el primer formato que coincida con cada categoría)

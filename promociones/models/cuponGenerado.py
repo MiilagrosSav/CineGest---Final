@@ -11,7 +11,12 @@ class CuponGenerado(models.Model):
     """
     token = models.UUIDField(default=uuid.uuid4, editable=False)
     cliente = models.ForeignKey('accounts.Cliente', on_delete=models.PROTECT, related_name='cupones')
-    funcion_origen = models.ForeignKey('cine.Funcion', on_delete=models.CASCADE, null=True, blank=True)
+    funcion_origen = models.ForeignKey(
+        'cine.Funcion', 
+        on_delete=models.CASCADE, 
+        null=False, # Obligatorio
+        related_name='cupones_generados'
+    )
     politica_origen = models.ForeignKey(PoliticaPromocion, on_delete=models.PROTECT, related_name='cupones_generados')
     usado = models.BooleanField(default=False)
     creado_en = models.DateTimeField(auto_now_add=True)
