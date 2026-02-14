@@ -187,6 +187,81 @@ def funcion_create_view(request):
             # 2. Obtené la *lista* de objetos 'time' desde el form
             horarios_obj_lista = form.cleaned_data['horarios']
             
+            # ======================================================================
+            # VALIDACIÓN TEMPRANA: Verificar excepciones de horario ANTES de crear
+            # ======================================================================
+            from cine.models import ConfiguracionCine, ExcepcionHorario
+            from django.db.models import Q
+            
+            configuracion = ConfiguracionCine.load()
+            
+            # Buscar excepción que aplique a esta fecha (puede ser fecha exacta o dentro de un rango)
+            excepciones = ExcepcionHorario.objects.filter(
+                configuracion_cine=configuracion,
+                fecha__lte=fecha  # fecha de inicio <= fecha buscada
+            ).filter(
+                Q(fecha_fin__isnull=True, fecha=fecha) |  # Excepción de un solo día
+                Q(fecha_fin__gte=fecha)  # O fecha dentro del rango
+            )
+            
+            if excepciones.exists():
+                excepcion = excepciones.first()
+                
+                # Si el cine está cerrado, rechazar inmediatamente
+                if excepcion.cerrado:
+                    messages.error(
+                        request, 
+                        f'❌ No se pueden crear funciones el {fecha.strftime("%d/%m/%Y")}. '
+                        f'El cine está CERRADO. Motivo: {excepcion.descripcion or "Cine cerrado por excepción no especificada"}.'
+                    )
+                    # Re-renderizar el formulario con el error
+                    context = {
+                        'form': form,
+                        'titulo_pagina': 'Crear Función(es)',
+                        'nombre_boton': 'Crear',
+                        'es_edicion': False,
+                        'configuracion_cine': configuracion
+                    }
+                    return render(request, 'cine/funcion_form.html', context)
+                
+                # Si hay horario modificado, validar que los horarios estén dentro del rango
+                if excepcion.hora_apertura and excepcion.hora_cierre:
+                    horarios_invalidos = []
+                    for hora_obj in horarios_obj_lista:
+                        # Calcular hora de fin (inicio + duración película + limpieza)
+                        inicio_minutos = hora_obj.hour * 60 + hora_obj.minute
+                        duracion_total = pelicula.duracion + configuracion.minutos_limpieza
+                        fin_minutos = inicio_minutos + duracion_total
+                        
+                        # Manejar casos donde fin_minutos excede 24 horas
+                        if fin_minutos >= 1440:  # 24 * 60 = 1440 minutos
+                            # La función termina después de medianoche, usar 23:59 como referencia
+                            hora_fin = time(23, 59)
+                        else:
+                            hora_fin = time(fin_minutos // 60, fin_minutos % 60)
+                        
+                        # Verificar que TODO el rango esté dentro del horario excepcional
+                        if not (excepcion.hora_apertura <= hora_obj and hora_fin <= excepcion.hora_cierre):
+                            horarios_invalidos.append(hora_obj.strftime('%H:%M'))
+                    
+                    if horarios_invalidos:
+                        messages.error(
+                            request,
+                            f'❌ Los siguientes horarios exceden el horario especial del {fecha.strftime("%d/%m/%Y")} '
+                            f'({excepcion.hora_apertura.strftime("%H:%M")} - {excepcion.hora_cierre.strftime("%H:%M")}): '
+                            f'{", ".join(horarios_invalidos)}. Motivo: {excepcion.descripcion or "Horario modificado"}.'
+                        )
+                        context = {
+                            'form': form,
+                            'titulo_pagina': 'Crear Función(es)',
+                            'nombre_boton': 'Crear',
+                            'es_edicion': False,
+                            'configuracion_cine': configuracion
+                        }
+                        return render(request, 'cine/funcion_form.html', context)
+            
+            # Si no hay excepciones para esta fecha, continuar normalmente
+            
             funciones_creadas = 0
             current_tz = timezone.get_current_timezone() # Para crear datetimes "aware"
             
@@ -529,7 +604,7 @@ def calcular_horarios_disponibles(request):
             return JsonResponse({'error': 'Faltan parámetros'}, status=400)
         
         try:
-            from cine.models import ConfiguracionCine
+            from cine.models import ConfiguracionCine, ExcepcionHorario
             
             pelicula = Pelicula.objects.get(pk=pelicula_id)
             sala = Sala.objects.get(pk=sala_id)
@@ -558,27 +633,79 @@ def calcular_horarios_disponibles(request):
             
             funciones_existentes = funciones_existentes.order_by('fecha_hora')
             
-            # Usar horarios de apertura y cierre de la configuración
-            hora_inicio = configuracion.horario_apertura
-            hora_fin = configuracion.horario_cierre
+            # ======================================================================
+            # VERIFICAR EXCEPCIONES DE HORARIO (PRIORIDAD SOBRE HORARIOS REGULARES)
+            # ======================================================================
+            from django.db.models import Q
+            
+            # Buscar excepción que aplique a esta fecha (puede ser fecha exacta o dentro de un rango)
+            excepciones = ExcepcionHorario.objects.filter(
+                configuracion_cine=configuracion,
+                fecha__lte=fecha  # fecha de inicio <= fecha buscada
+            ).filter(
+                Q(fecha_fin__isnull=True, fecha=fecha) |  # Excepción de un solo día
+                Q(fecha_fin__gte=fecha)  # O fecha dentro del rango
+            )
+            
+            if excepciones.exists():
+                excepcion = excepciones.first()
+                
+                # Si el cine está cerrado ese día, no hay horarios disponibles
+                if excepcion.cerrado:
+                    return JsonResponse({
+                        'horarios': [],
+                        'duracion_total': duracion_total_minutos,
+                        'mensaje': f'El cine está cerrado el {fecha.strftime("%d/%m/%Y")}. Motivo: {excepcion.descripcion}',
+                        'cerrado': True
+                    })
+                
+                # Si hay horario modificado, usar ese rango en lugar de los horarios regulares
+                if excepcion.hora_apertura and excepcion.hora_cierre:
+                    # Crear un objeto temporal similar a HorarioAtencion
+                    class HorarioExcepcional:
+                        def __init__(self, apertura, cierre):
+                            self.hora_apertura = apertura
+                            self.hora_cierre = cierre
+                    
+                    horarios_dia = [HorarioExcepcional(excepcion.hora_apertura, excepcion.hora_cierre)]
+                else:
+                    # Excepción malformada, no debería pasar
+                    return JsonResponse({'error': 'Excepción de horario malformada'}, status=500)
+            
+            else:
+                # No hay excepción, usar horarios regulares del día de la semana
+                dia_semana = fecha.weekday()  # 0=Monday, 6=Sunday
+                horarios_dia = configuracion.get_horarios_dia(dia_semana)
+                
+                # Verificar si el cine está abierto ese día
+                if not horarios_dia.exists():
+                    return JsonResponse({
+                        'horarios': [],
+                        'duracion_total': duracion_total_minutos,
+                        'mensaje': 'El cine está cerrado ese día de la semana',
+                        'cerrado': True
+                    })
             
             # Generar todos los horarios posibles cada 15 minutos
             horarios_disponibles = []
             current_tz = timezone.get_current_timezone()
             
-            # Crear datetime para el inicio del día
-            hora_actual = datetime.combine(fecha, hora_inicio)
-            hora_cierre = datetime.combine(fecha, hora_fin)
-            
             # IMPORTANTE: Si es HOY, solo mostrar horarios después de la hora actual
             ahora = timezone.now()
+            hora_minima_naive = None
             if fecha == ahora.date():
                 # Es hoy, necesitamos filtrar horarios pasados
                 hora_minima = ahora + timedelta(minutes=30)  # Al menos 30 min en el futuro
                 hora_minima_naive = hora_minima.replace(tzinfo=None)
+            
+            # Para cada rango horario del día, generar slots disponibles
+            for horario in horarios_dia:
+                # Crear datetime para el inicio del rango
+                hora_actual = datetime.combine(fecha, horario.hora_apertura)
+                hora_cierre = datetime.combine(fecha, horario.hora_cierre)
                 
-                # Si la hora actual del bucle es menor a la hora mínima, avanzar
-                if hora_actual < hora_minima_naive:
+                # Si es hoy, ajustar hora_actual al mínimo permitido
+                if hora_minima_naive and hora_actual < hora_minima_naive:
                     hora_actual = hora_minima_naive
                     # Redondear al próximo múltiplo de 15 minutos
                     minutos = hora_actual.minute
@@ -587,36 +714,40 @@ def calcular_horarios_disponibles(request):
                         hora_actual = hora_actual.replace(minute=0) + timedelta(hours=1)
                     else:
                         hora_actual = hora_actual.replace(minute=minutos_redondeados)
-            
-            while hora_actual <= hora_cierre:
-                # Calcular fin de esta posible función (incluyendo limpieza)
-                fin_funcion = hora_actual + timedelta(minutes=duracion_total_minutos)
                 
-                # Verificar que la función termine antes del cierre
-                if fin_funcion.time() > hora_fin:
-                    break
-                
-                # Verificar si se solapa con alguna función existente
-                hay_solapamiento = False
-                for funcion_existente in funciones_existentes:
-                    inicio_existente = funcion_existente.fecha_hora
-                    # Convertir a naive para comparar (si es aware)
-                    if timezone.is_aware(inicio_existente):
-                        inicio_existente = timezone.localtime(inicio_existente).replace(tzinfo=None)
+                # Generar slots para este rango horario
+                while hora_actual <= hora_cierre:
+                    # Calcular fin de esta posible función (incluyendo limpieza)
+                    fin_funcion = hora_actual + timedelta(minutes=duracion_total_minutos)
                     
-                    fin_existente = inicio_existente + timedelta(minutes=funcion_existente.pelicula.duracion + 30)
-                    
-                    # Comparar en naive datetime
-                    if hora_actual < fin_existente and fin_funcion > inicio_existente:
-                        hay_solapamiento = True
+                    # Verificar que la función termine antes del cierre de este rango
+                    if fin_funcion.time() > horario.hora_cierre:
                         break
-                
-                # Si no hay solapamiento, agregar
-                if not hay_solapamiento:
-                    horarios_disponibles.append(hora_actual.strftime('%H:%M'))
-                
-                # Avanzar 15 minutos
-                hora_actual += timedelta(minutes=15)
+                    
+                    # Verificar si se solapa con alguna función existente
+                    hay_solapamiento = False
+                    for funcion_existente in funciones_existentes:
+                        inicio_existente = funcion_existente.fecha_hora
+                        # Convertir a naive para comparar (si es aware)
+                        if timezone.is_aware(inicio_existente):
+                            inicio_existente = timezone.localtime(inicio_existente).replace(tzinfo=None)
+                        
+                        fin_existente = inicio_existente + timedelta(minutes=funcion_existente.pelicula.duracion + 30)
+                        
+                        # Comparar en naive datetime
+                        if hora_actual < fin_existente and fin_funcion > inicio_existente:
+                            hay_solapamiento = True
+                            break
+                    
+                    # Si no hay solapamiento, agregar
+                    if not hay_solapamiento:
+                        horario_str = hora_actual.strftime('%H:%M')
+                        # Evitar duplicados si los rangos se solapan
+                        if horario_str not in horarios_disponibles:
+                            horarios_disponibles.append(horario_str)
+                    
+                    # Avanzar 15 minutos
+                    hora_actual += timedelta(minutes=15)
             
             return JsonResponse({
                 'horarios': horarios_disponibles,
@@ -628,5 +759,107 @@ def calcular_horarios_disponibles(request):
             return JsonResponse({'error': 'Película o sala no encontrada'}, status=404)
         except ValueError:
             return JsonResponse({'error': 'Formato de fecha inválido'}, status=400)
+    
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+def verificar_horario_fecha(request):
+    """
+    Vista AJAX que verifica si hay excepciones de horario para una fecha específica.
+    
+    Retorna:
+    - cerrado: bool (True si el cine está cerrado)
+    - motivo: str (descripción de la excepción)
+    - horarios: list (rangos horarios disponibles)
+    - es_excepcion: bool (True si hay un horario modificado)
+    """
+    if request.method == 'GET':
+        fecha_str = request.GET.get('fecha')  # formato: YYYY-MM-DD
+        
+        if not fecha_str:
+            return JsonResponse({'error': 'Falta el parámetro fecha'}, status=400)
+        
+        try:
+            from cine.models import ConfiguracionCine, ExcepcionHorario
+            from django.db.models import Q
+            
+            fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            configuracion = ConfiguracionCine.load()
+            
+            # Buscar excepción que aplique a esta fecha (puede ser fecha exacta o dentro de un rango)
+            excepciones = ExcepcionHorario.objects.filter(
+                configuracion_cine=configuracion,
+                fecha__lte=fecha  # fecha de inicio <= fecha buscada
+            ).filter(
+                Q(fecha_fin__isnull=True, fecha=fecha) |  # Excepción de un solo día
+                Q(fecha_fin__gte=fecha)  # O fecha dentro del rango
+            )
+            
+            if excepciones.exists():
+                excepcion = excepciones.first()
+                
+                # Caso 1: Cine cerrado
+                if excepcion.cerrado:
+                    return JsonResponse({
+                        'cerrado': True,
+                        'motivo': excepcion.descripcion or 'Cine cerrado',
+                        'horarios': [],
+                        'es_excepcion': True,
+                        'tipo': 'cerrado'
+                    })
+                
+                # Caso 2: Horario modificado
+                else:
+                    horarios = [{
+                        'apertura': excepcion.hora_apertura.strftime('%H:%M'),
+                        'cierre': excepcion.hora_cierre.strftime('%H:%M')
+                    }]
+                    
+                    return JsonResponse({
+                        'cerrado': False,
+                        'motivo': excepcion.descripcion or 'Horario especial',
+                        'horarios': horarios,
+                        'es_excepcion': True,
+                        'tipo': 'modificado',
+                        'fecha_formateada': fecha.strftime('%d/%m/%Y')
+                    })
+            
+            else:
+                # Caso 3: Día normal (sin excepción)
+                dia_semana = fecha.weekday()
+                horarios_dia = configuracion.get_horarios_dia(dia_semana)
+                
+                if not horarios_dia.exists():
+                    # El cine está cerrado ese día de la semana (sin horarios configurados)
+                    dias_nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+                    return JsonResponse({
+                        'cerrado': True,
+                        'motivo': f'Cerrado los {dias_nombres[dia_semana]}s',
+                        'horarios': [],
+                        'es_excepcion': False,
+                        'tipo': 'cerrado_regular'
+                    })
+                
+                # Hay horarios normales
+                horarios = [
+                    {
+                        'apertura': h.hora_apertura.strftime('%H:%M'),
+                        'cierre': h.hora_cierre.strftime('%H:%M')
+                    }
+                    for h in horarios_dia
+                ]
+                
+                return JsonResponse({
+                    'cerrado': False,
+                    'motivo': None,
+                    'horarios': horarios,
+                    'es_excepcion': False,
+                    'tipo': 'normal'
+                })
+        
+        except ValueError:
+            return JsonResponse({'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}, status=400)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
     
     return JsonResponse({'error': 'Método no permitido'}, status=405)

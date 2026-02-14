@@ -259,8 +259,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
 
-            if (!data.horarios || data.horarios.length === 0) {
-                horariosContainer.innerHTML = '<p class="text-secondary" style="text-align: center; font-size: 0.9rem;">😔 No hay horarios disponibles para este día. Intenta con otra fecha.</p>';
+            // Si el cine está cerrado, mostrar mensaje y no permitir continuar
+            if (data.cerrado || (!data.horarios || data.horarios.length === 0)) {
+                const mensaje = data.mensaje || 'No hay horarios disponibles para este día';
+                horariosContainer.innerHTML = `<p class="text-secondary" style="text-align: center; font-size: 0.9rem; color: #ff6b6b;">🚫 ${mensaje}</p>`;
+                
+                // Marcar que la fecha está cerrada para que la otra validación también lo detecte
+                fechaCerrada = data.cerrado || false;
+                
                 return;
             }
 
@@ -379,10 +385,185 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // ==========================================
+    // VERIFICACIÓN DE EXCEPCIONES DE HORARIO
+    // ==========================================
+    
+    let fechaCerrada = false;
+    let horarioModificado = false;
+    let horariosExcepcion = [];
+    const excepcionAlerta = document.getElementById('excepcion-alerta');
+    const submitButton = document.querySelector('button[type="submit"]');
+    
+    async function verificarExcepcionFecha() {
+        const fecha = fechaInput.value;
+        
+        if (!fecha) {
+            if (excepcionAlerta) {
+                excepcionAlerta.style.display = 'none';
+            }
+            fechaCerrada = false;
+            horarioModificado = false;
+            horariosExcepcion = [];
+            habilitarFormulario();
+            return;
+        }
+        
+        try {
+            const url = new URL(window.VERIFICAR_HORARIO_FECHA_URL, window.location.origin);
+            url.searchParams.append('fecha', fecha);
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (!response.ok) {
+                console.error('Error al verificar horario:', data.error);
+                return;
+            }
+            
+            // Caso 1: Cine CERRADO
+            if (data.cerrado) {
+                fechaCerrada = true;
+                horarioModificado = false;
+                horariosExcepcion = [];
+                
+                mostrarAlerta('cerrado', data.motivo);
+                deshabilitarFormulario();
+                
+                // Limpiar horarios
+                if (horariosContainer) {
+                    horariosContainer.innerHTML = '<p class="text-secondary" style="text-align: center; font-size: 0.9rem; color: #ff6b6b;">🚫 No hay horarios disponibles (cine cerrado)</p>';
+                }
+            }
+            // Caso 2: Horario MODIFICADO
+            else if (data.es_excepcion && data.tipo === 'modificado') {
+                fechaCerrada = false;
+                horarioModificado = true;
+                horariosExcepcion = data.horarios;
+                
+                const horarioTexto = data.horarios.map(h => `${h.apertura} - ${h.cierre}`).join(', ');
+                mostrarAlerta('modificado', data.motivo, horarioTexto, data.fecha_formateada);
+                habilitarFormulario();
+                
+                // Cargar horarios dentro del rango permitido
+                cargarHorarios();
+            }
+            // Caso 3: Día NORMAL
+            else {
+                fechaCerrada = false;
+                horarioModificado = false;
+                horariosExcepcion = [];
+                
+                if (excepcionAlerta) {
+                    excepcionAlerta.style.display = 'none';
+                }
+                habilitarFormulario();
+                
+                // Cargar horarios normales
+                cargarHorarios();
+            }
+            
+        } catch (error) {
+            console.error('Error al verificar excepción de fecha:', error);
+        }
+    }
+    
+    function mostrarAlerta(tipo, motivo, horario = null, fecha = null) {
+        if (!excepcionAlerta) return;
+        
+        let html = '';
+        
+        if (tipo === 'cerrado') {
+            html = `
+                <div style="padding: 1rem; background-color: rgba(239, 68, 68, 0.15); border: 2px solid #ef4444; border-radius: 0.5rem; animation: fadeIn 0.3s ease-in;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="font-size: 1.5rem;">🚫</span>
+                        <div style="flex: 1;">
+                            <strong style="color: #fca5a5; font-size: 1rem;">El cine está CERRADO este día</strong>
+                            <p style="margin: 0.25rem 0 0 0; color: #fca5a5; font-size: 0.9rem;">Motivo: ${motivo}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else if (tipo === 'modificado') {
+            html = `
+                <div style="padding: 1rem; background-color: rgba(59, 130, 246, 0.15); border: 2px solid #3b82f6; border-radius: 0.5rem; animation: fadeIn 0.3s ease-in;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <span style="font-size: 1.5rem;">ℹ️</span>
+                        <div style="flex: 1;">
+                            <strong style="color: #93c5fd; font-size: 1rem;">Horario especial el ${fecha}</strong>
+                            <p style="margin: 0.25rem 0 0 0; color: #93c5fd; font-size: 0.9rem;">
+                                Horario: ${horario} • ${motivo}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        excepcionAlerta.innerHTML = html;
+        excepcionAlerta.style.display = 'block';
+    }
+    
+    function deshabilitarFormulario() {
+        // Deshabilitar selector de horarios
+        if (horariosContainer) {
+            horariosContainer.style.opacity = '0.5';
+            horariosContainer.style.pointerEvents = 'none';
+        }
+        
+        // Deshabilitar botón de submit
+        if (submitButton) {
+            submitButton.disabled = true;
+            submitButton.style.opacity = '0.5';
+            submitButton.style.cursor = 'not-allowed';
+            submitButton.title = 'No se pueden crear funciones en días cerrados';
+        }
+    }
+    
+    function habilitarFormulario() {
+        // Habilitar selector de horarios
+        if (horariosContainer) {
+            horariosContainer.style.opacity = '1';
+            horariosContainer.style.pointerEvents = 'auto';
+        }
+        
+        // Habilitar botón de submit
+        if (submitButton) {
+            submitButton.disabled = false;
+            submitButton.style.opacity = '1';
+            submitButton.style.cursor = 'pointer';
+            submitButton.title = '';
+        }
+    }
+
     // Event listeners para recargar horarios cuando cambien los campos
     if (peliculaSelect) peliculaSelect.addEventListener('change', cargarHorarios);
     if (salaSelect) salaSelect.addEventListener('change', cargarHorarios);
-    if (fechaInput) fechaInput.addEventListener('change', cargarHorarios);
+    if (fechaInput) {
+        fechaInput.addEventListener('change', function() {
+            verificarExcepcionFecha();
+        });
+    }
+    
+    // Prevenir submit si la fecha está cerrada (validación adicional)
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (fechaCerrada) {
+                e.preventDefault();
+                alert('⚠️ No se pueden crear funciones en un día cerrado. Por favor selecciona otra fecha.');
+                return false;
+            }
+            
+            // Validar que se haya seleccionado al menos un horario
+            if (horariosInputHidden && (!horariosInputHidden.value || horariosInputHidden.value.trim() === '')) {
+                e.preventDefault();
+                alert('⚠️ Debes seleccionar al menos un horario.');
+                return false;
+            }
+        });
+    }
 
     // Si estamos en edición, cargar horarios al inicio
     if (esEdicion && peliculaSelect && salaSelect && fechaInput && funcionActual) {

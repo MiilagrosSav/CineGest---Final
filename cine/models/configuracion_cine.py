@@ -61,17 +61,6 @@ class ConfiguracionCine(models.Model):
         help_text="Correo electrónico para consultas"
     )
     
-    # Horarios
-    horario_apertura = models.TimeField(
-        verbose_name="Horario de Apertura",
-        help_text="Hora de apertura del cine"
-    )
-    
-    horario_cierre = models.TimeField(
-        verbose_name="Horario de Cierre",
-        help_text="Hora de cierre del cine"
-    )
-    
     # Configuración operativa
     minutos_limpieza = models.PositiveIntegerField(
         default=30,
@@ -149,12 +138,9 @@ class ConfiguracionCine(models.Model):
                 'reserva_tiempo_espera': "El tiempo de reserva no puede superar los 60 minutos."
             })
 
-        # 3. Validación de Horarios (Cierre no puede ser antes de Apertura)
-        if self.horario_apertura and self.horario_cierre:
-            if self.horario_cierre <= self.horario_apertura:
-                raise ValidationError({
-                    'horario_cierre': "El horario de cierre debe ser posterior al de apertura."
-                })
+        # NOTA: La validación de horarios de apertura/cierre fue removida porque
+        # ahora se usa el sistema flexible de HorarioAtencion por día de la semana.
+        # Cada día tiene sus propios rangos horarios configurados en HorarioAtencion.
 
 
     def save(self, *args, **kwargs):
@@ -184,13 +170,176 @@ class ConfiguracionCine(models.Model):
                 'direccion': 'Av. Principal 123',
                 'telefono': '+54 11 0000-0000',
                 'email': 'contacto@micine.com',
-                'horario_apertura': '10:00',
-                'horario_cierre': '23:00',
                 'minutos_limpieza': 30,
                 'reserva_tiempo_espera': 10,
             }
         )
         return obj
+    
+    def get_horarios_dia(self, dia_semana):
+        """
+        Retorna los rangos horarios activos para un día específico.
+        
+        Args:
+            dia_semana (int): Número del día (0=Lunes, 6=Domingo)
+            
+        Returns:
+            QuerySet: Horarios activos para ese día, ordenados por orden y hora de apertura
+        """
+        # Import local para evitar dependencias circulares
+        from .horario_atencion import HorarioAtencion
+        
+        return HorarioAtencion.objects.filter(
+            configuracion_cine=self,
+            dia_semana=dia_semana,
+            activo=True
+        ).order_by('orden', 'hora_apertura')
+    
+    def esta_abierto_en(self, fecha_hora_obj):
+        """
+        Verifica si el cine está abierto en una fecha/hora específica.
+        
+        Args:
+            fecha_hora_obj (datetime.datetime): Fecha y hora a verificar
+            
+        Returns:
+            bool: True si el cine está abierto, False en caso contrario
+            
+        Example:
+            >>> from django.utils import timezone
+            >>> config = ConfiguracionCine.load()
+            >>> ahora = timezone.now()
+            >>> config.esta_abierto_en(ahora)
+            True
+        """
+        from django.utils import timezone
+        
+        # Convertir a naive si es aware para obtener el weekday correcto
+        if timezone.is_aware(fecha_hora_obj):
+            fecha_hora_obj = timezone.localtime(fecha_hora_obj)
+        
+        dia_semana = fecha_hora_obj.weekday()  # 0=Monday en Python
+        hora = fecha_hora_obj.time()
+        
+        horarios = self.get_horarios_dia(dia_semana)
+        
+        for rango in horarios:
+            # Verificar si la hora está dentro del rango [apertura, cierre)
+            if rango.hora_apertura <= hora < rango.hora_cierre:
+                return True
+        
+        return False
+    
+    def validar_rango_horario(self, fecha_hora_inicio, fecha_hora_fin):
+        """
+        Valida que un rango completo [inicio, fin] esté dentro de los horarios de atención.
+        
+        Útil para validar funciones de cine que tienen duración (inicio + película + limpieza).
+        
+        Args:
+            fecha_hora_inicio (datetime): Momento de inicio (ej: inicio de función)
+            fecha_hora_fin (datetime): Momento de fin (ej: fin de función + limpieza)
+            
+        Returns:
+            tuple: (bool, str or None)
+                - (True, None) si el rango es válido
+                - (False, mensaje_error) si hay conflicto
+                
+        Lógica de validación:
+            1. PRIORIDAD EXCEPCIONES: Si hay excepción para esa fecha, usa esos criterios
+               - Si cerrado=True → rechazar
+               - Si cerrado=False → validar contra el rango de excepción
+            2. HORARIOS REGULARES: Si no hay excepción, usar horarios del día de la semana
+            3. VALIDACIÓN: El rango completo [inicio, fin] debe estar dentro de UN rango horario
+               (no permite atravesar huecos entre rangos)
+        
+        Ejemplos:
+            >>> # Lunes con horarios 10-14 y 17-23
+            >>> # Función 13:00-15:30 (atraviesa hueco 14-17)
+            >>> validar_rango_horario(lunes_13h, lunes_15h30)
+            (False, "La función... no cabe completamente...")
+            
+            >>> # Función 18:00-20:30 (dentro de 17-23)
+            >>> validar_rango_horario(lunes_18h, lunes_20h30)
+            (True, None)
+        """
+        from django.utils import timezone
+        
+        # Convertir a localtime si es aware
+        if timezone.is_aware(fecha_hora_inicio):
+            fecha_hora_inicio = timezone.localtime(fecha_hora_inicio)
+        if timezone.is_aware(fecha_hora_fin):
+            fecha_hora_fin = timezone.localtime(fecha_hora_fin)
+        
+        fecha = fecha_hora_inicio.date()
+        hora_inicio = fecha_hora_inicio.time()
+        hora_fin = fecha_hora_fin.time()
+        
+        # PASO 1: Verificar si hay excepción para esta fecha
+        from .excepcion_horario import ExcepcionHorario  # Import local para evitar ciclos
+        
+        # Buscar excepción que aplique a esta fecha (puede ser fecha exacta o dentro de un rango)
+        # Lógica: Una excepción aplica si:
+        # - Es de un solo día: fecha == fecha buscada
+        # - Es de un rango: fecha <= fecha_buscada <= fecha_fin
+        excepciones = ExcepcionHorario.objects.filter(
+            configuracion_cine=self,
+            fecha__lte=fecha  # fecha de inicio <= fecha buscada
+        ).filter(
+            models.Q(fecha_fin__isnull=True, fecha=fecha) |  # Excepción de un solo día
+            models.Q(fecha_fin__gte=fecha)  # O fecha dentro del rango
+        )
+        
+        if excepciones.exists():
+            excepcion = excepciones.first()
+            
+            # Si el cine está cerrado ese día, rechazar
+            if excepcion.cerrado:
+                return (False, 
+                       f'El cine está cerrado el {fecha.strftime("%d/%m/%Y")}. '
+                       f'Motivo: {excepcion.descripcion or "Día no laborable"}.')
+            
+            # Usar el rango horario de la excepción
+            if excepcion.hora_apertura and excepcion.hora_cierre:
+                # Validar que TODO el rango esté dentro del horario excepcional
+                if excepcion.hora_apertura <= hora_inicio and hora_fin <= excepcion.hora_cierre:
+                    return (True, None)  # ✓ Válido
+                else:
+                    return (False,
+                           f'La función (inicio: {hora_inicio.strftime("%H:%M")}, '
+                           f'fin estimado: {hora_fin.strftime("%H:%M")}) excede el horario '
+                           f'excepcional del {fecha.strftime("%d/%m/%Y")}: '
+                           f'{excepcion.hora_apertura.strftime("%H:%M")} - '
+                           f'{excepcion.hora_cierre.strftime("%H:%M")}. '
+                           f'Motivo: {excepcion.descripcion or "Horario modificado"}.')
+            else:
+                # Excepción malformada (no debería pasar si los validadores funcionan)
+                return (False, f'Excepción de horario malformada para el {fecha.strftime("%d/%m/%Y")}.')
+        else:
+            # PASO 2: No hay excepción, usar horarios regulares del día
+            dia_semana = fecha_hora_inicio.weekday()
+            rangos = self.get_horarios_dia(dia_semana)
+            
+            # PASO 3: Validar que el rango completo esté dentro de UN SOLO rango horario
+            if not rangos.exists():
+                dias_nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+                dia_nombre = dias_nombres[fecha_hora_inicio.weekday()]
+                return (False, f'No hay horarios de atención configurados para el {dia_nombre}.')
+            
+            # Verificar si INICIO y FIN están dentro del mismo rango
+            # Importante: No permitir atravesar huecos entre rangos
+            for rango in rangos:
+                # Verificar si TODO el rango [inicio, fin] está dentro de este rango horario
+                # Usamos <= para inicio y <= para fin (intervalo cerrado completo)
+                if rango.hora_apertura <= hora_inicio and hora_fin <= rango.hora_cierre:
+                    return (True, None)  # ✓ Válido: Todo el rango está dentro de este horario
+            
+            # Si llegamos aquí, la función no cabe en ningún rango
+            return (False, 
+                   f'La función (inicio: {hora_inicio.strftime("%H:%M")}, '
+                   f'fin estimado: {hora_fin.strftime("%H:%M")}) no cabe completamente '
+                   f'dentro de ningún rango horario de atención. '
+                   f'Verifica que no atraviese cierres intermedios.')
     
     def __str__(self):
         return self.nombre

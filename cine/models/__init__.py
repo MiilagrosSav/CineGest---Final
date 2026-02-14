@@ -6,3 +6,5 @@ from .funcion import Funcion
 from .funcion_formato import FuncionFormato
 from .butaca import Butaca
 from .configuracion_cine import ConfiguracionCine
+from .horario_atencion import HorarioAtencion
+from .excepcion_horario import ExcepcionHorario

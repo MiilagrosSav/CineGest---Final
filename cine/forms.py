@@ -1,6 +1,6 @@
 from django import forms
 from django.db import models
-from .models import Pelicula, Sala, Funcion, Formato, FuncionFormato, ConfiguracionCine, Genero
+from .models import Pelicula, Sala, Funcion, Formato, FuncionFormato, ConfiguracionCine, Genero, ExcepcionHorario
 from datetime import date, datetime, timedelta
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -957,33 +957,8 @@ class ConfiguracionCineForm(forms.ModelForm):
         })
     )
     
-    horario_apertura = forms.TimeField(
-        label='🕐 Horario de Apertura',
-        widget=forms.TimeInput(attrs={
-            'class': 'form-input',
-            'type': 'time',
-            'required': True,
-            'title': 'Hora de apertura del cine'
-        }),
-        error_messages={
-            'required': 'El horario de apertura es obligatorio.',
-            'invalid': 'Formato de hora inválido.'
-        }
-    )
-    
-    horario_cierre = forms.TimeField(
-        label='🕐 Horario de Cierre',
-        widget=forms.TimeInput(attrs={
-            'class': 'form-input',
-            'type': 'time',
-            'required': True,
-            'title': 'Hora de cierre del cine'
-        }),
-        error_messages={
-            'required': 'El horario de cierre es obligatorio.',
-            'invalid': 'Formato de hora inválido.'
-        }
-    )
+    # NOTA: Los horarios de apertura/cierre ahora se gestionan con HorarioAtencion
+    # Ver gestión de horarios en la vista dedicada
     
     minutos_limpieza = forms.IntegerField(
         label='🧹 Minutos de Limpieza',
@@ -1077,7 +1052,7 @@ class ConfiguracionCineForm(forms.ModelForm):
         fields = [
             'nombre', 'logo', 'razon_social', 'cuil_cuit', 'descripcion',
             'direccion', 'telefono', 'email',
-            'horario_apertura', 'horario_cierre', 'minutos_limpieza',
+            'minutos_limpieza',
             'reserva_tiempo_espera',
             'facebook', 'instagram', 'twitter'
         ]
@@ -1091,16 +1066,276 @@ class ConfiguracionCineForm(forms.ModelForm):
                 raise ValidationError('El formato debe ser XX-XXXXXXXX-X (ej: 20-12345678-9)')
         return cuil_cuit
     
+    # Nota: La validación de horarios ahora se maneja en HorarioAtencion
+    # No es necesario el método clean() aquí
+
+
+# ============================================================================
+# FORMULARIOS PARA HORARIOS DE ATENCIÓN (Sistema Flexible por Día)
+# ============================================================================
+
+class HorarioAtencionForm(forms.ModelForm):
+    """
+    Formulario para crear/editar un rango horario de atención.
+    Cada instancia representa un rango para un día específico.
+    """
+    
+    dia_semana = forms.ChoiceField(
+        label='📅 Día de la Semana',
+        choices=[
+            (0, 'Lunes'),
+            (1, 'Martes'),
+            (2, 'Miércoles'),
+            (3, 'Jueves'),
+            (4, 'Viernes'),
+            (5, 'Sábado'),
+            (6, 'Domingo'),
+        ],
+        widget=forms.Select(attrs={
+            'class': 'form-input',
+            'required': True
+        })
+    )
+    
+    hora_apertura = forms.TimeField(
+        label='🕐 Hora de Apertura',
+        widget=forms.TimeInput(attrs={
+            'class': 'form-input',
+            'type': 'time',
+            'required': True,
+            'title': 'Hora de inicio del rango'
+        }),
+        error_messages={
+            'required': 'La hora de apertura es obligatoria.',
+            'invalid': 'Formato de hora inválido.'
+        }
+    )
+    
+    hora_cierre = forms.TimeField(
+        label='🕐 Hora de Cierre',
+        widget=forms.TimeInput(attrs={
+            'class': 'form-input',
+            'type': 'time',
+            'required': True,
+            'title': 'Hora de fin del rango'
+        }),
+        error_messages={
+            'required': 'La hora de cierre es obligatoria.',
+            'invalid': 'Formato de hora inválido.'
+        }
+    )
+    
+    activo = forms.BooleanField(
+        label='✅ Activo',
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-checkbox',
+            'title': 'Desmarcar para deshabilitar temporalmente este horario'
+        }),
+        help_text='Desmarcar para deshabilitar temporalmente sin eliminar'
+    )
+    
+    orden = forms.IntegerField(
+        label='📊 Orden',
+        required=False,
+        initial=0,
+        min_value=0,
+        max_value=10,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'min': '0',
+            'max': '10',
+            'title': 'Orden de visualización (0, 1, 2...)'
+        }),
+        help_text='Orden para múltiples rangos del mismo día'
+    )
+    
+    class Meta:
+        from .models import HorarioAtencion
+        model = HorarioAtencion
+        fields = ['dia_semana', 'hora_apertura', 'hora_cierre', 'activo', 'orden']
+    
     def clean(self):
-        """Validar que el horario de cierre sea posterior al de apertura"""
+        """Validar que cierre > apertura"""
         cleaned_data = super().clean()
-        apertura = cleaned_data.get('horario_apertura')
-        cierre = cleaned_data.get('horario_cierre')
+        apertura = cleaned_data.get('hora_apertura')
+        cierre = cleaned_data.get('hora_cierre')
         
         if apertura and cierre:
             if cierre <= apertura:
                 raise ValidationError({
-                    'horario_cierre': 'El horario de cierre debe ser posterior al de apertura.'
+                    'hora_cierre': 'El horario de cierre debe ser posterior al de apertura.'
                 })
         
         return cleaned_data
+
+
+# Formset para gestionar múltiples horarios
+from django.forms import modelformset_factory, inlineformset_factory
+from .models import HorarioAtencion
+
+HorarioAtencionFormSet = modelformset_factory(
+    HorarioAtencion,
+    form=HorarioAtencionForm,
+    extra=0,  # No mostrar formularios extra vacíos (evita errores al solo eliminar)
+    can_delete=True,  # Permitir eliminar horarios
+    min_num=0,  # Permitir 0 horarios (todos eliminados)
+    validate_min=False,  # No validar el mínimo
+    max_num=21,  # Máximo 3 rangos por día × 7 días = 21 total
+    validate_max=True
+)
+
+
+# FormSet inline para editar horarios de un día específico
+HorarioAtencionInlineFormSet = inlineformset_factory(
+    ConfiguracionCine,
+    HorarioAtencion,
+    form=HorarioAtencionForm,
+    extra=1,
+    can_delete=True,
+    max_num=5,  # Máximo 5 rangos por día (razonable)
+    validate_max=True
+)
+
+
+# ============================================================================
+# FORM: EXCEPCIÓN DE HORARIO
+# ============================================================================
+
+class ExcepcionHorarioForm(forms.ModelForm):
+    """
+    Formulario para crear y editar excepciones de horario.
+    
+    Casos de uso:
+    - Días cerrados: cerrado=True, sin horarios
+    - Días con horario modificado: cerrado=False, con horarios específicos
+    
+    Validaciones:
+    - Si cerrado=True → hora_apertura y hora_cierre deben estar vacíos
+    - Si cerrado=False → hora_apertura y hora_cierre son obligatorios
+    - hora_cierre > hora_apertura
+    """
+    
+    class Meta:
+        model = ExcepcionHorario
+        fields = ['fecha', 'fecha_fin', 'cerrado', 'hora_apertura', 'hora_cierre', 'descripcion']
+        widgets = {
+            'fecha': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'form-input',
+                'placeholder': 'Seleccionar fecha de inicio'
+            }),
+            'fecha_fin': forms.DateInput(attrs={
+                'type': 'date',
+                'class': 'form-input',
+                'placeholder': 'Opcional: Fecha de fin del rango'
+            }),
+            'cerrado': forms.CheckboxInput(attrs={
+                'class': 'form-checkbox',
+                'id': 'id_cerrado',
+                'onchange': 'toggleHorarios()'  # JavaScript para mostrar/ocultar horarios
+            }),
+            'hora_apertura': forms.TimeInput(attrs={
+                'type': 'time',
+                'class': 'form-input',
+                'id': 'id_hora_apertura',
+                'placeholder': 'HH:MM'
+            }),
+            'hora_cierre': forms.TimeInput(attrs={
+                'type': 'time',
+                'class': 'form-input',
+                'id': 'id_hora_cierre',
+                'placeholder': 'HH:MM'
+            }),
+            'descripcion': forms.TextInput(attrs={
+                'class': 'form-input',
+                'placeholder': 'Ej: Navidad, Nochebuena, Mantenimiento',
+                'maxlength': 200
+            }),
+        }
+        labels = {
+            'fecha': '📅 Fecha de Inicio',
+            'fecha_fin': '📅 Fecha de Fin (Opcional)',
+            'cerrado': '🚫 Cine cerrado este día',
+            'hora_apertura': '🕐 Hora de apertura',
+            'hora_cierre': '🕐 Hora de cierre',
+            'descripcion': '📝 Descripción / Motivo',
+        }
+        help_texts = {
+            'fecha': 'Selecciona la fecha de inicio de la excepción',
+            'fecha_fin': 'Dejar vacío para excepción de un solo día. Completar para rango de días consecutivos.',
+            'cerrado': 'Marcar si el cine estará completamente cerrado',
+            'hora_apertura': 'Solo si el cine NO está cerrado (horario modificado)',
+            'hora_cierre': 'Solo si el cine NO está cerrado (horario modificado)',
+            'descripcion': 'Breve explicación del motivo (ej: "Navidad", "Mantenimiento programado")',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        """Inicializar form y configurar campos opcionales según contexto"""
+        super().__init__(*args, **kwargs)
+        
+        # Si es edición y está cerrado, deshabilitar horarios en el cliente
+        if self.instance.pk and self.instance.cerrado:
+            self.fields['hora_apertura'].widget.attrs['disabled'] = True
+            self.fields['hora_cierre'].widget.attrs['disabled'] = True
+    
+    def clean(self):
+        """
+        Validaciones customizadas del formulario.
+        
+        Complementa las validaciones del modelo para mejor UX.
+        """
+        cleaned_data = super().clean()
+        cerrado = cleaned_data.get('cerrado')
+        hora_apertura = cleaned_data.get('hora_apertura')
+        hora_cierre = cleaned_data.get('hora_cierre')
+        fecha = cleaned_data.get('fecha')
+        fecha_fin = cleaned_data.get('fecha_fin')
+        
+        # Validar coherencia de rango de fechas
+        if fecha_fin and fecha and fecha_fin < fecha:
+            self.add_error('fecha_fin', 'La fecha de fin debe ser igual o posterior a la fecha de inicio.')
+        
+        # Validar coherencia entre cerrado y horarios
+        if cerrado:
+            # Si está cerrado, limpiar horarios (ignorar lo que haya en el form)
+            cleaned_data['hora_apertura'] = None
+            cleaned_data['hora_cierre'] = None
+        else:
+            # Si NO está cerrado, los horarios son obligatorios
+            if not hora_apertura:
+                self.add_error('hora_apertura', 'Este campo es obligatorio cuando el cine NO está cerrado.')
+            
+            if not hora_cierre:
+                self.add_error('hora_cierre', 'Este campo es obligatorio cuando el cine NO está cerrado.')
+            
+            # Validar que cierre > apertura
+            if hora_apertura and hora_cierre:
+                if hora_cierre <= hora_apertura:
+                    self.add_error('hora_cierre', 'La hora de cierre debe ser posterior a la hora de apertura.')
+        
+        # Validar que la fecha no sea en el pasado (opcional, depende de lógica de negocio)
+        if fecha:
+            hoy = date.today()
+            if fecha < hoy:
+                # Advertencia: Permitir editar excepciones pasadas pero avisar
+                # No es un error crítico, solo informativo
+                pass  # Puedes agregar warning si lo deseas
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        """
+        Guardar excepción asignando configuracion_cine automáticamente.
+        """
+        excepcion = super().save(commit=False)
+        
+        # Asignar configuración del cine (Singleton)
+        if not excepcion.configuracion_cine_id:
+            excepcion.configuracion_cine = ConfiguracionCine.load()
+        
+        if commit:
+            excepcion.save()
+        
+        return excepcion
