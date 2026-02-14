@@ -160,7 +160,27 @@ class Funcion(models.Model):
         if self.sala and not self.sala.activa:
             raise ValidationError({'sala': 'No se pueden programar funciones en salas que figuran como inactivas.'})
 
-        # Validar solapamiento de horarios en la misma sala (incluye 30 min de limpieza)
+        # 6. VALIDACIÓN DE HORARIOS DE ATENCIÓN (Respeta horarios del cine y excepciones)
+        if self.pelicula and self.fecha_hora:
+            from datetime import timedelta
+            from cine.models import ConfiguracionCine
+            
+            config = ConfiguracionCine.load()
+            
+            # Calcular hora de inicio y fin de la función (incluye limpieza)
+            duracion_total = self.pelicula.duracion + config.minutos_limpieza
+            fecha_hora_fin = self.fecha_hora + timedelta(minutes=duracion_total)
+            
+            # Validar que el rango completo esté dentro de un horario de atención
+            es_valido, mensaje_error = config.validar_rango_horario(
+                self.fecha_hora, 
+                fecha_hora_fin
+            )
+            
+            if not es_valido:
+                raise ValidationError({'fecha_hora': mensaje_error})
+
+        # 7. VALIDACIÓN DE SOLAPAMIENTO EN SALA (Evita conflictos físicos)
         if self.sala and self.pelicula and self.fecha_hora:
             from datetime import timedelta
             duracion_total = timedelta(minutes=self.pelicula.duracion + 30)

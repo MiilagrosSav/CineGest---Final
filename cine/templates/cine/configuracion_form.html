@@ -18,8 +18,18 @@
         {% endif %}
         
         <div class="form-cols">
-            <!-- Columna 1 -->
             <div>
+                <div class="form-field">
+                    <label>Logo</label>
+                    {% if object.logo %}
+                    <div class="logo-mini">
+                        <img src="{{ object.logo.url }}" alt="Logo">
+                    </div>
+                    {% endif %}
+                    {{ form.logo }}
+                    {% if form.logo.errors %}<span class="err">{{ form.logo.errors.0 }}</span>{% endif %}
+                </div>
+
                 <div class="form-field">
                     <label>Nombre *</label>
                     {{ form.nombre }}
@@ -57,55 +67,40 @@
                         {% if form.email.errors %}<span class="err">{{ form.email.errors.0 }}</span>{% endif %}
                     </div>
                 </div>
-                
+            </div>
+            
+            <div>
+                <div class="form-field" style="background-color: rgba(124, 58, 237, 0.1); padding: 1.5rem; border-radius: 0.5rem; border-left: 4px solid #7c3aed; margin-bottom: 1rem;">
+                    <label style="font-weight: 700; color: #a78bfa; margin-bottom: 0.5rem; display: block; font-size: 1.1rem;">
+                        🕐 Horarios de Atención
+                    </label>
+                    
+                    <p style="margin: 0.5rem 0 1.25rem 0; font-size: 0.95rem; color: #e5e7eb; line-height: 1.5;">
+                        Los horarios de apertura y cierre ahora se gestionan por día de la semana con rangos flexibles.
+                    </p>
+                    
+                    <a href="{% url 'cine:gestionar_horarios' %}" 
+                    style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 0.5rem; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3);"
+                    onmouseover="this.style.backgroundColor='#6d28d9'; this.style.transform='translateY(-2px)'" 
+                    onmouseout="this.style.backgroundColor='#7c3aed'; this.style.transform='translateY(0)'">
+                    ⚙️ Gestionar Horarios por Día
+                    </a>
+                </div>
+
                 <div class="form-row">
                     <div class="form-field">
-                        <label>Apertura *</label>
-                        {{ form.horario_apertura }}
-                        {% if form.horario_apertura.errors %}<span class="err">{{ form.horario_apertura.errors.0 }}</span>{% endif %}
+                        <label>🧹 Limpieza <small>(min)</small></label>
+                        {{ form.minutos_limpieza }}
+                        {% if form.minutos_limpieza.errors %}<span class="err">{{ form.minutos_limpieza.errors.0 }}</span>{% endif %}
                     </div>
                     
                     <div class="form-field">
-                        <label>Cierre *</label>
-                        {{ form.horario_cierre }}
-                        {% if form.horario_cierre.errors %}<span class="err">{{ form.horario_cierre.errors.0 }}</span>{% endif %}
+                        <label>⏰ Reserva <small>(min)</small></label>
+                        {{ form.reserva_tiempo_espera }}
+                        {% if form.reserva_tiempo_espera.errors %}<span class="err">{{ form.reserva_tiempo_espera.errors.0 }}</span>{% endif %}
                     </div>
                 </div>
-                
-                <div class="form-field">
-                    <label>🧹 Minutos de Limpieza * <small>(entre funciones)</small></label>
-                    {{ form.minutos_limpieza }}
-                    {% if form.minutos_limpieza.errors %}<span class="err">{{ form.minutos_limpieza.errors.0 }}</span>{% endif %}
-                    <small style="display: block; margin-top: 0.3rem; opacity: 0.7;">Tiempo entre funciones para limpieza de sala (0-120 min)</small>
-                </div>
-                
-                <div class="form-field">
-                    <label>⏰ Tiempo de Espera para Reservas * <small>(minutos)</small></label>
-                    {{ form.reserva_tiempo_espera }}
-                    {% if form.reserva_tiempo_espera.errors %}<span class="err">{{ form.reserva_tiempo_espera.errors.0 }}</span>{% endif %}
-                    <small style="display: block; margin-top: 0.3rem; opacity: 0.7;">Tiempo que el cliente tiene para completar su compra después de seleccionar butacas (1-60 min)</small>
-                </div>
-            </div>
-            
-            <!-- Columna 2 -->
-            <div>
-                <div class="form-field">
-                    <label>Descripción</label>
-                    {{ form.descripcion }}
-                    {% if form.descripcion.errors %}<span class="err">{{ form.descripcion.errors.0 }}</span>{% endif %}
-                </div>
-                
-                <div class="form-field">
-                    <label>Logo</label>
-                    {% if object.logo %}
-                    <div class="logo-mini">
-                        <img src="{{ object.logo.url }}" alt="Logo">
-                    </div>
-                    {% endif %}
-                    {{ form.logo }}
-                    {% if form.logo.errors %}<span class="err">{{ form.logo.errors.0 }}</span>{% endif %}
-                </div>
-                
+
                 <div class="form-field">
                     <label>Facebook</label>
                     {{ form.facebook }}
@@ -122,6 +117,12 @@
                     <label>Twitter/X</label>
                     {{ form.twitter }}
                     {% if form.twitter.errors %}<span class="err">{{ form.twitter.errors.0 }}</span>{% endif %}
+                </div>
+
+                <div class="form-field">
+                    <label>Descripción</label>
+                    {{ form.descripcion }}
+                    {% if form.descripcion.errors %}<span class="err">{{ form.descripcion.errors.0 }}</span>{% endif %}
                 </div>
             </div>
         </div>

@@ -49,6 +49,9 @@ urlpatterns = [
 
     # AJAX: Calcular horarios disponibles
     path('funciones/calcular-horarios/', views.calcular_horarios_disponibles, name='calcular_horarios'),
+    
+    # AJAX: Verificar excepciones de horario para una fecha
+    path('funciones/verificar-horario-fecha/', views.verificar_horario_fecha, name='verificar_horario_fecha'),
 
     # --- Cartelera Pública ---
     path('cartelera/', views.cartelera_view, name='cartelera'),
@@ -58,6 +61,19 @@ urlpatterns = [
 
     # --- Configuración del Cine ---
     path('configuracion/', views.ConfiguracionCineUpdateView.as_view(), name='configuracion'),
+    path('configuracion/actualizar/', views.ConfiguracionCineUpdateView.as_view(), name='configuracion_update'),
+    
+    # --- Gestión de Horarios de Atención ---
+    path('configuracion/horarios/', views.gestionar_horarios_view, name='gestionar_horarios'),
+    path('configuracion/horarios/dia/<int:dia_semana>/', views.editar_horarios_dia_view, name='editar_horarios_dia'),
+    path('configuracion/horarios/copiar/', views.copiar_horarios_dia_view, name='copiar_horarios_dia'),
+    path('configuracion/horarios/<int:horario_id>/eliminar/', views.eliminar_horario_view, name='eliminar_horario'),
+    
+    # --- Gestión de Excepciones de Horarios ---
+    # Nota: El listado de excepciones está integrado en gestionar_horarios (vista unificada)
+    path('configuracion/excepciones/crear/', views.crear_excepcion_view, name='crear_excepcion'),
+    path('configuracion/excepciones/<int:excepcion_id>/editar/', views.editar_excepcion_view, name='editar_excepcion'),
+    path('configuracion/excepciones/<int:excepcion_id>/eliminar/', views.eliminar_excepcion_view, name='eliminar_excepcion'),
 
     # Redirect por defecto a películas
     path('', views.PeliculaListView.as_view(), name='index'),

@@ -5,3 +5,4 @@ from .cartelera import *
 from .butacas import *
 from .configuracion import *
 from .compra import *
+from .horarios_atencion import *

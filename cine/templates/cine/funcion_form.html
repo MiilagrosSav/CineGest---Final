@@ -5,6 +5,12 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'cine/css/funcion_form.css' %}?v=1.0">
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
@@ -79,6 +85,9 @@
                 {{ field }}
                 {% if field.help_text %}<small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">💡 {{ field.help_text }}</small>{% endif %}
                 {% if field.errors %}{% for error in field.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+                
+                <!-- Alerta de excepción de horario -->
+                <div id="excepcion-alerta" style="display: none; margin-top: var(--space-sm);"></div>
             </div>
             {% endwith %}
 
@@ -237,6 +246,7 @@
 
 <script>
     window.CALCULAR_HORARIOS_URL = "{% url 'cine:calcular_horarios' %}";
+    window.VERIFICAR_HORARIO_FECHA_URL = "{% url 'cine:verificar_horario_fecha' %}";
 </script>
 
 <script src="{% static 'cine/js/funcion_form.js' %}?v=1.0"></script>

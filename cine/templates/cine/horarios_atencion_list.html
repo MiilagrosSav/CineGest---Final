@@ -1,0 +1,739 @@
+{% extends 'accounts/base.html' %}
+{% load static %}
+
+{% block title %}Gestión de Horarios - {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    :root {
+        --card-radius: 0.75rem;
+        --transition-speed: 0.2s;
+    }
+
+    .horarios-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: var(--space-md, 1rem);
+    }
+
+    .header-section {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid #ddd; /* Línea separadora suave */
+    }
+
+    .header-section h1 {
+        margin: 0;
+        color: #ffffff; 
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    .btn-volver {
+        color: #7c7784;
+        border: 2px solid #7c7784;        
+        padding: 0.5rem 1.5rem; /* Más espacio a los lados */
+        border-radius: 9999px;  /* Valor alto = Píldora perfecta. Valor bajo (ej: 4px) = Cuadrado */
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+        font-weight: 500;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .btn-volver:hover {
+        border: 2px solid #8d60d5;        
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    }
+
+    .alert-info {
+        color: #ffffff;
+        border-left: 4px solid #b410ca;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+    }
+
+    /* --- DISEÑO GRID (CUADRADOS) --- */
+    .days-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .day-card {
+        border-radius: var(--card-radius);
+        border: 1px solid #e5e7eb;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .day-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        border-color: #7c3aed; /* Borde morado al pasar el mouse */
+    }
+
+    .day-card-header {
+        background-color: #7c3aed; /* Encabezado de la tarjeta también morado para combinar */
+        color: white;
+        padding: 1rem;
+        text-align: center;
+        font-weight: 700;
+        font-size: 1.125rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .day-card-body {
+        padding: 1.5rem;
+        flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.75rem;
+        min-height: 120px;
+        justify-content: center;
+    }
+
+    .day-card-footer {
+        padding: 1rem;
+        border-top: 1px solid #e5e7eb;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
+
+    /* Badges de horarios */
+    .horario-badge {
+        color: #ffffff; /* Texto morado oscuro */
+        padding: 0.5rem 1rem;
+        border-radius: 2rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        width: 100%;
+        justify-content: center;
+        border: 1px solid #d8b4fe;
+    }
+
+    .horario-badge.inactivo {
+        background-color: #fee2e2;
+        color: #991b1b;
+        border-color: #fecaca;
+        opacity: 0.8;
+        text-decoration: line-through;
+    }
+
+    .empty-state {
+        color: #9ca3af;
+        font-style: italic;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .empty-icon {
+        font-size: 1.5rem;
+        opacity: 0.5;
+    }
+
+    /* Botones de acción dentro de las tarjetas */
+    .btn-card {
+        flex: 1;
+        justify-content: center;
+        padding: 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        text-decoration: none;
+    }
+
+    .btn-edit {
+        background-color: #7c3aed; /* Botón editar morado */
+        color: white;
+    }
+    .btn-edit:hover { background-color: #6d28d9; }
+
+    .btn-copy {
+        background-color: rgb(255, 255, 255);
+        color: #670e75;
+        border: 1px solid #d1d5db;
+    }
+    .btn-copy:hover {
+        background-color: #f3f4f6;
+        border-color: #9ca3af;
+        color: #1f2937;
+    }
+
+   /* --- MODAL (Estilo Dark) --- */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.7); /* Fondo más oscuro para resaltar el modal */
+        backdrop-filter: blur(4px); /* Efecto borroso elegante */
+    }
+
+    .modal.show {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .modal-content {
+        /* Fondo oscuro igual que las tarjetas */
+        background-color: #1e1b2e; 
+        border: 1px solid #7c3aed; /* Borde violeta */
+        color: white;
+        border-radius: 1rem;
+        padding: 2rem;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .modal-content h3 { 
+        margin-top: 0; 
+        color: white; 
+        font-size: 1.5rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .modal-content p {
+        color: #d1d5db; /* Gris claro */
+    }
+
+    /* Grid de días (Checkboxes) */
+    .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin: 1.5rem 0;
+        padding: 1rem;
+        background-color: rgba(0, 0, 0, 0.2); /* Fondo más oscuro para el área de selección */
+        border-radius: 0.5rem;
+        border: 1px solid rgba(124, 58, 237, 0.3);
+    }
+
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        transition: all 0.2s;
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    .checkbox-item:hover { 
+        background-color: #7c3aed; /* Violeta al pasar el mouse */
+        color: white;
+    }
+
+    /* Checkbox personalizado */
+    .checkbox-item input { 
+        width: 1.2rem; 
+        height: 1.2rem; 
+        accent-color: #d8b4fe; /* Color del tick */
+        cursor: pointer;
+    }
+
+    /* Alerta de Sobrescribir (Warning Box) */
+    .warning-box {
+        background-color: rgba(245, 158, 11, 0.1); /* Naranja transparente */
+        border: 1px solid rgba(245, 158, 11, 0.5);
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .warning-label {
+        display: flex; 
+        align-items: center; 
+        gap: 0.75rem; 
+        cursor: pointer; 
+        color: #fbbf24; /* Texto amarillo/naranja */
+        font-weight: 500;
+    }
+
+    /* Botones del Modal */
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .btn-modal-cancel {
+        padding: 0.6rem 1.2rem;
+        background: transparent;
+        border: 1px solid #6b7280;
+        color: #d1d5db;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        transition: 0.2s;
+    }
+    .btn-modal-cancel:hover {
+        border-color: white;
+        color: white;
+    }
+
+    .btn-modal-confirm {
+        padding: 0.6rem 1.2rem;
+        background: #7c3aed;
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        cursor: pointer;
+        font-weight: 600;
+        transition: 0.2s;
+    }
+    .btn-modal-confirm:hover {
+        background-color: #6d28d9;
+        box-shadow: 0 0 10px rgba(124, 58, 237, 0.5);
+    }
+
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+        margin: 1.5rem 0;
+        padding: 1rem;
+        /* 👇 AQUÍ ESTÁ EL CAMBIO CLAVE: Fondo oscuro translúcido en vez de blanco */
+        background-color: rgba(255, 255, 255, 0.03); 
+        border-radius: 0.5rem;
+        border: 1px solid rgba(124, 58, 237, 0.3); /* Borde violeta sutil */
+    }
+
+    /* 2. CADA DÍA INDIVIDUAL (El item seleccionable) */
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        transition: all 0.2s;
+        /* Fondo ligeramente más claro que el grid para destacar */
+        background-color: rgba(255, 255, 255, 0.05);
+        color: #d1d5db; /* Texto gris claro para que se lea bien */
+    }
+
+    .checkbox-item:hover { 
+        background-color: #7c3aed; /* Violeta al pasar el mouse */
+        color: white;
+        transform: translateX(2px); /* Pequeño movimiento */
+    }
+    
+    /* 3. EL CUADRO AMARILLO DE ABAJO (Para que no sea tan brillante) */
+    .warning-box {
+        background-color: rgba(245, 158, 11, 0.15); /* Naranja muy transparente */
+        border: 1px solid rgba(245, 158, 11, 0.4);
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+    }
+
+    .warning-label {
+        display: flex; 
+        align-items: center; 
+        gap: 0.75rem; 
+        cursor: pointer; 
+        color: #fbbf24; /* Texto amarillo dorado (legible en fondo oscuro) */
+        font-weight: 500;
+        width: 100%;
+        margin: 0;
+    }
+    
+    .checkbox-item:hover { background-color: #e5e7eb; }
+    .checkbox-item input { width: 1.1rem; height: 1.1rem; accent-color: #7c3aed; }
+
+    .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+    
+    .btn-modal-cancel {
+        padding: 0.5rem 1rem;
+        background: transparent;
+        border: 1px solid #d1d5db;
+        border-radius: 0.375rem;
+        cursor: pointer;
+    }
+    .btn-modal-confirm {
+        padding: 0.5rem 1rem;
+        background: #7c3aed;
+        color: white;
+        border: none;
+        border-radius: 0.375rem;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="horarios-container">
+    <div class="header-section">
+        <h1>🕐 Gestión de Horarios de Atención</h1>
+        <a href="{% url 'cine:configuracion_update' %}" class="btn-volver">
+            ← Volver a Configuración
+        </a>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>ℹ️ Panel de Control:</strong> Configura la apertura y cierre para cada día. 
+        Utiliza el botón <strong>"Copiar"</strong> para replicar horarios rápidamente.
+    </div>
+
+    <div class="days-grid">
+        {% for dia in dias_semana %}
+        <div class="day-card">
+            <div class="day-card-header">
+                {{ dia.nombre }}
+            </div>
+            
+            <div class="day-card-body">
+                {% if dia.horarios %}
+                    {% for horario in dia.horarios %}
+                        <div class="horario-badge {% if not horario.activo %}inactivo{% endif %}">
+                            <span>{{ horario.hora_apertura|time:"H:i" }} - {{ horario.hora_cierre|time:"H:i" }}</span>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="empty-state">
+                        <span class="empty-icon">🌙</span>
+                        <span>Cerrado / Sin horario</span>
+                    </div>
+                {% endif %}
+            </div>
+
+            <div class="day-card-footer">
+                <a href="{% url 'cine:editar_horarios_dia' dia.numero %}" class="btn-card btn-edit">
+                    ✏️ Editar
+                </a>
+                <button class="btn-card btn-copy" onclick="copiarDesde(this)" data-dia-numero="{{ dia.numero }}">
+                    📋 Copiar
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ============================================ -->
+    <!-- SECCIÓN DE EXCEPCIONES (DEBAJO DE LA GRID) -->
+    <!-- ============================================ -->
+    <div style="margin-top: 3rem; padding-top: 2rem; border-top: 3px solid #7c3aed;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 style="color: #ffffff; font-size: 1.5rem; font-weight: 700; margin: 0;">
+                🎭 Excepciones de Horarios
+            </h2>
+            <a href="{% url 'cine:crear_excepcion' %}" 
+               style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 9999px; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"
+               onmouseover="this.style.backgroundColor='#6d28d9'; this.style.transform='translateY(-2px)'" 
+               onmouseout="this.style.backgroundColor='#7c3aed'; this.style.transform='translateY(0)'">
+                ➕ Agregar Excepción
+            </a>
+        </div>
+
+        <div class="alert alert-info" style="margin-bottom: 1.5rem;">
+            <strong>ℹ️ Excepciones:</strong> Configura fechas especiales donde el cine cierra o tiene horarios diferentes (ej: feriados, eventos especiales).
+        </div>
+
+        <!-- Excepciones Futuras -->
+        {% if excepciones_futuras %}
+        <div style="margin-bottom: 2rem;">
+            <h3 style="color: #a78bfa; font-size: 1.1rem; margin-bottom: 1rem; font-weight: 600;">
+                📅 Próximas Excepciones
+            </h3>
+            <div style="display: grid; gap: 1rem;">
+                {% for excepcion in excepciones_futuras %}
+                <div style="background-color: rgba(124, 58, 237, 0.1); border: 1px solid #7c3aed; border-radius: 0.75rem; padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; transition: all 0.2s;"
+                     onmouseover="this.style.backgroundColor='rgba(124, 58, 237, 0.15)'; this.style.transform='translateX(5px)'" 
+                     onmouseout="this.style.backgroundColor='rgba(124, 58, 237, 0.1)'; this.style.transform='translateX(0)'">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                            <span style="font-weight: 700; font-size: 1.1rem; color: #ffffff;">
+                                {{ excepcion.fecha|date:"d/m/Y" }}
+                                {% if excepcion.fecha_fin %}
+                                    al {{ excepcion.fecha_fin|date:"d/m/Y" }}
+                                {% endif %}
+                            </span>
+                            {% if excepcion.cerrado %}
+                                <span style="background-color: #ef4444; color: white; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 600;">
+                                    🚫 CERRADO
+                                </span>
+                            {% else %}
+                                <span style="background-color: #10b981; color: white; padding: 0.25rem 0.75rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 600;">
+                                    🕐 Horario Modificado
+                                </span>
+                            {% endif %}
+                        </div>
+                        {% if not excepcion.cerrado %}
+                        <div style="color: #d1d5db; font-size: 0.95rem; margin-bottom: 0.5rem;">
+                            <strong>Horario:</strong> {{ excepcion.hora_apertura|time:"H:i" }} - {{ excepcion.hora_cierre|time:"H:i" }}
+                        </div>
+                        {% endif %}
+                        {% if excepcion.descripcion %}
+                        <div style="color: #9ca3af; font-size: 0.9rem; font-style: italic;">
+                            {{ excepcion.descripcion }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <a href="{% url 'cine:editar_excepcion' excepcion.id %}" 
+                           style="padding: 0.5rem 1rem; background-color: #7c3aed; color: white; text-decoration: none; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600; transition: all 0.2s;"
+                           onmouseover="this.style.backgroundColor='#6d28d9'" 
+                           onmouseout="this.style.backgroundColor='#7c3aed'">
+                            ✏️ Editar
+                        </a>
+                        <form method="post" action="{% url 'cine:eliminar_excepcion' excepcion.id %}" style="display: inline;" 
+                              onsubmit="return confirm('¿Estás seguro de eliminar esta excepción?');">
+                            {% csrf_token %}
+                            <button type="submit" 
+                                    style="padding: 0.5rem 1rem; background-color: #ef4444; color: white; border: none; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.2s;"
+                                    onmouseover="this.style.backgroundColor='#dc2626'" 
+                                    onmouseout="this.style.backgroundColor='#ef4444'">
+                                🗑️ Eliminar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Excepciones Pasadas -->
+        {% if excepciones_pasadas %}
+        <div>
+            <h3 style="color: #6b7280; font-size: 1.1rem; margin-bottom: 1rem; font-weight: 600;">
+                📜 Excepciones Pasadas
+            </h3>
+            <div style="display: grid; gap: 0.75rem;">
+                {% for excepcion in excepciones_pasadas %}
+                <div style="background-color: rgba(107, 114, 128, 0.1); border: 1px solid #4b5563; border-radius: 0.5rem; padding: 1rem; display: flex; justify-content: space-between; align-items: center; opacity: 0.7;">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <span style="font-weight: 600; color: #9ca3af;">
+                                {{ excepcion.fecha|date:"d/m/Y" }}
+                                {% if excepcion.fecha_fin %}
+                                    al {{ excepcion.fecha_fin|date:"d/m/Y" }}
+                                {% endif %}
+                            </span>
+                            {% if excepcion.cerrado %}
+                                <span style="background-color: #6b7280; color: white; padding: 0.2rem 0.6rem; border-radius: 9999px; font-size: 0.8rem;">
+                                    🚫 Cerrado
+                                </span>
+                            {% else %}
+                                <span style="color: #9ca3af; font-size: 0.9rem;">
+                                    {{ excepcion.hora_apertura|time:"H:i" }} - {{ excepcion.hora_cierre|time:"H:i" }}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <form method="post" action="{% url 'cine:eliminar_excepcion' excepcion.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" 
+                                style="padding: 0.4rem 0.8rem; background-color: #4b5563; color: white; border: none; border-radius: 0.375rem; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;"
+                                onmouseover="this.style.backgroundColor='#374151'" 
+                                onmouseout="this.style.backgroundColor='#4b5563'">
+                            🗑️
+                        </button>
+                    </form>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Estado vacío -->
+        {% if not excepciones_futuras and not excepciones_pasadas %}
+        <div style="text-align: center; padding: 3rem; background-color: rgba(124, 58, 237, 0.05); border: 2px dashed #7c3aed; border-radius: 0.75rem;">
+            <div style="font-size: 3rem; margin-bottom: 1rem; opacity: 0.5;">📅</div>
+            <p style="color: #9ca3af; font-size: 1.1rem; margin: 0;">
+                No hay excepciones configuradas aún.
+            </p>
+            <p style="color: #6b7280; font-size: 0.9rem; margin-top: 0.5rem;">
+                Usa el botón "➕ Agregar Excepción" para crear una.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div id="modal-copiar" class="modal" data-copiar-url="{% url 'cine:copiar_horarios_dia' %}">
+    <div class="modal-content">
+        <h3>📋 Copiar Horarios</h3>
+        <p>Copiar horarios del <strong id="dia-origen-label" style="color: var(--color-primary);"></strong> a:</p>
+        
+        <form id="form-copiar-horarios">
+            {% csrf_token %}
+            <input type="hidden" id="dia-origen" name="dia_origen">
+            
+            <div class="checkbox-grid">
+                {% for dia in dias_semana %}
+                <label class="checkbox-item">
+                    <input type="checkbox" name="dias_destino[]" value="{{ dia.numero }}" id="dia-destino-{{ dia.numero }}">
+                    <span>{{ dia.nombre }}</span>
+                </label>
+                {% endfor %}
+            </div>
+            
+            <div style="background-color: #fef3c7; padding: 0.75rem; border-radius: 0.5rem; border: 1px solid #fcd34d;">
+                <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; color: #92400e; font-weight: 500;">
+                    <input type="checkbox" name="sobrescribir" value="true" style="width: 1rem; height: 1rem;">
+                    <span>Sobrescribir horarios existentes</span>
+                </label>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="btn-modal-cancel" onclick="cerrarModal()">Cancelar</button>
+                <button type="submit" class="btn-modal-confirm">✅ Confirmar Copia</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+const diasNombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+function copiarDesde(button) {
+    const diaOrigen = parseInt(button.getAttribute('data-dia-numero'));
+    document.getElementById('dia-origen').value = diaOrigen;
+    document.getElementById('dia-origen-label').textContent = diasNombres[diaOrigen];
+    
+    // Deshabilitar el checkbox del día origen y desmarcarlo
+    document.querySelectorAll('input[name="dias_destino[]"]').forEach(cb => {
+        const esDiaOrigen = (parseInt(cb.value) === diaOrigen);
+        cb.disabled = esDiaOrigen;
+        cb.checked = false;
+        
+        // Visual feedback
+        const parent = cb.closest('.checkbox-item');
+        if (esDiaOrigen) {
+            parent.style.opacity = '0.5';
+            parent.style.cursor = 'not-allowed';
+            parent.title = "No puedes copiar al mismo día";
+        } else {
+            parent.style.opacity = '1';
+            parent.style.cursor = 'pointer';
+            parent.title = "";
+        }
+    });
+    
+    // Resetear checkbox de sobrescribir
+    document.querySelector('input[name="sobrescribir"]').checked = false;
+    
+    // Mostrar modal
+    document.getElementById('modal-copiar').classList.add('show');
+}
+
+function cerrarModal() {
+    document.getElementById('modal-copiar').classList.remove('show');
+}
+
+// Cerrar modal al hacer clic fuera
+document.getElementById('modal-copiar').addEventListener('click', function(e) {
+    if (e.target === this) {
+        cerrarModal();
+    }
+});
+
+// Manejar envío del formulario
+document.getElementById('form-copiar-horarios').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const diasSeleccionados = formData.getAll('dias_destino[]');
+    
+    if (diasSeleccionados.length === 0) {
+        alert('⚠️ Debes seleccionar al menos un día destino.');
+        return;
+    }
+    
+    // Botón loading state
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Copiando...';
+
+    try {
+        const modal = document.getElementById('modal-copiar');
+        const url = modal.getAttribute('data-copiar-url');
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // Recargar para ver cambios
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (result.error || 'Error desconocido'));
+            submitBtn.disabled = false;
+            submitBtn.textContent = originalText;
+        }
+    } catch (error) {
+        alert('❌ Error de conexión: ' + error.message);
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalText;
+    }
+});
+
+// Escape key para cerrar modal
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        cerrarModal();
+    }
+});
+</script>
+{% endblock %}

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Pelicula, Sala, Butaca, Formato, FuncionFormato, ConfiguracionCine
+from .models import Pelicula, Sala, Butaca, Formato, FuncionFormato, ConfiguracionCine, HorarioAtencion
 from .forms import PeliculaForm
 from simple_history.admin import SimpleHistoryAdmin
 
@@ -111,8 +111,9 @@ class ConfiguracionCineAdmin(admin.ModelAdmin):
         ('Información de Contacto', {
             'fields': ('direccion', 'telefono', 'email')
         }),
-        ('Horarios', {
-            'fields': ('horario_apertura', 'horario_cierre')
+        ('Configuración Operativa', {
+            'fields': ('minutos_limpieza', 'reserva_tiempo_espera'),
+            'description': 'Los horarios de atención ahora se gestionan por día de la semana en la interfaz web.'
         }),
         ('Redes Sociales', {
             'fields': ('facebook', 'instagram', 'twitter'),
@@ -127,4 +128,27 @@ class ConfiguracionCineAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         # No permitir eliminar la configuración
         return False
+
+
+@admin.register(HorarioAtencion)
+class HorarioAtencionAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
+    """
+    Administración para Horarios de Atención por Día de la Semana
+    """
+    list_display = ('dia_semana_display', 'hora_apertura', 'hora_cierre', 'activo', 'orden')
+    list_filter = ('dia_semana', 'activo')
+    search_fields = ('configuracion_cine__nombre',)
+    ordering = ['dia_semana', 'orden', 'hora_apertura']
+    
+    fieldsets = (
+        ('Configuración del Horario', {
+            'fields': ('configuracion_cine', 'dia_semana', 'hora_apertura', 'hora_cierre', 'activo', 'orden')
+        }),
+    )
+    
+    def dia_semana_display(self, obj):
+        """Mostrar nombre del día en vez del número"""
+        dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
+        return dias[obj.dia_semana]
+    dia_semana_display.short_description = 'Día'
 

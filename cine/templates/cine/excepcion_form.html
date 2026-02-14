@@ -1,0 +1,411 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}
+    {% if object %}Editar Excepción{% else %}Nueva Excepción{% endif %} - {{ block.super }}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .excepcion-form-container {
+        max-width: 700px;
+        margin: 2rem auto;
+        padding: 2rem;
+        background-color: #1e1b2e;
+        border: 1px solid #7c3aed;
+        border-radius: 1rem;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .form-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 2px solid rgba(124, 58, 237, 0.3);
+    }
+
+    .form-header h1 {
+        color: #ffffff;
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin: 0;
+    }
+
+    .form-icon {
+        font-size: 2.5rem;
+        filter: drop-shadow(0 0 10px rgba(124, 58, 237, 0.5));
+    }
+
+    .alert-info {
+        background-color: rgba(124, 58, 237, 0.15);
+        border-left: 4px solid #7c3aed;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+        color: #d1d5db;
+    }
+
+    .form-field {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-field label {
+        display: block;
+        color: #a78bfa;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+    }
+
+    .form-field input[type="date"],
+    .form-field input[type="time"],
+    .form-field textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #4b5563;
+        border-radius: 0.5rem;
+        background-color: #2d2a3e;
+        color: #ffffff;
+        font-size: 1rem;
+        transition: all 0.2s;
+    }
+
+    .form-field input:focus,
+    .form-field textarea:focus {
+        outline: none;
+        border-color: #7c3aed;
+        box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.2);
+    }
+
+    .form-field textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    /* Checkbox personalizado para "Cerrado" */
+    .checkbox-field {
+        background-color: rgba(239, 68, 68, 0.1);
+        border: 2px solid rgba(239, 68, 68, 0.5);
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s;
+    }
+
+    .checkbox-field.checked {
+        background-color: rgba(239, 68, 68, 0.2);
+        border-color: #ef4444;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        cursor: pointer;
+        color: #ffffff;
+        font-weight: 600;
+        font-size: 1.05rem;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+        width: 1.5rem;
+        height: 1.5rem;
+        accent-color: #ef4444;
+        cursor: pointer;
+    }
+
+    /* Campos de horario que se deshabilitan */
+    .horario-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        transition: opacity 0.3s, transform 0.3s;
+    }
+
+    .horario-fields.disabled {
+        opacity: 0.4;
+        transform: scale(0.98);
+        pointer-events: none;
+    }
+
+    .error-msg {
+        background-color: rgba(239, 68, 68, 0.2);
+        border: 1px solid #ef4444;
+        color: #fca5a5;
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .field-error {
+        color: #fca5a5;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+        display: block;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .btn-submit {
+        flex: 1;
+        padding: 0.875rem 1.5rem;
+        background-color: #7c3aed;
+        color: white;
+        border: none;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+    }
+
+    .btn-submit:hover {
+        background-color: #6d28d9;
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px -5px rgba(124, 58, 237, 0.5);
+    }
+
+    .btn-cancel {
+        flex: 1;
+        padding: 0.875rem 1.5rem;
+        background-color: transparent;
+        color: #d1d5db;
+        border: 2px solid #6b7280;
+        border-radius: 0.5rem;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel:hover {
+        border-color: #ffffff;
+        color: #ffffff;
+        transform: translateY(-2px);
+    }
+
+    /* Indicador visual cuando cerrado está marcado */
+    .closed-indicator {
+        background-color: rgba(239, 68, 68, 0.15);
+        border: 2px dashed #ef4444;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        text-align: center;
+        color: #fca5a5;
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 1rem;
+        display: none;
+    }
+
+    .closed-indicator.show {
+        display: block;
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="excepcion-form-container">
+    <div class="form-header">
+        <span class="form-icon">🎭</span>
+        <h1>
+            {% if object %}
+                Editar Excepción
+            {% else %}
+                Nueva Excepción de Horario
+            {% endif %}
+        </h1>
+    </div>
+
+    <div class="alert-info">
+        <strong>ℹ️ Importante:</strong> Las excepciones sobrescriben los horarios regulares.
+        Marca <strong>"Cerrado"</strong> para días sin atención o especifica un horario modificado.
+    </div>
+
+    {% if form.non_field_errors %}
+        <div class="error-msg">
+            <span>⚠️</span>
+            {{ form.non_field_errors.0 }}
+        </div>
+    {% endif %}
+
+    <div id="closed-indicator" class="closed-indicator">
+        🚫 Cine CERRADO en esta fecha
+    </div>
+
+    <form method="post" id="excepcion-form">
+        {% csrf_token %}
+
+        <!-- Campo Fecha Inicio -->
+        <div class="form-field">
+            <label for="{{ form.fecha.id_for_label }}">
+                📅 Fecha de Inicio *
+            </label>
+            {{ form.fecha }}
+            {% if form.fecha.errors %}
+                <span class="field-error">{{ form.fecha.errors.0 }}</span>
+            {% endif %}
+            <small style="color: #9ca3af; font-size: 0.85rem; display: block; margin-top: 0.25rem;">
+                Fecha en que comienza la excepción
+            </small>
+        </div>
+
+        <!-- Campo Fecha Fin (Opcional) -->
+        <div class="form-field">
+            <label for="{{ form.fecha_fin.id_for_label }}">
+                📅 Fecha de Fin (Opcional)
+            </label>
+            {{ form.fecha_fin }}
+            {% if form.fecha_fin.errors %}
+                <span class="field-error">{{ form.fecha_fin.errors.0 }}</span>
+            {% endif %}
+            <small style="color: #9ca3af; font-size: 0.85rem; display: block; margin-top: 0.25rem;">
+                Dejar vacío para excepción de un solo día. Completar para rango de días consecutivos.
+            </small>
+        </div>
+
+        <!-- Checkbox Cerrado -->
+        <div class="checkbox-field" id="checkbox-cerrado-container">
+            <label class="checkbox-label">
+                {{ form.cerrado }}
+                🚫 Cine cerrado este día
+            </label>
+        </div>
+
+        <!-- Campos de Horario (se deshabilitan si cerrado=true) -->
+        <div class="horario-fields" id="horario-fields">
+            <div class="form-field">
+                <label for="{{ form.hora_apertura.id_for_label }}">
+                    🕐 Hora Apertura
+                </label>
+                {{ form.hora_apertura }}
+                {% if form.hora_apertura.errors %}
+                    <span class="field-error">{{ form.hora_apertura.errors.0 }}</span>
+                {% endif %}
+            </div>
+
+            <div class="form-field">
+                <label for="{{ form.hora_cierre.id_for_label }}">
+                    🕐 Hora Cierre
+                </label>
+                {{ form.hora_cierre }}
+                {% if form.hora_cierre.errors %}
+                    <span class="field-error">{{ form.hora_cierre.errors.0 }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Descripción -->
+        <div class="form-field">
+            <label for="{{ form.descripcion.id_for_label }}">
+                📝 Descripción (opcional)
+            </label>
+            {{ form.descripcion }}
+            {% if form.descripcion.errors %}
+                <span class="field-error">{{ form.descripcion.errors.0 }}</span>
+            {% endif %}
+            <small style="color: #9ca3af; font-size: 0.85rem; display: block; margin-top: 0.25rem;">
+                Ej: "Navidad", "Feriado Nacional", "Evento Especial"
+            </small>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="form-actions">
+            <a href="{% url 'cine:gestionar_horarios' %}" class="btn-cancel">
+                ← Cancelar
+            </a>
+            <button type="submit" class="btn-submit">
+                {% if object %}
+                    Guardar Cambios
+                {% else %}
+                    Crear Excepción
+                {% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    // Toggle de campos de horario según checkbox "cerrado"
+    function toggleHorarios() {
+        const cerradoCheckbox = document.getElementById('{{ form.cerrado.id_for_label }}');
+        const horarioFields = document.getElementById('horario-fields');
+        const horaApertura = document.getElementById('{{ form.hora_apertura.id_for_label }}');
+        const horaCierre = document.getElementById('{{ form.hora_cierre.id_for_label }}');
+        const checkboxContainer = document.getElementById('checkbox-cerrado-container');
+        const closedIndicator = document.getElementById('closed-indicator');
+        
+        if (cerradoCheckbox.checked) {
+            // Deshabilitar campos de horario
+            horarioFields.classList.add('disabled');
+            horaApertura.disabled = true;
+            horaCierre.disabled = true;
+            horaApertura.value = '';
+            horaCierre.value = '';
+            
+            // Feedback visual
+            checkboxContainer.classList.add('checked');
+            closedIndicator.classList.add('show');
+        } else {
+            // Habilitar campos de horario
+            horarioFields.classList.remove('disabled');
+            horaApertura.disabled = false;
+            horaCierre.disabled = false;
+            
+            // Feedback visual
+            checkboxContainer.classList.remove('checked');
+            closedIndicator.classList.remove('show');
+        }
+    }
+    
+    // Ejecutar al cargar la página
+    document.addEventListener('DOMContentLoaded', function() {
+        toggleHorarios();
+        
+        // Agregar listener al checkbox
+        const cerradoCheckbox = document.getElementById('{{ form.cerrado.id_for_label }}');
+        cerradoCheckbox.addEventListener('change', toggleHorarios);
+    });
+    
+    // Validación adicional antes de enviar
+    document.getElementById('excepcion-form').addEventListener('submit', function(e) {
+        const cerradoCheckbox = document.getElementById('{{ form.cerrado.id_for_label }}');
+        const horaApertura = document.getElementById('{{ form.hora_apertura.id_for_label }}');
+        const horaCierre = document.getElementById('{{ form.hora_cierre.id_for_label }}');
+        
+        if (!cerradoCheckbox.checked) {
+            if (!horaApertura.value || !horaCierre.value) {
+                e.preventDefault();
+                alert('⚠️ Si el cine NO está cerrado, debes especificar hora de apertura y cierre.');
+                return false;
+            }
+        }
+    });
+</script>
+{% endblock %}
