@@ -1,6 +1,11 @@
 from django.db import models
 from django.core.validators import RegexValidator
 from simple_history.models import HistoricalRecords
+from cloudinary.models import CloudinaryField
+from cine.image_utils import procesar_imagen_hibrida, verificar_conexion_cloudinary
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ConfiguracionCine(models.Model):
@@ -16,12 +21,34 @@ class ConfiguracionCine(models.Model):
         help_text="Nombre comercial del establecimiento"
     )
     
+    # ========================================================================
+    # SISTEMA HÍBRIDO DE IMÁGENES (Cloudinary + Local)
+    # ========================================================================
+    # Campo principal: Cloudinary (almacenamiento en la nube)
+    logo_red = CloudinaryField(
+        folder='cine/logos',
+        blank=True,
+        null=True,
+        verbose_name="Logo en Cloudinary",
+        help_text="Logo almacenado en Cloudinary (requiere conexión a internet)"
+    )
+    
+    # Campo de respaldo: Almacenamiento local
+    logo_local = models.ImageField(
+        upload_to='cine/logos/',
+        blank=True,
+        null=True,
+        verbose_name="Logo Local",
+        help_text="Copia local optimizada del logo (respaldo sin internet)"
+    )
+    
+    # Campo legacy para retrocompatibilidad (DEPRECADO - usar get_logo_url)
     logo = models.ImageField(
         upload_to='cine/logos/',
         blank=True,
         default='',
         verbose_name="Logo del Cine",
-        help_text="Logo o imagen corporativa (opcional)"
+        help_text="[DEPRECADO] Usar logo_red/logo_local + get_logo_url"
     )
     
     # Información fiscal
@@ -113,6 +140,46 @@ class ConfiguracionCine(models.Model):
         verbose_name = 'Configuración del Cine'
         verbose_name_plural = 'Configuración del Cine'
     
+    @property
+    def get_logo_url(self):
+        """
+        Devuelve la URL del logo del cine.
+        
+        Lógica híbrida:
+        1. Si hay conexión a Cloudinary y existe logo_red, devuelve URL de Cloudinary
+        2. Si no hay conexión o logo_red está vacío, devuelve URL local
+        3. Si logo_local está vacío, busca en logo (retrocompatibilidad)
+        4. Si no hay ningún logo, devuelve URL de placeholder
+        
+        Returns:
+            str: URL del logo (Cloudinary, local o placeholder)
+        """
+        # Intentar usar Cloudinary primero
+        if self.logo_red:
+            try:
+                # Verificar si hay conexión antes de intentar obtener la URL
+                if verificar_conexion_cloudinary():
+                    return self.logo_red.url
+            except Exception as e:
+                logger.warning(f"Error al obtener URL de Cloudinary para logo: {e}")
+        
+        # Fallback 1: Usar logo local optimizado
+        if self.logo_local:
+            try:
+                return self.logo_local.url
+            except Exception:
+                pass
+        
+        # Fallback 2: Retrocompatibilidad con logo legacy
+        if self.logo:
+            try:
+                return self.logo.url
+            except Exception:
+                pass
+        
+        # Fallback 3: Logo placeholder
+        from django.templatetags.static import static
+        return static('img/logo-placeholder.png')
 
     def clean(self):
         from django.core.exceptions import ValidationError
@@ -148,6 +215,65 @@ class ConfiguracionCine(models.Model):
         Override save para implementar patrón Singleton.
         Solo puede existir una configuración.
         """
+        # Normalizar campos de texto
+        if self.nombre:
+            self.nombre = self.nombre.strip()
+        
+        if self.direccion:
+            self.direccion = self.direccion.strip().title()
+        
+        # Normalizar email a minúsculas
+        if self.email:
+            self.email = self.email.strip().lower()
+        
+        # Normalizar URLs de redes sociales a minúsculas
+        if self.facebook:
+            self.facebook = self.facebook.strip().lower()
+        
+        if self.instagram:
+            self.instagram = self.instagram.strip().lower()
+        
+        if self.twitter:
+            self.twitter = self.twitter.strip().lower()
+        
+        # ========================================================================
+        # PROCESAMIENTO HÍBRIDO DE IMÁGENES (Cloudinary + Local)
+        # ========================================================================
+        # Detectar si hay un nuevo logo subido
+        logo_nuevo = None
+        
+        # Verificar si hay un logo en el campo logo (campo legacy/formulario)
+        if self.logo and hasattr(self.logo, 'file'):
+            logo_nuevo = self.logo.file
+        # O si se subió directamente a logo_local
+        elif self.logo_local and hasattr(self.logo_local, 'file'):
+            logo_nuevo = self.logo_local.file
+        
+        # Procesar el logo si hay uno nuevo
+        if logo_nuevo:
+            try:
+                # Procesar imagen con el sistema híbrido
+                resultado = procesar_imagen_hibrida(
+                    imagen=logo_nuevo,
+                    folder='cine/logos',
+                    instancia_modelo=self
+                )
+                
+                # Guardar logo local optimizado
+                if resultado.get('imagen_local'):
+                    self.logo_local = resultado['imagen_local']
+                
+                # Si se subió a Cloudinary, guardar el public_id
+                if resultado.get('cloudinary_public_id'):
+                    self.logo_red = resultado['cloudinary_public_id']
+                    logger.info(f"Logo del cine: Subido a Cloudinary y guardado localmente")
+                else:
+                    logger.warning(f"Logo del cine: Solo se guardó localmente (Cloudinary no disponible)")
+                
+            except Exception as e:
+                logger.error(f"Error al procesar logo híbrido: {e}")
+                # Continuar con el guardado aunque falle el procesamiento
+        
         self.pk = 1
         super().save(*args, **kwargs)
     

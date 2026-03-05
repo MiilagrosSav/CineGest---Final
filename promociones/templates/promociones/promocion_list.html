@@ -10,12 +10,22 @@
 {% block content %}
 <div class="container" style="max-width: 1200px; margin: 2rem auto;">
     
-    <div class="mb-lg" style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-lg);">
-        <a href="{% url 'promociones:dashboard' %}" class="btn btn-outline" style="padding: 0.5rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; border-radius: 50px; font-weight: 500;">
-            ← VOLVER
-        </a>
+    <div class="mb-lg" style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-lg); flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: var(--space-md);">
+            <a href="{% url 'promociones:dashboard' %}" class="btn btn-outline" style="padding: 0.5rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; border-radius: 50px; font-weight: 500;">
+                ← VOLVER
+            </a>
+            <div>
+                <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">📊 Promociones</h1>
+            </div>
+        </div>
         <div>
-            <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">📊 Promociones</h1>
+            <a href="{% url 'promociones:promocion_historial' %}" class="btn btn-outline" style="padding: 0.5rem 1.2rem; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; border-radius: 8px; font-weight: 500;">
+                📅 Historial
+                {% if promociones_vencidas_count > 0 %}
+                <span style="background: var(--danger-color); color: white; padding: 0.1rem 0.4rem; border-radius: 10px; font-size: 0.75rem; font-weight: 600;">{{ promociones_vencidas_count }}</span>
+                {% endif %}
+            </a>
         </div>
     </div>
 
@@ -43,9 +53,16 @@
                         <option value="cupon" {% if filtro_tipo == 'cupon' %}selected{% endif %}>📧 Cupones</option>
                     </select>
                     
+                    <select name="estado" class="form-select" style="width: 150px; padding: 0.4rem; font-size: 0.9rem;">
+                        <option value="activas" {% if filtro_estado == 'activas' %}selected{% endif %}>✅ Activas</option>
+                        <option value="inactivas" {% if filtro_estado == 'inactivas' %}selected{% endif %}>⏸️ Inactivas</option>
+                        <option value="vencidas" {% if filtro_estado == 'vencidas' %}selected{% endif %}>⏰ Vencidas</option>
+                        <option value="todas" {% if filtro_estado == 'todas' %}selected{% endif %}>📋 Todas</option>
+                    </select>
+                    
                     <button type="button" id="btn-filter" class="btn btn-primary" style="padding: 0.35rem 0.6rem; font-size:0.85rem;">Buscar</button>
                     
-                    {% if filtro_search or filtro_tipo %}
+                    {% if filtro_search or filtro_tipo or filtro_estado != 'activas' %}
                     <a href="{% url 'promociones:promocion_list' %}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
                         ✕
                     </a>

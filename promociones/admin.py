@@ -37,21 +37,46 @@ class PromocionAdmin(admin.ModelAdmin):
     list_filter = ('tipo_descuento', 'fecha_inicio', 'fecha_fin')
     inlines = [VinculoPromocionalInline]  # ✅ AGREGADO: Gestión inline
     
-    fieldsets = (
-        ('Información Básica', {
-            'fields': ('codigo', 'nombre', 'descripcion')
-        }),
-        ('Descuento', {
-            'fields': ('tipo_descuento', 'valor_descuento')
-        }),
-        ('Vigencia y Restricciones', {
-            'fields': ('fecha_inicio', 'fecha_fin', 'dias_semana', 'genero_requerido', 'es_automatica'),
-            'description': (
-                '⚙️ Sin vínculos específicos: aplica universalmente (según género/días configurados).\n'
-                '🎯 Con vínculos: solo aplica a películas/funciones vinculadas abajo.'
+    def get_fieldsets(self, request, obj=None):
+        """
+        Ocultar el campo 'activo' al crear, mostrarlo solo al editar.
+        """
+        # Fieldsets base para creación (sin 'activo')
+        fieldsets_base = (
+            ('Información Básica', {
+                'fields': ('codigo', 'nombre', 'descripcion')
+            }),
+            ('Descuento', {
+                'fields': ('tipo_descuento', 'valor_descuento')
+            }),
+            ('Vigencia y Restricciones', {
+                'fields': ('fecha_inicio', 'fecha_fin', 'dias_semana', 'genero_requerido', 'es_automatica'),
+                'description': (
+                    '⚙️ Sin vínculos específicos: aplica universalmente (según género/días configurados).\n'
+                    '🎯 Con vínculos: solo aplica a películas/funciones vinculadas abajo.'
+                )
+            }),
+        )
+        
+        # Si está editando (obj existe), agregar campo 'activo'
+        if obj:
+            return (
+                ('Información Básica', {
+                    'fields': ('codigo', 'nombre', 'descripcion', 'activo')
+                }),
+                ('Descuento', {
+                    'fields': ('tipo_descuento', 'valor_descuento')
+                }),
+                ('Vigencia y Restricciones', {
+                    'fields': ('fecha_inicio', 'fecha_fin', 'dias_semana', 'genero_requerido', 'es_automatica'),
+                    'description': (
+                        '⚙️ Sin vínculos específicos: aplica universalmente (según género/días configurados).\n'
+                        '🎯 Con vínculos: solo aplica a películas/funciones vinculadas abajo.'
+                    )
+                }),
             )
-        }),
-    )
+        
+        return fieldsets_base
 
 
 @admin.register(VinculoPromocional)
@@ -85,18 +110,49 @@ class PoliticaPromocionAdmin(admin.ModelAdmin):
     search_fields = ('nombre',)
     list_filter = ('activa', 'genero_pelicula')
     readonly_fields = ()
-    fieldsets = (
-        (None, {
-            'fields': ('nombre', 'activa', 'promocion_a_otorgar')
-        }),
-        ('Condiciones de Activación', {
-            'fields': ('genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango')
-        }),
-        ('Yield Management', {
-            'fields': ('horas_antes_de_funcion',),
-            'description': 'Solo enviar promociones si faltan menos de X horas para la función.'
-        }),
-    )
+    
+    def get_fieldsets(self, request, obj=None):
+        """
+        Ocultar el campo 'activa' al crear, mostrarlo solo al editar.
+        """
+        # Fieldsets base para creación (sin 'activa')
+        fieldsets_base = (
+            (None, {
+                'fields': ('nombre', 'promocion_a_otorgar')
+            }),
+            ('Condiciones de Activación', {
+                'fields': ('genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango')
+            }),
+            ('⏰ Ventana de Urgencia', {
+                'fields': ('horas_antes_de_funcion',),
+                'description': 'Solo enviar promociones si faltan menos de X horas para la función.'
+            }),
+            ('⚡ Análisis Automático de Ocupación', {
+                'fields': ('activar_por_ocupacion', 'umbral_ocupacion', 'horas_anticipacion'),
+                'description': 'Configuración para activar automáticamente promociones cuando la ocupación de las salas sea baja.'
+            }),
+        )
+        
+        # Si está editando (obj existe), agregar campo 'activa'
+        if obj:
+            return (
+                (None, {
+                    'fields': ('nombre', 'activa', 'promocion_a_otorgar')
+                }),
+                ('Condiciones de Activación', {
+                    'fields': ('genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango')
+                }),
+                ('⏰ Ventana de Urgencia', {
+                    'fields': ('horas_antes_de_funcion',),
+                    'description': 'Solo enviar promociones si faltan menos de X horas para la función.'
+                }),
+                ('⚡ Análisis Automático de Ocupación', {
+                    'fields': ('activar_por_ocupacion', 'umbral_ocupacion', 'horas_anticipacion'),
+                    'description': 'Configuración para activar automáticamente promociones cuando la ocupación de las salas sea baja.'
+                }),
+            )
+        
+        return fieldsets_base
 
 
 @admin.register(CuponGenerado)

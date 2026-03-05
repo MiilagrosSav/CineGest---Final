@@ -23,15 +23,23 @@
         
         <div style="padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--glass-border);">
             <form method="get" id="form-filtros" style="display: flex; gap: var(--space-xs); align-items: center; justify-content: space-between; flex-wrap: wrap;">
-                <div style="position: relative; min-width: 180px; max-width: 300px;">
-                    <input type="text" 
-                           name="search" 
-                           id="search-input"
-                           value="{{ filtro_search }}"
-                           placeholder="Buscar..."
-                           class="form-input"
-                           style="width: 100%; padding: 0.4rem 0.4rem 0.4rem 2rem; font-size: 0.9rem;">
-                    <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
+                <div style="display: flex; gap: var(--space-xs); align-items: center;">
+                    <div style="position: relative; min-width: 180px; max-width: 300px;">
+                        <input type="text" 
+                               name="search" 
+                               id="search-input"
+                               value="{{ filtro_search }}"
+                               placeholder="Buscar..."
+                               class="form-input"
+                               style="width: 100%; padding: 0.4rem 0.4rem 0.4rem 2rem; font-size: 0.9rem;">
+                        <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
+                    </div>
+                    
+                    <select name="estado" class="form-select" style="width: 140px; padding: 0.4rem; font-size: 0.9rem;" onchange="this.form.submit()">
+                        <option value="activas" {% if filtro_estado == 'activas' %}selected{% endif %}>✅ Activas</option>
+                        <option value="inactivas" {% if filtro_estado == 'inactivas' %}selected{% endif %}>❌ Inactivas</option>
+                        <option value="todas" {% if filtro_estado == 'todas' %}selected{% endif %}>📊 Todas</option>
+                    </select>
                 </div>
                 
                 <div style="display: flex; gap: var(--space-xs); align-items: center;">
@@ -44,7 +52,7 @@
                            min="1"
                            onchange="this.form.submit()">
                     
-                    {% if filtro_search or filtro_numero %}
+                    {% if filtro_search or filtro_numero or filtro_estado != 'activas' %}
                     <a href="{% url 'cine:sala_list' %}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
                         ✕
                     </a>

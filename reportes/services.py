@@ -102,7 +102,7 @@ def generar_excel_financiero(kpis, fin_data, fecha_inicio, fecha_fin):
     return buffer
 
 
-def generar_pdf_financiero(kpis, fin_data, fecha_inicio, fecha_fin, chart_base64=None, requested_by=None):
+def generar_pdf_financiero(kpis, fin_data, fecha_inicio, fecha_fin, chart_base64=None, requested_by=None, ranking_revpas=None, ranking_dia_revenue=None):
     """
     Genera PDF con reporte financiero ejecutivo.
     
@@ -131,6 +131,8 @@ def generar_pdf_financiero(kpis, fin_data, fecha_inicio, fecha_fin, chart_base64
         'chart_base64': chart_base64,
         'requested_by': requested_by,
         'configuracion_cine': configuracion_cine,
+        'ranking_revpas': ranking_revpas or [],
+        'ranking_dia_revenue': ranking_dia_revenue or [],
     }
     
     html_string = render_to_string('reportes/pdf_financiero.html', context)
@@ -203,7 +205,7 @@ def generar_excel_operativo(occ_data, fecha_inicio, fecha_fin):
     return buffer
 
 
-def generar_pdf_operativo(occ_data, fecha_inicio, fecha_fin, chart_base64=None, heatmap_base64=None, marketing_base64=None, requested_by=None):
+def generar_pdf_operativo(occ_data, fecha_inicio, fecha_fin, chart_base64=None, heatmap_base64=None, marketing_base64=None, requested_by=None, dashboard_alertas=None, ranking_peliculas=None, ranking_horarios=None, ranking_salas=None, tiene_filtros_personalizados=False):
     """
     Genera PDF con reporte operativo de salas.
     
@@ -211,27 +213,66 @@ def generar_pdf_operativo(occ_data, fecha_inicio, fecha_fin, chart_base64=None, 
         occ_data (dict): datos de ocupación semanal
         fecha_inicio (str): fecha de inicio en formato ISO
         fecha_fin (str): fecha de fin en formato ISO
+        ranking_salas (list): ranking de salas por ocupación
+        ranking_horarios (list): ranking de horarios por día de la semana
+        tiene_filtros_personalizados (bool): indica si el usuario aplicó ordenamiento personalizado
     
     Returns:
         BytesIO: buffer con el archivo PDF
     """
     # Obtener configuración del cine para el template
     from cine.models import ConfiguracionCine
+    from datetime import datetime
+    
     try:
         configuracion_cine = ConfiguracionCine.load()
     except Exception:
         configuracion_cine = None
     
+    # Convertir strings de fecha a objetos date para el template
+    try:
+        fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d').date() if isinstance(fecha_inicio, str) else fecha_inicio
+    except Exception:
+        fecha_inicio_obj = fecha_inicio
+    
+    try:
+        fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d').date() if isinstance(fecha_fin, str) else fecha_fin
+    except Exception:
+        fecha_fin_obj = fecha_fin
+    
+    # Verificar si hay datos válidos para horarios y ocupación
+    tiene_horarios_validos = False
+    if ranking_horarios:
+        for dia in ranking_horarios:
+            if dia.get('mejor_horario') != 'N/A':
+                tiene_horarios_validos = True
+                break
+    
+    tiene_ocupacion_valida = False
+    ocupacion_detalle = occ_data.get('detalle', [])
+    if ocupacion_detalle:
+        for dia in ocupacion_detalle:
+            if dia.get('capacidad', 0) > 0:
+                tiene_ocupacion_valida = True
+                break
+    
     context = {
         'titulo': 'Reporte Operativo de Salas',
-        'fecha_inicio': fecha_inicio,
-        'fecha_fin': fecha_fin,
-        'ocupacion': occ_data.get('detalle', []),
+        'fecha_inicio': fecha_inicio_obj,
+        'fecha_fin': fecha_fin_obj,
+        'ocupacion': ocupacion_detalle,
         'chart_base64': chart_base64,
         'heatmap_base64': heatmap_base64,
         'marketing_base64': marketing_base64,
         'requested_by': requested_by,
         'configuracion_cine': configuracion_cine,
+        'dashboard_alertas': dashboard_alertas or {},
+        'ranking_peliculas': ranking_peliculas or [],
+        'ranking_horarios': ranking_horarios or [],
+        'ranking_salas': ranking_salas or [],
+        'tiene_horarios_validos': tiene_horarios_validos,
+        'tiene_ocupacion_valida': tiene_ocupacion_valida,
+        'tiene_filtros_personalizados': tiene_filtros_personalizados
     }
     
     html_string = render_to_string('reportes/pdf_operativo.html', context)

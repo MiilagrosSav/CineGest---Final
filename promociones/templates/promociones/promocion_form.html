@@ -34,6 +34,30 @@
                 </div>
             {% endif %}
             
+            {# Errores del formset de vínculos (si existen) #}
+            {% if vinculo_formset.non_form_errors %}
+                <div class="message message-error" style="text-align: center; margin-bottom: var(--space-md);">
+                    <strong>❌ Errores en vínculos:</strong><br>
+                    {% for error in vinculo_formset.non_form_errors %}
+                        {{ error }}<br>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            
+            {# Errores específicos de cada formulario del formset #}
+            {% for vinculo_form in vinculo_formset %}
+                {% if vinculo_form.errors %}
+                    <div class="message message-error" style="text-align: center; margin-bottom: var(--space-md);">
+                        <strong>❌ Error en vínculo #{{ forloop.counter }}:</strong><br>
+                        {% for field, errors in vinculo_form.errors.items %}
+                            {% for error in errors %}
+                                {{ field }}: {{ error }}<br>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+            
             {# ============================================ #}
             {# SECCIÓN GENERAL (Siempre visible)           #}
             {# ============================================ #}
@@ -151,6 +175,23 @@
                 {% if form.descripcion.errors %}{% for error in form.descripcion.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
             </div>
 
+            {# Campo Activo - Solo mostrar al editar, no al crear #}
+            {% if form.instance.pk %}
+            <div class="form-group" style="margin-top: 1.5rem;">
+                <label class="toggle-switch">
+                    {{ form.activo }}
+                    <span class="slider"></span>
+                    <span class="toggle-label">✅ {{ form.activo.label }}</span>
+                </label>
+                {% if form.activo.help_text %}
+                    <small class="text-secondary" style="font-size: 0.85rem; margin-top: 8px; display: block; opacity: 0.9;">
+                        💡 {{ form.activo.help_text }}
+                    </small>
+                {% endif %}
+                {% if form.activo.errors %}{% for error in form.activo.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+            </div>
+            {% endif %}
+
             {# Checkbox de Aplicación Automática (Switch Destacado) #}
             <div class="form-group" style="margin-top: 2rem; padding: 1.5rem; background: rgba(139, 95, 191, 0.08); border-radius: var(--radius); border: 1px solid rgba(139, 95, 191, 0.2);">
                 <label class="toggle-switch">
@@ -194,6 +235,25 @@
                         </small>
                     {% endif %}
                     {% if form.dias_semana.errors %}{% for error in form.dias_semana.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+                </div>
+
+                {# Formatos Aplicables #}
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label class="form-label">{{ form.formatos_aplicables.label }}</label>
+                    <div class="format-selector" style="display: flex; flex-wrap: wrap; gap: 0.6rem;">
+                        {% for checkbox in form.formatos_aplicables %}
+                            <label class="format-option" style="display: flex; align-items: center; gap: 0.4rem; background: rgba(255, 255, 255, 0.05); padding: 0.5rem 1rem; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1); cursor: pointer; transition: all 0.2s ease; font-size: 0.85rem;">
+                                {{ checkbox.tag }}
+                                <span>{{ checkbox.choice_label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                    {% if form.formatos_aplicables.help_text %}
+                        <small class="text-secondary" style="font-size: 0.8rem; margin-top: 8px; display: block; opacity: 0.8;">
+                            💡 {{ form.formatos_aplicables.help_text }}
+                        </small>
+                    {% endif %}
+                    {% if form.formatos_aplicables.errors %}{% for error in form.formatos_aplicables.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
                 </div>
 
                 {# Género Requerido #}

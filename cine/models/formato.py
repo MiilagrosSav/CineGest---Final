@@ -36,5 +36,11 @@ class Formato(models.Model):
             models.UniqueConstraint(fields=['nombre'], name='UQ_formato_nombre')
         ]
     
+    def save(self, *args, **kwargs):
+        """Normalizar nombre del formato a MAYÚSCULAS (acrónimos técnicos)"""
+        if self.nombre:
+            self.nombre = self.nombre.strip().upper()
+        super().save(*args, **kwargs)
+    
     def __str__(self):
         return self.nombre

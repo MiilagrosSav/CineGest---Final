@@ -19,6 +19,7 @@ class Entrada(models.Model):
         ('ENTREGADA', 'Entregada'),
         ('USADA', 'Usada'),
         ('CANCELADA', 'Cancelada'),
+        ('EXPIRADA', 'Expirada'),
     ]
     
     id_entrada = models.AutoField(primary_key=True)
@@ -114,13 +115,16 @@ class Entrada(models.Model):
         if self.pk:
             original = Entrada.objects.get(pk=self.pk)
             # FLUJO PERMITIDO: RESERVADA → VENDIDA → ENTREGADA → USADA
+            # TAMBIÉN: VENDIDA → USADA (flujo simplificado: imprimir ticket = validar acceso)
             # PROHIBIDO: USADA → RESERVADA, ENTREGADA → VENDIDA, etc.
             estados_validos = {
-                'RESERVADA': ['VENDIDA', 'CANCELADA'],
-                'VENDIDA': ['ENTREGADA', 'CANCELADA'],
-                'ENTREGADA': ['USADA'],
+                'PENDIENTE': ['RESERVADA', 'CANCELADA', 'EXPIRADA'],  # PENDIENTE puede expirar
+                'RESERVADA': ['VENDIDA', 'CANCELADA', 'EXPIRADA'],  # RESERVADA puede expirar
+                'VENDIDA': ['ENTREGADA', 'USADA', 'CANCELADA'],  # VENDIDA puede ir directo a USADA (canje/presencial) o CANCELADA (función pasada)
+                'ENTREGADA': ['USADA', 'CANCELADA'],  # ENTREGADA puede cancelarse si la función pasó
                 'USADA': [],  # Estado terminal
-                'CANCELADA': []  # Estado terminal
+                'CANCELADA': [],  # Estado terminal
+                'EXPIRADA': [],  # Estado terminal
             }
             if original.estado != self.estado:
                 if self.estado not in estados_validos.get(original.estado, []):

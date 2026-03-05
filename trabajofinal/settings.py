@@ -76,7 +76,8 @@ INSTALLED_APPS = [
     'promociones',
     'social_django', #  esta línea para la autenticación social
     'widget_tweaks', #  esta línea para personalizar widgets en templates
-
+    'cloudinary_storage',  # Sistema híbrido de almacenamiento de imágenes
+    'cloudinary',  # Almacenamiento en la nube
     'simple_history', # esta línea para el historial de cambios en modelos
     # App para mostrar auditoría consolidada en Admin
     'auditoria.apps.AuditoriaConfig',
@@ -117,6 +118,9 @@ TEMPLATES = [
                 
                 # ✅ Context processor para configuración del cine
                 'accounts.context_processors.configuracion_cine',
+                
+                # ✅ Context processor para notificaciones de valoración
+                'valoraciones.context_processors.notificaciones_valoracion_context',
 
             ],
         },
@@ -197,6 +201,27 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'     # tras logout
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+# ============================================
+# CLOUDINARY CONFIGURATION (Almacenamiento híbrido)
+# ============================================
+import cloudinary
+import cloudinary.uploader
+import cloudinary.api
+
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME', ''),
+    'API_KEY': os.getenv('CLOUDINARY_API_KEY', ''),
+    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET', ''),
+}
+
+# Configurar Cloudinary con las credenciales
+cloudinary.config(
+    cloud_name=CLOUDINARY_STORAGE['CLOUD_NAME'],
+    api_key=CLOUDINARY_STORAGE['API_KEY'],
+    api_secret=CLOUDINARY_STORAGE['API_SECRET'],
+    secure=True  # Usar HTTPS
+)
+
 # Backends de autenticación
 AUTHENTICATION_BACKENDS = (
     'social_core.backends.google.GoogleOAuth2',  # Backend para Google OAuth2
@@ -276,6 +301,11 @@ LOGGING = {
         'social_django': {
             'handlers': ['console'],
             'level': 'DEBUG',
+            'propagate': True,
+        },
+        'promociones': {
+            'handlers': ['console'],
+            'level': 'WARNING',  # Mostrar logs WARNING e INFO en consola
             'propagate': True,
         },
     },

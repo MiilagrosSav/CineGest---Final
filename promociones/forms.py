@@ -3,6 +3,7 @@ from django.forms import inlineformset_factory
 from .models.politicaPromocion import PoliticaPromocion
 from .models.promocion import Promocion
 from .models.vinculo_promocional import VinculoPromocional
+from cine.models.formato import Formato
 
 
 class PromocionForm(forms.ModelForm):
@@ -16,6 +17,14 @@ class PromocionForm(forms.ModelForm):
         widget=forms.CheckboxSelectMultiple,
         required=False,
         label='Días de la semana'
+    )
+    
+    formatos_aplicables = forms.ModelMultipleChoiceField(
+        queryset=Formato.objects.all().order_by('categoria', 'nombre'),
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label='Formatos aplicables',
+        help_text='Selecciona los formatos a los que aplica la promoción. Vacío = todos los formatos.'
     )
     
     def __init__(self, *args, **kwargs):
@@ -43,6 +52,18 @@ class PromocionForm(forms.ModelForm):
                 self.fields['codigo'].disabled = False
                 self.fields['codigo'].widget.attrs.pop('disabled', None)
                 self.fields['codigo'].widget.attrs.pop('readonly', None)
+        else:
+            # ✅ Nueva promoción: marcar 'activo' como True por defecto
+            self.initial['activo'] = True
+            # Ocultar campo 'activo' al crear (solo mostrar al editar)
+            if 'activo' in self.fields:
+                self.fields.pop('activo')
+        
+        # ✅ Formatear fechas en formato ISO para input type="date"
+        if self.instance.pk and self.instance.fecha_inicio:
+            self.initial['fecha_inicio'] = self.instance.fecha_inicio.strftime('%Y-%m-%d')
+        if self.instance.pk and self.instance.fecha_fin:
+            self.initial['fecha_fin'] = self.instance.fecha_fin.strftime('%Y-%m-%d')
         
         # Inicializar dias_semana con los valores guardados (CSV en el modelo)
         if self.instance and getattr(self.instance, 'dias_semana', None):
@@ -57,7 +78,7 @@ class PromocionForm(forms.ModelForm):
 
     class Meta:
         model = Promocion
-        fields = ['codigo', 'nombre', 'descripcion', 'tipo_descuento', 'valor_descuento', 'fecha_inicio', 'fecha_fin', 'aplica_en_estrenos', 'es_automatica', 'dias_semana', 'genero_requerido']
+        fields = ['codigo', 'nombre', 'descripcion', 'tipo_descuento', 'valor_descuento', 'fecha_inicio', 'fecha_fin', 'aplica_en_estrenos', 'es_automatica', 'dias_semana', 'formatos_aplicables', 'genero_requerido', 'activo']
         widgets = {
             'codigo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ej: VERANO2025'}),
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
@@ -65,10 +86,11 @@ class PromocionForm(forms.ModelForm):
             'es_automatica': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'tipo_descuento': forms.Select(attrs={'class': 'form-control', 'id': 'id_tipo_descuento'}),
             'valor_descuento': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_valor_descuento', 'step': '0.01'}),
-            'fecha_inicio': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'fecha_fin': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'fecha_inicio': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
+            'fecha_fin': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}, format='%Y-%m-%d'),
             'aplica_en_estrenos': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'genero_requerido': forms.Select(attrs={'class': 'form-control'}),
+            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
             'codigo': 'Código',
@@ -82,6 +104,8 @@ class PromocionForm(forms.ModelForm):
             'aplica_en_estrenos': 'Aplica en estrenos',
             'genero_requerido': 'Género requerido',
             'dias_semana': 'Días de la semana',
+            'formatos_aplicables': 'Formatos aplicables',
+            'activo': 'Promoción activa',
         }
         help_texts = {
             'valor_descuento': 'Para Porcentaje: 0-100. Para Monto fijo: valor en pesos. No se usa para 2x1.',
@@ -89,6 +113,8 @@ class PromocionForm(forms.ModelForm):
             'aplica_en_estrenos': 'Si se marca, la promoción aplicará también a películas marcadas como estreno.',
             'genero_requerido': 'Si se especifica, la promoción solo aplicará a películas de ese género. Dejar vacío para aplicar a todos los géneros.',
             'dias_semana': 'Solo para promociones automáticas. Selecciona los días aplicables. Vacío = todos los días.',
+            'formatos_aplicables': 'Solo para promociones automáticas. Selecciona los formatos aplicables. Vacío = todos los formatos.',
+            'activo': 'Desmarca para desactivar temporalmente esta promoción sin eliminarla.',
         }
     
     def clean_dias_semana(self):
@@ -102,6 +128,15 @@ class PromocionForm(forms.ModelForm):
             return ''  # Vacío = todos los días
         return ','.join(sorted(val))
     
+    def clean_formatos_aplicables(self):
+        """Limpia formatos aplicables. Si no es automática, devuelve lista vacía."""
+        val = self.cleaned_data.get('formatos_aplicables') or []
+        es_automatica = self.data.get('es_automatica')  # Usar self.data para obtener el valor crudo
+        if not es_automatica:
+            # Si no es automática, vaciar los formatos
+            return []
+        return val
+    
     def clean(self):
         """
         ✅ CORRECCIÓN: Marcar flag temporal si el usuario está intentando crear vínculos.
@@ -113,6 +148,13 @@ class PromocionForm(forms.ModelForm):
         # Verificar si hay un flag temporal pasado desde la vista
         if hasattr(self, '_tiene_vinculos_pendientes'):
             self.instance._tiene_vinculos_pendientes = self._tiene_vinculos_pendientes
+        
+        # ✅ Validar que no se reactive una promoción vencida
+        if self.instance.pk and cleaned_data.get('activo'):
+            from django.utils import timezone
+            fecha_fin = cleaned_data.get('fecha_fin') or self.instance.fecha_fin
+            if fecha_fin and fecha_fin < timezone.now().date():
+                self.add_error('activo', 'No se puede activar una promoción cuya fecha de fin ya pasó.')
         
         return cleaned_data
 
@@ -180,6 +222,12 @@ class PoliticaPromocionForm(forms.ModelForm):
         # Filtrar promociones para mostrar solo las NO automáticas (cupones)
         from .models.promocion import Promocion
         self.fields['promocion_a_otorgar'].queryset = Promocion.objects.filter(es_automatica=False).order_by('nombre')
+        
+        # Ocultar campo 'activa' al crear nueva política (solo mostrar al editar)
+        if not self.instance.pk:
+            self.initial['activa'] = True
+            if 'activa' in self.fields:
+                self.fields.pop('activa')
         
         # Inicializar dias_semana con los valores guardados (CSV en el modelo)
         if self.instance and getattr(self.instance, 'dias_semana', None):

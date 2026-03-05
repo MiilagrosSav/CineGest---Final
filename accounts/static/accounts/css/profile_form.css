@@ -93,3 +93,54 @@
         color: var(--text-light);
         transform: translateY(-1px);
     }
+
+    /* Botón de Peligro (Dar de Baja) */
+    .btn-danger-outline {
+        background: transparent;
+        color: #ff4b2b;
+        border: 2px solid rgba(255, 75, 43, 0.4);
+        font-size: 0.9rem;
+        position: relative;
+        overflow: hidden;
+    }
+    .btn-danger-outline:hover {
+        background: rgba(255, 75, 43, 0.15);
+        border-color: #ff4b2b;
+        color: #ff6b4b;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(255, 75, 43, 0.3);
+    }
+    .btn-danger-outline:active {
+        transform: translateY(0);
+    }
+
+    /* Estilos del Modal */
+    .modal {
+        opacity: 0;
+        transition: opacity 0.3s ease-out;
+    }
+    
+    .modal-content {
+        animation: modalSlideIn 0.3s ease-out;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    /* Override de Bootstrap modal backdrop */
+    .modal-backdrop {
+        background-color: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+    }
+
+    .modal-backdrop.show {
+        opacity: 1;
+    }

@@ -321,7 +321,15 @@ def crear_excepcion_view(request):
             except Exception as e:
                 messages.error(request, f'❌ Error al guardar: {str(e)}')
         else:
-            messages.error(request, '❌ Hay errores en el formulario. Revisa los campos marcados.')
+            # No mostrar mensaje genérico si el error principal es 'cerrado'
+            # (ignorar errores de hora_apertura/hora_cierre que son consecuencia)
+            if 'cerrado' in form.errors:
+                # Si hay error en 'cerrado', no mostrar mensaje genérico
+                # El error específico ya se muestra destacado en el template
+                pass
+            else:
+                # Si hay otros errores, mostrar mensaje genérico
+                messages.error(request, '❌ Hay errores en el formulario. Revisa los campos marcados.')
     else:
         form = ExcepcionHorarioForm()
     
@@ -386,7 +394,15 @@ def editar_excepcion_view(request, excepcion_id):
             except Exception as e:
                 messages.error(request, f'❌ Error al actualizar: {str(e)}')
         else:
-            messages.error(request, '❌ Hay errores en el formulario. Revisa los campos marcados.')
+            # No mostrar mensaje genérico si el error principal es 'cerrado'
+            # (ignorar errores de hora_apertura/hora_cierre que son consecuencia)
+            if 'cerrado' in form.errors:
+                # Si hay error en 'cerrado', no mostrar mensaje genérico
+                # El error específico ya se muestra destacado en el template
+                pass
+            else:
+                # Si hay otros errores, mostrar mensaje genérico
+                messages.error(request, '❌ Hay errores en el formulario. Revisa los campos marcados.')
     else:
         form = ExcepcionHorarioForm(instance=excepcion)
     

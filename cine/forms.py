@@ -92,13 +92,16 @@ class PeliculaForm(forms.ModelForm):
     
     fecha_estreno = forms.DateField(
         label='📅 Fecha de estreno',
-        widget=forms.DateInput(attrs={
-            'class': 'form-input',
-            'type': 'date',
-            'required': True,
-            'min': date.today().strftime('%Y-%m-%d'),  # No permitir fechas pasadas
-            'title': 'La fecha de estreno debe ser hoy o en el futuro'
-        }),
+        input_formats=['%Y-%m-%d'],  # Formato ISO para HTML5
+        widget=forms.DateInput(
+            format='%Y-%m-%d',  # Formato de salida
+            attrs={
+                'class': 'form-input',
+                'type': 'date',
+                'required': True,
+                'title': 'La fecha de estreno es obligatoria'
+            }
+        ),
         error_messages={
             'required': 'La fecha de estreno es obligatoria.',
             'invalid': 'Ingresa una fecha válida.'
@@ -138,11 +141,22 @@ class PeliculaForm(forms.ModelForm):
         fields = ['titulo', 'sinopsis', 'director', 'generos', 'duracion', 'fecha_estreno', 'clasificacion', 'imagen_portada', 'es_estreno', 'acepta_promociones']
         
     def clean_titulo(self):
-        """Validación personalizada para el título"""
-        titulo = self.cleaned_data['titulo']
-        if len(titulo.strip()) < 2:
+        """Validación y normalización del título"""
+        titulo = self.cleaned_data.get('titulo', '')
+        titulo = titulo.strip()
+        if len(titulo) < 2:
             raise forms.ValidationError('El título debe tener al menos 2 caracteres.')
-        return titulo.strip()
+        # Normalizar: Title Case
+        return titulo.title()
+    
+    def clean_director(self):
+        """Validación y normalización del director"""
+        director = self.cleaned_data.get('director', '')
+        director = director.strip()
+        if len(director) < 2:
+            raise forms.ValidationError('El nombre del director debe tener al menos 2 caracteres.')
+        # Normalizar: Title Case
+        return director.title()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -152,6 +166,13 @@ class PeliculaForm(forms.ModelForm):
         except Exception:
             # En entornos donde el modelo no existe aún (migrations) fallamos silenciosamente
             self.fields['generos'].queryset = []
+
+        # ========================================================================
+        # CONFIGURACIÓN DE WIDGET DE FECHA
+        # ========================================================================
+        # NO agregamos 'min' al widget HTML5 porque puede causar problemas con zonas horarias
+        # Las validaciones se manejan en el servidor (clean_fecha_estreno y modelo)
+        # Esto evita que el navegador rechace fechas válidas debido a diferencias de zona horaria
 
         # ========================================================================
         # PROTECCIÓN DE DATOS: Bloqueo de campos si hay entradas vendidas
@@ -164,6 +185,8 @@ class PeliculaForm(forms.ModelForm):
                     # Deshabilitar título y fecha de estreno en la interfaz
                     self.fields['titulo'].disabled = True
                     self.fields['titulo'].widget.attrs['readonly'] = True
+                    self.fields['titulo'].widget.attrs['class'] = 'form-input input-disabled'
+                    self.fields['titulo'].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed;'
                     self.fields['titulo'].help_text = (
                         '⚠️ El título no puede modificarse porque esta película tiene funciones con entradas vendidas. '
                         'Por contrato con el cliente, esta información es INMUTABLE.'
@@ -171,10 +194,30 @@ class PeliculaForm(forms.ModelForm):
 
                     self.fields['fecha_estreno'].disabled = True
                     self.fields['fecha_estreno'].widget.attrs['readonly'] = True
+                    self.fields['fecha_estreno'].widget.attrs['class'] = 'form-input input-disabled'
+                    self.fields['fecha_estreno'].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed;'
                     self.fields['fecha_estreno'].help_text = (
                         '⚠️ La fecha de estreno no puede modificarse porque esta película tiene funciones con entradas vendidas. '
                         'Por contrato con el cliente, esta información es INMUTABLE.'
                     )
+                    
+                    # Bloquear también otros campos críticos relacionados con las ventas
+                    self.fields['director'].disabled = True
+                    self.fields['director'].widget.attrs['readonly'] = True
+                    self.fields['director'].widget.attrs['class'] = 'form-input input-disabled'
+                    self.fields['director'].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed;'
+                    self.fields['director'].help_text = '⚠️ No puede modificarse porque hay funciones con entradas vendidas.'
+                    
+                    self.fields['duracion'].disabled = True
+                    self.fields['duracion'].widget.attrs['readonly'] = True
+                    self.fields['duracion'].widget.attrs['class'] = 'form-input input-disabled'
+                    self.fields['duracion'].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed;'
+                    self.fields['duracion'].help_text = '⚠️ No puede modificarse porque hay funciones con entradas vendidas.'
+                    
+                    self.fields['clasificacion'].disabled = True
+                    self.fields['clasificacion'].widget.attrs['class'] = 'form-select input-disabled'
+                    self.fields['clasificacion'].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed;'
+                    self.fields['clasificacion'].help_text = '⚠️ No puede modificarse porque hay funciones con entradas vendidas.'
             except Exception:
                 # Si hay algún error al verificar, seguir adelante sin bloquear
                 # La validación en clean() del modelo seguirá protegiéndolo
@@ -191,10 +234,52 @@ class PeliculaForm(forms.ModelForm):
     
     def clean_fecha_estreno(self):
         """Validación personalizada para la fecha de estreno"""
-        fecha_estreno = self.cleaned_data['fecha_estreno']
-        if fecha_estreno < date.today():
-            raise forms.ValidationError('La fecha de estreno no puede ser anterior a la fecha actual.')
+        fecha_estreno = self.cleaned_data.get('fecha_estreno')
+        if not fecha_estreno:
+            return fecha_estreno
+            
+        # Solo validar "no pasado" para películas NUEVAS
+        # PERMITIDO: Hoy y futuro
+        # BLOQUEADO: Solo fechas anteriores a hoy (pasado)
+        if not self.instance.pk:  # Si es creación
+            hoy = timezone.now().date()
+            if fecha_estreno < hoy:  # Menor que HOY (no incluye hoy)
+                raise forms.ValidationError(
+                    f'La fecha de estreno no puede ser anterior al día de hoy ({hoy.strftime("%d/%m/%Y")}). '
+                    f'Puedes seleccionar hoy o cualquier fecha futura.'
+                )
+        
         return fecha_estreno
+    
+    def clean(self):
+        """Validación global del formulario que captura errores del modelo"""
+        cleaned_data = super().clean()
+        
+        # Verificar duplicados de título + año antes de llegar al modelo
+        titulo = cleaned_data.get('titulo')
+        fecha_estreno = cleaned_data.get('fecha_estreno')
+        
+        if titulo and fecha_estreno:
+            anio = fecha_estreno.year
+            
+            # Buscar películas con el mismo título y año
+            peliculas_existentes = Pelicula.objects.filter(
+                titulo=titulo,
+                anio_estreno=anio
+            )
+            
+            # Si estamos editando, excluir la película actual
+            if self.instance.pk:
+                peliculas_existentes = peliculas_existentes.exclude(pk=self.instance.pk)
+            
+            # Si existe otra película con el mismo título y año, lanzar error
+            if peliculas_existentes.exists():
+                self.add_error('titulo', 
+                    f"Esta película ya está registrada con esa fecha de estreno ({anio}). "
+                    f"Por favor, verifica el título o selecciona otro año."
+                )
+        
+        return cleaned_data
 
 
 class SalaForm(forms.ModelForm):
@@ -234,6 +319,11 @@ class SalaForm(forms.ModelForm):
             siguiente_numero = (ultimo_numero or 0) + 1
             self.fields['numero'].initial = siguiente_numero
             self.fields['numero'].help_text = f'Siguiente número sugerido: {siguiente_numero}'
+            
+            # 🆕 OCULTAR campo 'activo' al crear una sala nueva
+            # (las salas nuevas siempre son activas por defecto)
+            self.fields['activo'].widget = forms.HiddenInput()
+            self.fields['activo'].initial = True
     
     nombre = forms.CharField(
         label='🏛️ Nombre de la sala',
@@ -256,7 +346,7 @@ class SalaForm(forms.ModelForm):
     
    
     
-    activa = forms.BooleanField(
+    activo = forms.BooleanField(
         label='✅ Sala activa',
         required=False,
         initial=True,
@@ -281,7 +371,7 @@ class SalaForm(forms.ModelForm):
     class Meta:
         model = Sala
         # 'tipo' fue eliminado del modelo; no incluirlo en el formulario
-        fields = ['numero', 'nombre', 'activa', 'observaciones']
+        fields = ['numero', 'nombre', 'activo', 'observaciones']
 
     def clean_numero(self):
         """Validación para número único de sala"""
@@ -330,7 +420,7 @@ class FuncionForm(forms.ModelForm):
     
     sala = forms.ModelChoiceField(
         label='🏛️ Sala',
-        queryset=Sala.objects.filter(activa=True).order_by('numero'),
+        queryset=Sala.objects.none(),  # Se inicializa en __init__
         empty_label='Selecciona una sala...',
         widget=forms.Select(attrs={
             'class': 'form-select',
@@ -430,6 +520,28 @@ class FuncionForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        # Inicializar flag de protección
+        self._tiene_entradas_vendidas = False
+        
+        # 🛡️ FILTRAR SALAS: Solo salas activas CON butacas configuradas
+        from django.db.models import Count
+        salas_con_butacas = Sala.objects.filter(
+            activo=True
+        ).annotate(
+            num_butacas=Count('butacas')
+        ).filter(
+            num_butacas__gt=0
+        ).order_by('numero')
+        
+        self.fields['sala'].queryset = salas_con_butacas
+        
+        if salas_con_butacas.count() == 0:
+            self.fields['sala'].help_text = (
+                '⚠️ No hay salas disponibles con butacas configuradas. '
+                'Por favor, configura la distribución de asientos en al menos una sala.'
+            )
+        
         # Si estamos editando, cargar los formatos actuales
         if self.instance and self.instance.pk:
             # ========================================================================
@@ -442,27 +554,23 @@ class FuncionForm(forms.ModelForm):
                 ).exists()
 
                 if tiene_entradas_vendidas:
-                    # Deshabilitar campos críticos en la interfaz
-                    self.fields['pelicula'].disabled = True
-                    self.fields['pelicula'].widget.attrs['readonly'] = True
+                    # 🔒 BLOQUEO VISUAL: Solo readonly para mostrar pero NO disabled
+                    # (disabled=True hace que los campos no se envíen en el POST)
+                    for field_name in self.fields:
+                        self.fields[field_name].widget.attrs['readonly'] = True
+                        self.fields[field_name].widget.attrs['class'] = self.fields[field_name].widget.attrs.get('class', '') + ' input-disabled'
+                        self.fields[field_name].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed; pointer-events: none;'
+                        self.fields[field_name].widget.attrs['tabindex'] = '-1'
+                    
+                    # Mensaje de advertencia general
                     self.fields['pelicula'].help_text = (
-                        '⚠️ La película no puede modificarse porque esta función tiene entradas vendidas. '
-                        'Por contrato con el cliente, esta información es INMUTABLE.'
+                        '🔒 FUNCIÓN BLOQUEADA: Esta función tiene entradas vendidas. '
+                        'Por contrato con el cliente, NO se permite ninguna modificación. '
+                        'Si necesitas cambiar algo, debes contactar al cliente y ofrecer un reembolso.'
                     )
-
-                    self.fields['sala'].disabled = True
-                    self.fields['sala'].widget.attrs['readonly'] = True
-                    self.fields['sala'].help_text = (
-                        '⚠️ La sala no puede modificarse porque esta función tiene entradas vendidas. '
-                        'Por contrato con el cliente, esta información es INMUTABLE.'
-                    )
-
-                    self.fields['fecha_hora'].disabled = True
-                    self.fields['fecha_hora'].widget.attrs['readonly'] = True
-                    self.fields['fecha_hora'].help_text = (
-                        '⚠️ La fecha y hora no pueden modificarse porque esta función tiene entradas vendidas. '
-                        'Por contrato con el cliente, esta información es INMUTABLE.'
-                    )
+                    
+                    # Marcar que esta instancia tiene ventas (para save())
+                    self._tiene_entradas_vendidas = True
             except Exception:
                 # Si hay algún error al verificar, seguir adelante sin bloquear
                 # La validación en clean() del modelo seguirá protegiéndolo
@@ -505,8 +613,17 @@ class FuncionForm(forms.ModelForm):
         
         # Solo validar para nuevas funciones o si se cambió la fecha
         if not self.instance.pk or self.instance.fecha_hora != fecha_hora:
-            if fecha_hora < timezone.now():
+            ahora = timezone.now()
+            if fecha_hora < ahora:
                 raise forms.ValidationError('La fecha y hora no pueden ser en el pasado.')
+            
+            # 🛡️ VALIDACIÓN: No permitir funciones a más de 1 año en el futuro
+            limite_futuro = ahora + timedelta(days=365)
+            if fecha_hora > limite_futuro:
+                raise forms.ValidationError(
+                    f'No se pueden crear funciones a más de 1 año en el futuro. '
+                    f'Límite: {limite_futuro.strftime("%d/%m/%Y %H:%M")}'
+                )
         
         return fecha_hora
     
@@ -547,7 +664,7 @@ class FuncionForm(forms.ModelForm):
         
         if sala and pelicula and fecha_hora:
             # Verificar que la sala esté activa
-            if not sala.activa:
+            if not sala.activo:
                 raise ValidationError({
                     'sala': 'No se pueden programar funciones en salas inactivas.'
                 })
@@ -586,6 +703,19 @@ class FuncionForm(forms.ModelForm):
                     })
         
         return cleaned_data
+
+    def save(self, commit=True):
+        """
+        🔒 PROTECCIÓN: Si la función tiene entradas vendidas, NO permitir NINGUNA modificación.
+        """
+        # Verificar si se marcó como bloqueada en __init__
+        if hasattr(self, '_tiene_entradas_vendidas') and self._tiene_entradas_vendidas:
+            # Retornar la instancia original sin cambios
+            return self.instance
+        
+        # Si no hay entradas vendidas, guardar normalmente
+        return super().save(commit=commit)
+
 # --- CAMBIO 2: CLASE COMPLETAMENTE NUEVA AÑADIDA AL FINAL ---
 
 class FuncionBatchForm(forms.Form):
@@ -608,7 +738,7 @@ class FuncionBatchForm(forms.Form):
     
     sala = forms.ModelChoiceField(
         label='Sala',
-        queryset=Sala.objects.filter(activa=True).order_by('numero'),
+        queryset=Sala.objects.none(),  # Se inicializa en __init__
         empty_label='Selecciona una sala...',
         widget=forms.Select(attrs={
             'class': 'form-select', 'required': True, 
@@ -679,7 +809,6 @@ class FuncionBatchForm(forms.Form):
             'class': 'form-input',
             'type': 'date',
             'required': True,
-            'min': date.today().strftime('%Y-%m-%d'),
             'title': 'Elige el día para todas las funciones'
         })
     )
@@ -728,8 +857,82 @@ class FuncionBatchForm(forms.Form):
         # ¡Éxito! Retornamos la LISTA de objetos 'time' limpios
         return horarios_obj_lista
 
+    def clean_fecha(self):
+        """Validación para la fecha de las funciones"""
+        fecha = self.cleaned_data.get('fecha')
+        
+        if not fecha:
+            raise forms.ValidationError('Debes seleccionar una fecha.')
+        
+        # Validar que no sea en el pasado
+        hoy = timezone.now().date()
+        if fecha < hoy:
+            raise forms.ValidationError(
+                f'La fecha no puede ser en el pasado. '
+                f'Hoy es {hoy.strftime("%d/%m/%Y")}.'
+            )
+        
+        # 🛡️ VALIDACIÓN: No permitir funciones a más de 1 año en el futuro
+        limite_futuro = hoy + timedelta(days=365)
+        if fecha > limite_futuro:
+            raise forms.ValidationError(
+                f'❌ No se pueden crear funciones a más de 1 año en el futuro. '
+                f'Límite máximo: {limite_futuro.strftime("%d/%m/%Y")}'
+            )
+        
+        return fecha
+
     def __init__(self, *args, **kwargs):
+        # ✅ Extraer la función si es edición
+        funcion = kwargs.pop('funcion', None)
         super().__init__(*args, **kwargs)
+        
+        # Inicializar flag de protección
+        self._tiene_entradas_vendidas = False
+        self._funcion = funcion
+        
+        # 🔒 PROTECCIÓN: Bloqueo de campos si hay entradas vendidas
+        if funcion and funcion.pk:
+            try:
+                tiene_entradas_vendidas = funcion.entradas.filter(
+                    estado__in=['VENDIDA', 'ENTREGADA', 'USADA', 'RESERVADA']
+                ).exists()
+                
+                if tiene_entradas_vendidas:
+                    # Bloquear TODOS los campos visualmente
+                    for field_name in self.fields:
+                        self.fields[field_name].widget.attrs['readonly'] = True
+                        self.fields[field_name].widget.attrs['class'] = self.fields[field_name].widget.attrs.get('class', '') + ' input-disabled'
+                        self.fields[field_name].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed; pointer-events: none;'
+                        self.fields[field_name].widget.attrs['tabindex'] = '-1'
+                    
+                    self.fields['pelicula'].help_text = (
+                        '🔒 FUNCIÓN BLOQUEADA: Esta función tiene entradas vendidas. '
+                        'Por contrato con el cliente, NO se permite ninguna modificación.'
+                    )
+                    
+                    self._tiene_entradas_vendidas = True
+            except Exception:
+                pass
+        
+        # 🛡️ FILTRAR SALAS: Solo salas activas CON butacas configuradas
+        from django.db.models import Count
+        salas_con_butacas = Sala.objects.filter(
+            activo=True
+        ).annotate(
+            num_butacas=Count('butacas')
+        ).filter(
+            num_butacas__gt=0
+        ).order_by('numero')
+        
+        self.fields['sala'].queryset = salas_con_butacas
+        
+        if salas_con_butacas.count() == 0:
+            self.fields['sala'].help_text = (
+                '⚠️ No hay salas disponibles con butacas configuradas. '
+                'Por favor, configura la distribución de asientos en al menos una sala.'
+            )
+        
         # Ensure sensible defaults for formatos when creating a new batch
         try:
             # If no initial provided for formatos, pick reasonable 'standard' defaults
@@ -792,7 +995,7 @@ class FuncionBatchForm(forms.Form):
             return cleaned_data
             
         # Verificar que la sala esté activa
-        if not sala.activa:
+        if not sala.activo:
             raise ValidationError({'sala': 'No se pueden programar funciones en salas inactivas.'})
         
         # Obtener configuración del cine para los minutos de limpieza
@@ -834,6 +1037,10 @@ class FuncionBatchForm(forms.Form):
                 sala=sala,
                 fecha_hora__date=fecha  # FILTRO POR DÍA ESPECÍFICO
             ).order_by('fecha_hora')
+            
+            # ✅ Si estamos EDITANDO una función, excluirla de la validación
+            if hasattr(self, '_funcion') and self._funcion and self._funcion.pk:
+                funciones_existentes = funciones_existentes.exclude(pk=self._funcion.pk)
 
             # Verificar solapamiento con cada función existente
             for funcion_existente in funciones_existentes:
@@ -1275,10 +1482,18 @@ class ExcepcionHorarioForm(forms.ModelForm):
         """Inicializar form y configurar campos opcionales según contexto"""
         super().__init__(*args, **kwargs)
         
+        # Si es POST y cerrado=True, los campos de horario NO son requeridos
+        # Usar self.data que ya está disponible después de super().__init__()
+        if self.data and self.data.get('cerrado') in ['on', 'true', True, '1', 1]:
+            self.fields['hora_apertura'].required = False
+            self.fields['hora_cierre'].required = False
+        
         # Si es edición y está cerrado, deshabilitar horarios en el cliente
         if self.instance.pk and self.instance.cerrado:
             self.fields['hora_apertura'].widget.attrs['disabled'] = True
             self.fields['hora_cierre'].widget.attrs['disabled'] = True
+            self.fields['hora_apertura'].required = False
+            self.fields['hora_cierre'].required = False
     
     def clean(self):
         """
@@ -1287,7 +1502,11 @@ class ExcepcionHorarioForm(forms.ModelForm):
         Complementa las validaciones del modelo para mejor UX.
         """
         cleaned_data = super().clean()
-        cerrado = cleaned_data.get('cerrado')
+        
+        # IMPORTANTE: Usar self.data para detectar checkbox marcado
+        # Los checkboxes vienen como 'on' en POST, pero pueden ser None in cleaned_data
+        cerrado = self.data.get('cerrado') in ['on', 'true', True, '1', 1]
+        
         hora_apertura = cleaned_data.get('hora_apertura')
         hora_cierre = cleaned_data.get('hora_cierre')
         fecha = cleaned_data.get('fecha')
@@ -1300,8 +1519,59 @@ class ExcepcionHorarioForm(forms.ModelForm):
         # Validar coherencia entre cerrado y horarios
         if cerrado:
             # Si está cerrado, limpiar horarios (ignorar lo que haya en el form)
+            cleaned_data['cerrado'] = True  # Asegurar que esté en cleaned_data
             cleaned_data['hora_apertura'] = None
             cleaned_data['hora_cierre'] = None
+            
+            # Limpiar errores de horarios si existen (Django los valida antes de este clean)
+            if 'hora_apertura' in self.errors:
+                del self.errors['hora_apertura']
+            if 'hora_cierre' in self.errors:
+                del self.errors['hora_cierre']
+            
+            # VALIDACIÓN CRÍTICA: Verificar ventas confirmadas antes de permitir cierre
+            if fecha:
+                from ventas.models import Venta
+                
+                # Determinar rango de fechas a verificar
+                fecha_inicio = fecha
+                fecha_final = fecha_fin if fecha_fin else fecha
+                
+                # Buscar ventas confirmadas para funciones en ese rango
+                ventas_comprometidas = Venta.objects.filter(
+                    entradas__id_funcion__fecha_hora__date__gte=fecha_inicio,
+                    entradas__id_funcion__fecha_hora__date__lte=fecha_final,
+                    estado__in=['CONFIRMADA', 'PENDIENTE_PAGO', 'PENDIENTE']
+                ).distinct()
+                
+                if ventas_comprometidas.exists():
+                    # Contar ventas y entradas
+                    total_ventas = ventas_comprometidas.count()
+                    total_entradas = 0
+                    
+                    for venta in ventas_comprometidas:
+                        total_entradas += venta.entradas.filter(
+                            id_funcion__fecha_hora__date__gte=fecha_inicio,
+                            id_funcion__fecha_hora__date__lte=fecha_final
+                        ).count()
+                    
+                    # Formatear mensaje según rango o día único
+                    if fecha_final != fecha_inicio:
+                        fecha_str = f"del {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_final.strftime('%d/%m/%Y')}"
+                    else:
+                        fecha_str = f"el día {fecha_inicio.strftime('%d/%m/%Y')}"
+                    
+                    entrada_plural = "s" if total_entradas != 1 else ""
+                    vendida_plural = "s" if total_entradas != 1 else ""
+                    venta_plural = "s" if total_ventas != 1 else ""
+                    
+                    self.add_error('cerrado', 
+                        f'No es posible cerrar el cine {fecha_str}: '
+                        f'Existen {total_entradas} entrada{entrada_plural} ya vendida{vendida_plural} '
+                        f'({total_ventas} venta{venta_plural}). '
+                    )
+                    # No continuar validando horarios si hay error de ventas
+                    return cleaned_data
         else:
             # Si NO está cerrado, los horarios son obligatorios
             if not hora_apertura:
@@ -1317,7 +1587,7 @@ class ExcepcionHorarioForm(forms.ModelForm):
         
         # Validar que la fecha no sea en el pasado (opcional, depende de lógica de negocio)
         if fecha:
-            hoy = date.today()
+            hoy = timezone.now().date()
             if fecha < hoy:
                 # Advertencia: Permitir editar excepciones pasadas pero avisar
                 # No es un error crítico, solo informativo

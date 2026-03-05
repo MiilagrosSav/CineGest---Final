@@ -21,11 +21,9 @@
             <div>
                 <div class="form-field">
                     <label>Logo</label>
-                    {% if object.logo %}
                     <div class="logo-mini">
-                        <img src="{{ object.logo.url }}" alt="Logo">
+                        <img src="{{ object.get_logo_url }}" alt="Logo">
                     </div>
-                    {% endif %}
                     {{ form.logo }}
                     {% if form.logo.errors %}<span class="err">{{ form.logo.errors.0 }}</span>{% endif %}
                 </div>

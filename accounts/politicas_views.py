@@ -19,7 +19,7 @@ class PoliticaReembolsoCreateView(AdminRequiredMixin, CreateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['titulo_pagina'] = 'Crear Política de Reembolso'
+        ctx['titulo_pagina'] = 'Crear Política de Intercambio'
         ctx['nombre_boton'] = 'Crear'
         return ctx
 
@@ -32,7 +32,7 @@ class PoliticaReembolsoUpdateView(AdminRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx['titulo_pagina'] = 'Editar Política de Reembolso'
+        ctx['titulo_pagina'] = 'Editar Política de Intercambio'
         ctx['nombre_boton'] = 'Guardar cambios'
         return ctx
 

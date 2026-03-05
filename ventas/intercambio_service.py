@@ -311,12 +311,10 @@ class IntercambioService:
                         motivo=motivo,
                         estado='COMPLETADO',
                         cantidad_entradas=cantidad,
-                        penalidad_aplicada=Decimal('0.00'),
                         usuario_email=venta.id_cliente.usuario.email,
-                        ip_address=self._get_client_ip(request) if request else None,
-                        user_agent=request.META.get('HTTP_USER_AGENT', '')[:500] if request else None,
-                        notas=f"Intercambio automático de {cantidad} entrada(s)"
+                        notas=f"Intercambio gratuito de {cantidad} entrada(s)"
                     )
+                    # IP y User-Agent se capturan automáticamente en history via middleware
                     
                     self.logger.info(
                         f"Intercambio #{intercambio.id_intercambio} registrado exitosamente"
@@ -368,15 +366,6 @@ class IntercambioService:
                 return (False, f'Error al procesar el intercambio: {str(e)}', None)
         
         return (False, 'No se pudo completar el intercambio después de varios intentos.', None)
-    
-    def _get_client_ip(self, request) -> Optional[str]:
-        """Obtiene la IP del cliente desde el request"""
-        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
 
 
 # Instancia singleton del servicio

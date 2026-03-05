@@ -1,7 +1,7 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Resultado de Reembolso - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
+{% block title %}Resultado de Intercambio - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'ventas/css/resultado_reembolso.css' %}?v=1.0">
@@ -13,12 +13,12 @@
     <div class="mb-lg" style="text-align: center;">
         {% if success %}
             <div style="font-size: 4rem; margin-bottom: var(--space-md); color: var(--primary);">✅</div>
-            <h1 class="card-title text-gradient-primary" style="margin-bottom: var(--space-sm);">¡Reembolso Procesado!</h1>
+            <h1 class="card-title text-gradient-primary" style="margin-bottom: var(--space-sm);">¡Intercambio Procesado!</h1>
             <p class="card-subtitle">Tu solicitud ha sido procesada exitosamente</p>
         {% else %}
             <div style="font-size: 4rem; margin-bottom: var(--space-md); color: #ff6b6b;">❌</div>
-            <h1 class="card-title" style="margin-bottom: var(--space-sm); color: #ff6b6b;">Reembolso No Procesado</h1>
-            <p class="card-subtitle">No se pudo completar tu solicitud de reembolso</p>
+            <h1 class="card-title" style="margin-bottom: var(--space-sm); color: #ff6b6b;">Intercambio No Procesado</h1>
+            <p class="card-subtitle">No se pudo completar tu solicitud de intercambio</p>
         {% endif %}
     </div>
 
@@ -34,7 +34,7 @@
                             margin-bottom: var(--space-lg);">
                     
                     <h3 style="margin: 0 0 var(--space-md) 0; color: #4CAF50;">
-                        💰 Reembolso Procesado exitosamente
+                        💰 Intercambio Procesado exitosamente
                     </h3>
                     
                     {% if reembolso %}
@@ -68,7 +68,7 @@
                             margin-bottom: var(--space-lg);">
                     
                     <h3 style="margin: 0 0 var(--space-md) 0; color: #F44336;">
-                        ⚠️ No se pudo procesar el reembolso
+                        ⚠️ No se pudo procesar el intercambio
                     </h3>
                     
                     <p style="margin: 0 0 var(--space-md) 0; font-size: 0.95rem; line-height: 1.6;">
@@ -87,16 +87,16 @@
                                 <li>Error técnico al comunicarse con el proveedor de pagos.</li>
                             {% endif %}
                         {% else %}
-                            <li>Las políticas de reembolso no permiten la devolución en este momento</li>
-                            <li>El tiempo límite para solicitar reembolsos ha expirado</li>
-                            <li>El método de pago no soporta reembolsos automáticos</li>
+                            <li>Las políticas de intercambio no permiten la devolución en este momento</li>
+                            <li>El tiempo límite para solicitar intercambios ha expirado</li>
+                            <li>El método de pago no soporta intercambios automáticos</li>
                         {% endif %}
                     </ul>
                     
                     {% if reembolso and reembolso.porcentaje == 0 %}
                         <div style="margin-top: var(--space-md); padding: var(--space-md); background: rgba(255,193,7,0.1); border-radius: 6px;">
                             <p style="margin: 0; font-size: 0.9rem;">
-                                ℹ️ <strong>Políticas de reembolso:</strong> No hay porcentaje de reembolso aplicable para el tiempo restante hasta el evento.
+                                ℹ️ <strong>Políticas de intercambio:</strong> No hay porcentaje de intercambio aplicable para el tiempo restante hasta el evento.
                             </p>
                         </div>
                     {% endif %}

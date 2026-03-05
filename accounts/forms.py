@@ -4,11 +4,19 @@ from django.db import transaction
 from django.core.validators import RegexValidator
 from .models import Usuario, Cliente, Empleado
 from ventas.models import PoliticaReembolso
+from datetime import date
 
 # Validador de DNI (7-8 dígitos numéricos)
 DNI_VALIDATOR = RegexValidator(
     regex=r'^\d{7,8}$',
     message='El DNI debe contener entre 7 y 8 dígitos numéricos, sin letras ni espacios.'
+)
+
+# Validador de Teléfono (7-15 dígitos)
+TELEFONO_VALIDATOR = RegexValidator(
+    regex=r'^\+?\d{7,15}$',
+    message='El teléfono debe contener entre 7 y 15 dígitos numéricos. Puede incluir + al inicio.',
+    code='telefono_invalido'
 )
 
 # --- Formulario de Registro de Clientes ---
@@ -35,11 +43,28 @@ class CustomUserCreationForm(UserCreationForm):
         validators=[DNI_VALIDATOR],
         widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Ej: 12345678'})
     )
-    telefono = forms.CharField(label='Teléfono', max_length=20, required=False, widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Tu teléfono'}))
+    telefono = forms.CharField(
+        label='Teléfono', 
+        max_length=20, 
+        required=False,
+        validators=[TELEFONO_VALIDATOR],
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': '+54 9 11 1234-5678'})
+    )
 
     class Meta(UserCreationForm.Meta):
         model = Usuario
         fields = ('username', 'email', 'first_name', 'last_name', 'dni', 'telefono', 'acepta_marketing') # Campos del Usuario
+
+    def clean_username(self):
+        """Validación personalizada para username único (considerando normalización a minúsculas)"""
+        username = self.cleaned_data.get('username')
+        if username:
+            # Normalizar a minúsculas como lo hace el modelo
+            username_normalizado = username.strip().lower()
+            if Usuario.objects.filter(username=username_normalizado).exists():
+                raise forms.ValidationError('Ya existe un usuario con este nombre de usuario.')
+            return username
+        return username
 
     def clean_email(self):
         """Validación personalizada para email único"""
@@ -54,6 +79,16 @@ class CustomUserCreationForm(UserCreationForm):
         if dni and Usuario.objects.filter(dni=dni).exists():
             raise forms.ValidationError('Ya existe un usuario con este DNI.')
         return dni
+
+    def clean_fecha_nacimiento(self):
+        """Validación personalizada para fecha de nacimiento"""
+        fecha_nac = self.cleaned_data.get('fecha_nacimiento')
+        if fecha_nac:
+            if fecha_nac > date.today():
+                raise forms.ValidationError('La fecha de nacimiento no puede ser posterior al día de hoy.')
+            if fecha_nac < date(1900, 1, 1):
+                raise forms.ValidationError('La fecha de nacimiento no puede ser anterior al 1 de enero de 1900.')
+        return fecha_nac
 
     @transaction.atomic # Asegura que o se crean los dos (Usuario y Cliente) o ninguno
     def save(self, commit=True):
@@ -98,6 +133,7 @@ class EmployeeCreationForm(UserCreationForm):
         label='📱 Teléfono',
         max_length=20,
         required=False,
+        validators=[TELEFONO_VALIDATOR],
         widget=forms.TextInput(attrs={
             'class': 'form-input',
             'placeholder': 'Ej: +54 9 11 1234-5678'
@@ -107,10 +143,17 @@ class EmployeeCreationForm(UserCreationForm):
     # Campos del perfil Empleado
     fecha_ingreso = forms.DateField(
         label='🗓️ Fecha de Ingreso', 
-        widget=forms.DateInput(attrs={
-            'class': 'form-input',
-            'type': 'date'
-        })
+        initial=date.today(),  # Valor por defecto: fecha de hoy
+        input_formats=['%Y-%m-%d'],  # Acepta formato ISO (YYYY-MM-DD)
+        widget=forms.DateInput(
+            format='%Y-%m-%d',  # Renderiza en formato ISO para HTML5
+            attrs={
+                'class': 'form-input',
+                'type': 'date',
+                'max': date.today().isoformat()  # Bloquea fechas futuras en el calendario del navegador
+            }
+        ),
+        help_text='La fecha de ingreso no puede ser posterior al día de hoy.'
     )
 
     class Meta(UserCreationForm.Meta):
@@ -143,12 +186,42 @@ class EmployeeCreationForm(UserCreationForm):
         self.fields['password2'].label = 'Confirmar contraseña'
         self.fields['password2'].widget.attrs['placeholder'] = '••••••••'
 
+    def clean_username(self):
+        """Validar que el username sea único (considerando normalización a minúsculas)"""
+        username = self.cleaned_data.get('username')
+        if username:
+            # Normalizar a minúsculas como lo hace el modelo
+            username_normalizado = username.strip().lower()
+            if Usuario.objects.filter(username=username_normalizado).exists():
+                raise forms.ValidationError('Ya existe un usuario con este nombre de usuario.')
+            return username
+        return username
+
     def clean_dni(self):
         """Validar que el DNI sea único"""
         dni = self.cleaned_data['dni']
         if Usuario.objects.filter(dni=dni).exists():
             raise forms.ValidationError('Ya existe un usuario con este DNI.')
         return dni
+
+    def clean_email(self):
+        """Validar que el email sea único"""
+        email = self.cleaned_data.get('email')
+        if email and Usuario.objects.filter(email=email).exists():
+            raise forms.ValidationError('Ya existe un usuario con este email.')
+        return email
+
+    def clean_fecha_ingreso(self):
+        """
+        Validación personalizada para fecha_ingreso.
+        Verificar que no sea posterior al día de hoy.
+        """
+        fecha_ingreso = self.cleaned_data.get('fecha_ingreso')
+        if fecha_ingreso and fecha_ingreso > date.today():
+            raise forms.ValidationError(
+                'La fecha de ingreso no puede ser posterior al día de hoy.'
+            )
+        return fecha_ingreso
 
     @transaction.atomic
     def save(self, commit=True):
@@ -271,6 +344,7 @@ class EmployeeUpdateForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['dni'].validators = [DNI_VALIDATOR]
         self.fields['dni'].max_length = 8
+        self.fields['telefono'].validators = [TELEFONO_VALIDATOR]
 
     def clean(self):
         cleaned = super().clean()
@@ -324,21 +398,6 @@ class PoliticaReembolsoForm(forms.ModelForm):
         help_text='Número mínimo de días de anticipación requeridos para realizar un intercambio.'
     )
     
-    penalidad_percent = forms.DecimalField(
-        label='💰 Penalidad (%)',
-        min_value=0,
-        max_value=100,
-        decimal_places=2,
-        widget=forms.NumberInput(attrs={
-            'class': 'form-input',
-            'placeholder': '0.00',
-            'step': '0.01',
-            'min': '0',
-            'max': '100'
-        }),
-        help_text='Porcentaje de penalidad aplicado al intercambio (0 = sin penalidad).'
-    )
-    
     max_cambios_por_compra = forms.IntegerField(
         label='🔄 Máximo de cambios por compra',
         min_value=0,
@@ -362,7 +421,7 @@ class PoliticaReembolsoForm(forms.ModelForm):
     
     class Meta:
         model = PoliticaReembolso
-        fields = ['nombre', 'activo', 'dias_antes_minimo', 'penalidad_percent', 'max_cambios_por_compra']
+        fields = ['nombre', 'activo', 'dias_antes_minimo', 'max_cambios_por_compra']
 
 
 # --- Formulario para Editar Perfil de Cliente ---
@@ -398,6 +457,7 @@ class ClienteProfileForm(forms.ModelForm):
         label='Teléfono',
         max_length=20,
         required=False,
+        validators=[TELEFONO_VALIDATOR],
         widget=forms.TextInput(attrs={
             'class': 'form-input',
             'placeholder': '+54 9 11 1234-5678'
@@ -418,8 +478,11 @@ class ClienteProfileForm(forms.ModelForm):
         required=False,
         widget=forms.DateInput(attrs={
             'class': 'form-input',
-            'type': 'date'
-        })
+            'type': 'date',
+            'min': '1900-01-01',
+            'max': date.today().isoformat()
+        }),
+        help_text='Debe ser una fecha entre el 1/1/1900 y hoy'
     )
     acepta_marketing = forms.BooleanField(
         label='Deseo recibir novedades y promociones',
@@ -453,6 +516,16 @@ class ClienteProfileForm(forms.ModelForm):
         if dni and Usuario.objects.filter(dni=dni).exclude(pk=self.instance.usuario.pk).exists():
             raise forms.ValidationError('Este DNI ya está en uso.')
         return dni
+
+    def clean_fecha_nacimiento(self):
+        """Validación personalizada para fecha de nacimiento"""
+        fecha_nac = self.cleaned_data.get('fecha_nacimiento')
+        if fecha_nac:
+            if fecha_nac > date.today():
+                raise forms.ValidationError('La fecha de nacimiento no puede ser posterior al día de hoy.')
+            if fecha_nac < date(1900, 1, 1):
+                raise forms.ValidationError('La fecha de nacimiento no puede ser anterior al 1 de enero de 1900.')
+        return fecha_nac
     
     @transaction.atomic
     def save(self, commit=True):
@@ -506,6 +579,7 @@ class AdminProfileForm(forms.ModelForm):
         label='Teléfono',
         max_length=20,
         required=False,
+        validators=[TELEFONO_VALIDATOR],
         widget=forms.TextInput(attrs={
             'class': 'form-input',
             'placeholder': '+54 9 11 1234-5678'

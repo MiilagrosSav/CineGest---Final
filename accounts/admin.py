@@ -54,5 +54,58 @@ class UsuarioAdmin(SimpleHistoryAdmin, DjangoUserAdmin):
             return [ClienteInline]
         return []
 
-# Nota: No registramos los perfiles por separado, ya que se manejan
-# a través del admin de Usuario.
+# Registrar los perfiles también como modelos independientes para visibilidad
+@admin.register(Administrador)
+class AdministradorAdmin(admin.ModelAdmin):
+    list_display = ('get_username', 'get_email', 'nivel_acceso', 'get_fecha_creacion')
+    search_fields = ('usuario__username', 'usuario__email')
+    list_filter = ('nivel_acceso',)
+    
+    def get_username(self, obj):
+        return obj.usuario.username
+    get_username.short_description = 'Usuario'
+    get_username.admin_order_field = 'usuario__username'
+    
+    def get_email(self, obj):
+        return obj.usuario.email
+    get_email.short_description = 'Email'
+    
+    def get_fecha_creacion(self, obj):
+        return obj.usuario.date_joined
+    get_fecha_creacion.short_description = 'Fecha de creación'
+    get_fecha_creacion.admin_order_field = 'usuario__date_joined'
+
+@admin.register(Empleado)
+class EmpleadoAdmin(admin.ModelAdmin):
+    list_display = ('get_username', 'get_email', 'fecha_ingreso', 'get_fecha_creacion')
+    search_fields = ('usuario__username', 'usuario__email')
+    list_filter = ('fecha_ingreso',)
+    
+    def get_username(self, obj):
+        return obj.usuario.username
+    get_username.short_description = 'Usuario'
+    get_username.admin_order_field = 'usuario__username'
+    
+    def get_email(self, obj):
+        return obj.usuario.email
+    get_email.short_description = 'Email'
+    
+    def get_fecha_creacion(self, obj):
+        return obj.usuario.date_joined
+    get_fecha_creacion.short_description = 'Fecha de registro'
+    get_fecha_creacion.admin_order_field = 'usuario__date_joined'
+
+@admin.register(Cliente)
+class ClienteAdmin(admin.ModelAdmin):
+    list_display = ('get_username', 'get_email', 'fecha_registro')
+    search_fields = ('usuario__username', 'usuario__email')
+    list_filter = ('fecha_registro',)
+    
+    def get_username(self, obj):
+        return obj.usuario.username
+    get_username.short_description = 'Usuario'
+    get_username.admin_order_field = 'usuario__username'
+    
+    def get_email(self, obj):
+        return obj.usuario.email
+    get_email.short_description = 'Email'

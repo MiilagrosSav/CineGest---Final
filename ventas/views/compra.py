@@ -78,10 +78,38 @@ def procesar_compra(request, funcion_id):
                 }
             )
             
+            # Obtener o crear el método de pago por defecto para ventas online
+            from ventas.models import MetodoPago
+            from decimal import Decimal
+            try:
+                metodo_pago = MetodoPago.objects.filter(
+                    nombre__icontains='Mercado Pago'
+                ).first() or MetodoPago.objects.filter(
+                    nombre__icontains='Online'
+                ).first()
+                
+                if not metodo_pago:
+                    metodo_pago = MetodoPago.objects.create(
+                        nombre='Mercado Pago',
+                        descripcion='Pago procesado por Mercado Pago'
+                    )
+            except Exception:
+                # Fallback: crear método de pago genérico
+                metodo_pago = MetodoPago.objects.create(
+                    nombre='Mercado Pago',
+                    descripcion='Pago procesado por Mercado Pago'
+                )
+            
+            # Calcular el total preliminar (se recalculará en la pantalla de pago)
+            # Por ahora usamos el precio base de la función multiplicado por la cantidad
+            total_preliminar = Decimal(str(funcion.precio_base)) * len(butacas_ids)
+            
             venta = Venta.objects.create(
                 id_cliente=cliente,
                 tipo_venta='ONLINE',
-                estado='PENDIENTE'
+                estado='PENDIENTE',
+                id_metodo_pago=metodo_pago,
+                total=total_preliminar
             )
             
             # PASO 3: Reutilizar entradas del mismo usuario

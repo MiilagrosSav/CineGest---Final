@@ -11,11 +11,19 @@
             </thead>
             <tbody>
                 {% for sala in salas %}
-                <tr class="sala-row" data-id="{{ sala.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                <tr class="sala-row" data-id="{{ sala.pk }}" 
+                    style="border-bottom: 1px solid var(--glass-border); cursor: pointer;{% if not sala.activo %} background: rgba(255, 107, 107, 0.1); color: #ff6b6b;{% endif %}">
                     <td style="padding: var(--space-sm);">
-                        <span class="badge-sala">{{ sala.numero }}</span>
+                        <span class="badge-sala" style="{% if not sala.activo %}background: rgba(255, 107, 107, 0.2); border-color: #ff6b6b; color: #ff6b6b;{% endif %}">
+                            {{ sala.numero }}
+                        </span>
                     </td>
-                    <td style="padding: var(--space-sm); font-weight: 600;">{{ sala.nombre }}</td>
+                    <td style="padding: var(--space-sm); font-weight: 600;{% if not sala.activo %} color: #ff6b6b;{% endif %}">
+                        {{ sala.nombre }}
+                        {% if not sala.activo %}
+                            <span style="font-size: 0.75rem; opacity: 0.7; margin-left: 0.5rem;">(INACTIVA)</span>
+                        {% endif %}
+                    </td>
                     <td style="padding: var(--space-sm); text-align: center;">
                         {% if sala.capacidad %}
                             <span style="color: #4ecdc4; font-weight: 600;">{{ sala.capacidad }}</span>
@@ -24,7 +32,7 @@
                         {% endif %}
                     </td>
                     <td style="padding: var(--space-sm); text-align: center;">
-                        {% if sala.activa %}
+                        {% if sala.activo %}
                             <span style="color: #4ecdc4; font-weight: 600;">✓</span>
                         {% else %}
                             <span style="color: #ff6b6b; font-weight: 600;">✗</span>

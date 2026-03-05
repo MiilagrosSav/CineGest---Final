@@ -84,7 +84,7 @@ class WebhookCouponConsumptionTest(TestCase):
 
 		self.politica = PoliticaPromocion.objects.create(
 			nombre='Política Test',
-			activa=True,
+			activo=True,
 			promocion_a_otorgar=self.promocion,
 			hora_inicio_rango=time(hour=0, minute=0),
 			hora_fin_rango=time(hour=23, minute=59),

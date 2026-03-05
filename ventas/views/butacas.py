@@ -25,6 +25,14 @@ def seleccionar_butacas(request, funcion_id):
         messages.warning(request, '⚠️ Los empleados deben usar el módulo de venta presencial.')
         return redirect('ventas:dashboard_presencial')
     
+    # ✅ LIMPIEZA AUTOMÁTICA: Expirar ventas pendientes antes de calcular disponibilidad
+    from ventas.models import Venta
+    try:
+        ventas_expiradas, butacas_liberadas = Venta.objects.limpiar_expiradas()
+    except Exception:
+        # Si algo falla aquí no queremos romper la vista
+        pass
+    
     # Liberar reservas expiradas antes de calcular disponibilidad (check-on-access)
     try:
         liberar_reservas_expiradas()
@@ -91,6 +99,8 @@ def seleccionar_butacas(request, funcion_id):
     precio_mostrar = funcion.precio_base
     promocion_aplicada = None
     info_descuento = None
+    promo_2x1 = False
+    promo_codigo = None
     
     import logging
     logger = logging.getLogger(__name__)
@@ -114,8 +124,10 @@ def seleccionar_butacas(request, funcion_id):
                 if promo:
                     logger.info(f'[SELECCIONAR_BUTACAS] Aplicando promoción: {promo.codigo} tipo: {promo.tipo_descuento}')
                     promocion_aplicada = promo
+                    promo_codigo = promo.codigo  # ✅ Guardar código de la promo
                     
                     if promo.tipo_descuento == '2X1':
+                        promo_2x1 = True  # ✅ Marcar como 2x1
                         # Para 2x1: mostrar precio base, el descuento se aplica al total
                         precio_mostrar = funcion.precio_base
                         info_descuento = {
@@ -174,13 +186,15 @@ def seleccionar_butacas(request, funcion_id):
     # BLOQUE NUEVO: BUSCAR PROMOCIONES AUTOMÁTICAS (Si no hay cupón)
     # ==============================================================================
     if not promocion_aplicada:
-        hoy = timezone.localdate()
+        # ✅ CORRECCIÓN CRÍTICA: Filtrar por fecha de HOY (día de compra), no fecha de función
+        # Esto previene que promociones futuras se apliquen en preventas
+        fecha_hoy = timezone.now().date()
         
-        # Buscamos promos automáticas vigentes
+        # Buscamos promos automáticas vigentes HOY
         candidatas = Promocion.objects.filter(
             es_automatica=True,
-            fecha_inicio__lte=hoy,
-            fecha_fin__gte=hoy
+            fecha_inicio__lte=fecha_hoy,
+            fecha_fin__gte=fecha_hoy
         )
         
         from promociones.services import es_promocion_valida_para_funcion
@@ -251,8 +265,8 @@ def seleccionar_butacas(request, funcion_id):
         'form_action_name': 'ventas:procesar_compra',
         'venta_id': None,
         'cantidad_requerida': None,
-        'promo_2x1': False,
-        'promo_codigo': None,
+        'promo_2x1': promo_2x1,  # ✅ Usar el valor detectado (automática o por cupón)
+        'promo_codigo': promo_codigo,  # ✅ Usar el valor detectado
         'expiracion_iso': expiracion_iso,
         'requiere_4d': requiere_4d,
     }

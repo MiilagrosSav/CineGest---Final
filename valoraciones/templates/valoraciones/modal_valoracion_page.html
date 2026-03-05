@@ -1,0 +1,14 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Valorar Película - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'valoraciones/css/modal_calificar.css' %}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin-top: 2rem;">
+    {% include 'valoraciones/modal_calificar.html' %}
+</div>
+{% endblock %}

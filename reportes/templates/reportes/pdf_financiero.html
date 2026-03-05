@@ -1,94 +1,147 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <title>{{ titulo }}</title>
     <style type="text/css">
-        /* --- CONFIGURACIÓN DE PÁGINA (A4) --- */
+        /* ============================================
+           REPORTE FINANCIERO - DISEÑO FORMAL
+           Times New Roman, sin colores, solo B&N
+           ============================================ */
+
         @page {
             size: A4;
-            margin: 2cm;
-            margin-bottom: 2.5cm;
+            margin: 2.5cm 2cm 3cm 2cm;
+            
+            @frame footer {
+                -pdf-frame-content: footer-content;
+                bottom: 0.5cm;
+                margin-left: 2cm;
+                margin-right: 2cm;
+                height: 1.5cm;
+            }
         }
 
-        /* --- ESTILOS GENERALES --- */
         body {
-            font-family: Helvetica, Arial, sans-serif;
-            font-size: 10pt; /* Letra más chica */
-            color: #333333;
-            line-height: 1.3;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            color: #000000;
+            line-height: 1.5;
+            background-color: #ffffff;
         }
 
-        /* --- ENCABEZADO --- */
-        .header-table {
+        /* ============================================
+           ENCABEZADO DEL DOCUMENTO
+           ============================================ */
+        .header-section {
             width: 100%;
-            border-bottom: 2px solid #77135c;
             margin-bottom: 20px;
-            padding-bottom: 8px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #000000;
         }
-        
-        .logo-text {
-            font-size: 20pt;
+
+        .header-title {
+            font-size: 18pt;
             font-weight: bold;
-            color: #77135c;
+            text-align: center;
+            color: #000000;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .header-subtitle {
+            font-size: 11pt;
+            text-align: center;
+            color: #333333;
+            margin-bottom: 4px;
+        }
+
+        .header-metadata {
+            font-size: 9pt;
+            text-align: center;
+            color: #333333;
+            margin-top: 6px;
+        }
+
+        /* ============================================
+           TÍTULOS DE SECCIONES
+           ============================================ */
+        h2 {
+            font-size: 13pt;
+            font-weight: bold;
+            color: #000000;
+            margin-top: 24px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #000000;
+            padding-bottom: 4px;
             text-transform: uppercase;
         }
 
-        .report-title {
-            font-size: 14pt;
+        h3 {
+            font-size: 11pt;
+            font-weight: bold;
             color: #000000;
-            text-align: right;
-            font-weight: normal;
+            margin-top: 16px;
+            margin-bottom: 8px;
         }
 
-        .meta-info {
-            font-size: 8pt;
-            color: #666666;
-            text-align: right;
-            margin-top: 2px;
-        }
-
-        /* --- TABLAS DE DATOS --- */
-        h2 {
-            font-size: 12pt;
-            color: #77135c;
-            margin-top: 15px;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #cccccc;
-            padding-bottom: 2px;
-        }
-
+        /* ============================================
+           TABLAS GENERALES
+           ============================================ */
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 15px;
+            margin-bottom: 18px;
+            font-size: 10pt;
+            display: table;
         }
 
-        th {
-            background-color: #77135c;
-            color: #ffffff;
+        table th {
+            background-color: #f5f5f5;
+            color: #000000;
             font-weight: bold;
-            padding: 6px;
+            padding: 6px 7px;
             text-align: left;
-            font-size: 9pt;
-            border: 1px solid #77135c;
+            border: 1px solid #000000;
         }
 
-        td {
-            padding: 6px;
-            border: 1px solid #cccccc;
-            font-size: 9pt;
-            color: #333;
+        table td {
+            padding: 5px 6px;
+            border: 1px solid #999999;
+            vertical-align: top;
+            color: #000000;
         }
 
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
+        table tbody tr:nth-child(even) {
+            background-color: #fafafa;
         }
 
-        /* --- KPIS --- */
+        table tbody tr:nth-child(odd) {
+            background-color: #ffffff;
+        }
+
+        /* ============================================
+           ALINEACIONES
+           ============================================ */
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        /* ============================================
+           KPIs (INDICADORES CLAVE)
+           ============================================ */
         .kpi-table td {
             background-color: #f9f9f9;
-            border: 1px solid #ffffff;
+            border: 1px solid #999999;
             padding: 10px;
             text-align: center;
             width: 33%;
@@ -106,92 +159,202 @@
         .kpi-value {
             font-size: 14pt;
             font-weight: bold;
-            color: #77135c;
+            color: #000000;
             display: block;
         }
 
-        /* --- UTILIDADES --- */
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        
+        /* ============================================
+           FILA DE TOTALES
+           ============================================ */
         .total-row td {
-            background-color: #e8d5e0;
+            background-color: #e8e8e8;
             font-weight: bold;
-            color: #77135c;
-            border-top: 2px solid #77135c;
+            color: #000000;
+            border-top: 2px solid #000000;
         }
 
-        /* --- FOOTER --- */
-        #footerContent {
-            position: fixed;
-            bottom: -1cm;
-            left: 0;
-            right: 0;
-            width: 100%;
-            text-align: right;
-            font-size: 8pt;
-            color: #999999;
-            border-top: 1px solid #cccccc;
-            padding-top: 5px;
+        /* ============================================
+           BLOQUES DE RECOMENDACIÓN/NOTA
+           ============================================ */
+        .recomendacion {
+            margin-top: 12px;
+            margin-bottom: 18px;
+            padding: 10px;
+            border: 1px solid #999999;
+            background-color: #f5f5f5;
+            font-size: 10pt;
+            color: #000000;
         }
+
+        .recomendacion-titulo {
+            font-weight: bold;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .recomendacion ul {
+            margin: 6px 0 0 20px;
+            padding: 0;
+        }
+
+        .recomendacion li {
+            margin-bottom: 4px;
+        }
+
+        .nota {
+            font-size: 9pt;
+            color: #333333;
+            font-style: italic;
+            margin-top: 8px;
+            margin-bottom: 16px;
+            padding: 8px;
+            border-left: 3px solid #999999;
+            background-color: #fafafa;
+        }
+
+        /* ============================================
+           MENSAJES DE ADVERTENCIA
+           ============================================ */
+        .warning-message {
+            margin: 16px 0;
+            padding: 16px;
+            border: 2px solid #999999;
+            background-color: #f5f5f5;
+            font-size: 11pt;
+            color: #000000;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* ============================================
+           PAGINACIÓN
+           ============================================ */
+        #footer-content {
+            text-align: right;
+            font-size: 9pt;
+            color: #999999;
+            border-top: 1px solid #999999;
+            padding-top: 6px;
+            padding-right: 10px;
+        }
+
+        /* ============================================
+           SALTOS DE PÁGINA
+           ============================================ */
+        .page-break {
+            page-break-after: always;
+        }
+
+        /* ============================================
+           ESTILOS PARA RANKINGS (SIN COLORES)
+           ============================================ */
+        table.ranking-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        table.ranking-table th {
+            background-color: #f5f5f5;
+            color: #000000;
+            padding: 5px 4px;
+            text-align: left;
+            font-size: 9pt;
+            border: 1px solid #000000;
+        }
+
+        table.ranking-table td {
+            padding: 4px 3px;
+            border: 1px solid #999999;
+            font-size: 9pt;
+            color: #000000;
+        }
+
+        /* Sin backgrounds de colores, solo alternancia de grises */
+        table.ranking-table .rank-1 { background-color: #eeeeee; }
+        table.ranking-table .rank-2 { background-color: #f5f5f5; }
+        table.ranking-table .rank-3 { background-color: #fafafa; }
+
+        /* Ratings en negrita pero SIN color */
+        .rating-excelente { font-weight: bold; }
+        .rating-bueno { font-weight: bold; }
+        .rating-regular { font-weight: bold; }
+        .rating-malo { font-weight: bold; }
+
+        .metric-good { font-weight: bold; }
+        .metric-bad { font-weight: bold; }
+
     </style>
 </head>
 <body>
 
-    <table class="header-table">
+    <!-- ENCABEZADO DEL DOCUMENTO -->
+    <table style="width: 100%; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #000000; border-collapse: collapse;">
         <tr>
-            <td style="border:none; padding:0; vertical-align: bottom;">
-                <div class="logo-text">{{ configuracion_cine.nombre|default:'Sistema de Cine' }}</div>
+            <td style="width: 50%; vertical-align: top; border: none; padding: 0;">
+                <div style="font-size: 16pt; font-weight: bold; color: #000000; text-transform: uppercase;">
+                    {{ configuracion_cine.nombre|default:'SISTEMA DE GESTIÓN' }}
+                </div>
             </td>
-            <td style="border:none; padding:0; text-align:right; vertical-align: bottom;">
-                <div class="report-title">{{ titulo }}</div>
-                <div class="meta-info">
-                    Período: {{ fecha_inicio }} al {{ fecha_fin }}
-                    {% if requested_by %}<br/>Solicitado por: {{ requested_by }}{% endif %}
-                    <br/>Generado: {% now "d/m/Y H:i" %}
+            <td style="width: 50%; vertical-align: top; text-align: right; border: none; padding: 0;">
+                <div style="font-size: 13pt; font-weight: bold; color: #000000; text-transform: uppercase; margin-bottom: 4px;">
+                    REPORTE FINANCIERO
+                </div>
+                <div style="font-size: 9pt; color: #333333;">
+                    <strong>Período:</strong> {{ fecha_inicio }} al {{ fecha_fin }}<br/>
+                    {% if requested_by %}<strong>Solicitado por:</strong> {{ requested_by }}<br/>{% endif %}
+                    <strong>Generado:</strong> {% now "d/m/Y H:i" %}
                 </div>
             </td>
         </tr>
     </table>
 
-    <table class="kpi-table">
+    <!-- SECCIÓN: INDICADORES CLAVE DE RENDIMIENTO -->
+    <h2>Indicadores Clave de Rendimiento</h2>
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px;">
         <tr>
-            <td>
+            <td style="background-color: #f9f9f9; border: 1px solid #999999; padding: 10px; text-align: center; width: 25%;">
                 <span class="kpi-label">Recaudación Total</span>
                 <span class="kpi-value">${{ kpis.total_recaudacion|floatformat:2 }}</span>
             </td>
-            <td>
+            <td style="background-color: #f9f9f9; border: 1px solid #999999; padding: 10px; text-align: center; width: 25%;">
                 <span class="kpi-label">Tickets Vendidos</span>
                 <span class="kpi-value">{{ kpis.total_tickets }}</span>
             </td>
-            <td>
+            <td style="background-color: #f9f9f9; border: 1px solid #999999; padding: 10px; text-align: center; width: 25%;">
                 <span class="kpi-label">Ticket Promedio</span>
                 <span class="kpi-value">${{ kpis.ticket_promedio|floatformat:2 }}</span>
             </td>
+            {% if ranking_dia_revenue %}
+            <td style="background-color: #f9f9f9; border: 1px solid #999999; padding: 10px; text-align: center; width: 25%;">
+                <span class="kpi-label">Día de Mayor Peso</span>
+                <span class="kpi-value" style="font-size: 12pt;">{{ ranking_dia_revenue.0.dia_nombre }}</span>
+                <div style="font-size: 8pt; margin-top: 2px; color: #666666;">{{ ranking_dia_revenue.0.porcentaje_revenue_total|floatformat:1 }}% del total</div>
+            </td>
+            {% endif %}
         </tr>
     </table>
 
-    {% if chart_base64 %}
-    <div style="text-align:center; margin-bottom: 15px;">
-        <img src="{{ chart_base64 }}" style="width: 600px; height: auto;" />
-    </div>
-    {% endif %}
-
-    <h2>Detalle por Película</h2>
-    <table>
+    <!-- SECCIÓN: DETALLE POR PELÍCULA -->
+    <h2>1. Detalle de Recaudación por Película</h2>
+    <table class="ranking-table">
         <thead>
             <tr>
-                <th style="width: 35%;">Película</th>
-                <th class="text-right">Recaudación</th>
-                <th class="text-right">Full Price</th>
-                <th class="text-right">Promo</th>
-                <th class="text-right">RevPAS</th>
+                <th style="width: 28%;">Película</th>
+                <th class="text-right" style="width: 9%;">Tickets</th>
+                <th class="text-right" style="width: 11%;">Ticket Prom.</th>
+                <th class="text-right" style="width: 13%;">Recaudación</th>
+                <th class="text-right" style="width: 12%;">Precio Completo</th>
+                <th class="text-right" style="width: 12%;">Descuentos</th>
+                <th class="text-right" style="width: 13%;">Ing. por Butaca</th>
             </tr>
         </thead>
         <tbody>
             {% for pelicula in peliculas %}
             <tr>
                 <td>{{ pelicula.titulo }}</td>
+                <td class="text-right" style="font-weight: 700;">{{ pelicula.tickets }}</td>
+                <td class="text-right" style="font-weight: 600;">${{ pelicula.ticket_promedio|floatformat:2 }}</td>
                 <td class="text-right">${{ pelicula.total|floatformat:2 }}</td>
                 <td class="text-right">${{ pelicula.full|floatformat:2 }}</td>
                 <td class="text-right">${{ pelicula.promo|floatformat:2 }}</td>
@@ -200,21 +363,145 @@
             {% endfor %}
             
             <tr class="total-row">
-                <td>TOTAL</td>
-                <td class="text-right">${{ kpis.total_recaudacion|floatformat:2 }}</td>
-                <td colspan="3" class="text-center" style="font-size: 8pt; color: #77135c;">
-                    Resumen Final
+                <td><strong>TOTAL</strong></td>
+                <td class="text-right"><strong>{{ kpis.total_tickets }}</strong></td>
+                <td class="text-right"><strong>${{ kpis.ticket_promedio|floatformat:2 }}</strong></td>
+                <td class="text-right"><strong>${{ kpis.total_recaudacion|floatformat:2 }}</strong></td>
+                <td colspan="3" class="text-center" style="font-size: 8pt; color: #000000;">
+                    Resumen Final del Período
                 </td>
             </tr>
         </tbody>
     </table>
 
-    <div style="margin-top: 20px; text-align: center; font-size: 8pt; color: #999999;">
-        Fin del reporte. Uso interno.
+    {% if ranking_revpas %}
+    <div class="page-break"></div>
+    <h2>2. Ingreso por Butaca Disponible</h2>
+    <p style="font-size: 9pt; color: #333333; margin: 5px 0 15px 0; font-style: italic;">
+        El Ingreso por Butaca mide el ingreso generado por cada asiento disponible (no solo vendido), 
+        identificando qué películas aprovechan mejor la capacidad del cine.
+    </p>
+    <table class="ranking-table">
+        <thead>
+            <tr>
+                <th class="text-center" style="width: 7%;">Pos.</th>
+                <th style="width: 35%;">Película</th>
+                <th class="text-right" style="width: 11%;">Entradas</th>
+                <th class="text-right" style="width: 12%;">Capacidad</th>
+                <th class="text-right" style="width: 13%;">Ingreso</th>
+                <th class="text-right" style="width: 13%;">Ing. por Butaca</th>
+                <th class="text-center" style="width: 10%;">Rating</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pelicula in ranking_revpas %}
+            <tr {% if forloop.counter <= 3 %}class="rank-{{ forloop.counter }}"{% endif %}>
+                <td class="text-center"><strong>{{ forloop.counter }}</strong></td>
+                <td>{{ pelicula.titulo_pelicula|truncatechars:40 }}</td>
+                <td class="text-right">{{ pelicula.entradas_vendidas }}</td>
+                <td class="text-right">{{ pelicula.capacidad_total }}</td>
+                <td class="text-right">${{ pelicula.revenue_total|floatformat:2 }}</td>
+                <td class="text-right" style="font-weight: bold;">${{ pelicula.revpas|floatformat:2 }}</td>
+                <td class="text-center rating-{{ pelicula.rating|lower }}">{{ pelicula.rating }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="nota">
+        <strong>Metodología:</strong> Ingreso por Butaca = Ingreso Total ÷ Capacidad Total Ofrecida.
+        Este indicador permite comparar películas independientemente de su cantidad de funciones,
+        revelando cuáles son más eficientes en la generación de ingresos por butaca disponible.
+    </div>
+    {% endif %}
+
+    {% if ranking_dia_revenue %}
+    <div class="page-break"></div>
+    <h2>3. Análisis de Ingresos por Día de la Semana</h2>
+    <p style="font-size: 10pt; color: #333333; margin-bottom: 15px;">
+        Distribución de ingresos por día de la semana durante el período analizado.
+        El índice visual facilita la identificación rápida de los días más rentables.
+    </p>
+    <table class="ranking-table">
+        <thead>
+            <tr>
+                <th style="width: 15%;">Día</th>
+                <th class="text-right" style="width: 12%;">Tickets</th>
+                <th class="text-right" style="width: 17%;">Ingreso</th>
+                <th class="text-right" style="width: 15%;">Precio Prom.</th>
+                <th class="text-right" style="width: 13%;">% del Total</th>
+                <th class="text-right" style="width: 12%;">Índice</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dia in ranking_dia_revenue %}
+            <tr>
+                <td><strong>{{ dia.dia_nombre }}</strong></td>
+                <td class="text-right">{{ dia.total_tickets }}</td>
+                <td class="text-right">${{ dia.revenue_total|floatformat:2 }}</td>
+                <td class="text-right">${{ dia.precio_promedio|floatformat:2 }}</td>
+                <td class="text-right">{{ dia.porcentaje_revenue_total|floatformat:1 }}%</td>
+                <td class="text-right" style="font-weight: 700; font-size: 10pt;">
+                    {{ dia.indice|floatformat:1 }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="nota">
+        El índice visual representa el porcentaje que cada día aporta al total de ingresos del período.
+        Los días con mayor índice son los de mayor rentabilidad y deberían priorizarse en la programación.
+    </div>
+    {% endif %}
+
+    {% if peliculas %}
+    <div class="page-break"></div>
+    <h2>4. Eficiencia de Promociones</h2>
+    <p style="font-size: 10pt; color: #333333; margin-bottom: 15px;">
+        Comparativa entre ingresos a precio completo versus descuentos aplicados.
+        Este análisis permite evaluar la dependencia de promociones y la efectividad de la estrategia de precios.
+    </p>
+    <table class="ranking-table">
+        <thead>
+            <tr>
+                <th style="width: 38%;">Película</th>
+                <th class="text-right" style="width: 16%;">Precio Completo</th>
+                <th class="text-right" style="width: 15%;">Descuentos</th>
+                <th class="text-right" style="width: 16%;">Total</th>
+                <th class="text-right" style="width: 14%;">% Descuentos</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for pelicula in peliculas %}
+            <tr>
+                <td>{{ pelicula.titulo|truncatechars:35 }}</td>
+                <td class="text-right" style="font-weight: 600;">${{ pelicula.full|floatformat:2 }}</td>
+                <td class="text-right" style="font-weight: 600;">${{ pelicula.promo|floatformat:2 }}</td>
+                <td class="text-right" style="font-weight: 700;">${{ pelicula.total|floatformat:2 }}</td>
+                <td class="text-right">
+                    {% widthratio pelicula.promo pelicula.full 100 as porcentaje_promo %}
+                    <strong>{{ porcentaje_promo }}%</strong>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="nota">
+        <strong>Interpretación:</strong> Un porcentaje alto de descuentos (&gt;50%) indica mayor dependencia de promociones.
+        Las películas con menor porcentaje de descuentos son más eficientes en generación de ingresos a precio completo,
+        lo que sugiere mayor demanda natural sin necesidad de incentivos económicos.
+    </div>
+    {% endif %}
+
+    <div style="margin-top: 30px; text-align: center; font-size: 8pt; color: #999999; border-top: 1px solid #cccccc; padding-top: 10px;">
+        Fin del Reporte Financiero - Documento de Uso Interno
     </div>
 
-    <div id="footerContent">
-        Pág <pdf:pagenumber/> de <pdf:pagecount/>
+    <!-- PIE DE PÁGINA CON NUMERACIÓN -->
+    <div id="footer-content">
+        Pág. <pdf:pagenumber/> de <pdf:pagecount/>
     </div>
 
 </body>

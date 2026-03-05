@@ -47,16 +47,130 @@
 
     /* --- Estilos para la info de la tarjeta --- */
     .info-label {
-        font-size: 0.8rem; 
+        font-size: 0.7rem; 
         color: var(--text-secondary, #aaa); 
-        margin-bottom: 4px;
+        margin-bottom: 2px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
+        font-weight: 500;
     }
     .info-value {
-        font-size: 0.9rem; /* Ligeramente más pequeño para el grid */
+        font-size: 0.85rem; 
         color: var(--text-light, #fff); 
         font-weight: 600;
+        line-height: 1.3;
+    }
+
+    /* --- BADGES ESTILIZADOS (Nuevo) --- */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.3rem 0.7rem;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        white-space: nowrap;
+        transition: all 0.2s ease;
+    }
+    
+    .badge-genre {
+        background: rgba(74, 144, 226, 0.15);
+        border: 1px solid rgba(74, 144, 226, 0.4);
+        color: #4a90e2;
+    }
+    
+    .badge-classification {
+        background: rgba(255, 193, 7, 0.15);
+        border: 1px solid rgba(255, 193, 7, 0.4);
+        color: #ffc107;
+    }
+    
+    .badge-format {
+        background: rgba(155, 89, 182, 0.15);
+        border: 1px solid rgba(155, 89, 182, 0.4);
+        color: #9b59b6;
+    }
+    
+    .badge-language {
+        background: rgba(46, 213, 115, 0.15);
+        border: 1px solid rgba(46, 213, 115, 0.4);
+        color: #2ed573;
+    }
+
+    /* --- GRID DE HORARIOS --- */
+    .horarios-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-xs);
+    }
+
+    /* --- BOTONES DE HORARIOS CON EFECTO NEÓN VIOLETA --- */
+    .horario-btn {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.6rem 1.2rem;
+        background: rgba(26, 11, 46, 0.6);
+        border: 2px solid rgba(155, 89, 182, 0.3);
+        border-radius: 10px;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
+        min-width: 80px;
+    }
+    
+    .horario-btn::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, rgba(119, 19, 92, 0.2), rgba(155, 89, 182, 0.2));
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .horario-btn:hover {
+        transform: translateY(-4px);
+        border-color: #77135c;
+        box-shadow: 
+            0 0 20px rgba(119, 19, 92, 0.5),
+            0 0 40px rgba(119, 19, 92, 0.3),
+            0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+    
+    .horario-btn:hover::before {
+        opacity: 1;
+    }
+    
+    .horario-btn:active {
+        transform: translateY(-2px) scale(0.98);
+    }
+    
+    .horario-hora {
+        position: relative;
+        z-index: 1;
+        font-weight: 700;
+        font-size: 1.1rem;
+        color: #fff;
+        line-height: 1;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* --- EFECTO HOVER EN TARJETAS (Mejorado) --- */
+    .pelicula-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    .pelicula-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 
+            0 20px 40px rgba(155, 89, 182, 0.3),
+            0 0 0 1px rgba(155, 89, 182, 0.2);
     }
 
     /* --- Estilos para días de la semana (minimalista) --- */
@@ -73,8 +187,8 @@
         background: rgba(155, 89, 182, 0.05);
     }
     .dia-item:hover {
-        background: rgba(155, 89, 182, 0.15);
-        border-color: var(--accent);
+        background: rgba(74, 13, 98, 0.15);
+        border-color: rgb(70, 9, 85);
     }
     .dia-item.activo {
         background: linear-gradient(135deg, var(--accent), rgba(155, 89, 182, 0.8));
@@ -120,3 +234,899 @@
     .dia-item.activo .dia-hoy {
         color: white;
     }
+
+    /* --- Botones de navegación del carrusel de fechas --- */
+    .carousel-nav-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(155, 89, 182, 0.2);
+        border: 2px solid rgba(155, 89, 182, 0.3);
+        color: var(--accent);
+        font-size: 1.5rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+    }
+    
+    .carousel-nav-btn:hover {
+        background: rgba(155, 89, 182, 0.4);
+        border-color: var(--accent);
+        transform: scale(1.1);
+        box-shadow: 0 0 15px rgba(155, 89, 182, 0.4);
+    }
+    
+    .carousel-nav-btn:active {
+        transform: scale(0.95);
+    }
+
+    /* Animación para spinner de carga */
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+   
+   /* --- ESTILOS PARA FUNCIONES EN PREVENTA --- */
+   .horario-preventa {
+       background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(118, 75, 162, 0.2));
+       border: 2px solid rgba(102, 126, 234, 0.4);
+       position: relative;
+       overflow: hidden;
+   }
+   
+   .horario-preventa::before {
+       background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
+       opacity: 1;
+   }
+   
+   .horario-preventa::after {
+       content: '';
+       position: absolute;
+       top: -50%;
+       left: -50%;
+       width: 200%;
+       height: 200%;
+       background: linear-gradient(
+           45deg,
+           transparent,
+           rgba(102, 126, 234, 0.15),
+           transparent
+       );
+       transform: rotate(45deg);
+       animation: shine-preventa 3s infinite;
+   }
+   
+   @keyframes shine-preventa {
+       0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+       100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+   }
+   
+   .horario-preventa:hover {
+       border-color: #667eea;
+       box-shadow: 
+           0 0 20px rgba(102, 126, 234, 0.6),
+           0 0 40px rgba(102, 126, 234, 0.4),
+           0 8px 16px rgba(0, 0, 0, 0.3);
+   }
+   
+   .preventa-indicator {
+       font-size: 0.8rem;
+       margin-left: 0.3rem;
+       animation: twinkle 1.5s infinite;
+   }
+   
+   @keyframes twinkle {
+       0%, 100% { opacity: 1; }
+       50% { opacity: 0.5; }
+   }
+
+/* ===================================================================
+   SECCIÓN DESTACADOS: Promociones y Películas Más Vistas
+   =================================================================== */
+
+/* Banner de Promociones con Glassmorphism y Neon */
+.promociones-banner {
+    background: linear-gradient(
+        135deg,
+        rgba(102, 126, 234, 0.15),
+        rgba(118, 75, 162, 0.15)
+    );
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 2px solid rgba(155, 89, 182, 0.3);
+    border-radius: 20px;
+    padding: var(--space-lg);
+    margin-bottom: var(--space-lg);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(155, 89, 182, 0.2);
+    position: relative;
+    overflow: hidden;
+    
+}
+
+/* Animación de brillo del banner */
+@keyframes banner-glow {
+    0%, 100% {
+        box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.3),
+            0 0 20px rgba(155, 89, 182, 0.2);
+        border-color: rgba(155, 89, 182, 0.3);
+    }
+    50% {
+        box-shadow: 
+            0 8px 32px rgba(0, 0, 0, 0.3),
+            0 0 40px rgba(155, 89, 182, 0.5),
+            0 0 60px rgba(102, 126, 234, 0.3);
+        border-color: rgba(155, 89, 182, 0.6);
+    }
+}
+
+.promociones-banner::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        135deg,
+        rgba(102, 126, 234, 0.1),
+        transparent,
+        rgba(118, 75, 162, 0.1)
+    );
+    pointer-events: none;
+    
+}
+
+@keyframes gradient-wave {
+    0%, 100% {
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.02);
+    }
+}
+
+/* Partículas brillantes flotantes */
+.promociones-banner::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    background-image: 
+        radial-gradient(circle, rgba(255, 255, 255, 0.3) 1px, transparent 1px),
+        radial-gradient(circle, rgba(255, 255, 255, 0.2) 1px, transparent 1px);
+    background-size: 50px 50px, 80px 80px;
+    background-position: 0 0, 40px 60px;
+    opacity: 0.2;
+    
+    pointer-events: none;
+}
+
+@keyframes particles-float {
+    from {
+        background-position: 0 0, 40px 60px;
+    }
+    to {
+        background-position: 50px 50px, 90px 110px;
+    }
+}
+
+.banner-header {
+    position: relative;
+    z-index: 1;
+    margin-bottom: var(--space-md);
+    text-align: center;
+    animation: header-entrance 1s ease-out;
+}
+
+@keyframes header-entrance {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.banner-header h2 {
+    animation: title-shimmer 3s ease-in-out infinite;
+}
+
+@keyframes title-shimmer {
+    0%, 100% {
+        filter: brightness(1);
+    }
+    50% {
+        filter: brightness(1.2);
+    }
+}
+
+.promociones-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-md);
+    position: relative;
+    z-index: 1;
+}
+
+.promo-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: var(--space-md);
+    display: flex;
+    gap: var(--space-sm);
+    align-items: center;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+
+
+.promo-card:hover {
+    transform: translateY(-8px) scale(1.02);
+    border-color: rgba(155, 89, 182, 0.8);
+    box-shadow: 
+        0 12px 36px rgba(0, 0, 0, 0.5),
+        0 0 50px rgba(155, 89, 182, 0.5),
+        0 0 80px rgba(102, 126, 234, 0.3);
+    animation: none; /* Cancelar flotación en hover */
+}
+
+.promo-card:hover::before {
+    opacity: 1;
+}
+
+.promo-card:hover .promo-badge-mega {
+    transform: scale(1.1) rotate(2deg);
+    
+}
+
+.promo-icon {
+    font-size: 2.5rem;
+    flex-shrink: 0;
+    filter: drop-shadow(0 0 8px rgba(155, 89, 182, 0.6));
+    animation: icon-bounce 2s ease-in-out infinite;
+}
+
+@keyframes icon-bounce {
+    0%, 100% {
+        transform: translateY(0) scale(1);
+    }
+    50% {
+        transform: translateY(-5px) scale(1.05);
+    }
+}
+
+.promo-card:hover .promo-icon {
+    animation: icon-spin 0.6s ease-in-out;
+}
+
+@keyframes icon-spin {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(10deg) scale(1.2); }
+    100% { transform: rotate(0deg) scale(1); }
+}
+
+.promo-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.promo-titulo {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin: 0 0 0.3rem 0;
+    color: var(--text-light);
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.promo-descripcion {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0 0 0.5rem 0;
+    line-height: 1.4;
+}
+
+/* Información de días */
+.promo-dias {
+    font-size: 0.8rem;
+    color: rgba(255, 215, 0, 0.9);
+    margin: 0.5rem 0;
+    padding: 0.3rem 0.6rem;
+    background: rgba(255, 215, 0, 0.1);
+    border-left: 3px solid #ffd700;
+    border-radius: 4px;
+}
+
+.promo-dias strong {
+    color: #ffd700;
+    font-weight: 700;
+}
+
+/* ====================================================================
+   BADGE MEGA - SUPER LLAMATIVO Y ATRACTIVO
+   ==================================================================== */
+
+.promo-badge-wrapper {
+    margin-top: 0.8rem;
+    display: flex;
+    justify-content: center;
+}
+
+.promo-badge-mega {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    background: linear-gradient(135deg, #ff0080, #ff8c00, #ff0080);
+    background-size: 200% 200%;
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border-radius: 50px;
+    font-size: 1.8rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    box-shadow: 
+        0 6px 20px rgba(255, 0, 128, 0.6),
+        0 0 30px rgba(255, 140, 0, 0.4),
+        inset 0 0 20px rgba(255, 255, 255, 0.2);
+    position: relative;
+    overflow: visible; /* Cambio para permitir que sparkle salga del contenedor */
+    
+}
+
+
+
+.promo-badge-mega::after {
+    content: '';
+    position: absolute;
+    inset: 2px;
+    background: linear-gradient(135deg, rgba(255, 0, 128, 0.8), rgba(255, 140, 0, 0.8));
+    border-radius: 50px;
+    z-index: -1;
+}
+
+.badge-text {
+    font-size: 2.2rem;
+    font-weight: 900;
+    text-shadow: 
+        0 0 10px rgba(255, 255, 255, 0.8),
+        0 0 20px rgba(255, 255, 255, 0.6),
+        2px 2px 4px rgba(0, 0, 0, 0.5);
+    position: relative;
+    z-index: 1;
+}
+
+.badge-separator {
+    font-size: 1.5rem;
+    opacity: 0.9;
+    position: relative;
+    z-index: 1;
+}
+
+.badge-percentage {
+    font-size: 2.5rem;
+    font-weight: 900;
+    text-shadow: 
+        0 0 10px rgba(255, 255, 255, 0.8),
+        0 0 20px rgba(255, 255, 255, 0.6),
+        2px 2px 4px rgba(0, 0, 0, 0.5);
+    position: relative;
+    z-index: 1;
+}
+
+.badge-off {
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    position: relative;
+    z-index: 1;
+}
+
+.badge-money {
+    font-size: 2rem;
+    font-weight: 900;
+    text-shadow: 
+        0 0 10px rgba(255, 255, 255, 0.8),
+        0 0 20px rgba(255, 255, 255, 0.6),
+        2px 2px 4px rgba(0, 0, 0, 0.5);
+    position: relative;
+    z-index: 1;
+}
+
+.badge-sparkle {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 1.2rem;
+    animation: sparkle-rotate 3s ease-in-out infinite;
+    z-index: 2;
+}
+
+@keyframes sparkle-rotate {
+    0%, 100% {
+        transform: rotate(0deg) scale(1);
+        opacity: 1;
+    }
+    25% {
+        transform: rotate(-15deg) scale(1.2);
+        opacity: 0.8;
+    }
+    50% {
+        transform: rotate(15deg) scale(1);
+        opacity: 1;
+    }
+    75% {
+        transform: rotate(-15deg) scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+/* ====================================================================
+   LAYOUT HERO - PARA UNA SOLA PROMOCIÓN
+   ==================================================================== */
+
+.promo-single-giant {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: var(--space-xl) var(--space-lg);
+    gap: var(--space-xl);
+    max-width: 900px;
+    margin: 0 auto;
+    min-height: 240px;
+}
+
+/* Columna izquierda - Días y descripción */
+.promo-left-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    min-width: 300px;
+}
+
+/* Columna derecha - Badge gigante */
+.promo-right-section {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Días en la parte superior - MUY PROMINENTE */
+.promo-dias-hero {
+    margin-bottom: 0;
+}
+
+.dias-badge-giant {
+    display: inline-block;
+    background: linear-gradient(135deg, #ff0080, #ff8c00);
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    box-shadow: 
+        0 4px 15px rgba(255, 0, 128, 0.5),
+        0 0 25px rgba(255, 140, 0, 0.3);
+    animation: pulse-badge 2s ease-in-out infinite;
+    line-height: 1.4;
+}
+
+/* Badge hero gigante - EL PROTAGONISTA */
+.promo-badge-hero {
+    margin: 0;
+}
+
+.badge-hero-content {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    background: linear-gradient(135deg, #ff0080, #ff8c00, #40e0d0, #ff0080);
+    background-size: 300% 300%;
+    color: white;
+    padding: 1.8rem 3.5rem;
+    border-radius: 80px;
+    font-size: 5rem;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    box-shadow: 
+        0 12px 40px rgba(255, 0, 128, 0.7),
+        0 0 60px rgba(255, 140, 0, 0.5),
+        inset 0 0 40px rgba(255, 255, 255, 0.25);
+    position: relative;
+    animation: gradient-shift 4s ease infinite, glow-pulse 1.5s ease-in-out infinite;
+}
+
+.badge-hero-text,
+.badge-hero-percentage,
+.badge-hero-money {
+    font-size: 5rem;
+    font-weight: 900;
+    text-shadow: 
+        0 0 15px rgba(255, 255, 255, 0.8),
+        0 0 30px rgba(255, 255, 255, 0.6),
+        3px 3px 6px rgba(0, 0, 0, 0.5);
+    z-index: 1;
+}
+
+.badge-hero-separator {
+    font-size: 4rem;
+    margin: 0 0.2rem;
+    opacity: 0.9;
+}
+
+.badge-hero-off {
+    font-size: 2.5rem;
+    font-weight: 900;
+    letter-spacing: 2px;
+    opacity: 0.95;
+}
+
+.badge-sparkle-hero {
+    position: absolute;
+    top: -15px;
+    right: -15px;
+    font-size: 2.5rem;
+    animation: sparkle-rotate 3s ease-in-out infinite;
+    z-index: 2;
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.8));
+}
+
+/* Descripción hero - CLARA Y LEGIBLE */
+.promo-descripcion-hero {
+    text-align: left;
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.6;
+    margin-top: 0;
+    padding: 0;
+}
+
+
+/* Animaciones del badge */
+@keyframes gradient-shift {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+}
+
+@keyframes pulse-badge {
+    0%, 100% { 
+        transform: scale(1);
+    }
+    50% { 
+        transform: scale(1.05);
+    }
+}
+
+@keyframes glow-pulse {
+    0%, 100% {
+        box-shadow: 
+            0 6px 20px rgba(255, 0, 128, 0.6),
+            0 0 30px rgba(255, 140, 0, 0.4),
+            inset 0 0 20px rgba(255, 255, 255, 0.2);
+    }
+    50% {
+        box-shadow: 
+            0 8px 30px rgba(255, 0, 128, 0.9),
+            0 0 50px rgba(255, 140, 0, 0.7),
+            0 0 80px rgba(255, 0, 128, 0.5),
+            inset 0 0 30px rgba(255, 255, 255, 0.3);
+    }
+}
+
+@keyframes shine-badge {
+    0% { 
+        transform: rotate(45deg) translateX(-100%);
+    }
+    100% { 
+        transform: rotate(45deg) translateX(200%);
+    }
+}
+
+/* Animación sutil de flotación en las tarjetas */
+.promo-card {
+    animation: float-card 6s ease-in-out infinite;
+}
+
+.promo-card:nth-child(2) {
+    animation-delay: 2s;
+}
+
+.promo-card:nth-child(3) {
+    animation-delay: 4s;
+}
+
+@keyframes float-card {
+    0%, 100% { 
+        transform: translateY(0px);
+    }
+    50% { 
+        transform: translateY(-8px);
+    }
+}
+
+/* Badge original (más pequeño, para mantener compatibilidad) */
+.promo-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* Películas Destacadas - Estilo Minimalista Premium */
+.peliculas-destacadas {
+    margin-top: var(--space-xl);
+}
+
+.destacadas-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
+}
+
+.destacada-card {
+    position: relative;
+    border-radius: 16px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.destacada-card:hover {
+    transform: scale(1.05);
+    box-shadow: 
+        0 12px 40px rgba(0, 0, 0, 0.5),
+        0 0 40px rgba(155, 89, 182, 0.3);
+    border-color: rgba(155, 89, 182, 0.5);
+}
+
+.destacada-poster-wrapper {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 2/3;
+}
+
+.destacada-poster {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.destacada-card:hover .destacada-poster {
+    transform: scale(1.1);
+}
+
+.destacada-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        to bottom,
+        transparent 50%,
+        rgba(0, 0, 0, 0.9)
+    );
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: var(--space-md);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.destacada-card:hover .destacada-overlay {
+    opacity: 1;
+}
+
+.btn-comprar-destacado {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border-radius: 30px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    transition: all 0.3s ease;
+    display: inline-block;
+    transform: translateY(10px);
+}
+
+.destacada-card:hover .btn-comprar-destacado {
+    transform: translateY(0);
+}
+
+.btn-comprar-destacado:hover {
+    box-shadow: 0 12px 30px rgba(102, 126, 234, 0.6);
+    transform: scale(1.05) translateY(0);
+}
+
+.destacada-info {
+    padding: var(--space-sm);
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.destacada-titulo {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin: 0 0 0.3rem 0;
+    color: var(--text-light);
+    text-align: center;
+    line-height: 1.3;
+}
+
+.destacada-stats {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0;
+    text-align: center;
+}
+
+/* Responsividad para Móviles */
+@media (max-width: 768px) {
+    .promociones-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .destacadas-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-lg);
+    }
+    
+    .destacada-card {
+        max-width: 320px;
+        margin: 0 auto;
+    }
+    
+    .banner-header h2 {
+        font-size: 1.4rem !important;
+    }
+    
+    .promo-card {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .promo-icon {
+        font-size: 3rem;
+    }
+    
+    /* Badge mega responsivo */
+    .promo-badge-mega {
+        padding: 0.6rem 1.2rem;
+        font-size: 1.4rem;
+    }
+    
+    .badge-text {
+        font-size: 1.8rem;
+    }
+    
+    .badge-percentage {
+        font-size: 2rem;
+    }
+    
+    .badge-money {
+        font-size: 1.6rem;
+    }
+    
+    .badge-off {
+        font-size: 1rem;
+    }
+    
+    .badge-sparkle {
+        font-size: 1rem;
+        top: -6px;
+        right: -6px;
+    }
+    
+    /* Badge hero responsivo */
+    .promo-single-giant {
+        flex-direction: column;
+        align-items: center;
+        padding: var(--space-lg) var(--space-md);
+        min-height: auto;
+        max-width: 100%;
+    }
+    
+    .promo-left-section {
+        min-width: auto;
+        width: 100%;
+        text-align: center;
+    }
+    
+    .promo-right-section {
+        width: 100%;
+    }
+    
+    .dias-badge-giant {
+        padding: 0.6rem 1.2rem;
+        font-size: 0.95rem;
+        letter-spacing: 0.5px;
+    }
+    
+    .promo-descripcion-hero {
+        text-align: center;
+    }
+    
+    .badge-hero-content {
+        padding: 1.2rem 2.5rem;
+        font-size: 3rem;
+        border-radius: 60px;
+        gap: 0.5rem;
+    }
+    
+    .badge-hero-text,
+    .badge-hero-percentage,
+    .badge-hero-money {
+        font-size: 3rem;
+    }
+    
+    .badge-hero-separator {
+        font-size: 2.5rem;
+    }
+    
+    .badge-hero-off {
+        font-size: 1.6rem;
+    }
+    
+    .badge-sparkle-hero {
+        font-size: 1.8rem;
+        top: -10px;
+        right: -10px;
+    }
+    
+    .promo-descripcion-hero {
+        font-size: 1rem;
+        padding: 0 var(--space-md);
+    }
+}
+
+/* Glassmorphism Neon Variant */
+.glass-neon {
+    background: linear-gradient(
+        135deg,
+        rgba(102, 126, 234, 0.1),
+        rgba(118, 75, 162, 0.1)
+    );
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.25),
+        inset 0 0 40px rgba(155, 89, 182, 0.1);
+}

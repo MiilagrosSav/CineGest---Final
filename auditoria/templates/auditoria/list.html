@@ -1,5 +1,6 @@
 {% extends 'accounts/base.html' %}
 {% load static %}
+{% load auditoria_extras %}
 
 {% block title %}Auditoría{% endblock %}
 
@@ -62,9 +63,8 @@
                             <th style="padding: var(--space-sm);">Tipo</th>
                             <th style="padding: var(--space-sm);">Modelo</th>
                             <th style="padding: var(--space-sm);">Objeto</th>
-                            <th style="padding: var(--space-sm);">Usuario</th>
-                            <th style="padding: var(--space-sm);">Snapshot</th>
-                            <th style="padding: var(--space-sm); text-align: center; width: 80px;">Detalle</th>
+                            <th style="padding: var(--space-sm);">Usuario</th>                          
+                            <th style="padding: var(--space-sm);">Acciones</th>                   
                         </tr>
                     </thead>
                     <tbody>
@@ -85,18 +85,16 @@
                             <td style="padding: var(--space-sm); font-size: 0.9rem;">{{ entry.model_name }}</td>
                             <td style="padding: var(--space-sm); font-weight: 500; font-size: 0.9rem;">{{ entry.object_repr }}</td>
                             <td style="padding: var(--space-sm); font-size: 0.9rem;">{{ entry.history_user|default:"Sistema" }}</td>
-                            <td style="padding: var(--space-sm); max-width: 250px; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; opacity: 0.7; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                                {{ entry.snapshot|default:''|truncatechars:50 }}
-                            </td>
-                            
+
                             <td style="padding: var(--space-sm); text-align: center;">
-                                <a class="btn-icon" href="{% url 'auditoria:detail' entry.pk %}" title="Ver detalles">
-                                    👁️
+                                <a href="{% url 'auditoria:detail' entry.pk %}" class="btn-detail-modern">
+                                    <span>Revisar</span>
+                                    <i style="font-style: normal; margin-left: 5px;">→</i>
                                 </a>
                             </td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="7" style="padding: var(--space-lg); text-align: center; opacity: 0.7;">No hay registros que coincidan con tu búsqueda.</td></tr>
+                        <tr><td colspan="7" style="padding: var(--space-lg); text-align: center; opacity: 0.7;">No hay registros.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -192,6 +190,26 @@
     .tipo-c { background: rgba(78, 205, 196, 0.15); color: #4ecdc4; border-color: rgba(78, 205, 196, 0.3); }
     .tipo-u { background: rgba(255, 193, 7, 0.15); color: #ffc107; border-color: rgba(255, 193, 7, 0.3); }
     .tipo-d { background: rgba(255, 107, 107, 0.15); color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3); }
+    
+    /* --- Badges Booleanos --- */
+    .badge-boolean {
+        display: inline-block;
+        padding: 0.25rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .badge-true {
+        background: rgba(78, 205, 196, 0.25);
+        color: #4ecdc4;
+        border: 1px solid rgba(78, 205, 196, 0.4);
+    }
+    .badge-false {
+        background: rgba(255, 107, 107, 0.25);
+        color: #ff6b6b;
+        border: 1px solid rgba(255, 107, 107, 0.4);
+    }
 
     /* --- Botones --- */
     .btn-icon {
@@ -224,6 +242,30 @@
     .page-item.disabled .page-link { opacity: 0.4; cursor: not-allowed; background: transparent; border-color: var(--glass-border); }
     
     tbody tr:hover { background-color: rgba(255,255,255,0.03); }
+    
+                            
+                                .btn-detail-modern {
+                                    background: rgba(139, 92, 246, 0.1);
+                                    color: #8b5cf6;
+                                    border: 1px solid rgba(139, 92, 246, 0.3);
+                                    padding: 0.4rem 0.8rem;
+                                    border-radius: 8px;
+                                    text-decoration: none;
+                                    font-size: 0.75rem;
+                                    font-weight: 700;
+                                    text-transform: uppercase;
+                                    transition: all 0.3s ease;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 5px;
+                                }
+                                .btn-detail-modern:hover {
+                                    background: #8b5cf6;
+                                    color: white;
+                                    transform: translateY(-2px);
+                                    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+                                }
+                               
 
 </style>
 

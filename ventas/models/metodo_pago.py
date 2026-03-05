@@ -27,5 +27,11 @@ class MetodoPago(models.Model):
             models.UniqueConstraint(fields=['nombre'], name='UQ_metodo_pago_nombre')
         ]
     
+    def save(self, *args, **kwargs):
+        """Normalizar nombre del método de pago a Title Case"""
+        if self.nombre:
+            self.nombre = self.nombre.strip().title()
+        super().save(*args, **kwargs)
+    
     def __str__(self):
         return self.nombre

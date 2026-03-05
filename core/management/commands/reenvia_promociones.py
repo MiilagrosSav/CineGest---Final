@@ -4,6 +4,7 @@ from datetime import timedelta
 from core.services import notificacion_service
 from promociones.models.cuponGenerado import CuponGenerado
 from django.conf import settings
+from cine.models import ConfiguracionCine
 
 class Command(BaseCommand):
     help = 'Reenvía correos de oferta para cupones generados recientemente (por defecto últimos N horas).'
@@ -65,6 +66,13 @@ class Command(BaseCommand):
 
             link = f"{base}/promociones/activar/{token}"
 
+            # Obtener nombre del cine desde configuración
+            try:
+                config = ConfiguracionCine.load()
+                nombre_cine = config.nombre if config else 'CineGest'
+            except Exception:
+                nombre_cine = 'CineGest'
+
             # Construir contexto similar al servicio de notificaciones
             cupon_obj = SimpleNamespace(token=token)
             context = {
@@ -74,7 +82,7 @@ class Command(BaseCommand):
                 'cupon': cupon_obj,
                 'link': link,
                 'funcion': None,
-                'site_name': 'CineGest'
+                'site_name': nombre_cine
             }
 
             asunto = f"Oferta limitada: {promocion.nombre if promocion else 'Promoción'} — ¡aprovechá ahora!"

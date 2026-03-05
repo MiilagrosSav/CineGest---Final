@@ -36,7 +36,7 @@ class ActivacionPromocionTest(TestCase):
             from cine.models.pelicula import Pelicula
             from cine.models.sala import Sala
             # Crear sala sin pasar capacidad (es property calculada)
-            sala = Sala.objects.create(numero=1, nombre='Sala Test', activa=True)
+            sala = Sala.objects.create(numero=1, nombre='Sala Test', activo=True)
             pelicula = Pelicula.objects.create(
                 titulo='Test Movie',
                 duracion=90,

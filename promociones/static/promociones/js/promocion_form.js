@@ -4,6 +4,193 @@ document.addEventListener('DOMContentLoaded', function() {
     const valorInput = document.getElementById('id_valor_descuento');
     const helpText = document.getElementById('valor-help-text');
     
+    // ============================================
+    // VALIDACIÓN EN TIEMPO REAL (Feedback Visual)
+    // ============================================
+    
+    // Referencias a campos del formulario
+    const codigoInput = document.querySelector('input[name="codigo"]');
+    const nombreInput = document.querySelector('input[name="nombre"]');
+    const fechaInicioInput = document.querySelector('input[name="fecha_inicio"]');
+    const fechaFinInput = document.querySelector('input[name="fecha_fin"]');
+    const form = document.querySelector('form');
+    
+    // Función auxiliar para feedback visual
+    function setFieldStatus(input, isValid, errorMsg = '') {
+        if (!input) return;
+        
+        // Remover errores previos
+        const existingError = input.parentElement.querySelector('.form-error-realtime');
+        if (existingError) existingError.remove();
+        
+        if (isValid) {
+            input.style.borderColor = '#4ecdc4';
+            input.style.background = 'rgba(78, 205, 196, 0.1)';
+            input.setCustomValidity('');
+        } else {
+            input.style.borderColor = '#ff6b6b';
+            input.style.background = 'rgba(255, 107, 107, 0.1)';
+            input.setCustomValidity(errorMsg);
+            
+            // Agregar mensaje de error visual
+            if (errorMsg) {
+                const errorSpan = document.createElement('span');
+                errorSpan.className = 'form-error form-error-realtime';
+                errorSpan.textContent = '⚠️ ' + errorMsg;
+                errorSpan.style.marginTop = '0.4rem';
+                input.parentElement.appendChild(errorSpan);
+            }
+        }
+    }
+    
+    // Validación de código (no vacío, sin espacios)
+    if (codigoInput && !codigoInput.hasAttribute('readonly')) {
+        codigoInput.addEventListener('input', function() {
+            const value = this.value.trim();
+            
+            if (!value) {
+                setFieldStatus(this, false, 'El código es obligatorio');
+            } else if (value.includes(' ')) {
+                setFieldStatus(this, false, 'El código no puede contener espacios');
+            } else if (value.length < 3) {
+                setFieldStatus(this, false, 'El código debe tener al menos 3 caracteres');
+            } else {
+                setFieldStatus(this, true);
+            }
+        });
+    }
+    
+    // Validación de nombre (no vacío, longitud máxima)
+    if (nombreInput) {
+        nombreInput.addEventListener('input', function() {
+            const value = this.value.trim();
+            
+            if (!value) {
+                setFieldStatus(this, false, 'El nombre es obligatorio');
+            } else if (value.length > 200) {
+                setFieldStatus(this, false, 'El nombre no puede exceder 200 caracteres');
+            } else {
+                setFieldStatus(this, true);
+            }
+        });
+    }
+    
+    // Validación de fechas
+    function validarFechas() {
+        if (!fechaInicioInput || !fechaFinInput) return;
+        
+        const fechaInicio = fechaInicioInput.value ? new Date(fechaInicioInput.value) : null;
+        const fechaFin = fechaFinInput.value ? new Date(fechaFinInput.value) : null;
+        const hoy = new Date();
+        hoy.setHours(0, 0, 0, 0);
+        
+        // Validar fecha inicio
+        if (fechaInicio) {
+            if (fechaInicio < hoy && !fechaInicioInput.hasAttribute('readonly')) {
+                setFieldStatus(fechaInicioInput, false, 'La fecha de inicio no puede ser anterior a hoy');
+            } else {
+                setFieldStatus(fechaInicioInput, true);
+            }
+        }
+        
+        // Validar fecha fin
+        if (fechaFin && fechaInicio) {
+            if (fechaFin < fechaInicio) {
+                setFieldStatus(fechaFinInput, false, 'La fecha de fin no puede ser anterior a la fecha de inicio');
+            } else {
+                setFieldStatus(fechaFinInput, true);
+            }
+        } else if (fechaFin) {
+            setFieldStatus(fechaFinInput, true);
+        }
+    }
+    
+    if (fechaInicioInput) {
+        fechaInicioInput.addEventListener('change', validarFechas);
+    }
+    
+    if (fechaFinInput) {
+        fechaFinInput.addEventListener('change', validarFechas);
+    }
+    
+    // Validación de valor descuento
+    if (valorInput) {
+        valorInput.addEventListener('input', function() {
+            const tipo = tipoSelect ? tipoSelect.value : '';
+            const value = parseFloat(this.value);
+            
+            // ✅ FIX: No validar si es 2x1 (readonly)
+            if (tipo === '2X1') {
+                setFieldStatus(this, true);
+                return;
+            }
+            
+            if (!this.value || isNaN(value)) {
+                setFieldStatus(this, false, 'Ingrese un valor numérico válido');
+            } else if (tipo === 'PORCENTAJE' && (value < 0 || value > 100)) {
+                setFieldStatus(this, false, 'El porcentaje debe estar entre 0 y 100');
+            } else if (tipo === 'MONTO_FIJO' && value < 0) {
+                setFieldStatus(this, false, 'El monto no puede ser negativo');
+            } else {
+                setFieldStatus(this, true);
+            }
+        });
+    }
+    
+    // Validación al submit
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            let hasErrors = false;
+            
+            // Validar código
+            if (codigoInput && !codigoInput.hasAttribute('readonly')) {
+                const codigoValue = codigoInput.value.trim();
+                if (!codigoValue || codigoValue.length < 3 || codigoValue.includes(' ')) {
+                    hasErrors = true;
+                    codigoInput.focus();
+                }
+            }
+            
+            // Validar nombre
+            if (nombreInput && !nombreInput.value.trim()) {
+                hasErrors = true;
+                if (!hasErrors) nombreInput.focus();
+            }
+            
+            // Validar fechas
+            if (fechaInicioInput && fechaFinInput) {
+                const fechaInicio = new Date(fechaInicioInput.value);
+                const fechaFin = new Date(fechaFinInput.value);
+                
+                if (fechaFin < fechaInicio) {
+                    hasErrors = true;
+                    alert('❌ La fecha de fin no puede ser anterior a la fecha de inicio');
+                    fechaFinInput.focus();
+                    e.preventDefault();
+                    return false;
+                }
+            }
+            
+            // Validar valor descuento
+            const tipo = tipoSelect ? tipoSelect.value : '';
+            if (tipo !== '2X1' && valorInput) {
+                const value = parseFloat(valorInput.value);
+                if (isNaN(value) || (tipo === 'PORCENTAJE' && (value < 0 || value > 100))) {
+                    hasErrors = true;
+                    alert('❌ Revise el valor del descuento');
+                    valorInput.focus();
+                    e.preventDefault();
+                    return false;
+                }
+            }
+            
+            if (hasErrors) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+    
     // Controlar visibilidad del campo valor_descuento según tipo
     function actualizarCampoValor() {
         if (!tipoSelect || !valorGroup || !valorInput) return;
@@ -11,14 +198,33 @@ document.addEventListener('DOMContentLoaded', function() {
         const tipo = tipoSelect.value;
         
         if (tipo === '2X1') {
-            valorGroup.style.display = 'none';
-            valorInput.value = '';
-            valorInput.removeAttribute('required');
-        } else {
+            // ✅ FIX: Para 2x1, mostrar el campo pero con valor 50 y readonly
             valorGroup.style.display = 'block';
-            valorInput.setAttribute('required', 'required');
+            valorInput.value = '50';
+            valorInput.setAttribute('readonly', 'readonly');
+            valorInput.removeAttribute('required'); // No es necesario marcar required porque siempre tiene valor
+            valorInput.style.backgroundColor = 'rgba(255, 255, 255, 0.02)';
+            valorInput.style.cursor = 'not-allowed';
             
             if (helpText) {
+                helpText.textContent = '💡 2x1 equivale a 50% de descuento (se aplica automáticamente el segundo producto a mitad de precio)';
+                helpText.style.color = '#4ecdc4';
+            }
+        } else {
+            // Para otros tipos, habilitar el campo
+            valorGroup.style.display = 'block';
+            valorInput.removeAttribute('readonly');
+            valorInput.setAttribute('required', 'required');
+            valorInput.style.backgroundColor = '';
+            valorInput.style.cursor = '';
+            
+            // Limpiar el valor solo si venimos de 2x1
+            if (valorInput.value === '50') {
+                valorInput.value = '';
+            }
+            
+            if (helpText) {
+                helpText.style.color = '';
                 if (tipo === 'PORCENTAJE') {
                     helpText.textContent = '💡 Ingrese un porcentaje entre 0 y 100 (ej: 20 para 20% de descuento)';
                     valorInput.setAttribute('max', '100');

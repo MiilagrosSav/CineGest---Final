@@ -169,72 +169,230 @@
                     {% endif %}
                 </div>
 
-            </div> {% if user.is_authenticated and can_valorar_info and can_valorar_info|length > 0 %}
-            <div style="margin-top: 2.5rem; border-top: 1px solid var(--glass-border); padding-top: 2rem;">
-                {% for info in can_valorar_info %}
+            </div>
+            </div>
 
-                    <div class="modal fade" id="modalCalificar-{{ info.funcion.id }}" tabindex="-1" aria-hidden="true">
-                        <div class="modal-dialog modal-dialog-centered">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Calificar {{ info.funcion.pelicula.titulo }}</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        <div class="card-footer" style="padding: var(--space-lg); border-top: 1px solid var(--glass-border);">
+            
+            {# Sección de Intercambio #}
+            <div style="margin-bottom: var(--space-lg);">
+                {% if venta.estado == 'PENDIENTE' %}
+                    <div style="text-align: center;">
+                        <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary">
+                            💳 Pagar Ahora
+                        </a>
+                    </div>
+                    
+                {% elif venta.tipo_venta == 'PRESENCIAL' %}
+                    <p style="opacity: 0.7; margin: 0; padding: 0.5rem 1rem; text-align: center;">
+                        ℹ️ Venta procesada en boletería.
+                    </p>
+                    
+                {% else %}
+                    {# Botón de intercambio y mensaje de error mejorado #}
+                    {% if puede_intercambiar %}
+                        <div style="text-align: center;">
+                            <a href="{% url 'cine:cartelera' %}?intercambio_for={{ venta.id_venta }}" 
+                               class="btn btn-secondary" 
+                               style="background:#6c757d; border-color:#6c757d; color:white; padding: 0.75rem 2rem; font-size: 1rem;">
+                                🔁 Intercambiar Entrada
+                            </a>
+                        </div>
+                    {% else %}
+                        {# Mensaje de error glassmorphism mejorado #}
+                        <div id="mensaje-intercambio-bloqueado" class="mensaje-intercambio-bloqueado" style="
+                            background: linear-gradient(135deg, rgba(255, 75, 43, 0.08) 0%, rgba(255, 139, 102, 0.05) 100%);
+                            backdrop-filter: blur(12px);
+                            -webkit-backdrop-filter: blur(12px);
+                            border: 2px solid rgba(255, 75, 43, 0.4);
+                            border-radius: 16px;
+                            padding: 1.5rem;
+                            margin-bottom: 1rem;
+                            box-shadow: 0 8px 32px 0 rgba(255, 75, 43, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.03);
+                            position: relative;
+                            overflow: hidden;
+                            animation: slideInDown 0.5s ease-out, pulse 2s ease-in-out infinite;
+                        ">
+                            {# Efecto de brillo superior #}
+                            <div style="
+                                position: absolute;
+                                top: 0;
+                                left: 0;
+                                right: 0;
+                                height: 2px;
+                                background: linear-gradient(90deg, transparent, #ff4b2b, #ff8b66, transparent);
+                                animation: shimmer 3s linear infinite;
+                            "></div>
+                            
+                            {# Contenido del mensaje #}
+                            <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                                {# Icono según el tipo #}
+                                <div style="flex-shrink: 0; font-size: 2.5rem; line-height: 1;">
+                                    {% if info_no_intercambio.tipo == 'error' %}
+                                        🚫
+                                    {% elif info_no_intercambio.tipo == 'warning' %}
+                                        ⚠️
+                                    {% else %}
+                                        ℹ️
+                                    {% endif %}
                                 </div>
-                                <div class="modal-body">
-                                    {% include 'valoraciones/modal_calificar.html' with funcion=info.funcion %}
+                                
+                                {# Texto del mensaje #}
+                                <div style="flex: 1;">
+                                    <h4 style="
+                                        margin: 0 0 0.75rem 0;
+                                        font-size: 1.2rem;
+                                        font-weight: 700;
+                                        color: #ff4b2b;
+                                        text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+                                    ">
+                                        {{ info_no_intercambio.titulo|default:'Intercambio no disponible' }}
+                                    </h4>
+                                    <p style="
+                                        margin: 0 0 1rem 0;
+                                        line-height: 1.6;
+                                        color: rgba(255, 255, 255, 0.95);
+                                        font-size: 0.95rem;
+                                    ">
+                                        {{ info_no_intercambio.mensaje|safe|default:'No es posible realizar el intercambio en este momento.' }}
+                                    </p>
+                                    
+                                    {# Botón Entendido #}
+                                    <button onclick="ocultarMensajeIntercambio()" class="btn-entendido" style="
+                                        background: linear-gradient(135deg, #ff4b2b 0%, #ff8b66 100%);
+                                        border: 1px solid rgba(255, 255, 255, 0.2);
+                                        color: white;
+                                        padding: 0.6rem 1.5rem;
+                                        border-radius: 8px;
+                                        font-weight: 600;
+                                        font-size: 0.9rem;
+                                        cursor: pointer;
+                                        transition: all 0.3s ease;
+                                        box-shadow: 0 4px 12px rgba(255, 75, 43, 0.3);
+                                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(255, 75, 43, 0.5)';" 
+                                       onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(255, 75, 43, 0.3)';">
+                                        ✓ Entendido
+                                    </button>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-            </div>
-
-        <div class="card-footer" style="padding: var(--space-lg); border-top: 1px solid var(--glass-border); display: flex; justify-content: center; gap: var(--space-md); flex-wrap: wrap;">
-            {% if venta.estado == 'PENDIENTE' %}
-                <a href="{% url 'ventas:iniciar_pago' venta.id_venta %}" class="btn btn-primary">
-                    💳 Pagar Ahora
-                </a>
-            {% elif venta.tipo_venta == 'PRESENCIAL' %}
-                <p style="opacity: 0.7; margin: 0; padding: 0.5rem 1rem; text-align: center;">
-                    ℹ️ Venta procesada en boletería.
-                </p>
-            {% else %}
-                {% if puede_intercambiar %}
-                    <a href="{% url 'cine:cartelera' %}?intercambio_for={{ venta.id_venta }}" class="btn btn-secondary" style="background:#6c757d; border-color:#6c757d; color:white;">
-                        🔁 Intercambiar Entrada
-                    </a>
-                {% else %}
-                    <button class="btn btn-secondary" style="background:#6c757d; border-color:#6c757d; color:white; opacity:0.6; cursor:not-allowed;" title="{{ motivo_no_intercambio|default:'Intercambio no disponible' }}" disabled>
-                        🔁 Intercambiar Entrada
-                    </button>
-                    {% if motivo_no_intercambio %}
-                    <div style="font-size: 0.85rem; color: var(--text-secondary); text-align: center; margin-top: 0.5rem; padding: 0.5rem;">
-                        ℹ️ {{ motivo_no_intercambio }}
-                    </div>
+                        
+                        {# Botón de intercambio deshabilitado (se oculta al hacer click en Entendido) #}
+                        <div id="boton-intercambio-disabled" style="text-align: center; opacity: 0.5;">
+                            <button class="btn btn-secondary" style="
+                                background:#6c757d; 
+                                border-color:#6c757d; 
+                                color:white; 
+                                cursor:not-allowed;
+                                padding: 0.75rem 2rem;
+                                font-size: 1rem;
+                            " disabled>
+                                🔁 Intercambiar Entrada
+                            </button>
+                        </div>
                     {% endif %}
                 {% endif %}
-            {% endif %}
+            </div>
             
-            {% if user.rol == 'empleado' %}
-                {% if venta.tipo_venta == 'PRESENCIAL' %}
-                    <a href="{% url 'ventas:dashboard_presencial' %}" class="btn btn-outline">
-                        ← Volver a Boletería
-                    </a>
+            {# Botones de navegación #}
+            <div style="display: flex; justify-content: center; gap: var(--space-md); flex-wrap: wrap; padding-top: var(--space-md); border-top: 1px solid rgba(255,255,255,0.1);">
+                {% if user.rol == 'empleado' %}
+                    {% if venta.tipo_venta == 'PRESENCIAL' %}
+                        <a href="{% url 'ventas:dashboard_presencial' %}" class="btn btn-outline">
+                            ← Volver a Boletería
+                        </a>
+                    {% else %}
+                        <a href="{% url 'ventas:buscar_cliente' %}" class="btn btn-outline">
+                            ← Volver a Búsqueda
+                        </a>
+                    {% endif %}
                 {% else %}
-                    <a href="{% url 'ventas:buscar_cliente' %}" class="btn btn-outline">
-                        ← Volver a Búsqueda
+                    <a href="{% url 'ventas:mis_ventas' %}" class="btn btn-outline">
+                        Volver
                     </a>
                 {% endif %}
-            {% else %}
-                <a href="{% url 'ventas:mis_ventas' %}" class="btn btn-outline">
-                    Volver
-                </a>
-            {% endif %}
+            </div>
         </div>
 
     </div>
 </div>
+
+{# Estilos CSS para animaciones #}
+<style>
+    @keyframes slideInDown {
+        from {
+            opacity: 0;
+            transform: translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes pulse {
+        0%, 100% {
+            box-shadow: 0 8px 32px 0 rgba(255, 75, 43, 0.15), inset 0 0 20px rgba(255, 255, 255, 0.03);
+        }
+        50% {
+            box-shadow: 0 8px 32px 0 rgba(255, 75, 43, 0.25), inset 0 0 20px rgba(255, 255, 255, 0.05);
+        }
+    }
+    
+    @keyframes shimmer {
+        0% {
+            transform: translateX(-100%);
+        }
+        100% {
+            transform: translateX(100%);
+        }
+    }
+    
+    .mensaje-intercambio-bloqueado {
+        position: relative;
+    }
+    
+    .btn-entendido:active {
+        transform: scale(0.98) !important;
+    }
+</style>
+
+{# JavaScript para ocultar mensaje #}
+<script>
+    function ocultarMensajeIntercambio() {
+        const mensaje = document.getElementById('mensaje-intercambio-bloqueado');
+        const boton = document.getElementById('boton-intercambio-disabled');
+        
+        if (mensaje) {
+            // Animación de salida
+            mensaje.style.animation = 'fadeOut 0.3s ease-out';
+            mensaje.style.opacity = '0';
+            mensaje.style.transform = 'scale(0.95)';
+            
+            setTimeout(() => {
+                mensaje.style.display = 'none';
+                if (boton) {
+                    boton.style.display = 'none';
+                }
+            }, 300);
+        }
+    }
+    
+    // Animación de fadeOut
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+                transform: scale(1);
+            }
+            to {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+        }
+    `;
+    document.head.appendChild(style);
+</script>
 
 {% endblock %}

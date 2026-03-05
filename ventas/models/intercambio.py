@@ -79,13 +79,6 @@ class Intercambio(models.Model):
         verbose_name='Cantidad de Entradas Intercambiadas',
         help_text='Número de entradas que se intercambiaron'
     )
-    penalidad_aplicada = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0.00,
-        verbose_name='Penalidad Aplicada',
-        help_text='Monto de penalidad cobrado (si aplica)'
-    )
     notas = models.TextField(
         blank=True,
         default='',
@@ -98,16 +91,9 @@ class Intercambio(models.Model):
         verbose_name='Email del Usuario',
         help_text='Email del cliente que realizó el intercambio'
     )
-    ip_address = models.GenericIPAddressField(
-        null=True,
-        blank=True,
-        verbose_name='Dirección IP'
-    )
-    user_agent = models.TextField(
-        blank=True,
-        default='',
-        verbose_name='User Agent'
-    )
+    
+    # Nota: IP y User-Agent se capturan automáticamente en HistoricalIntercambio
+    # mediante django-simple-history con HistoryRequestMiddleware habilitado
     
     class Meta:
         db_table = 'ventas_intercambio'
@@ -144,7 +130,7 @@ class Intercambio(models.Model):
             campos_bloqueados = [
                 'venta', 'funcion_origen', 'funcion_destino', 
                 'fecha_intercambio', 'cantidad_entradas', 
-                'penalidad_aplicada', 'usuario_email'
+                'usuario_email'
             ]
             
             for campo in campos_bloqueados:

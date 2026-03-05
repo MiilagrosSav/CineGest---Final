@@ -61,10 +61,13 @@
                     </div>
                 </div>
                 
-                <details style="background: rgba(0, 0, 0, 0.2); padding: 1rem; border-radius: 8px; border: 1px solid var(--glass-border);">
-                    <summary style="cursor: pointer; font-weight: 600; margin-bottom: 0.5rem;">📋 Ver Log Completo</summary>
-                    <pre id="logOutput" style="background: rgba(0, 0, 0, 0.3); padding: 1rem; border-radius: 6px; font-size: 0.8rem; color: var(--text-secondary); overflow-x: auto; max-height: 400px; overflow-y: auto; margin-top: 1rem;"></pre>
-                </details>
+                <!-- Mensaje amigable para el usuario -->
+                <div id="mensajeResultado" style="background: rgba(124, 58, 237, 0.1); padding: 1rem; border-radius: 8px; border: 1px solid rgba(124, 58, 237, 0.2); margin-top: 1rem;">
+                    <p style="margin: 0; color: var(--text-primary); font-size: 0.95rem; font-weight: 500;">
+                        <span id="mensajeTexto"></span>
+                    </p>
+                    <p id="detallesTexto" style="margin: 0.5rem 0 0 0; color: var(--text-secondary); font-size: 0.85rem; display: none;"></p>
+                </div>
             </div>
             
             <div id="errorVerificacion" style="display: none; padding: 1rem; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
@@ -226,10 +229,6 @@ document.addEventListener('DOMContentLoaded', function() {
             loadingDiv.style.display = 'none';
             
             if (data.success) {
-                // Limpiar mensajes anteriores
-                const oldInfoMsg = contenidoDiv.querySelector('.info-message');
-                if (oldInfoMsg) oldInfoMsg.remove();
-                
                 // Mostrar resultados
                 contenidoDiv.style.display = 'block';
                 document.getElementById('stat-politicas').textContent = data.politicas_activas;
@@ -237,15 +236,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('stat-ofertas').textContent = data.ofertas_activadas;
                 document.getElementById('stat-cupones').textContent = data.cupones_generados;
                 document.getElementById('stat-emails').textContent = data.emails_enviados;
-                document.getElementById('logOutput').textContent = data.output;
+                document.getElementById('mensajeTexto').textContent = data.mensaje || 'Verificación completada exitosamente.';
                 
-                // Mostrar mensaje informativo si no se generaron cupones
-                if (data.cupones_generados === 0) {
-                    const infoMsg = document.createElement('div');
-                    infoMsg.className = 'info-message';
-                    infoMsg.style.cssText = 'margin-top: 1rem; padding: 1rem; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 8px;';
-                    infoMsg.innerHTML = '<strong style="color: #3b82f6;">ℹ️ Información:</strong><p style="color: var(--text-secondary); margin-top: 0.5rem;">No se generaron cupones nuevos. Esto es normal si:<br>• No hay funciones con baja ocupación (&lt; 30%)<br>• Ya se enviaron cupones recientemente a los clientes<br>• Las funciones no cumplen las condiciones de las políticas activas</p>';
-                    contenidoDiv.appendChild(infoMsg);
+                // Mostrar detalles si existen
+                const detallesElement = document.getElementById('detallesTexto');
+                if (data.detalles) {
+                    // Convertir saltos de línea a <br> y escapar HTML
+                    const detallesHTML = data.detalles
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/\n/g, '<br>');
+                    detallesElement.innerHTML = detallesHTML;
+                    detallesElement.style.display = 'block';
+                } else {
+                    detallesElement.style.display = 'none';
                 }
             } else {
                 // Mostrar error

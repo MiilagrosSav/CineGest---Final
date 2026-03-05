@@ -1,10 +1,249 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Reporte de Ocupación - {{ configuracion_cine.nombre|default:'Sistema de Cine' }}{% endblock %}
+{% block title %}Dashboard Operativo - {{ configuracion_cine.nombre|default:'Sistema de Cine' }}{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'reportes/css/ocupacion.css' %}?v=1.0">
+    <link rel="stylesheet" href="{% static 'reportes/css/ocupacion.css' %}?v=2.0">
+    <!-- jQuery (requerido para DataTables) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        
+     
+
+        .glass-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .metric-box:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--neon-glow);
+            border-color: var(--primary);
+        }
+        .metric-box h4 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+            background: linear-gradient(135deg, #77135c, #a91b7a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .metric-box small {
+            opacity: 0.7;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Status colors */
+        .status-critico { color: #ff4d4d; border-color: rgba(255, 77, 77, 0.4); }
+        .status-critico h4 { background: linear-gradient(135deg, #ff4d4d, #c92a2a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .status-bajo { color: #ffc107; border-color: rgba(255, 193, 7, 0.4); }
+        .status-bajo h4 { background: linear-gradient(135deg, #ffc107, #ff9800); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .status-normal { color: #17a2b8; border-color: rgba(23, 162, 184, 0.4); }
+        .status-normal h4 { background: linear-gradient(135deg, #17a2b8, #0d7fa3); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .status-bueno { color: #28a745; border-color: rgba(40, 167, 69, 0.4); }
+        .status-bueno h4 { background: linear-gradient(135deg, #28a745, #20c997); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        /* Badges */
+        .badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge.bg-excelente { background: linear-gradient(135deg, #28a745, #20c997) !important; }
+        .badge.bg-bueno { background: linear-gradient(135deg, #17a2b8, #5dade2) !important; }
+        .badge.bg-regular { background: linear-gradient(135deg, #ffc107, #ff9800) !important; color: #000 !important; }
+        .badge.bg-malo { background: linear-gradient(135deg, #dc3545, #c92a2a) !important; }
+        
+        .badge.sala-bien { background: linear-gradient(135deg, #28a745, #20c997) !important; }
+        .badge.sala-moderada { background: linear-gradient(135deg, #ffc107, #ff9800) !important; color: #000 !important; }
+        .badge.sala-subutilizada { background: linear-gradient(135deg, #dc3545, #c92a2a) !important; }
+
+        /* DataTables styling */
+        .dataTables_wrapper {
+            color: var(--text-light);
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            color: var(--text-light) !important;
+            background: var(--glass-bg) !important;
+            border: 1px solid var(--glass-border) !important;
+            border-radius: 6px;
+            margin: 0 4px;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background: var(--primary-light) !important;
+            border-color: var(--primary) !important;
+            color: #fff !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background: var(--primary) !important;
+            border-color: var(--primary) !important;
+            color: #fff !important;
+        }
+        .dataTables_wrapper .dataTables_info {
+            color: var(--text-secondary);
+        }
+        .dataTables_wrapper .dataTables_filter input {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-light);
+            border-radius: 8px;
+            padding: 8px 12px;
+        }
+        .dataTables_wrapper .dataTables_length select {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-light);
+            border-radius: 8px;
+            padding: 6px 10px;
+        }
+
+        table.dataTable {
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+        table.dataTable thead th {
+            background: var(--primary-light);
+            border: 1px solid var(--primary);
+            color: var(--text-light);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            padding: 14px 12px;
+        }
+        table.dataTable tbody tr {
+            background: var(--glass-bg);
+            transition: all 0.2s ease;
+        }
+        table.dataTable tbody tr:hover {
+            background: var(--primary-light);
+            transform: scale(1.01);
+        }
+        table.dataTable tbody td {
+            border-top: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 12px;
+            color: var(--text-light);
+        }
+        table.dataTable tbody td:first-child {
+            border-left: 1px solid var(--glass-border);
+            border-radius: 8px 0 0 8px;
+        }
+        table.dataTable tbody td:last-child {
+            border-right: 1px solid var(--glass-border);
+            border-radius: 0 8px 8px 0;
+        }
+
+        /* Progress bar */
+        .progress-bar-container {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.5s ease;
+        }
+        .progress-bar-fill.excelente { background: linear-gradient(90deg, #28a745, #20c997); }
+        .progress-bar-fill.bueno { background: linear-gradient(90deg, #17a2b8, #5dade2); }
+        .progress-bar-fill.regular { background: linear-gradient(90deg, #ffc107, #ffdd57); }
+        .progress-bar-fill.malo { background: linear-gradient(90deg, #dc3545, #e74c3c); }
+
+        /* Alert list */
+        .alert-list {
+            list-style: none;
+            padding: 0;
+            margin: 1rem 0 0 0;
+        }
+        .alert-list li {
+            background: var(--glass-bg);
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid var(--primary);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+        .alert-list li:hover {
+            background: var(--primary-light);
+            transform: translateX(4px);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #a91b7a);
+            border: none;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            box-shadow: var(--neon-glow);
+            transform: translateY(-2px);
+        }
+
+        /* Section headers */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--primary);
+        }
+        .section-header i {
+            font-size: 1.8rem;
+            color: var(--primary);
+        }
+        .section-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .section-header p {
+            margin: 0;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        /* Chart container */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+
+        /* Spacing utilities */
+        .mb-lg { margin-bottom: 2rem; }
+        .mb-md { margin-bottom: 1.5rem; }
+
+    </style>
 {% endblock %}
 
 {% block content %}
@@ -66,78 +305,13 @@
         </div>
     </div>
 
-    <div class="analysis-row" style="margin-bottom: 2rem;">
-        
-        <div class="card glass-container" style="padding: var(--space-lg);">
-            <h3 style="margin-top:0;">🔥 Mapa de Calor (Franjas Horarias)</h3>
-            <p style="margin:0 0 var(--space-md) 0; opacity:0.7; font-size: 0.9rem;">Intensidad de ocupación según el momento del día</p>
-
-            <div style="overflow-x:auto;">
-                <table class="heatmap-table" style="width:100%; border-collapse: separate; border-spacing: 8px 10px;">
-                    <thead>
-                        <tr>
-                            <th style="text-align:left; padding:8px 12px; font-weight:700; color: var(--text-secondary);">Día \ Franja</th>
-                            <th style="text-align:center; padding:8px 12px; font-weight:700; color: var(--text-secondary);">Matiné</th>
-                            <th style="text-align:center; padding:8px 12px; font-weight:700; color: var(--text-secondary);">Tarde</th>
-                            <th style="text-align:center; padding:8px 12px; font-weight:700; color: var(--text-secondary);">Noche</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for pair in heatmap_rows %}
-                        <tr>
-                            <td style="padding:10px 12px; font-weight:600; color:var(--text-light);">{{ pair.0 }}</td>
-                            {% for pct in pair.1 %}
-                                {% if pct < 15 %}
-                                    <td class="heatcell heat-verylow" data-tooltip="Baja ocupación (< 15%)">{{ pct }}%</td>
-                                {% elif pct <= 50 %}
-                                    <td class="heatcell heat-mid" data-tooltip="Ocupación moderada (15% - 50%)">{{ pct }}%</td>
-                                {% else %}
-                                    <td class="heatcell heat-high" data-tooltip="Alta ocupación (> 50%)">{{ pct }}%</td>
-                                {% endif %}
-                            {% endfor %}
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <div style="margin-top:1rem; font-size:0.85rem; color:var(--text-secondary); display: flex; gap: 1.5rem; justify-content: center;">
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width:10px; height:10px; background: rgba(255,77,77,0.2); border-radius:2px;"></span> Baja
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width:10px; height:10px; background: rgba(255,193,7,0.18); border-radius:2px;"></span> Media
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="width:10px; height:10px; background: rgba(167,243,208,0.18); border-radius:2px;"></span> Alta
-                </div>
-            </div>
-        </div>
-
-        <div class="card glass-container" style="padding: var(--space-lg); text-align:center; position:relative;">
-            <h3 style="margin-top:0;">🎯 Conversión</h3>
-            <p style="margin:0 0 var(--space-md) 0; opacity:0.7; font-size: 0.9rem;">Eficacia de promociones</p>
-            
-            <div class="donut-wrap" style="width: 200px; height:200px; margin: 0 auto; position:relative;">
-                <canvas id="marketingDonut"></canvas>
-                <div class="donut-center" style="position:absolute; inset:0; display:flex; flex-direction: column; align-items:center; justify-content:center;">
-                    <div style="font-size:1.8rem; font-weight:800; color:var(--primary); line-height: 1;">{{ marketing.tasa_conversion }}%</div>
-                    <div style="font-size:0.8rem; opacity:0.6; text-transform: uppercase; letter-spacing: 1px;">Éxito</div>
-                </div>
-            </div>
-            
-            <div style="margin-top:1.5rem; font-size: 0.9rem; color: var(--text-light);">
-                <strong style="color: var(--primary);">{{ marketing.total_canjeados }}</strong> canjeados de <strong>{{ marketing.total_enviados }}</strong> enviados
-            </div>
-        </div>
-    </div>
 
     <div class="card glass-container">
         <div style="padding: var(--space-lg);">
             <h3 style="margin-bottom: var(--space-md);">📋 Detalle Semanal</h3>
             
             <div class="table-responsive">
-                <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                <table id="tablaDetalleSemanal" class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
                     <thead>
                         <tr style="border-bottom: 1px solid var(--glass-border);">
                             <th style="padding: var(--space-sm);">Día</th>
@@ -181,6 +355,354 @@
         </div>
     </div>
 
+
+    <!-- ============================= -->
+    <!-- RANKING PELÍCULAS PERFORMANCE -->
+    <!-- ============================= -->
+    <div class="card glass-container" style="margin-top: 2rem;">
+        <div style="padding: var(--space-lg);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+                <i class="bi bi-trophy-fill" style="font-size: 1.8rem; color: #FFD700;"></i>
+                <div>
+                    <h3 style="margin: 0;">🏆 Ranking de Películas por Rentabilidad</h3>
+                    <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Índice combinado: Ocupación (60%) + ingreso (40%)</p>
+                </div>
+            </div>
+
+            {% if ranking_peliculas %}
+
+            <div class="table-responsive">
+                <table id="tablaPeliculas" class="table table-striped" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Posición</th>
+                            <th>Película</th>
+                            <th>Ocupación</th>
+                            <th>Ingreso Total</th>
+                            <th>Índice Rentabilidad</th>
+                            <th>Rating</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for peli in ranking_peliculas %}
+                        <tr>
+                            <td style="font-weight: 700; font-size: 1.2rem; color: #77135c;">{{ forloop.counter }}</td>
+                            <td style="font-weight: 600;">{{ peli.titulo_pelicula }}</td>
+                            <td>{{ peli.ocupacion_promedio|floatformat:1 }}%</td>
+                            <td>${{ peli.revenue_total|floatformat:0 }}</td>
+                            <td>
+                                <span style="font-weight: 700;">{{ peli.indice_performance|floatformat:1 }}</span>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar-fill {{ peli.rating|lower }}" style="width: {{ peli.indice_performance }}%;"></div>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ peli.rating|lower }}">{{ peli.rating }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- RECOMENDACIONES DE PELÍCULAS (desde el PDF) -->
+            <div style="margin-top: 1.5rem;">
+                <div class="recomendacion">
+                    <div class="recomendacion-titulo" style="font-weight: bold; margin-bottom: 0.5rem; text-transform: uppercase;">Recomendaciones de Cartelera</div>
+                    <ul class="alert-list" style="margin-top: 0;">
+                        {% with mejor=ranking_peliculas.0 peor=ranking_peliculas|last %}
+                        {% if mejor.ocupacion_promedio >= 40 %}
+                        <li>🎬 La película "{{ mejor.titulo_pelicula }}" lidera con {{ mejor.ocupacion_promedio|floatformat:1 }}% de ocupación. Considere aumentar la cantidad de funciones programadas.</li>
+                        {% else %}
+                        <li>🎬 Ninguna película supera el 40% de ocupación. Se recomienda revisar la oferta de cartelera y considerar cambios en la programación.</li>
+                        {% endif %}
+
+                        {% if peor.ocupacion_promedio < 5 %}
+                        <li>⚠️ "{{ peor.titulo_pelicula }}" tiene ocupación crítica ({{ peor.ocupacion_promedio|floatformat:1 }}%). Evalúe retirarla o reducir drásticamente sus funciones.</li>
+                        {% elif peor.ocupacion_promedio < 15 %}
+                        <li>⚠️ "{{ peor.titulo_pelicula }}" presenta baja ocupación ({{ peor.ocupacion_promedio|floatformat:1 }}%). Considere reducir funciones o implementar promociones.</li>
+                        {% endif %}
+
+                        {% if ranking_peliculas|length > 3 %}
+                        <li>📊 Con {{ ranking_peliculas|length }} películas en cartelera, concéntrese en las 3-4 con mejor desempeño.</li>
+                        {% endif %}
+                        {% endwith %}
+                    </ul>
+                </div>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 3rem 1rem; opacity: 0.6;">
+                <i class="bi bi-film" style="font-size: 3rem; display: block; margin-bottom: 1rem;"></i>
+                <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">⚠️ No hay datos de películas</p>
+                <p style="font-size: 0.9rem;">No se registraron funciones de películas en el período seleccionado.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ============================= -->
+    <!-- RANKING HORARIOS POR DÍA      -->
+    <!-- ============================= -->
+    <div class="card glass-container" style="margin-top: 2rem; margin-bottom: 2rem;">
+        <div style="padding: var(--space-lg);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+                <i class="bi bi-clock-fill" style="font-size: 1.8rem; color: #17a2b8;"></i>
+                <div>
+                    <h3 style="margin: 0;">⏰ Análisis de Horarios por Día de la Semana</h3>
+                    <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Mejores y peores horarios de ocupación</p>
+                </div>
+            </div>
+
+            {% if ranking_horarios %}
+
+            <div class="table-responsive">
+                <table id="tablaHorarios" class="table table-striped" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Día</th>
+                            <th>Mejor Horario</th>
+                            <th>Peor Horario</th>
+                            <th>Ocupación (%)</th>
+                            <th>Asientos Libres (%)</th>
+                            <th>Recomendación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dia in ranking_horarios %}
+                        <tr>
+                            <td style="font-weight: 600;">{{ dia.dia_nombre }}</td>
+                            <td>
+                                <span style="background: rgba(40, 167, 69, 0.2); padding: 4px 10px; border-radius: 6px; font-weight: 600; color: #28a745;">
+                                    {{ dia.mejor_horario }}
+                                </span>
+                            </td>
+                            <td>
+                                <span style="background: rgba(220, 53, 69, 0.2); padding: 4px 10px; border-radius: 6px; font-weight: 600; color: #dc3545;">
+                                    {{ dia.peor_horario }}
+                                </span>
+                            </td>
+                            <td>
+                                <span style="font-weight: 600; color: #2c3e50;">
+                                    {{ dia.ocupacion_real|floatformat:1 }}%
+                                </span>
+                            </td>
+                            <td>
+                                <span style="font-weight: 700; color: {% if dia.asientos_libres > 70 %}#dc3545{% elif dia.asientos_libres > 50 %}#ffc107{% else %}#28a745{% endif %};">
+                                    {{ dia.asientos_libres|floatformat:1 }}%
+                                </span>
+                            </td>
+                            <td style="font-size: 0.9rem; font-style: italic; opacity: 0.9;">{{ dia.recomendacion }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 3rem 1rem; opacity: 0.6;">
+                <i class="bi bi-clock" style="font-size: 3rem; display: block; margin-bottom: 1rem;"></i>
+                <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">⚠️ No hay datos de horarios</p>
+                <p style="font-size: 0.9rem;">No se registraron funciones programadas en el período seleccionado.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ============================= -->
+    <!-- RANKING DE SALAS (desde el PDF) -->
+    <!-- ============================= -->
+    <div class="card glass-container" style="margin-top: 2rem; margin-bottom: 2rem;">
+        <div style="padding: var(--space-lg);">
+            <div class="section-header">
+                <i class="bi bi-door-open-fill"></i>
+                <div>
+                    <h3>🎦 Ranking de Salas por Aprovechamiento</h3>
+                    <p>Evaluación del uso de cada sala en el período</p>
+                </div>
+            </div>
+
+            {% if ranking_salas %}
+
+            <div class="table-responsive">
+                <table id="tablaSalas" class="table table-striped" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Pos.</th>
+                            <th>Sala</th>
+                            <th>Capacidad</th>
+                            <th>Funciones</th>
+                            <th>Butacas Ofrecidas</th>
+                            <th>Butacas Ocupadas</th>
+                            <th>% Ocupación</th>
+                            <th>Evaluación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sala in ranking_salas %}
+                        <tr>
+                            <td style="font-weight: 700;">{{ forloop.counter }}</td>
+                            <td style="font-weight: 600;">{{ sala.nombre }}</td>
+                            <td>{{ sala.capacidad_total }}</td>
+                            <td>{{ sala.total_funciones }}</td>
+                            <td>{{ sala.butacas_ofrecidas }}</td>
+                            <td>{{ sala.butacas_ocupadas }}</td>
+                            <td>
+                                <span style="font-weight: 700; 
+                                    {% if sala.ocupacion_promedio >= 40 %}color: #28a745;
+                                    {% elif sala.ocupacion_promedio >= 15 %}color: #ffc107;
+                                    {% else %}color: #dc3545;{% endif %}">
+                                    {{ sala.ocupacion_promedio|floatformat:1 }}%
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge 
+                                    {% if sala.ocupacion_promedio >= 40 %}sala-bien
+                                    {% elif sala.ocupacion_promedio >= 15 %}sala-moderada
+                                    {% else %}sala-subutilizada{% endif %}">
+                                    {{ sala.evaluacion }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- RECOMENDACIONES DE SALAS -->
+            <div style="margin-top: 1.5rem;">
+                <div class="recomendacion">
+                    <div class="recomendacion-titulo" style="font-weight: bold; margin-bottom: 0.5rem; text-transform: uppercase;">Recomendaciones de Uso de Salas</div>
+                    <ul class="alert-list" style="margin-top: 0;">
+                        {% with mejor=ranking_salas.0 peor=ranking_salas|last %}
+                        <li>🏆 {{ mejor.nombre }} es la sala mejor aprovechada con {{ mejor.ocupacion_promedio|floatformat:1 }}% de ocupación. Mantenga o aumente su programación.</li>
+                        
+                        {% if peor.ocupacion_promedio < 15 %}
+                        <li>⚠️ {{ peor.nombre }} está subutilizada ({{ peor.ocupacion_promedio|floatformat:1 }}%). Reduzca funciones o considere su cierre temporal.</li>
+                        {% elif peor.ocupacion_promedio < 30 %}
+                        <li>📉 {{ peor.nombre }} presenta aprovechamiento moderado-bajo ({{ peor.ocupacion_promedio|floatformat:1 }}%). Evalúe concentrar sus funciones en salas de mejor desempeño.</li>
+                        {% endif %}
+
+                        {% if ranking_salas|length > 2 %}
+                        <li>📊 Con {{ ranking_salas|length }} salas operativas, considere concentrar la programación en las {{ ranking_salas|length|add:"-1" }} salas de mejor desempeño.</li>
+                        {% endif %}
+                        {% endwith %}
+                    </ul>
+                </div>
+            </div>
+            {% else %}
+            <div style="text-align: center; padding: 3rem 1rem; opacity: 0.6;">
+                <i class="bi bi-door-closed" style="font-size: 3rem; display: block; margin-bottom: 1rem;"></i>
+                <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">⚠️ No hay datos de salas</p>
+                <p style="font-size: 0.9rem;">No se registraron funciones en salas durante el período seleccionado.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- ============================= -->
+    <!-- CONCLUSIONES Y ACCIONES (desde el PDF) -->
+    <!-- ============================= -->
+    <div class="card glass-container" style="margin-top: 2rem; margin-bottom: 2rem;">
+        <div style="padding: var(--space-lg);">
+            <div class="section-header">
+                <i class="bi bi-clipboard-check-fill"></i>
+                <div>
+                    <h3>📋 Conclusiones y Acciones Sugeridas</h3>
+                    <p>Análisis global del período</p>
+                </div>
+            </div>
+
+            {% if dashboard_alertas %}
+
+            <!-- Métricas generales -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+                <div class="metric-box">
+                    <small>Ocupación Global</small>
+                    <h4>{{ dashboard_alertas.ocupacion_global|floatformat:1 }}%</h4>
+                </div>
+                <div class="metric-box">
+                    <small>Funciones</small>
+                    <h4>{{ dashboard_alertas.total_funciones }}</h4>
+                </div>
+                <div class="metric-box">
+                    <small>Películas</small>
+                    <h4>{{ dashboard_alertas.total_peliculas }}</h4>
+                </div>
+                <div class="metric-box">
+                    <small>Ticket Promedio</small>
+                    <h4>${{ dashboard_alertas.ticket_promedio|floatformat:2 }}</h4>
+                </div>
+            </div>
+
+            <!-- Estado y acciones basadas en el nivel de alerta -->
+            <div class="recomendacion" style="margin-top: 0;">
+                <div class="recomendacion-titulo" style="font-size: 1.1rem; margin-bottom: 0.75rem;">
+                    Situación: 
+                    <span class="badge 
+                        {% if dashboard_alertas.status == 'CRITICO' %}bg-malo
+                        {% elif dashboard_alertas.status == 'BAJO' %}bg-regular
+                        {% elif dashboard_alertas.status == 'NORMAL' %}bg-bueno
+                        {% else %}bg-excelente{% endif %}">
+                        {{ dashboard_alertas.status }}
+                    </span>
+                </div>
+                <p style="margin-bottom: 1rem; opacity: 0.9;">
+                    {% if dashboard_alertas.status == 'CRITICO' %}
+                        Ocupación global inferior al 5%. Se requieren acciones inmediatas.
+                    {% elif dashboard_alertas.status == 'BAJO' %}
+                        Ocupación global entre 5% y 20%. Ajustes significativos necesarios.
+                    {% elif dashboard_alertas.status == 'NORMAL' %}
+                        Ocupación global entre 20% y 40%. Desempeño estándar con margen de mejora.
+                    {% else %}
+                        Ocupación global superior al 40%. Buen desempeño del complejo.
+                    {% endif %}
+                </p>
+
+                <div style="margin-top: 1rem;">
+                    <div class="recomendacion-titulo" style="margin-bottom: 0.5rem;">Acciones Recomendadas</div>
+                    <ul class="alert-list">
+                        {% if dashboard_alertas.status == 'CRITICO' %}
+                            <li>Reducir entre 40% y 60% la cantidad de funciones diarias.</li>
+                            <li>Lanzar promociones agresivas 2×1 en horarios de menor asistencia.</li>
+                            <li>Concentrar programación en las 1-2 películas con mejor desempeño.</li>
+                            <li>Suspender temporalmente las salas con ocupación inferior al 5%.</li>
+                            <li>Evaluar cierre temporal parcial (3-4 días por semana).</li>
+                        {% elif dashboard_alertas.status == 'BAJO' %}
+                            <li>Identificar los 2-3 horarios con menor asistencia y suspenderlos.</li>
+                            <li>Implementar descuentos de 30-40% en días de semana.</li>
+                            <li>Reducir cartelera a las 3 películas con mejor rendimiento.</li>
+                            <li>Aplicar promociones segmentadas (combos familia, descuentos estudiantes).</li>
+                            <li>Evaluar alianzas con empresas locales para venta corporativa.</li>
+                        {% elif dashboard_alertas.status == 'NORMAL' %}
+                            <li>Ajustar horarios de menor asistencia para concentrar demanda.</li>
+                            <li>Aplicar promociones segmentadas por día (descuentos puntuales).</li>
+                            <li>Incrementar funciones en las salas mejor aprovechadas.</li>
+                            <li>Implementar programa de fidelización para asistentes frecuentes.</li>
+                            <li>Evaluar estrategias de marketing digital para la cartelera.</li>
+                        {% else %}
+                            <li>Mantener programación actual, especialmente en franjas exitosas.</li>
+                            <li>Evaluar incrementar funciones en horarios con capacidad disponible.</li>
+                            <li>Considerar precios premium en horarios de mayor demanda.</li>
+                            <li>Expandir oferta de servicios complementarios (confitería, merchandising).</li>
+                            <li>Implementar programa VIP o membresías.</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+
+            <p style="margin-top: 1.5rem; font-size: 0.9rem; opacity: 0.7; font-style: italic;">
+                Este reporte debe complementarse con análisis de costos operativos y estrategias de marketing.
+                Revisar estos indicadores mensualmente para ajustar la programación de forma dinámica.
+            </p>
+            {% else %}
+            <div style="text-align: center; padding: 3rem 1rem; opacity: 0.6;">
+                <i class="bi bi-clipboard-x" style="font-size: 3rem; display: block; margin-bottom: 1rem;"></i>
+                <p style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">⚠️ No hay suficientes datos</p>
+                <p style="font-size: 0.9rem;">No se registraron datos suficientes para generar conclusiones en el período seleccionado.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -198,4 +720,88 @@
   };
 </script>
 <script src="{% static 'reportes/js/ocupacion.js' %}?v=1.1"></script>
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Configuración en español para DataTables
+        const spanishConfig = {
+            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+        };
+
+        // Tabla de Películas
+        if ($('#tablaPeliculas').length) {
+            const numRowsPeliculas = $('#tablaPeliculas tbody tr').length;
+            window.tablaPeliculasInstance = $('#tablaPeliculas').DataTable({
+                language: spanishConfig,
+                order: [[0, 'asc']], // Ordenar por posición
+                pageLength: 10,
+                responsive: true,
+                paging: numRowsPeliculas > 10, // Desactivar paginación si hay pocos registros
+                info: false, // Eliminar texto "Mostrando X de X registros"
+                dom: 'frtip'
+            });
+        }
+
+        // Tabla de Horarios - Con formateo de colores dinámico
+        if ($('#tablaHorarios').length) {
+            const numRowsHorarios = $('#tablaHorarios tbody tr').length;
+            window.tablaHorariosInstance = $('#tablaHorarios').DataTable({
+                language: spanishConfig,
+                order: [[4, 'desc']], // Ordenar por Asientos Libres (col 4) descendente
+                pageLength: 7,
+                responsive: true,
+                paging: numRowsHorarios > 7,
+                info: false,
+                dom: 'frtip',
+                columnDefs: [
+                    {
+                        // Columna 4: Asientos Libres - Aplicar formato de color dinámico
+                        targets: 4,
+                        createdCell: function(td, cellData, rowData, row, col) {
+                            const asientosLibres = parseFloat(cellData);
+                            let color = '#28a745'; // Verde por defecto (<50%)
+                            if (asientosLibres > 70) {
+                                color = '#dc3545'; // Rojo (ALERTA CRÍTICA)
+                            } else if (asientosLibres > 50) {
+                                color = '#ffc107'; // Amarillo
+                            }
+                            $(td).find('span').css('color', color);
+                        }
+                    }
+                ]
+            });
+        }
+
+        // Tabla de Salas
+        if ($('#tablaSalas').length) {
+            const numRowsSalas = $('#tablaSalas tbody tr').length;
+            window.tablaSalasInstance = $('#tablaSalas').DataTable({
+                language: spanishConfig,
+                order: [[0, 'asc']],
+                pageLength: 10,
+                responsive: true,
+                paging: numRowsSalas > 10,
+                info: false,
+                dom: 'frtip'
+            });
+        }
+
+        // Tabla de Detalle Semanal - Habilitar ordenamiento
+        if ($('#tablaDetalleSemanal').length) {
+            const numRowsDetalle = $('#tablaDetalleSemanal tbody tr').length;
+            window.tablaDetalleInstance = $('#tablaDetalleSemanal').DataTable({
+                language: spanishConfig,
+                order: [[0, 'asc']], // Ordenar por día
+                pageLength: 7,
+                responsive: true,
+                ordering: true, // Habilitar ordenamiento en headers
+                paging: numRowsDetalle > 7,
+                info: false,
+                dom: 'frtip'
+            });
+        }
+    });
+</script>
 {% endblock %}

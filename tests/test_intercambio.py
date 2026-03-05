@@ -101,7 +101,6 @@ class IntercambioIntegrationTest(TestCase):
             nombre='Política Test',
             activo=True,
             dias_antes_minimo=2,  # 2 días (48 horas) de anticipación
-            penalidad_percent=Decimal('0.00'),
             max_cambios_por_compra=2  # Permitir hasta 2 intercambios
         )
     
@@ -187,7 +186,6 @@ class IntercambioIntegrationTest(TestCase):
         self.assertEqual(intercambio.funcion_destino, self.funcion_destino)
         self.assertEqual(intercambio.estado, 'COMPLETADO')
         self.assertEqual(intercambio.cantidad_entradas, 2)
-        self.assertEqual(intercambio.penalidad_aplicada, Decimal('0.00'))
         
         # Verificar que venta sigue CONFIRMADA
         venta.refresh_from_db()

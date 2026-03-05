@@ -34,6 +34,7 @@ class EstadoVenta:
     PENDIENTE_PAGO = 'PENDIENTE_PAGO'
     CONFIRMADA = 'CONFIRMADA'
     CANCELADA = 'CANCELADA'
+    EXPIRADA = 'EXPIRADA'
     
     @classmethod
     def choices(cls):
@@ -42,6 +43,7 @@ class EstadoVenta:
             (cls.PENDIENTE_PAGO, 'Pendiente de Pago'),
             (cls.CONFIRMADA, 'Confirmada'),
             (cls.CANCELADA, 'Cancelada'),
+            (cls.EXPIRADA, 'Expirada'),
         ]
 
 

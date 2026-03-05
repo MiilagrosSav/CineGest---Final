@@ -23,6 +23,13 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
 
     logger.info(f'[PROMO] Calculando precio para Función {funcion.id} ({funcion.pelicula.titulo}), '
                 f'{cantidad_entradas} entradas, promo_especifica={promocion_especifica}')
+    logger.info(f'[PROMO] ====== INICIO DEBUG PROMOCIONES ======')
+    logger.info(f'[PROMO] Función ID: {funcion.id}')
+    logger.info(f'[PROMO] Película: {funcion.pelicula.titulo} (ID={funcion.pelicula.pk})')
+    logger.info(f'[PROMO] Fecha función: {funcion.fecha_hora}')
+    logger.info(f'[PROMO] Estado función: {funcion.estado}')
+    logger.info(f'[PROMO] Película activo: {funcion.pelicula.activo}')
+    logger.info(f'[PROMO] =======================================')
 
     precio_base = Decimal(funcion.precio_base)
     cantidad = int(cantidad_entradas)
@@ -81,53 +88,57 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
         return total_final, promo_aplicada, detalle
 
     # 2) Buscar promociones automáticas válidas para la función
-    from promociones.models.vinculo_promocional import VinculoPromocional
-    candidatos = list(Promocion.objects.filter(es_automatica=True))
-    logger.info(f'[PROMO] Evaluando {len(candidatos)} promociones automáticas')
+    # ✅ CORRECCIÓN: Filtrar por activo=True y fecha_baja__isnull=True explícitamente
+    # Aunque objects usa ActiveManager que filtra activo=True, agregamos fecha_baja por seguridad
+    candidatos = list(Promocion.objects.filter(
+        es_automatica=True,
+        activo=True,
+        fecha_baja__isnull=True
+    ))
+    logger.info(f'[PROMO] Evaluando {len(candidatos)} promociones automáticas activas')
     
     candidatos_validos = []
     for p in candidatos:
-        logger.debug(f'[PROMO] Evaluando {p.codigo}: vigencia {p.fecha_inicio} a {p.fecha_fin}, '
-                    f'días="{p.dias_semana}"')
+        logger.warning(f'🔍 [PROMO] ===== EVALUANDO PROMOCIÓN: {p.codigo} (ID={p.pk}) =====')
+        logger.warning(f'🔍 [PROMO] Nombre: {p.nombre}')
+        logger.warning(f'🔍 [PROMO] Tipo: {p.tipo_descuento} | Valor: {p.valor_descuento}')
+        logger.warning(f'🔍 [PROMO] Vigencia: {p.fecha_inicio} a {p.fecha_fin}')
+        logger.warning(f'🔍 [PROMO] Días semana: "{p.dias_semana}"')
+        logger.warning(f'🔍 [PROMO] Es automática: {p.es_automatica}')
+        logger.warning(f'🔍 [PROMO] Activo: {p.activo} | Fecha baja: {p.fecha_baja}')
         
-        # Primero validar reglas generales (fechas, días, género, estreno, acepta_promociones)
+        # ✅ Validar todas las reglas (fechas, días, género, formatos, vínculos, etc.)
+        # La función es_promocion_valida_para_funcion() ya incluye TODAS las validaciones
         if not es_promocion_valida_para_funcion(p, funcion):
-            logger.debug(f'[PROMO] {p.codigo} NO válida según reglas generales')
+            logger.warning(f'❌ [PROMO] {p.codigo} NO válida según reglas de validación')
             continue
 
-        # Si existen filas en VinculoPromocional para esta promoción, requerimos que
-        # la promoción esté vinculada explícitamente a la función o a la película.
-        tiene_vinculos = VinculoPromocional.objects.filter(promocion=p).exists()
-        if tiene_vinculos:
-            vinculada = VinculoPromocional.objects.filter(promocion=p).filter(models.Q(funcion=funcion) | models.Q(pelicula=funcion.pelicula)).exists()
-            if not vinculada:
-                # La promo existe pero no está vinculada a esta función/película
-                logger.debug(f'[PROMO] {p.codigo} tiene vínculos pero no está vinculada a esta función/película')
-                continue
-            logger.debug(f'[PROMO] {p.codigo} vinculada explícitamente')
-        else:
-            logger.debug(f'[PROMO] {p.codigo} sin vínculos, aplica a todas las funciones válidas')
-
         candidatos_validos.append(p)
-        logger.info(f'[PROMO] ✓ {p.codigo} es candidata válida')
+        logger.warning(f'✅ [PROMO] {p.codigo} es candidata VÁLIDA')
+        logger.warning(f'🔍 [PROMO] =================================================')
 
     if not candidatos_validos:
         # No hay promociones automáticas aplicables
-        logger.info(f'[PROMO] No hay promociones válidas. Precio regular: ${total_original}')
+        logger.warning(f'❌ [PROMO] No hay promociones válidas. Precio regular: ${total_original}')
+        logger.warning(f'🔍 [PROMO] ====== FIN DEBUG PROMOCIONES ======')
         detalle['descripcion'] = 'Precio regular'
         detalle['precio_unitario_final'] = precio_base
         return total_original, None, detalle
 
     # 3) Elegir la promoción que deje el total más bajo (mayor beneficio)
+    logger.warning(f'🔍 [PROMO] Eligiendo mejor promoción entre {len(candidatos_validos)} candidatas...')
     mejores = []
     for p in candidatos_validos:
         try:
             total_p = _total_con_promocion(p)
             mejores.append((total_p, p))
+            logger.warning(f'   - {p.codigo}: ${total_p} (ahorro: ${total_original - total_p})')
         except Exception:
             logger.exception('Error calculando total para promoción %s', getattr(p, 'pk', None))
 
     if not mejores:
+        logger.warning(f'❌ [PROMO] Error calculando promociones. Precio regular.')
+        logger.warning(f'🔍 [PROMO] ====== FIN DEBUG PROMOCIONES ======')
         detalle['descripcion'] = 'Precio regular'
         detalle['precio_unitario_final'] = precio_base
         return total_original, None, detalle
@@ -142,7 +153,9 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
     if detalle['tipo_aplicado'] == '2X1' and (cantidad % 2 != 0):
         detalle['aviso'] = 'Tenés 2x1: agregá una entrada más para aprovecharla al máximo.'
 
-    logger.info(f'[PROMO] ✓ Aplicando {promo_aplicada.codigo}: Total ${total_final}, Ahorro ${detalle["ahorro"]}')
+    logger.warning(f'✅ [PROMO] APLICANDO: {promo_aplicada.codigo} ({promo_aplicada.nombre})')
+    logger.warning(f'✅ [PROMO] Total: ${total_final} | Ahorro: ${detalle["ahorro"]}')
+    logger.warning(f'🔍 [PROMO] ====== FIN DEBUG PROMOCIONES ======')
     return total_final, promo_aplicada, detalle
 
     # Fin de calcular_precio_final
@@ -160,19 +173,29 @@ def es_promocion_valida_para_funcion(promocion, funcion) -> bool:
 
     try:
         if not promocion:
-            logger.debug(f'[VALIDACION] Promoción None, retornando False')
+            logger.warning(f'🔍 [VALIDACION] Promoción None, retornando False')
             return False
 
-        logger.debug(f'[VALIDACION] Validando {promocion.codigo} para función {funcion.id}')
+        logger.warning(f'🔍 [VALIDACION] ===== Validando {promocion.codigo} para función {funcion.id} =====')
 
-        # 1. Vigencia por fechas
-        hoy = timezone.localdate()
+        # 1. Vigencia por fechas - ✅ CORRECCIÓN CRÍTICA: Validar que la promoción esté vigente HOY
+        # La promoción debe estar activa el día de la COMPRA, no el día de la función
+        # Esto previene que promociones futuras se apliquen en preventas
+        fecha_hoy = timezone.now().date()
+        fecha_funcion = funcion.fecha_hora.date()
+        
         if promocion.fecha_inicio and promocion.fecha_fin:
-            en_rango = promocion.fecha_inicio <= hoy <= promocion.fecha_fin
-            logger.debug(f'[VALIDACION] Fechas: {promocion.fecha_inicio} <= {hoy} <= {promocion.fecha_fin} = {en_rango}')
-            if not en_rango:
-                logger.debug(f'[VALIDACION] ✗ {promocion.codigo} fuera de vigencia')
+            # Verificar vigencia HOY (día de la compra)
+            vigente_hoy = promocion.fecha_inicio <= fecha_hoy <= promocion.fecha_fin
+            logger.warning(f'🔍 [VALIDACION] Vigencia HOY: {promocion.fecha_inicio} <= {fecha_hoy} (hoy) <= {promocion.fecha_fin} = {vigente_hoy}')
+            
+            if not vigente_hoy:
+                logger.warning(f'❌ [VALIDACION] {promocion.codigo} NO vigente hoy ({fecha_hoy}). Inicia: {promocion.fecha_inicio}')
                 return False
+            
+            logger.warning(f'✅ [VALIDACION] Promoción vigente hoy')
+        else:
+            logger.warning(f'🔍 [VALIDACION] Sin restricción de fechas')
 
         # 2. VALIDACIÓN DE DÍAS (MEJORADA CON LOGS)
         # Obtenemos el día de la función (0=Lunes, 6=Domingo)
@@ -180,64 +203,131 @@ def es_promocion_valida_para_funcion(promocion, funcion) -> bool:
         dia_nombres = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
         
         dias_configurados = promocion.dias_semana
-        logger.debug(f'[VALIDACION] Día función: {dia_funcion} ({dia_nombres[dia_funcion]}), '
+        logger.warning(f'🔍 [VALIDACION] Día función: {dia_funcion} ({dia_nombres[dia_funcion]}), '
                     f'Días config: "{dias_configurados}" (tipo: {type(dias_configurados).__name__})')
         
         # Caso A: Es None o vacío -> Aplica todos los días
         if not dias_configurados:
-            logger.debug(f'[VALIDACION] Días vacíos, aplica todos los días')
+            logger.warning(f'🔍 [VALIDACION] Días vacíos, aplica todos los días')
             pass 
             
         # Caso B: Es una lista (comportamiento normal de MultiSelectField)
         elif isinstance(dias_configurados, list):
             # Convertimos todo a string para comparar seguro ('0' vs 0)
             dias_str = [str(d) for d in dias_configurados]
-            logger.debug(f'[VALIDACION] Días como lista: {dias_str}')
+            logger.warning(f'🔍 [VALIDACION] Días como lista: {dias_str}')
             if str(dia_funcion) not in dias_str:
-                logger.debug(f'[VALIDACION] ✗ Día {dia_funcion} no está en {dias_str}')
+                logger.warning(f'❌ [VALIDACION] Día {dia_funcion} no está en {dias_str}')
                 return False
                 
         # Caso C: Es un string (comportamiento legacy o raw)
         elif isinstance(dias_configurados, str):
             # Limpiamos y convertimos '0, 1' a ['0', '1']
             dias_str = [d.strip() for d in dias_configurados.split(',') if d.strip()]
-            logger.debug(f'[VALIDACION] Días como string parseado: {dias_str}')
+            logger.warning(f'🔍 [VALIDACION] Días como string parseado: {dias_str}')
             if dias_str and str(dia_funcion) not in dias_str:
-                logger.debug(f'[VALIDACION] ✗ Día {dia_funcion} no está en {dias_str}')
+                logger.warning(f'❌ [VALIDACION] Día {dia_funcion} no está en {dias_str}')
                 return False
         
-        logger.debug(f'[VALIDACION] ✓ Día {dia_funcion} válido')
+        logger.warning(f'✅ [VALIDACION] Día {dia_funcion} válido')
 
         # 3. Género requerido (Si aplica)
         if promocion.genero_requerido:
             # funcion.pelicula.generos es ManyToMany? O ForeignKey?
             # Ajusta según tu modelo exacto. Asumiendo ManyToMany:
             tiene_genero = funcion.pelicula.generos.filter(pk=promocion.genero_requerido.pk).exists()
-            logger.debug(f'[VALIDACION] Género requerido: {promocion.genero_requerido}, película tiene: {tiene_genero}')
+            logger.warning(f'🔍 [VALIDACION] Género requerido: {promocion.genero_requerido}, película tiene: {tiene_genero}')
             if not tiene_genero:
-                logger.debug(f'[VALIDACION] ✗ Género no coincide')
+                logger.warning(f'❌ [VALIDACION] Género no coincide')
                 return False
+        else:
+            logger.warning(f'🔍 [VALIDACION] Sin restricción de género')
 
         # 4. Estreno
         es_estreno = getattr(funcion.pelicula, 'es_estreno', False)
         if es_estreno:
-            logger.debug(f'[VALIDACION] Es estreno, aplica_en_estrenos={promocion.aplica_en_estrenos}')
+            logger.warning(f'🔍 [VALIDACION] Es estreno, aplica_en_estrenos={promocion.aplica_en_estrenos}')
             if not promocion.aplica_en_estrenos:
-                logger.debug(f'[VALIDACION] ✗ Es estreno y promo no aplica en estrenos')
+                logger.warning(f'❌ [VALIDACION] Es estreno y promo no aplica en estrenos')
                 return False
+        else:
+            logger.warning(f'🔍 [VALIDACION] No es estreno')
 
         # 5. La película debe aceptar promociones
         acepta_promos = getattr(funcion.pelicula, 'acepta_promociones', True)
-        logger.debug(f'[VALIDACION] Película acepta_promociones={acepta_promos}')
+        logger.warning(f'🔍 [VALIDACION] Película acepta_promociones={acepta_promos}')
         if not acepta_promos:
-            logger.debug(f'[VALIDACION] ✗ Película no acepta promociones')
+            logger.warning(f'❌ [VALIDACION] Película no acepta promociones')
             return False
 
-        logger.debug(f'[VALIDACION] ✓ {promocion.codigo} VÁLIDA para función {funcion.id}')
+        # ✅ VALIDACIÓN DE FORMATOS APLICABLES (NUEVA)
+        # Si la promoción tiene formatos específicos configurados, la función debe tener al menos uno de ellos
+        formatos_promo = promocion.formatos_aplicables.all()
+        if formatos_promo.exists():
+            # Obtener formatos de la función
+            from cine.models.funcion_formato import FuncionFormato
+            formatos_funcion = FuncionFormato.objects.filter(funcion=funcion).values_list('formato_id', flat=True)
+            formatos_funcion_ids = set(formatos_funcion)
+            formatos_promo_ids = set(formatos_promo.values_list('id', flat=True))
+            
+            logger.warning(f'🔍 [VALIDACION] Formatos de promoción: {[f.nombre for f in formatos_promo]}')
+            logger.warning(f'🔍 [VALIDACION] Formatos de función #{funcion.pk}: {list(FuncionFormato.objects.filter(funcion=funcion).values_list("formato__nombre", flat=True))}')
+            
+            # Verificar si hay al menos un formato en común
+            tiene_formato_comun = bool(formatos_funcion_ids & formatos_promo_ids)
+            
+            if not tiene_formato_comun:
+                logger.warning(f'❌ [VALIDACION] {promocion.codigo} requiere formatos {[f.nombre for f in formatos_promo]} pero la función no los tiene')
+                logger.warning(f'❌ [VALIDACION] RECHAZADA por formatos incompatibles')
+                logger.warning(f'🔍 [VALIDACION] ================================================')
+                return False
+            
+            logger.warning(f'✅ [VALIDACION] {promocion.codigo} tiene formato compatible')
+        else:
+            logger.warning(f'🔍 [VALIDACION] Sin restricción de formatos (aplica a todos)')
+
+        # ✅ VALIDACIÓN DE VÍNCULOS ESPECÍFICOS (CRÍTICO)
+        # Si la promoción tiene vínculos específicos, debe estar vinculada a esta función o película
+        from promociones.models.vinculo_promocional import VinculoPromocional
+        
+        tiene_vinculos = VinculoPromocional.objects.filter(promocion=promocion).exists()
+        logger.warning(f'🔍 [VALIDACION] Tiene vínculos específicos: {tiene_vinculos}')
+        
+        if tiene_vinculos:
+            # Mostrar todos los vínculos para debugging
+            vinculos_existentes = VinculoPromocional.objects.filter(promocion=promocion).select_related('funcion__pelicula', 'pelicula')
+            logger.warning(f'🔍 [VALIDACION] Vínculos de {promocion.codigo}:')
+            for v in vinculos_existentes:
+                if v.funcion:
+                    logger.warning(f'   📌 Función #{v.funcion.pk}: {v.funcion.pelicula.titulo} '
+                                 f'({v.funcion.fecha_hora.strftime("%d/%m/%Y %H:%M")}) - Activo: {v.funcion.activo}')
+                if v.pelicula:
+                    logger.warning(f'   📌 Película: "{v.pelicula.titulo}" (ID={v.pelicula.pk}) - Activo: {v.pelicula.activo}')
+            
+            # Verificar si está vinculada a esta función/película ACTIVA
+            logger.warning(f'🔍 [VALIDACION] Verificando si aplica a función #{funcion.pk} con película "{funcion.pelicula.titulo}" (ID={funcion.pelicula.pk})')
+            
+            vinculada = VinculoPromocional.objects.filter(
+                promocion=promocion
+            ).filter(
+                models.Q(funcion=funcion, funcion__activo=True) | 
+                models.Q(pelicula=funcion.pelicula, pelicula__activo=True)
+            ).exists()
+            
+            if not vinculada:
+                logger.warning(f'❌ [VALIDACION] {promocion.codigo} tiene vínculos específicos pero NO está vinculada a esta función/película')
+                logger.warning(f'❌ [VALIDACION] RECHAZADA por vínculos específicos')
+                logger.warning(f'🔍 [VALIDACION] ================================================')
+                return False
+            
+            logger.warning(f'✅ [VALIDACION] {promocion.codigo} vinculada explícitamente a esta función/película')
+
+        logger.warning(f'✅ [VALIDACION] {promocion.codigo} VÁLIDA para función {funcion.id}')
+        logger.warning(f'🔍 [VALIDACION] ================================================')
         return True
 
     except Exception as e:
-        logger.exception(f'[VALIDACION] ✗ ERROR validando promo {promocion.pk}: {str(e)}')
+        logger.exception(f'❌ [VALIDACION] ERROR validando promo {promocion.pk}: {str(e)}')
         return False
 
 

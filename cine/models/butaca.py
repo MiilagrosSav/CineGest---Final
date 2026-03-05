@@ -49,6 +49,12 @@ class Butaca(models.Model):
 
     fecha_creacion = models.DateTimeField(auto_now_add=True)
 
+    def save(self, *args, **kwargs):
+        """Normalizar fila a MAYÚSCULAS para consistencia (A=a)"""
+        if self.fila:
+            self.fila = self.fila.strip().upper()
+        super().save(*args, **kwargs)
+    
     def __str__(self):
         return f"Butaca {self.fila}{self.numero} - Sala {self.sala.numero}"
 

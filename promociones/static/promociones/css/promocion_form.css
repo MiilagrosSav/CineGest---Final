@@ -50,6 +50,14 @@ form input:disabled {
     cursor: not-allowed;
 }
 
+/* ✅ Estilo especial para campo 2x1 (readonly pero informativo) */
+form input[readonly]:not(.disabled-input) {
+    background: rgba(78, 205, 196, 0.08) !important;
+    border-color: rgba(78, 205, 196, 0.3) !important;
+    color: #4ecdc4 !important;
+    font-weight: 600;
+}
+
 form select option {
     background: #1a1a1a;
     color: #fff;
@@ -124,6 +132,33 @@ input:checked + .slider:before { transform: translateX(24px); }
     border-color: var(--primary);
     color: white;
     box-shadow: 0 4px 12px rgba(156, 39, 176, 0.3);
+}
+
+/* --- FORMATOS APLICABLES (Similar a días) --- */
+.format-selector {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+.format-option {
+    cursor: pointer;
+    user-select: none;
+}
+.format-option input[type="checkbox"] {
+    margin-right: 0.4rem;
+}
+.format-option:hover {
+    background: rgba(78, 205, 196, 0.15) !important;
+    border-color: rgba(78, 205, 196, 0.4) !important;
+    color: var(--text-light);
+}
+.format-option input:checked {
+    accent-color: var(--primary);
+}
+.format-option:has(input:checked) {
+    background: rgba(78, 205, 196, 0.2) !important;
+    border-color: rgba(78, 205, 196, 0.6) !important;
+    box-shadow: 0 2px 8px rgba(78, 205, 196, 0.3);
 }
 
 /* Botones */
@@ -229,4 +264,71 @@ form .btn-outline:hover {
 .combobox-input.invalid-input {
     border-color: #ff6b6b !important;
     background: rgba(255, 107, 107, 0.1) !important;
+}
+
+/* ============================================ */
+/* VALIDACIÓN EN TIEMPO REAL - FEEDBACK VISUAL */
+/* ============================================ */
+
+/* Estado de validación correcto (verde) */
+form input.valid,
+form select.valid,
+form textarea.valid {
+    border-color: #4ecdc4 !important;
+    background: rgba(78, 205, 196, 0.1) !important;
+}
+
+/* Estado de validación incorrecto (rojo) */
+form input.invalid,
+form select.invalid,
+form textarea.invalid {
+    border-color: #ff6b6b !important;
+    background: rgba(255, 107, 107, 0.1) !important;
+}
+
+/* Mensaje de error en tiempo real */
+.form-error-realtime {
+    display: block;
+    color: #ff6b6b;
+    font-size: 0.85rem;
+    margin-top: 0.4rem;
+    animation: fadeInError 0.3s ease;
+}
+
+@keyframes fadeInError {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Efecto de pulsación en campos con error */
+form input:invalid:focus,
+form select:invalid:focus,
+form textarea:invalid:focus {
+    animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* Focus mejorado para campos válidos */
+form input:valid:focus,
+form select:valid:focus,
+form textarea:valid:focus {
+    box-shadow: 0 0 0 3px rgba(78, 205, 196, 0.2) !important;
+}
+
+/* Focus mejorado para campos inválidos */
+form input:invalid:focus,
+form select:invalid:focus,
+form textarea:invalid:focus {
+    box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.2) !important;
 }

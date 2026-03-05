@@ -3,12 +3,16 @@ import logging
 from django.db import models
 from django.core.exceptions import ValidationError
 from datetime import date
+from django.utils import timezone
 from simple_history.models import HistoricalRecords
 from cine.models.genero import Genero
+from core.mixins import SoftDeleteMixin
+from cloudinary.models import CloudinaryField
+from cine.image_utils import procesar_imagen_hibrida, verificar_conexion_cloudinary
 
 logger = logging.getLogger(__name__)
 
-class Pelicula(models.Model):
+class Pelicula(SoftDeleteMixin, models.Model):
     """
     Modelo para representar una película en el cine.
     """
@@ -51,22 +55,42 @@ class Pelicula(models.Model):
         help_text="Clasificación por edad de la película."
     )
     
-    # Campo para la imagen de portada
+    # ========================================================================
+    # SISTEMA HÍBRIDO DE IMÁGENES (Cloudinary + Local)
+    # ========================================================================
+    # Campo principal: Cloudinary (almacenamiento en la nube)
+    imagen_red = CloudinaryField(
+        'imagen',
+        folder='peliculas/portadas',
+        blank=True,
+        null=True,
+        help_text="Imagen almacenada en Cloudinary (requiere conexión a internet)"
+    )
+    
+    # Campo de respaldo: Almacenamiento local
+    imagen_local = models.ImageField(
+        upload_to='portadas_peliculas/', 
+        blank=True, 
+        null=True,
+        help_text="Copia local optimizada de la imagen (respaldo sin internet)"
+    )
+    
+    # Campo legacy para retrocompatibilidad (DEPRECADO - usar get_poster_url)
     imagen_portada = models.ImageField(
         upload_to='portadas_peliculas/', 
         blank=True, 
-        default='', 
-        help_text="La imagen de portada o póster de la película."
+        default='',
+        help_text="[DEPRECADO] Usar imagen_red/imagen_local + get_poster_url"
     )
     
     # Flags de control para promociones
     es_estreno = models.BooleanField(
         default=False,
-        help_text="Indica si es un lanzamiento reciente."
+        
     )
     acepta_promociones = models.BooleanField(
         default=True,
-        help_text="si lo presiona bloquea cualquier descuento."
+        
     )
     anio_estreno = models.PositiveIntegerField(
         editable=False,
@@ -77,6 +101,48 @@ class Pelicula(models.Model):
 
     def __str__(self):
         return self.titulo
+
+    @property
+    def get_poster_url(self):
+        """
+        Devuelve la URL del póster de la película.
+        
+        Lógica híbrida:
+        1. Si hay conexión a Cloudinary y existe imagen_red, devuelve URL de Cloudinary
+        2. Si no hay conexión o imagen_red está vacío, devuelve URL local
+        3. Si imagen_local está vacío, busca en imagen_portada (retrocompatibilidad)
+        4. Si no hay ninguna imagen, devuelve URL de placeholder
+        
+        Returns:
+            str: URL de la imagen (Cloudinary, local o placeholder)
+        """
+        # Intentar usar Cloudinary primero
+        if self.imagen_red:
+            try:
+                # Verificar si hay conexión antes de intentar obtener la URL
+                if verificar_conexion_cloudinary():
+                    # Cloudinary retorna la URL directamente al acceder al campo
+                    return self.imagen_red.url
+            except Exception as e:
+                logger.warning(f"Error al obtener URL de Cloudinary para película {self.pk}: {e}")
+        
+        # Fallback 1: Usar imagen local optimizada
+        if self.imagen_local:
+            try:
+                return self.imagen_local.url
+            except Exception:
+                pass
+        
+        # Fallback 2: Retrocompatibilidad con imagen_portada legacy
+        if self.imagen_portada:
+            try:
+                return self.imagen_portada.url
+            except Exception:
+                pass
+        
+        # Fallback 3: Imagen placeholder
+        from django.templatetags.static import static
+        return static('img/no-poster.jpg')
 
     def get_genero_display(self):
         """Compatibilidad con plantillas: devuelve géneros como cadena separada por comas."""
@@ -193,11 +259,14 @@ class Pelicula(models.Model):
                 })
 
             # Solo validar "no pasado" para películas NUEVAS
+            # PERMITIDO: Hoy y futuro
+            # BLOQUEADO: Solo fechas anteriores a hoy (pasado)
             # Permitir editar películas antiguas sin error
-            if not self.pk and self.fecha_estreno < date.today():
+            hoy = timezone.now().date()
+            if not self.pk and self.fecha_estreno < hoy:  # < significa "antes de hoy" (no incluye hoy)
                 raise ValidationError({
-                    'fecha_estreno': f"La fecha de estreno {self.fecha_estreno} no puede ser anterior a hoy "
-                                    "para películas nuevas."
+                    'fecha_estreno': f"La fecha de estreno no puede ser anterior al día de hoy ({hoy.strftime('%d/%m/%Y')}). "
+                                    f"Puedes seleccionar hoy o cualquier fecha futura."
                 })
 
         # ========================================================================
@@ -246,6 +315,21 @@ class Pelicula(models.Model):
         """
 
         # ========================================================================
+        # 0. NORMALIZACIÓN: Homogeneización de datos (Data Cleaning)
+        # ========================================================================
+        if self.titulo:
+            # Eliminar espacios innecesarios y aplicar Title Case
+            self.titulo = self.titulo.strip().title()
+            # Corregir letras repetidas 3 o más veces (ej: "Holaaa" -> "Holaa")
+            self.titulo = re.sub(r'(.)\1{2,}', r'\1\1', self.titulo)
+        
+        if self.director:
+            # Eliminar espacios innecesarios y aplicar Title Case
+            self.director = self.director.strip().title()
+            # Corregir letras repetidas 3 o más veces
+            self.director = re.sub(r'(.)\1{2,}', r'\1\1', self.director)
+
+        # ========================================================================
         # 1. SINCRONIZACIÓN: Calcular anio_estreno desde fecha_estreno
         # ========================================================================
         # CRÍTICO: Este campo DEBE tener valor para la UniqueConstraint
@@ -257,6 +341,46 @@ class Pelicula(models.Model):
             raise ValidationError({
                 'fecha_estreno': 'La fecha de estreno es obligatoria.'
             })
+
+        # ========================================================================
+        # 1.5 PROCESAMIENTO HÍBRIDO DE IMÁGENES (Cloudinary + Local)
+        # ========================================================================
+        # Detectar si hay una nueva imagen subida
+        imagen_nueva = None
+        
+        # Verificar si hay una imagen en imagen_portada (campo legacy/formulario)
+        if self.imagen_portada and hasattr(self.imagen_portada, 'file'):
+            imagen_nueva = self.imagen_portada.file
+        # O si se subió directamente a imagen_local
+        elif self.imagen_local and hasattr(self.imagen_local, 'file'):
+            imagen_nueva = self.imagen_local.file
+        
+        # Procesar la imagen si hay una nueva
+        if imagen_nueva:
+            try:
+                # Procesar imagen con el sistema híbrido
+                resultado = procesar_imagen_hibrida(
+                    imagen=imagen_nueva,
+                    folder='peliculas/portadas',
+                    instancia_modelo=self
+                )
+                
+                # Guardar imagen local optimizada
+                if resultado.get('imagen_local'):
+                    self.imagen_local = resultado['imagen_local']
+                
+                # Si se subió a Cloudinary, guardar el public_id
+                if resultado.get('cloudinary_public_id'):
+                    # Cloudinary se encarga automáticamente con CloudinaryField
+                    # Solo necesitamos asignar si tenemos el public_id
+                    self.imagen_red = resultado['cloudinary_public_id']
+                    logger.info(f"Película {self.titulo}: Imagen subida a Cloudinary y guardada localmente")
+                else:
+                    logger.warning(f"Película {self.titulo}: Solo se guardó imagen local (Cloudinary no disponible)")
+                
+            except Exception as e:
+                logger.error(f"Error al procesar imagen híbrida para película {self.titulo}: {e}")
+                # Continuar con el guardado aunque falle el procesamiento de imagen
 
         # ========================================================================
         # 2. VALIDACIÓN COMPLETA: Ejecutar clean() y validaciones de constraints
