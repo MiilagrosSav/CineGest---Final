@@ -12,10 +12,10 @@ Configuración recomendada de Cron (cada hora):
 """
 
 import logging
-from datetime import timedelta
+from datetime import timedelta, time
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from django.db.models import Count, Q
+from django.db.models import Count, Q, Case, When, IntegerField
 from django.db import transaction
 
 from cine.models import Funcion
@@ -55,19 +55,35 @@ class Command(BaseCommand):
             if test_mode:
                 self.stdout.write(self.style.WARNING('[MODO TEST] Revisa todas las funciones futuras, permite envíos múltiples'))
 
-        # 1. Obtener políticas activas con yield management habilitado
-        politicas_activas = PoliticaPromocion.objects.filter(
+        # 1. Obtener políticas activas con análisis automático habilitado
+        # ✅ CORRECCIÓN: Filtrar manualmente por promoción activa usando all_objects
+        from promociones.models.promocion import Promocion
+        
+        politicas_candidatas = PoliticaPromocion.objects.filter(
             activa=True,
             activar_por_ocupacion=True
         ).select_related('promocion_a_otorgar', 'genero_pelicula').order_by('prioridad')
+        
+        # Filtrar solo las que tienen promoción activa (bypass del manager)
+        politicas_activas = []
+        for pol in politicas_candidatas:
+            # Verificar que tenga promoción asignada
+            if pol.promocion_a_otorgar:
+                promo = Promocion.all_objects.filter(pk=pol.promocion_a_otorgar.pk).first()
+                if promo and promo.activo:
+                    politicas_activas.append(pol)
+            # Si no tiene promoción asignada, no se puede procesar
 
-        if not politicas_activas.exists():
+        if not politicas_activas:
             if verbosity >= 1:
-                self.stdout.write(self.style.WARNING('No hay políticas activas con yield management habilitado.'))
+                self.stdout.write(self.style.WARNING('No hay políticas activas con análisis automático habilitado.'))
             return
 
+        # ✅ CORRECCIÓN: Imprimir políticas activas con verbosity >= 1 (necesario para el parsing del view)
+        if verbosity >= 1:
+            self.stdout.write(f'Políticas activas encontradas: {len(politicas_activas)}')
+            
         if verbosity >= 2:
-            self.stdout.write(f'Políticas activas encontradas: {politicas_activas.count()}')
             for pol in politicas_activas:
                 self.stdout.write(f'  - {pol.nombre} (umbral: {pol.umbral_ocupacion}%, anticipación: {pol.horas_anticipacion}h)')
 
@@ -94,12 +110,7 @@ class Command(BaseCommand):
                 self.stdout.write(f'Ventana: {inicio_ventana.strftime("%Y-%m-%d %H:%M")} a {fin_ventana.strftime("%Y-%m-%d %H:%M")}')
 
             # Buscar funciones candidatas:
-            # - Futuras dentro de la ventana de anticipación
-            # - Estado NORMAL (no tienen oferta activa) [excepto en test_mode]
-            # - Opcionalmente filtrar por género si la política lo especifica
-            # - Opcionalmente filtrar por día de la semana
-            # - Opcionalmente filtrar por horario
-
+            # ✅ OPTIMIZACIÓN: Usar annotate() para calcular entradas vendidas en una sola query
             funciones_query = Funcion.objects.filter(
                 fecha_hora__gte=inicio_ventana,
                 fecha_hora__lte=fin_ventana
@@ -109,43 +120,50 @@ class Command(BaseCommand):
             if not test_mode:
                 funciones_query = funciones_query.filter(estado_promocion='NORMAL')
             
+            # ✅ Optimizar con select_related y prefetch_related
             funciones_query = funciones_query.select_related('pelicula', 'sala').prefetch_related('pelicula__generos')
 
             # Filtrar por género si la política lo requiere
             if politica.genero_pelicula:
                 funciones_query = funciones_query.filter(pelicula__generos=politica.genero_pelicula)
 
-            # Filtrar por día de la semana si la política lo especifica
-            dias_permitidos = politica.get_dias_list()
-            if dias_permitidos:
-                # Filtrar funciones cuyo weekday esté en la lista
-                funciones_candidatas = []
-                for funcion in funciones_query:
-                    if funcion.fecha_hora.weekday() in dias_permitidos:
-                        funciones_candidatas.append(funcion)
-                funciones_query = funciones_candidatas
-            else:
-                funciones_query = list(funciones_query)
+            # ✅ OPTIMIZACIÓN: Anotar el conteo de entradas vendidas en la misma query
+            funciones_query = funciones_query.annotate(
+                entradas_vendidas=Count(
+                    'entradas',
+                    filter=Q(entradas__estado__in=['RESERVADA', 'VENDIDA', 'USADA'])
+                )
+            )
 
-            # Filtrar por rango horario
+            # Ejecutar query una sola vez
+            funciones_all = list(funciones_query)
+
+            # Filtrar por día de la semana y horario en Python (más eficiente que múltiples queries)
+            dias_permitidos = politica.get_dias_list()
             funciones_filtradas = []
-            for funcion in funciones_query:
+            
+            for funcion in funciones_all:
+                # Filtrar por día de la semana
+                if dias_permitidos and funcion.fecha_hora.weekday() not in dias_permitidos:
+                    continue
+                
+                # Filtrar por rango horario
                 hora_funcion = funcion.fecha_hora.time()
-                if politica.hora_inicio_rango <= hora_funcion <= politica.hora_fin_rango:
-                    funciones_filtradas.append(funcion)
+                if not (politica.hora_inicio_rango <= hora_funcion <= politica.hora_fin_rango):
+                    continue
+                
+                funciones_filtradas.append(funcion)
 
             if verbosity >= 2:
                 self.stdout.write(f'Funciones candidatas después de filtros: {len(funciones_filtradas)}')
 
-            # 3. Para cada función candidata, calcular ocupación y evaluar
+            # 3. Para cada función candidata, evaluar ocupación (ya calculada en annotate)
             for funcion in funciones_filtradas:
                 funciones_evaluadas += 1
 
-                # Calcular ocupación actual
+                # ✅ OPTIMIZACIÓN: Usar el conteo precalculado en lugar de query adicional
                 total_butacas = funcion.sala.capacidad
-                entradas_vendidas = funcion.entradas.filter(
-                    estado__in=['RESERVADA', 'VENDIDA', 'USADA']
-                ).count()
+                entradas_vendidas = funcion.entradas_vendidas  # Ya calculado en annotate()
                 
                 if total_butacas == 0:
                     ocupacion_porcentaje = 0
@@ -175,8 +193,7 @@ class Command(BaseCommand):
                         # Marcar función con oferta activa
                         with transaction.atomic():
                             funcion.estado_promocion = 'OFERTA_ACTIVA'
-                            funcion.promocion_aplicada = politica.promocion_a_otorgar
-                            funcion.save(update_fields=['estado_promocion', 'promocion_aplicada'])
+                            funcion.save(update_fields=['estado_promocion'])
 
                         funciones_activadas += 1
 
@@ -235,62 +252,75 @@ class Command(BaseCommand):
     def _buscar_clientes_objetivo(self, funcion, genero, verbosity):
         """
         Busca clientes frecuentes que sean candidatos para la promoción.
+        ✅ OPTIMIZADO: Reduce queries de DB usando aggregation y filtering eficiente.
         
         Estrategia:
         1. Clientes que han comprado funciones del mismo género anteriormente
         2. Clientes activos (con compras en los últimos 6 meses)
         3. Excluir clientes que ya tienen entradas para esta función
         """
-        # Clientes que ya compraron para esta función (excluir)
-        clientes_con_entrada = Venta.objects.filter(
-            entradas__id_funcion=funcion,
-            entradas__estado__in=['RESERVADA', 'VENDIDA', 'USADA']
-        ).values_list('id_cliente', flat=True).distinct()
+        # ✅ OPTIMIZACIÓN: Obtener clientes con entrada en una sola query
+        clientes_con_entrada_ids = set(
+            Venta.objects.filter(
+                entradas__id_funcion=funcion,
+                entradas__estado__in=['RESERVADA', 'VENDIDA', 'USADA']
+            ).values_list('id_cliente', flat=True).distinct()
+        )
 
         # Clientes activos en los últimos 6 meses
         fecha_limite = timezone.now() - timedelta(days=180)
         
-        clientes_query = Cliente.objects.filter(
+        # ✅ OPTIMIZACIÓN: Usar select_related para evitar queries adicionales
+        clientes_query = Cliente.objects.select_related('usuario').filter(
             usuario__is_active=True
         ).exclude(
-            usuario_id__in=clientes_con_entrada
+            usuario_id__in=clientes_con_entrada_ids
         )
 
         # Si hay género específico, priorizar clientes que han visto ese género
         if genero:
-            clientes_con_genero = Venta.objects.filter(
-                fecha_compra__gte=fecha_limite,
-                entradas__id_funcion__pelicula__generos=genero
-            ).values_list('id_cliente', flat=True).distinct()
-            
-            # Primero los que han visto el género, luego todos los demás
-            clientes_prioritarios = clientes_query.filter(usuario_id__in=clientes_con_genero)
-            
-            # Para el resto, obtener clientes activos (con compras recientes)
-            clientes_activos_ids = Venta.objects.filter(
-                fecha_compra__gte=fecha_limite
-            ).values_list('id_cliente', flat=True).distinct()
-            
-            clientes_resto = clientes_query.exclude(usuario_id__in=clientes_con_genero).filter(
-                usuario_id__in=clientes_activos_ids
+            # ✅ OPTIMIZACIÓN: Obtener clientes del género en una query optimizada
+            clientes_con_genero_ids = set(
+                Venta.objects.filter(
+                    fecha_compra__gte=fecha_limite,
+                    entradas__id_funcion__pelicula__generos=genero
+                ).values_list('id_cliente', flat=True).distinct()[:50]  # Limitar para evitar overhead
             )
             
-            # Combinar priorizando los del género (limitado a 5 para pruebas)
-            clientes_objetivo = list(clientes_prioritarios[:5])
+            # Primero los que han visto el género (hasta 5)
+            clientes_prioritarios = list(
+                clientes_query.filter(usuario_id__in=clientes_con_genero_ids)[:5]
+            )
+            
+            # Si no hay suficientes, completar con clientes activos
+            if len(clientes_prioritarios) < 3:
+                clientes_activos_ids = set(
+                    Venta.objects.filter(
+                        fecha_compra__gte=fecha_limite
+                    ).values('id_cliente').annotate(
+                        num_compras=Count('id_venta')
+                    ).order_by('-num_compras').values_list('id_cliente', flat=True)[:10]
+                )
+                
+                faltantes = 5 - len(clientes_prioritarios)
+                clientes_resto = list(
+                    clientes_query.exclude(usuario_id__in=clientes_con_genero_ids)
+                                  .filter(usuario_id__in=clientes_activos_ids)[:faltantes]
+                )
+                clientes_prioritarios.extend(clientes_resto)
+            
+            return clientes_prioritarios
         else:
-            # Sin género específico, tomar clientes activos
-            # Obtener clientes con compras recientes y ordenar por frecuencia
-            clientes_con_compras = Venta.objects.filter(
-                fecha_compra__gte=fecha_limite
-            ).values('id_cliente').annotate(
-                num_compras=Count('id_venta')
-            ).order_by('-num_compras').values_list('id_cliente', flat=True)[:5]
-            
-            clientes_objetivo = list(
-                clientes_query.filter(usuario_id__in=clientes_con_compras)
+            # Sin género específico, tomar clientes activos por frecuencia de compra
+            clientes_con_compras_ids = list(
+                Venta.objects.filter(
+                    fecha_compra__gte=fecha_limite
+                ).values('id_cliente').annotate(
+                    num_compras=Count('id_venta')
+                ).order_by('-num_compras').values_list('id_cliente', flat=True)[:5]
             )
-
-        return clientes_objetivo
+            
+            return list(clientes_query.filter(usuario_id__in=clientes_con_compras_ids))
 
     def _enviar_email_promocional(self, cliente, funcion, promocion, cupon, notificacion_service, verbosity):
         """
@@ -333,7 +363,7 @@ class Command(BaseCommand):
             return resultado
             
         except Exception as e:
-            logger.error(f'Error enviando email promocional a {cliente.id_cliente}: {e}', exc_info=True)
+            logger.error(f'Error enviando email promocional a cliente {cliente.pk} ({cliente.usuario.email}): {e}', exc_info=True)
             if verbosity >= 1:
                 self.stdout.write(self.style.ERROR(f'    Error enviando email a {cliente.usuario.email}: {e}'))
             return False

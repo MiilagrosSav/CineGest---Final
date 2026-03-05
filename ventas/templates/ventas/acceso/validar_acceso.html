@@ -1,0 +1,544 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Validación de Acceso - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Contenedor principal */
+    .validacion-container {
+        max-width: 900px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    /* Título */
+    .titulo-validacion {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .titulo-validacion h1 {
+        margin: 0 0 0.5rem 0;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-size: 2.5rem;
+        font-weight: 900;
+    }
+
+    .titulo-validacion p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 1rem;
+    }
+
+    /* Card de scanner */
+    .scanner-card {
+        background: var(--glass-background);
+        backdrop-filter: blur(10px);
+        border-radius: var(--radius-lg);
+        padding: var(--space-xl);
+        margin-bottom: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Input de scanner */
+    .scanner-wrapper {
+        position: relative;
+        margin-bottom: 1rem;
+    }
+
+    .scanner-input {
+        width: 100%;
+        padding: 1.25rem 3.5rem 1.25rem 1.25rem;
+        border: 2px solid rgba(102, 126, 234, 0.3);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+        font-size: 1.1rem;
+        font-weight: 500;
+        transition: all 0.3s ease;
+        text-align: center;
+        letter-spacing: 1px;
+    }
+
+    .scanner-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .scanner-icon {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 2rem;
+        opacity: 0.5;
+    }
+
+    .scanner-input:focus + .scanner-icon {
+        opacity: 1;
+        animation: pulse 2s infinite;
+    }
+
+    /* Loading */
+    .loading-container {
+        display: none;
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .loading-container.active {
+        display: block;
+    }
+
+    .spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(102, 126, 234, 0.2);
+        border-top-color: var(--primary);
+        border-radius: 50%;
+        margin: 0 auto 1rem;
+        animation: spin 0.8s linear infinite;
+    }
+
+    /* Resultado */
+    .resultado-card {
+        margin-top: 2rem;
+        padding: var(--space-lg);
+        border-radius: var(--radius);
+        animation: fadeInUp 0.4s ease;
+    }
+
+    .resultado-card.permitido {
+        background: linear-gradient(135deg, rgba(46, 213, 115, 0.15), rgba(72, 219, 251, 0.15));
+        border: 2px solid rgba(46, 213, 115, 0.5);
+    }
+
+    .resultado-card.rechazado {
+        background: linear-gradient(135deg, rgba(235, 77, 75, 0.15), rgba(249, 127, 81, 0.15));
+        border: 2px solid rgba(235, 77, 75, 0.5);
+    }
+
+    .resultado-titulo {
+        font-size: 1.8rem;
+        font-weight: 900;
+        margin: 0 0 0.5rem 0;
+        text-align: center;
+    }
+
+    .resultado-titulo.permitido {
+        color: #2ed573;
+    }
+
+    .resultado-titulo.rechazado {
+        color: #eb4d4b;
+    }
+
+    .resultado-detalle {
+        text-align: center;
+        font-size: 1.1rem;
+        margin-bottom: 1.5rem;
+        opacity: 0.9;
+    }
+
+    /* Info grid */
+    .entrada-info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .info-item {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 1rem;
+        border-radius: var(--radius);
+        text-align: center;
+    }
+
+    .info-item small {
+        display: block;
+        opacity: 0.6;
+        font-size: 0.8rem;
+        margin-bottom: 0.3rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .info-item strong {
+        display: block;
+        font-size: 1.1rem;
+        font-weight: 700;
+    }
+
+    /* Botones de acción */
+    .acciones-container {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        margin-top: 2rem;
+    }
+
+    .btn-accion {
+        padding: 0.875rem 2rem;
+        border-radius: var(--radius);
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.3s ease;
+        border: none;
+        cursor: pointer;
+        font-size: 1rem;
+    }
+
+    .btn-validar-otro {
+        background: var(--primary);
+        color: white;
+    }
+
+    .btn-validar-otro:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    }
+
+    .btn-manual {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-primary);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-manual:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Animaciones */
+    @keyframes pulse {
+        0%, 100% { transform: translateY(-50%) scale(1); }
+        50% { transform: translateY(-50%) scale(1.1); }
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Atajos de teclado */
+    .atajos-info {
+        margin-top: 1rem;
+        padding: 1rem;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: var(--radius);
+        font-size: 0.9rem;
+        text-align: center;
+    }
+
+    .atajos-info kbd {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-family: monospace;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="validacion-container">
+    
+    <div class="titulo-validacion">
+        <h1>🎫 Validación de Acceso</h1>
+        <p>Escanea el código QR de la entrada o ingresa el código manualmente</p>
+    </div>
+
+    <div class="scanner-card">
+        <div class="scanner-wrapper">
+            <input 
+                type="text" 
+                id="codigoInput" 
+                class="scanner-input" 
+                placeholder="Escanea QR o ingresa código..."
+                autofocus
+                autocomplete="off"
+            >
+            <span class="scanner-icon">📱</span>
+        </div>
+
+        <div class="atajos-info">
+            <strong>Atajos:</strong> 
+            <kbd>Enter</kbd> Validar | 
+            <kbd>Esc</kbd> Limpiar | 
+            <kbd>F2</kbd> Búsqueda Manual
+        </div>
+        
+        <div id="loading" class="loading-container">
+            <div class="spinner"></div>
+            <p>Validando entrada...</p>
+        </div>
+    </div>
+
+    <div id="resultadoSection"></div>
+
+    <div class="acciones-container">
+        <a href="{% url 'ventas:validacion_manual' %}" class="btn-accion btn-manual">
+            🔍 Búsqueda Manual
+        </a>
+    </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const codigoInput = document.getElementById('codigoInput');
+    const resultadoSection = document.getElementById('resultadoSection');
+    const loading = document.getElementById('loading');
+
+    // Función para obtener CSRF token
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrftoken = getCookie('csrftoken');
+
+    // Mantener siempre el foco en el input
+    codigoInput.focus();
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('button') && !e.target.closest('a')) {
+            codigoInput.focus();
+        }
+    });
+
+    // Detectar Enter para validar
+    codigoInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            validarEntrada();
+        }
+    });
+
+    // Detectar Esc para limpiar
+    codigoInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            limpiarValidacion();
+        }
+    });
+
+    // Detectar F2 para ir a búsqueda manual
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F2') {
+            e.preventDefault();
+            window.location.href = "{% url 'ventas:validacion_manual' %}";
+        }
+    });
+
+    function validarEntrada() {
+        const codigo = codigoInput.value.trim();
+        
+        if (!codigo) {
+            alert('Por favor ingresa un código');
+            return;
+        }
+
+        // Mostrar loading
+        loading.classList.add('active');
+        resultadoSection.innerHTML = '';
+
+        // Llamar a la API
+        fetch("{% url 'ventas:buscar_entrada_api' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({ codigo: codigo })
+        })
+        .then(response => response.json())
+        .then(data => {
+            loading.classList.remove('active');
+            
+            if (data.resultado === 'PERMITIDO') {
+                mostrarPermitido(data);
+                reproducirSonido('exito');
+            } else {
+                mostrarRechazado(data);
+                reproducirSonido('error');
+            }
+            
+            // Limpiar y preparar para siguiente escaneo
+            codigoInput.value = '';
+            codigoInput.focus();
+        })
+        .catch(error => {
+            loading.classList.remove('active');
+            alert('Error al validar: ' + error);
+            codigoInput.value = '';
+            codigoInput.focus();
+        });
+    }
+
+    function mostrarPermitido(data) {
+        const info = data.entrada_info;
+        const html = `
+            <div class="resultado-card permitido">
+                <h2 class="resultado-titulo permitido">${data.motivo}</h2>
+                <p class="resultado-detalle">${data.detalle}</p>
+                
+                <div class="entrada-info-grid">
+                    <div class="info-item">
+                        <small>ENTRADA</small>
+                        <strong>#${info.id}</strong>
+                    </div>
+                    <div class="info-item">
+                        <small>PELÍCULA</small>
+                        <strong>${info.pelicula}</strong>
+                    </div>
+                    <div class="info-item">
+                        <small>SALA</small>
+                        <strong>${info.sala}</strong>
+                    </div>
+                    <div class="info-item">
+                        <small>BUTACA</small>
+                        <strong>${info.butaca}</strong>
+                    </div>
+                    <div class="info-item">
+                        <small>FUNCIÓN</small>
+                        <strong>${info.funcion}</strong>
+                    </div>
+                    <div class="info-item">
+                        <small>VALIDADO</small>
+                        <strong>${info.hora_validacion}</strong>
+                    </div>
+                </div>
+
+                <div style="margin-top: 1.5rem; text-align: center;">
+                    <button onclick="limpiarValidacion()" class="btn-accion btn-validar-otro">
+                        ✓ Validar Otra Entrada
+                    </button>
+                </div>
+            </div>
+        `;
+        resultadoSection.innerHTML = html;
+    }
+
+    function mostrarRechazado(data) {
+        let infoHtml = '';
+        if (data.entrada_info) {
+            const info = data.entrada_info;
+            infoHtml = `
+                <div class="entrada-info-grid">
+                    <div class="info-item">
+                        <small>ENTRADA</small>
+                        <strong>#${info.id || 'N/A'}</strong>
+                    </div>
+                    ${info.pelicula ? `
+                    <div class="info-item">
+                        <small>PELÍCULA</small>
+                        <strong>${info.pelicula}</strong>
+                    </div>
+                    ` : ''}
+                    ${info.estado ? `
+                    <div class="info-item">
+                        <small>ESTADO</small>
+                        <strong>${info.estado}</strong>
+                    </div>
+                    ` : ''}
+                    ${info.funcion ? `
+                    <div class="info-item">
+                        <small>FUNCIÓN</small>
+                        <strong>${info.funcion}</strong>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        const html = `
+            <div class="resultado-card rechazado">
+                <h2 class="resultado-titulo rechazado">${data.motivo}</h2>
+                <p class="resultado-detalle">${data.detalle || ''}</p>
+                
+                ${data.tiempo_restante ? `
+                    <div style="text-align: center; margin: 1rem 0;">
+                        <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: var(--radius); display: inline-block;">
+                            <small style="display: block; opacity: 0.7;">Tiempo restante:</small>
+                            <strong style="font-size: 1.5rem;">${data.tiempo_restante}</strong>
+                            <small style="display: block; opacity: 0.7; margin-top: 0.5rem;">Puerta abre a las ${data.hora_apertura || ''}</small>
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${infoHtml}
+
+                <div style="margin-top: 1.5rem; text-align: center;">
+                    <button onclick="limpiarValidacion()" class="btn-accion btn-validar-otro">
+                        ↻ Intentar Nuevamente
+                    </button>
+                </div>
+            </div>
+        `;
+        resultadoSection.innerHTML = html;
+    }
+
+    function limpiarValidacion() {
+        resultadoSection.innerHTML = '';
+        codigoInput.value = '';
+        codigoInput.focus();
+    }
+
+    function reproducirSonido(tipo) {
+        // Beep simple usando Web Audio API
+        try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            if (tipo === 'exito') {
+                oscillator.frequency.value = 800;
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.3);
+            } else {
+                oscillator.frequency.value = 400;
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.5);
+            }
+        } catch (e) {
+            // Silenciar errores de audio
+        }
+    }
+
+    // Exponer función global
+    window.limpiarValidacion = limpiarValidacion;
+});
+</script>
+{% endblock %}

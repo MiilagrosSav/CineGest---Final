@@ -1,5 +1,6 @@
 {% extends 'accounts/base.html' %}
 {% load static %}
+{% load auditoria_extras %}
 
 {% block title %}Detalle Auditoría{% endblock %}
 
@@ -37,7 +38,7 @@
                 
                 <div class="detail-item">
                     <strong style="display: block; color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.3rem;">👤 Usuario</strong>
-                    <span>{{ entry.history_user.get_full_name|default:entry.history_user.username|default:"Sistema" }}</span>
+                    <span>{% if entry.history_user %}{{ entry.history_user.get_full_name|default:entry.history_user.username }}{% else %}Sistema{% endif %}</span>
                 </div>
                 
                 {% if entry.history_change_reason %}
@@ -50,10 +51,79 @@
 
             <hr style="border: none; border-top: 1px solid var(--glass-border); margin: var(--space-lg) 0;">
 
-            <h3 style="margin-bottom: var(--space-md);">📊 Snapshot Completo</h3>
-            <div class="snapshot" style="background: rgba(0,0,0,0.2); padding: var(--space-md); border-radius: var(--radius); overflow-x: auto;">
-                <pre style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-family: 'Courier New', monospace; font-size: 0.9rem; line-height: 1.5;">{{ snapshot_pretty }}</pre>
-            </div>
+            {% if entry.history_type == '~' and diff %}
+                <h3 style="margin-bottom: var(--space-md); color: var(--ffc107);">✏️ Cambios Detectados</h3>
+                <div class="table-responsive glass-container" style="padding: 1rem; border-radius: 12px; border: 1px solid rgba(255,193,7,0.3);">
+                    <table style="width: 100%; border-collapse: collapse; color: white;">
+                        <thead>
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); text-align: left; opacity: 0.6; font-size: 0.8rem;">
+                                <th style="padding: 10px;">CAMPO</th>
+                                <th style="padding: 10px;">VALOR ANTERIOR</th>
+                                <th style="padding: 10px;">VALOR NUEVO</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for campo, valores in diff.items %}
+                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+                                <td style="padding: 12px; font-weight: bold; color: var(--primary);">
+                                    {{ campo|limpiar_valor|upper }}
+                                </td>
+                                
+                                <td style="padding: 12px; background: rgba(255, 107, 107, 0.1); color: #ff6b6b;">
+                                    {{ valores.antes|limpiar_valor|default:"—" }}
+                                </td>
+                                
+                                <td style="padding: 12px; background: rgba(78, 205, 196, 0.1); color: #4ecdc4;">
+                                    {{ valores.despues|limpiar_valor }}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+            {% elif entry.history_type == '+' %}
+                <h3 style="margin-bottom: var(--space-md); color: #4ecdc4;">✨ Datos de Creación</h3>
+                <p class="text-muted">Se ha creado un nuevo registro en el sistema con los siguientes valores iniciales:</p>
+                
+                <div class="glass-container" style="padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(78,205,196,0.3);">
+                    <div class="snapshot-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem;">
+                        {% for k, v in entry.snapshot.items %}
+                            {% if k != 'password' and k != 'id' and k != 'uuid' and k != 'last_login' %}
+                            <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 10px; border-left: 3px solid #4ecdc4;">
+                                <small style="display:block; font-size: 0.7rem; color: #4ecdc4; font-weight: 800; text-transform: uppercase; margin-bottom: 0.2rem;">
+                                    {{ k|limpiar_valor }}
+                                </small>
+                                <span style="font-size: 0.95rem; color: white;">
+                                    {{ v|limpiar_valor|default:"—" }}
+                                </span>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+            {% if entry.history_type == '-' %}
+                <h3 style="margin-bottom: var(--space-md); color: #ff6b6b;">🗑️ Información del Registro Eliminado</h3>
+                <p class="text-muted">{% if entry.history_user %}{{ entry.history_user.get_full_name|default:entry.history_user.username }}{% else %}El sistema{% endif %} eliminó este registro. Estos eran los datos que contenía:</p>
+                
+                <div class="glass-container" style="padding: 1.5rem; border-radius: 16px; border: 1px solid rgba(255,107,107,0.3);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem;">
+                        {% for campo, valor in datos_eliminados.items %}
+                            {% if campo != 'password' and campo != 'id' and campo != 'uuid' and campo != 'last_login' %}
+                            <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 10px; border-left: 3px solid #ff6b6b;">
+                                <span style="display:block; font-size: 0.7rem; color: #ff6b6b; font-weight: 800; text-transform: uppercase;">
+                                    {{ campo|limpiar_valor }}
+                                </span>
+                                <span style="font-size: 0.95rem; color: white;">
+                                    {{ valor|limpiar_valor|default:"—" }}
+                                </span>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
 
             <div style="margin-top: var(--space-lg); text-align: center;">
                 <a href="{% url 'auditoria:list' %}" class="btn btn-outline" style="padding: 0.6rem 2rem;">← Volver a la lista</a>
@@ -74,5 +144,25 @@
     .tipo-c { background: rgba(78, 205, 196, 0.2); color: #4ecdc4; }
     .tipo-u { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
     .tipo-d { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+    
+    /* Estilos para valores booleanos */
+    .badge-boolean {
+        display: inline-block;
+        padding: 0.25rem 0.6rem;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+    }
+    .badge-true {
+        background: rgba(78, 205, 196, 0.25);
+        color: #4ecdc4;
+        border: 1px solid rgba(78, 205, 196, 0.4);
+    }
+    .badge-false {
+        background: rgba(255, 107, 107, 0.25);
+        color: #ff6b6b;
+        border: 1px solid rgba(255, 107, 107, 0.4);
+    }
 </style>
 {% endblock %}

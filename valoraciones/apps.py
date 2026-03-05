@@ -5,9 +5,8 @@ class ValoracionesConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'valoraciones'
     verbose_name = 'Valoraciones'
-from django.apps import AppConfig
+    
+    def ready(self):
+        """Registrar signals cuando la app esté lista"""
+        import valoraciones.signals
 
-
-class ValoracionesConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'valoraciones'

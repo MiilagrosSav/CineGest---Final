@@ -22,6 +22,7 @@ urlpatterns = [
     path('perfil/empleado/editar/', views.EmployeeProfileUpdateView.as_view(), name='edit_employee_profile'),
     path('perfil/password/', views.MyPasswordChangeView.as_view(), name='password_change'),
     path('perfil/password/done/', views.MyPasswordChangeDoneView.as_view(), name='password_change_done'),
+    path('perfil/dar-de-baja/', views.dar_de_baja_cliente, name='dar_de_baja_cliente'),
     # Rutas para gestión de empleados (CRUD completo)
     path('employees/', views.EmployeeListView.as_view(), name='employee_list'),
     path('employees/create/', views.EmployeeCreateView.as_view(), name='create_employee'),

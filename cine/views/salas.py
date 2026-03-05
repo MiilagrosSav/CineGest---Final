@@ -16,7 +16,18 @@ class SalaListView(AdminRequiredMixin, ListView):
     paginate_by = 5
     
     def get_queryset(self):
-        queryset = super().get_queryset()
+        # 🔍 IMPORTANTE: Excluir salas con BAJA LÓGICA (fecha_baja IS NOT NULL)
+        # Solo mostrar salas ACTIVAS o INACTIVAS (modificación de estado)
+        queryset = Sala.all_objects.filter(fecha_baja__isnull=True)
+        
+        # Filtro por estado (activas/inactivas/todas)
+        estado = self.request.GET.get('estado', 'activas')
+        if estado == 'activas':
+            queryset = queryset.filter(activo=True)
+        elif estado == 'inactivas':
+            # INACTIVAS: activo=False pero SIN fecha_baja (no borradas)
+            queryset = queryset.filter(activo=False)
+        # Si es 'todas', no filtrar por activo (pero sí excluir borradas)
         
         # Filtro de búsqueda por nombre
         search = self.request.GET.get('search', '')
@@ -48,6 +59,7 @@ class SalaListView(AdminRequiredMixin, ListView):
         context['filtro_search'] = self.request.GET.get('search', '')
         context['filtro_numero'] = self.request.GET.get('numero', '')
         context['filtro_orden'] = self.request.GET.get('orden', 'numero')
+        context['filtro_estado'] = self.request.GET.get('estado', 'activas')
         return context
 
     def render_to_response(self, context, **response_kwargs):
@@ -65,14 +77,14 @@ class SalaCreateView(AdminRequiredMixin, CreateView):
     template_name = 'cine/sala_form.html'
     
     def get_success_url(self):
-        # Redirigir al diseñador de layout después de crear la sala
+        # Redirigir al diseñador de distribución de asientos después de crear la sala
         from django.urls import reverse
-        return reverse('cine:disenar_layout_sala', kwargs={'sala_id': self.object.pk})
+        return reverse('cine:disenar_distribucion_asientos', kwargs={'sala_id': self.object.pk})
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo_pagina'] = '🏛️ Añadir Nueva Sala'
-        context['nombre_boton'] = '✨ Crear Sala y Configurar Layout'
+        context['nombre_boton'] = '✨ Crear Sala y Configurar Distribución de Asientos'
         return context
 
 # UPDATE: Vista para mostrar el formulario de edición
@@ -81,6 +93,13 @@ class SalaUpdateView(AdminRequiredMixin, UpdateView):
     form_class = SalaForm
     template_name = 'cine/sala_form.html'
     success_url = reverse_lazy('cine:sala_list')
+
+    def get_queryset(self):
+        """
+        ✅ Permitir editar salas ACTIVAS e INACTIVAS (modificación de estado)
+        ❌ NO permitir editar salas con BAJA LÓGICA (fecha_baja IS NOT NULL)
+        """
+        return Sala.all_objects.filter(fecha_baja__isnull=True)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -96,6 +115,13 @@ class SalaDeleteView(AdminRequiredMixin, DeleteView):
     template_name = 'cine/sala_confirm_delete.html'
     success_url = reverse_lazy('cine:sala_list')
     
+    def get_queryset(self):
+        """
+        Usar all_objects para permitir acceso a salas ya eliminadas (soft delete).
+        Esto previene 404 al acceder a la página de confirmación de eliminación.
+        """
+        return Sala.all_objects.all()
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         sala = self.get_object()
@@ -110,3 +136,20 @@ class SalaDeleteView(AdminRequiredMixin, DeleteView):
         context['puede_eliminar'] = not funciones.exists()
         
         return context
+    
+    def delete(self, request, *args, **kwargs):
+        """Pasar usuario al soft delete para auditoría"""
+        self.object = self.get_object()
+        success_url = self.get_success_url()
+        
+        # Llamar a soft_delete con el usuario para registro de auditoría
+        if hasattr(self.object, 'soft_delete'):
+            self.object.soft_delete(user=request.user)
+        else:
+            self.object.delete()
+        
+        messages.success(
+            request,
+            f'✓ La sala "{self.object.nombre}" ha sido eliminada exitosamente.'
+        )
+        return redirect(success_url)

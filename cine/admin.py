@@ -9,11 +9,12 @@ class PeliculaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
     Configuración personalizada para el modelo Pelicula en el panel de admin.
     """
     form = PeliculaForm  # Usar formulario personalizado con protección de campos
-    list_display = ('titulo', 'get_generos_display', 'director', 'fecha_estreno', 'duracion')
-    list_filter = ('fecha_estreno',)
+    list_display = ('titulo', 'get_generos_display', 'director', 'fecha_estreno', 'duracion', 'estado_badge')
+    list_filter = ('activo', 'fecha_estreno',)
     search_fields = ('titulo', 'director', 'sinopsis')
     ordering = ('-fecha_estreno',)
     filter_horizontal = ('generos',)  # widget mejorado para M2M
+    readonly_fields = ('fecha_baja',)
 
     fieldsets = (
         (None, {
@@ -22,12 +23,28 @@ class PeliculaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
         ('Detalles de Producción', {
             'fields': ('director', 'generos', 'duracion', 'fecha_estreno')
         }),
+        ('Estado', {
+            'fields': ('activo', 'fecha_baja'),
+            'classes': ('collapse',)
+        }),
     )
+    
+    def get_queryset(self, request):
+        """Usar all_objects para mostrar registros inactivos en admin"""
+        return self.model.all_objects.get_queryset()
 
     def get_generos_display(self, obj):
         """Mostrar géneros separados por coma"""
         return ', '.join([g.nombre for g in obj.generos.all()])
     get_generos_display.short_description = 'Géneros'
+    
+    def estado_badge(self, obj):
+        """Mostrar badge de estado"""
+        if obj.activo:
+            return '🟬 Activa'
+        fecha = obj.fecha_baja.strftime('%d/%m/%Y') if obj.fecha_baja else 'N/A'
+        return f'🔴 Inactiva (desde {fecha})'
+    estado_badge.short_description = 'Estado'
 
 
 @admin.register(Sala)
@@ -35,29 +52,33 @@ class SalaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
     """
     Configuración personalizada para el modelo Sala en el panel de admin.
     """
-    list_display = ('numero', 'nombre', 'get_status_display')
-    list_filter = ('activa', 'fecha_creacion')
+    list_display = ('numero', 'nombre', 'get_status_display', 'capacidad_total')
+    list_filter = ('activo', 'fecha_creacion')
     search_fields = ('numero', 'nombre', 'observaciones')
     ordering = ('numero',)
     
     # Campos de solo lectura
-    readonly_fields = ('fecha_creacion', 'fecha_actualizacion')
+    readonly_fields = ('capacidad_total', 'fecha_creacion', 'fecha_actualizacion', 'fecha_baja')
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('numero', 'nombre')
+            'fields': ('numero', 'nombre', 'capacidad_total')
         }),
         ('Estado y Configuración', {
-            'fields': ('activa', 'observaciones')
+            'fields': ('activo', 'observaciones')
         }),
         ('Fechas', {
-            'fields': ('fecha_creacion', 'fecha_actualizacion'),
+            'fields': ('fecha_creacion', 'fecha_actualizacion', 'fecha_baja'),
             'classes': ('collapse',)
         }),
     )
     
     # Filtros en la barra lateral
     list_per_page = 20
+    
+    def get_queryset(self, request):
+        """Usar all_objects para mostrar registros inactivos en admin"""
+        return self.model.all_objects.get_queryset()
     
     def get_status_display(self, obj):
         """Mostrar estado con icono en la lista"""

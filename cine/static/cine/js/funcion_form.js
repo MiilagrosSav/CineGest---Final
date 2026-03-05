@@ -83,13 +83,37 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     searchInput.addEventListener('focus', function() {
-        const filtered = filterOptions(this.value);
+        const searchTerm = this.value.trim();
+        
+        // 🔍 MEJORA: No mostrar todas las películas al hacer clic si no hay texto
+        if (searchTerm.length === 0) {
+            dropdown.innerHTML = '<div class="combobox-empty">Escribe al menos 3 letras para buscar...</div>';
+            dropdown.style.display = 'block';
+            return;
+        }
+        
+        if (searchTerm.length < 3) {
+            dropdown.innerHTML = '<div class="combobox-empty">Escribe al menos 3 letras para buscar...</div>';
+            dropdown.style.display = 'block';
+            return;
+        }
+        
+        const filtered = filterOptions(searchTerm);
         renderOptions(filtered);
         dropdown.style.display = 'block';
     });
     
     searchInput.addEventListener('input', function() {
-        const filtered = filterOptions(this.value);
+        const searchTerm = this.value.trim();
+        
+        // 🔍 MEJORA: Solo buscar después de escribir 3 letras
+        if (searchTerm.length < 3 && searchTerm.length > 0) {
+            dropdown.innerHTML = '<div class="combobox-empty">Escribe al menos 3 letras para buscar...</div>';
+            dropdown.style.display = 'block';
+            return;
+        }
+        
+        const filtered = filterOptions(searchTerm);
         renderOptions(filtered);
         dropdown.style.display = 'block';
         selectedIndex = -1;

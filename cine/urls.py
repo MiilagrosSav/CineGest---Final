@@ -31,8 +31,8 @@ urlpatterns = [
     path('salas/<int:pk>/eliminar/', views.SalaDeleteView.as_view(), name='sala_delete'),
 
     # --- URLs del Diseñador de Butacas ---
-    path('salas/<int:sala_id>/disenar/', views.disenar_layout_sala, name='disenar_layout_sala'),
-    path('salas/<int:sala_id>/api/guardar_layout/', views.api_guardar_layout_sala, name='api_guardar_layout_sala'),
+    path('salas/<int:sala_id>/disenar/', views.disenar_layout_sala, name='disenar_distribucion_asientos'),
+    path('salas/<int:sala_id>/api/guardar_layout/', views.api_guardar_layout_sala, name='api_guardar_distribucion_asientos'),
 
     # --- URLs de Funciones ---
     # Read: Lista de todas las funciones
@@ -55,6 +55,9 @@ urlpatterns = [
 
     # --- Cartelera Pública ---
     path('cartelera/', views.cartelera_view, name='cartelera'),
+    
+    # --- Cartelera de Preventa ---
+    path('preventa/', views.preventa_view, name='preventa'),
     
     # --- Compra de Entradas ---
     path('comprar-entrada/<int:funcion_id>/', views.comprar_entrada_view, name='comprar_entrada'),

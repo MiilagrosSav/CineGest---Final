@@ -219,12 +219,34 @@ class PromocionListView(AdminRequiredMixin, ListView):
         elif tipo == 'cupon':
             qs = qs.filter(es_automatica=False)
         
+        # ✅ Filtro por estado (activas/inactivas/vencidas/todas)
+        estado = self.request.GET.get('estado', 'activas').strip()
+        hoy = timezone.now().date()
+        
+        if estado == 'activas':
+            # Promociones activas y vigentes (activo=True y fecha_fin >= hoy)
+            qs = qs.filter(activo=True, fecha_fin__gte=hoy)
+        elif estado == 'inactivas':
+            # Promociones desactivadas manualmente (activo=False)
+            qs = qs.filter(activo=False)
+        elif estado == 'vencidas':
+            # Promociones que ya pasaron su fecha (fecha_fin < hoy)
+            qs = qs.filter(fecha_fin__lt=hoy)
+        # Si estado == 'todas', no filtrar
+        
         return qs.order_by('-fecha_inicio')
     
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx['filtro_search'] = self.request.GET.get('search', '')
         ctx['filtro_tipo'] = self.request.GET.get('tipo', '')
+        ctx['filtro_estado'] = self.request.GET.get('estado', 'activas')
+        
+        # Contar promociones inactivas y vencidas para badges
+        hoy = timezone.now().date()
+        ctx['promociones_inactivas_count'] = Promocion.objects.filter(activo=False).count()
+        ctx['promociones_vencidas_count'] = Promocion.objects.filter(fecha_fin__lt=hoy).count()
+        
         return ctx
     
     def render_to_response(self, context, **response_kwargs):
@@ -232,6 +254,49 @@ class PromocionListView(AdminRequiredMixin, ListView):
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             self.template_name = 'promociones/_promocion_table.html'
         return super().render_to_response(context, **response_kwargs)
+
+
+class PromocionHistorialView(AdminRequiredMixin, ListView):
+    """
+    Vista dedicada al historial de promociones vencidas.
+    Muestra solo promociones cuya fecha_fin ya pasó.
+    """
+    model = Promocion
+    template_name = 'promociones/promocion_historial.html'
+    context_object_name = 'promociones'
+    paginate_by = 20
+    
+    def get_queryset(self):
+        qs = super().get_queryset()
+        qs = qs.prefetch_related('vinculos')
+        
+        # Solo promociones vencidas
+        hoy = timezone.now().date()
+        qs = qs.filter(fecha_fin__lt=hoy)
+        
+        # Filtro por búsqueda
+        search = self.request.GET.get('search', '').strip()
+        if search:
+            qs = qs.filter(
+                models.Q(nombre__icontains=search) | 
+                models.Q(codigo__icontains=search)
+            )
+        
+        # Filtro por tipo
+        tipo = self.request.GET.get('tipo', '').strip()
+        if tipo == 'auto':
+            qs = qs.filter(es_automatica=True)
+        elif tipo == 'cupon':
+            qs = qs.filter(es_automatica=False)
+        
+        return qs.order_by('-fecha_fin')  # Las más recientes primero
+    
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx['filtro_search'] = self.request.GET.get('search', '')
+        ctx['filtro_tipo'] = self.request.GET.get('tipo', '')
+        ctx['es_historial'] = True  # Para que el template sepa que es historial
+        return ctx
 
 
 class PromocionCreateView(AdminRequiredMixin, CreateView):
@@ -260,28 +325,35 @@ class PromocionCreateView(AdminRequiredMixin, CreateView):
         context = self.get_context_data()
         vinculo_formset = context['vinculo_formset']
         
-        # Validar formset
-        if vinculo_formset.is_valid():
-            # ✅ Usar transaction.atomic() para asegurar integridad
-            with transaction.atomic():
-                self.object = form.save()
-                vinculo_formset.instance = self.object
-                vinculo_formset.save()
-            messages.success(self.request, f'Promoción "{self.object.nombre}" creada exitosamente.')
-            return redirect(self.success_url)
-        else:
-            # Si el formset no es válido, volver a mostrar el formulario
+        # 🔍 DEBUG: Mostrar errores del formset si no es válido
+        if not vinculo_formset.is_valid():
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"❌ FORMSET NO VÁLIDO - Errores: {vinculo_formset.errors}")
+            logger.error(f"❌ FORMSET Non-form errors: {vinculo_formset.non_form_errors()}")
+            messages.error(self.request, f'❌ Error en vínculos: {vinculo_formset.errors}')
             return self.form_invalid(form)
+        
+        # Validar formset
+        # ✅ Usar transaction.atomic() para asegurar integridad
+        with transaction.atomic():
+            self.object = form.save()
+            vinculo_formset.instance = self.object
+            vinculo_formset.save()
+        messages.success(self.request, f'Promoción "{self.object.nombre}" creada exitosamente.')
+        return redirect(self.success_url)
     
     def post(self, request, *args, **kwargs):
         """
         ✅ CORRECCIÓN: Interceptar POST para verificar vínculos ANTES de validar el formulario.
         Esto permite que model.clean() sepa que habrá vínculos específicos.
         """
+        from django.core.exceptions import ValidationError
+        
+        self.object = None
+        form = self.get_form()
+        
         try:
-            self.object = None
-            form = self.get_form()
-            
             from .forms import VinculoPromocionalFormSet
             vinculo_formset = VinculoPromocionalFormSet(self.request.POST, instance=self.object)
             
@@ -293,22 +365,38 @@ class PromocionCreateView(AdminRequiredMixin, CreateView):
                     for vinculo_form in vinculo_formset
                 )
             
-            # Setear flag en el formulario ANTES de validarlo
+            # ✅ FIX: Setear flag en el formulario Y en la instancia ANTES de validar
             if tiene_vinculos_pendientes:
                 form._tiene_vinculos_pendientes = True
+                if hasattr(form, 'instance'):
+                    form.instance._tiene_vinculos_pendientes = True
             
             # Ahora validar el formulario (que llamará a model.clean())
             if form.is_valid():
                 return self.form_valid(form)
             else:
+                # 🔍 DEBUG: Mostrar errores del formulario
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"❌ FORMULARIO NO VÁLIDO - Errores: {form.errors}")
+                messages.error(self.request, f'❌ Revisa los campos del formulario. Errores: {form.errors.as_text()}')
                 return self.form_invalid(form)
                 
+        except ValidationError as ve:
+            # ✅ FIX: Mostrar errores de validación del modelo correctamente
+            if hasattr(ve, 'error_dict'):
+                for field, errors in ve.error_dict.items():
+                    for error in errors:
+                        form.add_error(field, error)
+            else:
+                form.add_error(None, str(ve))
+            return self.form_invalid(form)
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Error al crear promoción: {str(e)}", exc_info=True)
-            messages.error(self.request, f'❌ Error al crear la promoción: {str(e)}')
-            return self.form_invalid(form) if 'form' in locals() else redirect('promociones:promocion_list')
+            logger.error(f"Error inesperado al crear promoción: {str(e)}", exc_info=True)
+            messages.error(self.request, f'❌ Error inesperado: {str(e)}')
+            return self.form_invalid(form)
 
 
 class PromocionUpdateView(AdminRequiredMixin, UpdateView):
@@ -337,27 +425,34 @@ class PromocionUpdateView(AdminRequiredMixin, UpdateView):
         context = self.get_context_data()
         vinculo_formset = context['vinculo_formset']
         
-        # Validar formset
-        if vinculo_formset.is_valid():
-            # ✅ Usar transaction.atomic() para asegurar integridad
-            with transaction.atomic():
-                self.object = form.save()
-                vinculo_formset.instance = self.object
-                vinculo_formset.save()
-            messages.success(self.request, f'Promoción "{self.object.nombre}" actualizada exitosamente.')
-            return redirect(self.success_url)
-        else:
-            # Si el formset no es válido, volver a mostrar el formulario
+        # 🔍 DEBUG: Mostrar errores del formset si no es válido
+        if not vinculo_formset.is_valid():
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"❌ FORMSET NO VÁLIDO - Errores: {vinculo_formset.errors}")
+            logger.error(f"❌ FORMSET Non-form errors: {vinculo_formset.non_form_errors()}")
+            messages.error(self.request, f'❌ Error en vínculos: {vinculo_formset.errors}')
             return self.form_invalid(form)
+        
+        # Validar formset
+        # ✅ Usar transaction.atomic() para asegurar integridad
+        with transaction.atomic():
+            self.object = form.save()
+            vinculo_formset.instance = self.object
+            vinculo_formset.save()
+        messages.success(self.request, f'Promoción "{self.object.nombre}" actualizada exitosamente.')
+        return redirect(self.success_url)
     
     def post(self, request, *args, **kwargs):
         """
         ✅ CORRECCIÓN: Interceptar POST para verificar vínculos ANTES de validar el formulario.
         """
+        from django.core.exceptions import ValidationError
+        
+        self.object = self.get_object()
+        form = self.get_form()
+        
         try:
-            self.object = self.get_object()
-            form = self.get_form()
-            
             from .forms import VinculoPromocionalFormSet
             vinculo_formset = VinculoPromocionalFormSet(self.request.POST, instance=self.object)
             
@@ -369,22 +464,38 @@ class PromocionUpdateView(AdminRequiredMixin, UpdateView):
                     for vinculo_form in vinculo_formset
                 )
             
-            # Setear flag en el formulario ANTES de validarlo
+            # ✅ FIX: Setear flag en el formulario Y en la instancia ANTES de validar
             if tiene_vinculos_pendientes:
                 form._tiene_vinculos_pendientes = True
+                if hasattr(form, 'instance'):
+                    form.instance._tiene_vinculos_pendientes = True
             
             # Ahora validar el formulario
             if form.is_valid():
                 return self.form_valid(form)
             else:
+                # 🔍 DEBUG: Mostrar errores del formulario
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"❌ FORMULARIO NO VÁLIDO - Errores: {form.errors}")
+                messages.error(self.request, f'❌ Revisa los campos del formulario. Errores: {form.errors.as_text()}')
                 return self.form_invalid(form)
                 
+        except ValidationError as ve:
+            # ✅ FIX: Mostrar errores de validación del modelo correctamente
+            if hasattr(ve, 'error_dict'):
+                for field, errors in ve.error_dict.items():
+                    for error in errors:
+                        form.add_error(field, error)
+            else:
+                form.add_error(None, str(ve))
+            return self.form_invalid(form)
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)
-            logger.error(f"Error al actualizar promoción: {str(e)}", exc_info=True)
-            messages.error(self.request, f'❌ Error al actualizar la promoción: {str(e)}')
-            return self.form_invalid(form) if 'form' in locals() else redirect('promociones:promocion_list')
+            logger.error(f"Error inesperado al actualizar promoción: {str(e)}", exc_info=True)
+            messages.error(self.request, f'❌ Error inesperado: {str(e)}')
+            return self.form_invalid(form)
 
 
 class PromocionDeleteView(ProtectedDeleteMixin, AdminRequiredMixin, DeleteView):
@@ -395,6 +506,13 @@ class PromocionDeleteView(ProtectedDeleteMixin, AdminRequiredMixin, DeleteView):
     # Configuración para ProtectedDeleteMixin
     protected_filter_field = 'promocion_a_otorgar'
     related_name = 'política(s) de promoción'
+    
+    def get_queryset(self):
+        """
+        Usar all_objects para permitir acceso a promociones ya eliminadas (soft delete).
+        Esto previene 404 al acceder a la página de confirmación de eliminación.
+        """
+        return Promocion.all_objects.all()
     
     @property
     def protected_model(self):
@@ -420,6 +538,26 @@ class PromocionDeleteView(ProtectedDeleteMixin, AdminRequiredMixin, DeleteView):
             context['politicas_inactivas'] = politicas.filter(activa=False).count()
         
         return context
+    
+    def delete(self, request, *args, **kwargs):
+        """Pasar usuario al soft delete para auditoría"""
+        from django.shortcuts import redirect
+        from django.contrib import messages
+        
+        self.object = self.get_object()
+        success_url = self.get_success_url()
+        
+        # Llamar a soft_delete con el usuario para registro de auditoría
+        if hasattr(self.object, 'soft_delete'):
+            self.object.soft_delete(user=request.user)
+        else:
+            self.object.delete()
+        
+        messages.success(
+            request,
+            f'✓ La promoción "{self.object.nombre}" ha sido eliminada exitosamente.'
+        )
+        return redirect(success_url)
     
     def get_protected_message_parts(self, obj, protected_objects):
         """Sobrescribe para agregar detalles de políticas activas/inactivas."""
@@ -584,7 +722,7 @@ def activar_promocion_por_link(request, token):
 @login_required
 def verificar_ocupacion_salas(request):
     """
-    Ejecuta manualmente el comando de yield management y devuelve los resultados.
+    Ejecuta manualmente el análisis de ocupación de salas y devuelve los resultados.
     Solo accesible por administradores.
     """
     user = request.user
@@ -592,23 +730,100 @@ def verificar_ocupacion_salas(request):
         return JsonResponse({'error': 'Acceso denegado'}, status=403)
 
     try:
-        # Capturar la salida del comando
+        from cine.models import Funcion
+        from datetime import timedelta
+        
+        # ✅ ANÁLISIS PREVIO: Obtener contexto antes de ejecutar
+        ahora = timezone.now()
+        
+        # Verificar políticas activas y sus configuraciones
+        politicas_auto = PoliticaPromocion.objects.filter(
+            activa=True,
+            activar_por_ocupacion=True
+        ).select_related('promocion_a_otorgar')
+        
+        # 🔍 DIAGNÓSTICO DETALLADO: Verificar cada paso del filtrado
+        total_politicas = PoliticaPromocion.objects.count()
+        politicas_activas = PoliticaPromocion.objects.filter(activa=True).count()
+        politicas_con_toggle = politicas_auto.count()  # Activas + toggle habilitado
+        
+        # Filtrar las que SÍ tienen promoción activa (usando all_objects para bypass del manager)
+        from promociones.models.promocion import Promocion
+        politicas_con_promo_activa = []
+        politicas_con_promo_inactiva = []
+        
+        for pol in politicas_auto:
+            # Verificar si la promoción está activa (usar all_objects para acceso directo)
+            if pol.promocion_a_otorgar:
+                promo = Promocion.all_objects.filter(pk=pol.promocion_a_otorgar.pk).first()
+                if promo and promo.activo:
+                    politicas_con_promo_activa.append(pol)
+                else:
+                    politicas_con_promo_inactiva.append({
+                        'politica': pol.nombre,
+                        'promocion': pol.promocion_a_otorgar.codigo if pol.promocion_a_otorgar else 'SIN PROMOCIÓN',
+                        'promo_activo': promo.activo if promo else None,
+                        'promo_exists': promo is not None
+                    })
+            else:
+                # Política sin promoción asignada
+                politicas_con_promo_inactiva.append({
+                    'politica': pol.nombre,
+                    'promocion': 'SIN PROMOCIÓN ASIGNADA',
+                    'promo_activo': None,
+                    'promo_exists': False
+                })
+        
+        contexto = {
+            'tiene_politicas': len(politicas_con_promo_activa) > 0,
+            'num_politicas': len(politicas_con_promo_activa),
+            'ventana_maxima': 0,
+            'cupones_recientes': 0,
+            'funciones_con_oferta': 0,
+            # Diagnóstico
+            'total_politicas': total_politicas,
+            'politicas_activas': politicas_activas,
+            'politicas_con_toggle': politicas_con_toggle,
+            'politicas_con_promo_inactiva': politicas_con_promo_inactiva,
+        }
+        
+        if contexto['tiene_politicas']:
+            # Calcular ventana de tiempo máxima
+            contexto['ventana_maxima'] = max([p.horas_anticipacion for p in politicas_con_promo_activa])
+            
+            # Contar funciones que ya tienen oferta activa
+            fin_ventana = ahora + timedelta(hours=contexto['ventana_maxima'])
+            contexto['funciones_con_oferta'] = Funcion.objects.filter(
+                fecha_hora__gte=ahora,
+                fecha_hora__lte=fin_ventana,
+                estado_promocion='OFERTA_ACTIVA'
+            ).count()
+            
+            # Contar cupones generados en las últimas 24 horas
+            hace_24h = ahora - timedelta(hours=24)
+            contexto['cupones_recientes'] = CuponGenerado.objects.filter(
+                creado_en__gte=hace_24h
+            ).count()
+        
+        # ✅ OPTIMIZACIÓN: Usar verbosity=1 en lugar de 2 para menor overhead
         out = StringIO()
-        call_command('ejecutar_yield_management', verbosity=2, stdout=out)
+        call_command('ejecutar_yield_management', verbosity=1, stdout=out)
         output = out.getvalue()
         
         # Parsear información relevante del output
         lines = output.split('\n')
         resultado = {
             'success': True,
-            'output': output,
             'politicas_activas': 0,
             'funciones_evaluadas': 0,
             'ofertas_activadas': 0,
             'cupones_generados': 0,
             'emails_enviados': 0,
+            'mensaje': '',  # Mensaje amigable para el usuario
+            'detalles': '',  # Información adicional contextual
         }
         
+        # Parsear métricas
         for line in lines:
             if 'Políticas activas encontradas:' in line:
                 try:
@@ -636,10 +851,67 @@ def verificar_ocupacion_salas(request):
                 except:
                     pass
         
+        # ✅ MEJORA: Generar mensaje amigable e informativo según resultados y contexto
+        if resultado['cupones_generados'] > 0:
+            resultado['mensaje'] = f"¡Promociones activadas! Se enviaron {resultado['emails_enviados']} emails a clientes para {resultado['ofertas_activadas']} función(es) con baja ocupación."
+            resultado['detalles'] = f"Los cupones expiran según la configuración de cada política (típicamente 60 minutos)."
+            
+        elif resultado['funciones_evaluadas'] > 0:
+            # Hay funciones pero no necesitan promociones
+            resultado['mensaje'] = f"✅ Todo bajo control: Se analizaron {resultado['funciones_evaluadas']} función(es) y todas tienen ocupación satisfactoria."
+            if contexto['funciones_con_oferta'] > 0:
+                resultado['detalles'] = f"Hay {contexto['funciones_con_oferta']} función(es) con ofertas ya activas. "
+            if contexto['cupones_recientes'] > 0:
+                resultado['detalles'] += f"Se generaron {contexto['cupones_recientes']} cupones en las últimas 24 horas."
+            else:
+                resultado['detalles'] = f"Las políticas activas revisan funciones en las próximas {contexto['ventana_maxima']} horas con umbrales de ocupación configurados."
+                
+        elif resultado['politicas_activas'] == 0 or contexto['num_politicas'] == 0:
+            # 🔍 DIAGNÓSTICO: Explicar por qué no hay políticas detectadas
+            resultado['mensaje'] = "⚙️ Sistema en espera: No se detectaron políticas con análisis automático habilitado."
+            
+            # Generar detalles de diagnóstico
+            if contexto['total_politicas'] == 0:
+                resultado['detalles'] = "No hay políticas creadas aún. Crea una política nueva desde el menú de Políticas."
+            elif contexto['politicas_activas'] == 0:
+                resultado['detalles'] = f"Tienes {contexto['total_politicas']} política(s) pero todas están inactivas. Actívalas editándolas y marcando el switch 'Activa'."
+            elif contexto['politicas_con_toggle'] == 0:
+                resultado['detalles'] = f"Tienes {contexto['politicas_activas']} política(s) activa(s), pero ninguna tiene habilitado el toggle '⚡ Ocupación Automática'. Edita la política y activa ese toggle para habilitar el análisis automático."
+            elif len(contexto['politicas_con_promo_inactiva']) > 0:
+                # 🔍 DIAGNÓSTICO ESPECÍFICO: Mostrar qué promociones están inactivas
+                detalles_promos = []
+                for info in contexto['politicas_con_promo_inactiva'][:5]:  # Máximo 5 ejemplos
+                    if info['promo_exists'] is False:
+                        detalles_promos.append(f"'{info['politica']}' → {info['promocion']}")
+                    elif info['promo_activo'] is False:
+                        detalles_promos.append(f"'{info['politica']}' → Promoción '{info['promocion']}' (INACTIVA)")
+                    elif info['promo_activo'] is None:
+                        detalles_promos.append(f"'{info['politica']}' → Promoción '{info['promocion']}' (NO ENCONTRADA EN BD)")
+                
+                resultado['detalles'] = f"Tienes {contexto['politicas_con_toggle']} política(s) con análisis automático habilitado.\n\n"
+                resultado['detalles'] += f"⚠️ Problemas detectados ({len(contexto['politicas_con_promo_inactiva'])} política(s)):\n\n"
+                resultado['detalles'] += '\n'.join(f"• {d}" for d in detalles_promos)
+                resultado['detalles'] += "\n\n💡 Solución:\n"
+                resultado['detalles'] += "1. Ve a Promociones → Lista de promociones\n"
+                resultado['detalles'] += "2. Busca la promoción indicada\n"
+                resultado['detalles'] += "3. Edita y marca el campo 'Activo' (switch verde)\n"
+                resultado['detalles'] += "4. Guarda los cambios"
+            else:
+                resultado['detalles'] = "Configuración detectada pero no se pudieron procesar las políticas. Contacta al administrador."
+            
+        else:
+            # Hay políticas pero no hay funciones en la ventana
+            resultado['mensaje'] = f"📅 Sin funciones para analizar en este momento."
+            resultado['detalles'] = f"Las {contexto['num_politicas']} política(s) activa(s) revisan funciones en las próximas {contexto['ventana_maxima']} horas. "
+            if contexto['funciones_con_oferta'] > 0:
+                resultado['detalles'] += f"Hay {contexto['funciones_con_oferta']} función(es) con ofertas ya activas (no se repiten envíos). "
+            if contexto['cupones_recientes'] > 0:
+                resultado['detalles'] += f"Se generaron {contexto['cupones_recientes']} cupones en las últimas 24 horas."
+        
         return JsonResponse(resultado)
         
     except Exception as e:
-        logger.error(f'Error al ejecutar yield management: {e}')
+        logger.error(f'Error al ejecutar análisis de ocupación: {e}')
         return JsonResponse({
             'success': False,
             'error': str(e)

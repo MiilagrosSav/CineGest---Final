@@ -1,0 +1,376 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}¡Preventa! - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'cine/css/cartelera.css' %}?v=2.0">
+    <style>
+        /* Estilos específicos para preventa */
+        .preventa-header {
+            /* Corregido el espacio en linear-gradient y mejorado el contraste */
+            background: linear-gradient(135deg, #8e9efc 0%, #ac7ff1 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            /* Cambiamos transparent por una caída a color sólido para mayor compatibilidad */
+            color: #764ba2; 
+            -webkit-text-fill-color: transparent;
+            
+            /* Añadimos un sombreado suave para que las letras no se pierdan */
+            filter: drop-shadow(0px 4px 8px rgba(102, 126, 234, 0.3));
+            font-weight: 800;
+            text-transform: uppercase;
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .preventa-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+            }
+        }
+        
+        .pelicula-card-preventa {
+            border: 2px solid transparent;
+            background: linear-gradient(var(--card-bg), var(--card-bg)) padding-box,
+                       linear-gradient(135deg, #667eea, #764ba2) border-box;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pelicula-card-preventa::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(
+                45deg,
+                transparent,
+                rgba(102, 126, 234, 0.1),
+                transparent
+            );
+            transform: rotate(45deg);
+            animation: shine 3s infinite;
+        }
+        
+        @keyframes shine {
+            0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+            100% { transform: translateX(100%) translateY(100%) rotate(45deg); }
+        }
+        
+        .fecha-activacion-box {
+            background: rgba(102, 126, 234, 0.1);
+            border-left: 3px solid #667eea;
+            padding: 0.5rem 0.75rem;
+            margin-top: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        
+        .cta-preventa {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .cta-preventa:hover {
+            box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+            transform: translateY(-2px);
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+
+<div class="container" style="max-width: 1400px;">
+    <!-- Header con diseño especial para Preventa -->
+    <div style="text-align: center; margin-bottom: var(--space-lg); padding: var(--space-lg); background: rgba(237, 233, 233, 0.05); border-radius: var(--radius); border: 2px dashed rgba(102, 126, 234, 0.3);">
+        <h1 class="preventa-header" style="margin: 0 0 var(--space-sm) 0; font-size: 2.5rem;">
+            ⭐ ¡Venta Anticipada! ⭐
+        </h1>
+        <p style="color: var(--text-secondary); font-size: 1.1rem; max-width: 700px; margin: 0 auto;">
+            Asegura tus entradas para las proyecciones más esperadas. ¡Compra ahora y sé de los primeros en disfrutarlas!
+        </p>
+    </div>
+
+    <!-- Filtros -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-md); gap: var(--space-md);">
+        <form method="get" action="{% url 'cine:preventa' %}" id="filtrosForm" style="display: flex; gap: var(--space-xs); align-items: center; flex-wrap: wrap;">
+            
+            <div class="search-container" id="searchContainer">
+                <button type="button" class="search-btn" id="searchBtn">🔍</button>
+                <input type="text" 
+                       name="search" 
+                       value="{{ filtro_search|default:'' }}"
+                       placeholder="Buscar..."
+                       class="form-input search-input"
+                       id="searchInput">
+            </div>
+
+            <select name="genero" class="form-select" style="width: 110px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
+                <option value="">Género</option>
+                {% for codigo, nombre in generos_disponibles %}
+                    <option value="{{ codigo }}" {% if filtro_genero == codigo|stringformat:"s" %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="idioma" class="form-select" style="width: 100px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
+                <option value="">Idioma</option>
+                {% for codigo, nombre in idiomas_disponibles %}
+                    <option value="{{ codigo }}" {% if filtro_idioma == codigo %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="formato" class="form-select" style="width: 95px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
+                <option value="">Formato</option>
+                {% for codigo, nombre in formatos_disponibles %}
+                    <option value="{{ codigo }}" {% if filtro_formato == codigo %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+            </select>
+
+            <button type="submit" class="btn btn-primary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
+                🔎 Filtrar
+            </button>
+
+            <a href="{% url 'cine:preventa' %}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.6rem;" title="Limpiar">
+                Limpiar
+            </a>
+        </form>
+        
+        <a href="{% url 'cine:cartelera' %}" class="btn btn-outline" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
+            🎬 Ver Cartelera Normal
+        </a>
+    </div>
+
+    <!-- Grid de películas en preventa -->
+    {% if peliculas_con_funciones %}
+        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-lg);">
+            
+            {% for item in peliculas_con_funciones %}
+                    <div class="card glass-container pelicula-card pelicula-card-preventa" style="display: flex; gap: var(--space-md); padding: var(--space-md); align-items: flex-start; position: relative;">
+                        
+                        <!-- Badge flotante PREVENTA -->
+                        <span class="preventa-badge" style="position: absolute; top: 10px; right: 10px; z-index: 10;">
+                            ⭐ ¡ANTICIPADAS!
+                        </span>
+                        
+                        <div class="pelicula-imagen" style="flex-shrink: 0; cursor: pointer;" data-pelicula-id="{{ item.pelicula.id }}">
+                            <img src="{{ item.pelicula.get_poster_url }}" 
+                                 alt="{{ item.pelicula.titulo }}"
+                                 style="width: 210px; height: 300px; object-fit: cover; border-radius: var(--radius); transition: transform 0.3s; box-shadow: 0 8px 30px rgba(102, 126, 234, 0.3);">
+                        </div>
+
+                        <div style="flex: 1; display: flex; flex-direction: column;">
+                            
+                            <!-- TÍTULO -->
+                            <h3 class="text-gradient-accent" style="font-size: 1.3rem; margin-top: 0; margin-bottom: var(--space-xs);">
+                                {{ item.pelicula.titulo }}
+                            </h3>
+                            
+                            <!-- VALORACIONES + DURACIÓN/GÉNERO -->
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm); gap: var(--space-md); flex-wrap: wrap;">
+                                <div style="display: flex; align-items: center; gap: 0.3rem;">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= item.valoraciones.estrellas_llenas %}
+                                            <span style="color: #fbbf24; font-size: 1rem;">★</span>
+                                        {% else %}
+                                            <span style="color: #4a4a4a; font-size: 1rem;">★</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if item.valoraciones.total > 0 %}
+                                        <span style="color: #9ca3af; font-size: 0.85rem; margin-left: 0.3rem; font-weight: 500;">
+                                            {{ item.valoraciones.promedio }}/5 ({{ item.valoraciones.total }})
+                                        </span>
+                                    {% else %}
+                                        <span style="color: #9ca3af; font-size: 0.85rem; margin-left: 0.3rem; font-style: italic;">
+                                            Sin valoraciones
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div style="display: flex; align-items: center; gap: var(--space-xs); font-size: 0.85rem;">
+                                    <span style="font-size: 1rem;">🕒</span>
+                                    <span style="color: var(--text-light); font-weight: 500;">{{ item.pelicula.duracion }} min</span>
+                                    <span style="font-size: 1rem;">🎭</span>
+                                    <span style="color: var(--text-light); font-weight: 500;">{{ item.pelicula.get_genero_display }}</span>
+                                </div>
+                            </div>
+
+                            <!-- FECHAS DISPONIBLES EN PREVENTA -->
+                            <div style="margin-top: var(--space-sm);">
+                                <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: var(--space-xs); font-weight: 600;">Fechas disponibles:</h4>
+                                
+                                {% for fecha_str, datos_fecha in item.fechas.items %}
+                                <div class="fecha-activacion-box" style="margin-bottom: var(--space-xs);">
+                                    <div style="font-weight: 700; color: #667eea; margin-bottom: 0.3rem;">
+                                        📅 {{ datos_fecha.fecha|date:"d/m/Y" }} ({{ datos_fecha.fecha|date:"l"|title }})
+                                    </div>
+                                    
+                                    <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                                        {% for funcion in datos_fecha.funciones %}
+                                        <button type="button" 
+                                                class="horario-btn cta-preventa" 
+                                                data-funcion-id="{{ funcion.id }}"
+                                                data-pelicula="{{ funcion.pelicula.titulo|escapejs }}"
+                                                data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
+                                                data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
+                                                data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
+                                                data-clasificacion="{{ funcion.pelicula.get_clasificacion_display|escapejs }}"
+                                                data-estado="{{ funcion.estado }}"
+                                                style="font-size: 0.85rem; padding: 0.4rem 0.8rem; color: white; font-weight: 600;">
+                                             {{ funcion.fecha_hora|date:"H:i" }}
+                                            
+                                        </button>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- Mensaje cuando no hay funciones en preventa -->
+        <div class="empty-state-container">
+            <div class="empty-state glass-container" style="text-align: center; padding: var(--space-xl);">
+                <div style="font-size: 4rem; margin-bottom: var(--space-md); opacity: 0.5;">
+                    ⭐
+                </div>
+                <h3 class="mb-md text-gradient-secondary">
+                    No hay funciones en preventa en este momento
+                </h3>
+                <p style="color: var(--text-secondary); margin-bottom: var(--space-md);">
+                    Vuelve a revisar pronto para encontrar nuevas proyecciones en venta anticipada.
+                </p>
+                <a href="{% url 'cine:cartelera' %}" class="btn btn-primary">
+                    Ver Cartelera Regular
+                </a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Reutilizar el popup de compra de cartelera normal -->
+<!-- Popup para compra de entrada -->
+<div id="popupCompra" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: linear-gradient(135deg, rgba(26, 11, 46, 0.98), rgba(13, 31, 45, 0.98)); padding: 2.5rem; border-radius: 16px; max-width: 450px; width: 90%; border: 2px solid var(--primary); box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+        
+        <!-- Icono de alerta -->
+        <div style="text-align: center; margin-bottom: 1.5rem;">
+            <div style="width: 80px; height: 80px; margin: 0 auto 1rem; background: linear-gradient(135deg, rgba(56, 239, 125, 0.2), rgba(17, 153, 142, 0.2)); border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid var(--primary);">
+                <span style="font-size: 2.5rem;">⚠️</span>
+            </div>
+            <h2 style="color: var(--primary); margin: 0; font-size: 1.5rem; font-weight: 700;">¡Atención!</h2>
+        </div>
+        
+        <!-- Mensaje -->
+        <div style="text-align: center; margin-bottom: 2rem;">
+            <p style="color: var(--text-light); font-size: 1rem; line-height: 1.6; margin-bottom: 1.5rem;">
+                Estás por comprar una entrada para:
+            </p>
+            
+            <div style="background: rgba(56, 239, 125, 0.1); padding: 1.5rem; border-radius: 12px; border-left: 4px solid var(--primary);">
+                <div style="margin-bottom: 1rem;">
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--primary); margin-bottom: 0.5rem;" id="popupPelicula"></div>
+                </div>
+                
+                <div style="display: flex; justify-content: center; gap: 2rem; font-size: 1.1rem;">
+                    <div>
+                        <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.3rem;">FECHA</div>
+                        <div style="font-weight: 700; color: var(--text-light);" id="popupFecha"></div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-secondary); font-size: 0.8rem; margin-bottom: 0.3rem;">HORA</div>
+                        <div style="font-weight: 700; color: var(--text-light);" id="popupHora"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Botones -->
+        <div style="display: flex; gap: 1rem;">
+            <button id="btnCancelarCompra" class="btn btn-secondary" style="flex: 1; font-size: 1rem; padding: 0.8rem;">
+                Cancelar
+            </button>
+            <button id="btnContinuarCompra" class="btn btn-primary" style="flex: 1; font-size: 1rem; padding: 0.8rem; font-weight: 700;">
+                Continuar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Popup para detalles de película -->
+<div id="popupDetalles" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center; overflow-y: auto; padding: 1rem;">
+    <div style="background: linear-gradient(135deg, rgba(26, 11, 46, 0.98), rgba(13, 31, 45, 0.98)); padding: 1.5rem; border-radius: 12px; max-width: 550px; width: 90%; border: 2px solid var(--primary); box-shadow: 0 10px 40px rgba(0,0,0,0.5); margin: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 style="color: var(--primary); margin: 0; font-size: 1.3rem;">🎬 Detalles</h2>
+            <button id="btnCerrarDetalles" style="background: none; border: none; font-size: 1.3rem; color: var(--text-light); cursor: pointer; padding: 0.3rem;">✖</button>
+        </div>
+        
+        <div id="detallesContenido" style="color: var(--text-light);">
+            <!-- Contenido dinámico -->
+        </div>
+    </div>
+</div>
+
+<!-- Script con datos del backend para transferir a cartelera.js -->
+<script type="text/plain" id="intercambioVentaIdScript">{{ intercambio_for|default:"" }}</script>
+
+<script type="application/json" id="peliculasDataJson">
+{
+    {% for item in peliculas_con_funciones %}
+    "{{ item.pelicula.id }}": {
+        "titulo": "{{ item.pelicula.titulo|escapejs }}",
+        "genero": "{{ item.pelicula.get_genero_display|escapejs }}",
+        "clasificacion": "{{ item.pelicula.get_clasificacion_display|escapejs }}",
+        "duracion": "{{ item.pelicula.duracion }}",
+        "fecha_estreno": "{{ item.pelicula.fecha_estreno|date:'d/m/Y'|default:'' }}",
+        "sinopsis": "{{ item.pelicula.sinopsis|escapejs }}",
+        "director": "{{ item.pelicula.director|default:''|escapejs }}",
+        "imagen": "{{ item.pelicula.get_poster_url }}",
+        "formato": "{{ item.pelicula.get_formato_display|escapejs }}",
+        "comentarios": [
+            {% for comentario in item.comentarios|slice:":3" %}
+            {
+                "cliente": "{{ comentario.cliente|escapejs }}",
+                "puntuacion": {{ comentario.puntuacion }},
+                "comentario": "{{ comentario.comentario|escapejs }}",
+                "fecha": "{{ comentario.fecha }}"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
+    }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+}
+</script>
+
+<script src="{% static 'cine/js/cartelera.js' %}?v=2.0"></script>
+
+{% endblock %}

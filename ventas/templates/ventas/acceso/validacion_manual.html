@@ -1,0 +1,386 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Validación Manual - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .validacion-manual-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+    }
+
+    .titulo-seccion {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .titulo-seccion h1 {
+        margin: 0 0 0.5rem 0;
+        color: var(--text-primary);
+        font-size: 2.2rem;
+        font-weight: 900;
+    }
+
+    .titulo-seccion p {
+        margin: 0;
+        color: var(--text-secondary);
+    }
+
+    /* Formulario de búsqueda */
+    .busqueda-card {
+        background: var(--glass-background);
+        backdrop-filter: blur(10px);
+        border-radius: var(--radius-lg);
+        padding: var(--space-xl);
+        margin-bottom: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .busqueda-form {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+    }
+
+    .busqueda-input {
+        flex: 1;
+        padding: 1rem 1.25rem;
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--radius);
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--text-primary);
+        font-size: 1rem;
+    }
+
+    .busqueda-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-buscar {
+        padding: 1rem 2rem;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: var(--radius);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-buscar:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+    }
+
+    .btn-volver {
+        padding: 1rem 1.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-primary);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: var(--radius);
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: inline-block;
+    }
+
+    .btn-volver:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+
+    /* Resultados */
+    .resultados-info {
+        margin-bottom: 1rem;
+        padding: 1rem;
+        background: rgba(102, 126, 234, 0.1);
+        border-radius: var(--radius);
+        border-left: 4px solid var(--primary);
+    }
+
+    .tabla-entradas {
+        background: var(--glass-background);
+        backdrop-filter: blur(10px);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .tabla-entradas table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .tabla-entradas thead {
+        background: rgba(102, 126, 234, 0.2);
+    }
+
+    .tabla-entradas th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 700;
+        color: var(--text-primary);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .tabla-entradas td {
+        padding: 1rem;
+        border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .tabla-entradas tbody tr {
+        transition: background 0.2s ease;
+    }
+
+    .tabla-entradas tbody tr:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* Estados de entrada */
+    .estado-badge {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .estado-badge.VENDIDA,
+    .estado-badge.ENTREGADA {
+        background: rgba(46, 213, 115, 0.2);
+        color: #2ed573;
+        border: 1px solid rgba(46, 213, 115, 0.3);
+    }
+
+    .estado-badge.USADA {
+        background: rgba(149, 165, 166, 0.2);
+        color: #95a5a6;
+        border: 1px solid rgba(149, 165, 166, 0.3);
+    }
+
+    .estado-badge.CANCELADA,
+    .estado-badge.EXPIRADA {
+        background: rgba(235, 77, 75, 0.2);
+        color: #eb4d4b;
+        border: 1px solid rgba(235, 77, 75, 0.3);
+    }
+
+    .estado-badge.RESERVADA {
+        background: rgba(253, 203, 110, 0.2);
+        color: #fdcb6e;
+        border: 1px solid rgba(253, 203, 110, 0.3);
+    }
+
+    /* Botón de validar */
+    .btn-validar {
+        padding: 0.5rem 1rem;
+        background: linear-gradient(135deg, #2ed573, #48dbfb);
+        color: white;
+        border: none;
+        border-radius: var(--radius);
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+        font-size: 0.9rem;
+    }
+
+    .btn-validar:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(46, 213, 115, 0.3);
+    }
+
+    .btn-validar:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Sin resultados */
+    .sin-resultados {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-secondary);
+    }
+
+    .sin-resultados .icono {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    /* Info de cliente */
+    .info-cliente {
+        font-size: 0.9rem;
+        opacity: 0.8;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="validacion-manual-container">
+    
+    <div class="titulo-seccion">
+        <h1>🔍 Validación Manual de Entradas</h1>
+        <p>Buscar entrada por ID, código, DNI del cliente, o código de compra</p>
+    </div>
+
+    <div class="busqueda-card">
+        <form method="GET" action="{% url 'ventas:validacion_manual' %}" class="busqueda-form">
+            <input 
+                type="text" 
+                name="buscar" 
+                class="busqueda-input" 
+                placeholder="ID de entrada, código, DNI, nombre del cliente..."
+                value="{{ busqueda|default:'' }}"
+                autofocus
+            >
+            <button type="submit" class="btn-buscar">🔍 Buscar</button>
+            <a href="{% url 'ventas:validar_acceso' %}" class="btn-volver">← Scanner QR</a>
+        </form>
+
+        <div style="margin-top: 1rem; padding: 0.75rem; background: rgba(255, 255, 255, 0.05); border-radius: var(--radius); font-size: 0.9rem;">
+            <strong>Formatos soportados:</strong> ID de entrada (123), Código de compra (COMP-2026-ABC), DNI o nombre del cliente
+        </div>
+    </div>
+
+    {% if busqueda %}
+        {% if resultados %}
+            <div class="resultados-info">
+                <strong>✓ {{ resultados|length }} entrada(s) encontrada(s)</strong> para "{{ busqueda }}"
+            </div>
+
+            <div class="tabla-entradas">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Película</th>
+                            <th>Función</th>
+                            <th>Sala</th>
+                            <th>Butaca</th>
+                            <th>Cliente</th>
+                            <th>Estado</th>
+                            <th>Acción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entrada in resultados %}
+                        <tr>
+                            <td><strong>#{{ entrada.id_entrada }}</strong></td>
+                            <td>
+                                <strong>{{ entrada.id_pelicula.titulo }}</strong>
+                                <div style="font-size: 0.85rem; opacity: 0.7; margin-top: 0.25rem;">
+                                    Venta #{{ entrada.id_venta.id_venta }}{% if entrada.id_venta.codigo_compra %} - {{ entrada.id_venta.codigo_compra }}{% endif %}
+                                </div>
+                            </td>
+                            <td>
+                                {{ entrada.id_funcion.fecha_hora|date:"d/m/Y" }}<br>
+                                <strong>{{ entrada.id_funcion.fecha_hora|date:"H:i" }} hs</strong>
+                            </td>
+                            <td>Sala {{ entrada.id_funcion.sala.numero }}</td>
+                            <td><strong>{{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}</strong></td>
+                            <td class="info-cliente">
+                                {% if entrada.id_venta.id_cliente %}
+                                    {{ entrada.id_venta.id_cliente.usuario.get_full_name|default:entrada.id_venta.id_cliente.usuario.username }}
+                                {% else %}
+                                    Venta presencial
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="estado-badge {{ entrada.estado }}">{{ entrada.estado }}</span>
+                            </td>
+                            <td>
+                                {% if entrada.estado == 'VENDIDA' or entrada.estado == 'ENTREGADA' %}
+                                    <button 
+                                        class="btn-validar" 
+                                        onclick="validarEntrada({{ entrada.id_entrada }})"
+                                    >
+                                        ✓ Validar
+                                    </button>
+                                {% elif entrada.estado == 'USADA' %}
+                                    <span style="opacity: 0.5; font-size: 0.9rem;">Ya validada</span>
+                                {% else %}
+                                    <span style="opacity: 0.5; font-size: 0.9rem;">No disponible</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="sin-resultados">
+                <div class="icono">🔍</div>
+                <h3>No se encontraron entradas</h3>
+                <p>No hay entradas que coincidan con "{{ busqueda }}"</p>
+                <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.7;">
+                    Verifica el código e intenta nuevamente
+                </p>
+            </div>
+        {% endif %}
+    {% else %}
+        <div class="sin-resultados">
+            <div class="icono">🎫</div>
+            <h3>Ingresa un término de búsqueda</h3>
+            <p>Utiliza el formulario para buscar entradas</p>
+        </div>
+    {% endif %}
+
+</div>
+
+<script>
+// Función para obtener CSRF token
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const csrftoken = getCookie('csrftoken');
+
+function validarEntrada(entradaId) {
+    if (!confirm('¿Confirmar acceso para esta entrada?')) {
+        return;
+    }
+
+    // Llamar a la API con el ID de entrada
+    fetch("{% url 'ventas:buscar_entrada_api' %}", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrftoken
+        },
+        body: JSON.stringify({ codigo: entradaId.toString() })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.resultado === 'PERMITIDO') {
+            alert('✅ ' + data.motivo + '\n\n' + data.detalle);
+            // Recargar para actualizar estado
+            window.location.reload();
+        } else {
+            alert('❌ ' + data.motivo + '\n\n' + (data.detalle || ''));
+        }
+    })
+    .catch(error => {
+        alert('Error al validar: ' + error);
+    });
+}
+</script>
+{% endblock %}

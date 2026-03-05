@@ -31,6 +31,32 @@ class Valoracion(models.Model):
 
     def __str__(self):
         return f"Valoración {self.puntuacion} - {self.cliente} - {self.funcion}"
-from django.db import models
 
-# Create your models here.
+
+class NotificacionValoracion(models.Model):
+    """Notificación para recordar al cliente que valore una función."""
+    cliente = models.ForeignKey(
+        'accounts.Cliente', on_delete=models.CASCADE, related_name='notificaciones_valoracion'
+    )
+    funcion = models.ForeignKey(
+        'cine.Funcion', on_delete=models.CASCADE, related_name='notificaciones'
+    )
+    mensaje = models.CharField(max_length=255)
+    url_destino = models.CharField(max_length=500, blank=True, null=True)
+    leido = models.BooleanField(default=False)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'notificaciones_valoracion'
+        verbose_name = 'Notificación de Valoración'
+        verbose_name_plural = 'Notificaciones de Valoración'
+        ordering = ['-fecha_creacion']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['cliente', 'funcion'], 
+                name='unique_cliente_funcion_notificacion'
+            )
+        ]
+
+    def __str__(self):
+        return f"Notificación para {self.cliente} - {self.funcion.pelicula.titulo}"

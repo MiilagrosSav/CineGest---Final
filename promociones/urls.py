@@ -1,10 +1,14 @@
 from django.urls import path
 from . import views
+from .views_debug import debug_promociones
 
 app_name = 'promociones'
 
 urlpatterns = [
     path('dashboard/', views.dashboard_promociones, name='dashboard'),
+    
+    # 🔍 Debug de promociones (solo staff)
+    path('debug/', debug_promociones, name='debug_promociones'),
     
     # Políticas de Promoción
     path('politicas/', views.PoliticaPromocionListView.as_view(), name='politica_list'),
@@ -14,6 +18,7 @@ urlpatterns = [
     
     # Promociones
     path('promociones/', views.PromocionListView.as_view(), name='promocion_list'),
+    path('promociones/historial/', views.PromocionHistorialView.as_view(), name='promocion_historial'),
     path('promociones/crear/', views.PromocionCreateView.as_view(), name='promocion_create'),
     path('promociones/<int:pk>/editar/', views.PromocionUpdateView.as_view(), name='promocion_update'),
     path('promociones/<int:pk>/eliminar/', views.PromocionDeleteView.as_view(), name='promocion_delete'),

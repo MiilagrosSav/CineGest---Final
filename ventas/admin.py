@@ -3,7 +3,7 @@ Configuración del admin para los modelos de ventas
 """
 
 from django.contrib import admin
-from ventas.models import Venta, Entrada, MetodoPago, Pago, Intercambio
+from ventas.models import Venta, Entrada, MetodoPago, Pago, Intercambio, RegistroAcceso
 from ventas.models import PoliticaReembolso
 from simple_history.admin import SimpleHistoryAdmin
 
@@ -44,7 +44,7 @@ class VentaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
         }),
     )
 class PoliticaReembolsoAdmin(admin.ModelAdmin):
-    list_display = ['id', 'nombre', 'activo', 'dias_antes_minimo', 'penalidad_percent', 'max_cambios_por_compra']
+    list_display = ['id', 'nombre', 'activo', 'dias_antes_minimo', 'max_cambios_por_compra']
     list_filter = ['activo']
     search_fields = ['nombre']
     readonly_fields = ['created_at', 'updated_at']
@@ -104,9 +104,8 @@ class IntercambioAdmin(admin.ModelAdmin):
         'fecha_intercambio',
         'cantidad_entradas',
         'usuario_email',
-        'ip_address',
-        'user_agent',
-        'dias_anticipacion_origen'
+        'dias_anticipacion_origen',
+        'get_ip_auditoria',
     ]
     
     fieldsets = (
@@ -126,17 +125,11 @@ class IntercambioAdmin(admin.ModelAdmin):
                 'cantidad_entradas'
             )
         }),
-        ('Detalles Financieros', {
-            'fields': (
-                'penalidad_aplicada',
-            )
-        }),
         ('Auditoría', {
             'fields': (
                 'usuario_email',
-                'ip_address',
-                'user_agent',
-                'dias_anticipacion_origen'
+                'dias_anticipacion_origen',
+                'get_ip_auditoria',
             ),
             'classes': ('collapse',)
         }),
@@ -146,8 +139,92 @@ class IntercambioAdmin(admin.ModelAdmin):
         }),
     )
     
+    def get_ip_auditoria(self, obj):
+        """
+        Obtiene la IP desde django-simple-history para mostrar en el admin.
+        
+        Este método consulta el historial del intercambio para obtener la IP
+        capturada automáticamente por HistoryRequestMiddleware.
+        """
+        if obj and obj.pk:
+            # Buscar el registro de creación en el historial
+            history = obj.history.filter(history_type='+').first()
+            if history and hasattr(history, '_request_ip'):
+                return history._request_ip
+        return '(no disponible)'
+    get_ip_auditoria.short_description = 'IP de Creación'
+    
     def has_add_permission(self, request):
         # Los intercambios solo se crean a través del flujo de la aplicación
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        # No permitir eliminar registros de auditoría
+        return False
+
+
+@admin.register(RegistroAcceso)
+class RegistroAccesoAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
+    """Admin para auditoría de validaciones de acceso en puerta"""
+    list_display = [
+        'id',
+        'entrada',
+        'resultado',
+        'tipo_validacion',
+        'empleado_validador',
+        'fecha_hora_intento',
+        'motivo_rechazo'
+    ]
+    list_filter = [
+        'resultado',
+        'tipo_validacion',
+        'fecha_hora_intento',
+        'empleado_validador'
+    ]
+    search_fields = [
+        'entrada__id_entrada',
+        'entrada__codigo_entrada',
+        'codigo_buscado',
+        'empleado_validador__username',
+        'empleado_validador__first_name',
+        'empleado_validador__last_name'
+    ]
+    readonly_fields = [
+        'entrada',
+        'empleado_validador',
+        'fecha_hora_intento',
+        'tipo_validacion',
+        'resultado',
+        'codigo_buscado',
+        'motivo_rechazo',
+        'ip_origen'
+    ]
+    
+    fieldsets = (
+        ('Información del Acceso', {
+            'fields': (
+                'entrada',
+                'resultado',
+                'fecha_hora_intento',
+                'tipo_validacion'
+            )
+        }),
+        ('Validador', {
+            'fields': (
+                'empleado_validador',
+                'ip_origen'
+            )
+        }),
+        ('Detalles', {
+            'fields': (
+                'codigo_buscado',
+                'motivo_rechazo'
+            )
+        }),
+    )
+    
+    def has_add_permission(self, request):
+        # Los registros solo se crean automáticamente desde las vistas
         return False
     
     def has_delete_permission(self, request, obj=None):

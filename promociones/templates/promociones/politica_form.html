@@ -34,7 +34,7 @@
             <div class="section-block">
                 <h5 class="section-title">📝 Datos Generales</h5>
                 
-                <div style="display: grid; grid-template-columns: 1fr auto; gap: var(--space-md); align-items: center;">
+                <div style="display: grid; grid-template-columns: {% if form.instance.pk %}1fr auto{% else %}1fr{% endif %}; gap: var(--space-md); align-items: center;">
                     <div class="form-group" style="margin-bottom: 0;">
                         <label for="{{ form.nombre.id_for_label }}" class="form-label">
                             {{ form.nombre.label }}
@@ -44,6 +44,7 @@
                         {% if form.nombre.errors %}<span class="form-error">⚠️ {{ form.nombre.errors.0 }}</span>{% endif %}
                     </div>
 
+                    {% if form.instance.pk %}
                     <div class="form-group" style="margin-bottom: 0; padding-top: 1.8rem;">
                         <label class="toggle-switch">
                             {{ form.activa }}
@@ -51,6 +52,7 @@
                             <span class="toggle-label">{{ form.activa.label }}</span>
                         </label>
                     </div>
+                    {% endif %}
                 </div>
                 <div style="margin-top: 0.5rem;">
                     <small class="form-text">Nombre descriptivo de la política (ej: "Promo Lunes de Terror")</small>

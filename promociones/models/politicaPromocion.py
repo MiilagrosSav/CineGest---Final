@@ -45,28 +45,31 @@ class PoliticaPromocion(models.Model):
         help_text='Prioridad de la política: 1 = máxima prioridad, números más altos = menor prioridad. Valor por defecto=100 (baja prioridad)'
     )
 
-    # Nuevo: minutos de validez del cupón generado
-    minutos_validez = models.PositiveIntegerField(default=60, help_text='Minutos que el enlace del cupón será válido')
+    # Minutos de validez del cupón generado
+    minutos_validez = models.PositiveIntegerField(
+        default=60, 
+        help_text='Tiempo en minutos que el cupón será válido desde que se envía al cliente'
+    )
     
-    # Yield Management: ventana de urgencia
+    # Ventana de urgencia: horas antes de la función para disparar envío
     horas_antes_de_funcion = models.PositiveIntegerField(
         default=24,
         null=False,
-        help_text='Horas mínimas antes de la función para disparar el envío. Si no se define, envía siempre.'
+        help_text='Mínimo de horas antes de la función para disparar el envío de cupones'
     )
         
-    # Yield Management Automático: activación por ocupación baja
+    # Análisis Automático: activación por ocupación baja
     activar_por_ocupacion = models.BooleanField(
         default=False,
-        help_text='Si está activo, el sistema escaneará automáticamente funciones futuras y disparará promociones cuando la ocupación sea baja.'
+        help_text='⚡ Habilitar análisis automático: el sistema escaneará funciones futuras y disparará promociones cuando la ocupación sea baja'
     )
     umbral_ocupacion = models.PositiveIntegerField(
         default=30,
-        help_text='Porcentaje de ocupación mínimo para activar promociones automáticas (ej: 30 = disparar si ocupación < 30%)'
+        help_text='Activar promoción si ocupación < X%. Ejemplo: 30 = activar cuando ocupación sea menor a 30%'
     )
     horas_anticipacion = models.PositiveIntegerField(
         default=24,
-        help_text='Analizar funciones que ocurran dentro de X horas. El sistema verificará funciones en este rango de tiempo.'
+        help_text='Ventana de tiempo: analizar funciones que ocurran en las próximas X horas desde ahora'
     )
 
     class Meta:
@@ -94,6 +97,21 @@ class PoliticaPromocion(models.Model):
         if not l:
             return 'Todos'
         return ','.join([nombres[d] for d in l if 0 <= d <= 6])
+    
+    def save(self, *args, **kwargs):
+        """
+        Normalización de datos antes de guardar.
+        """
+        import re
+        
+        # Normalizar nombre de la política
+        if self.nombre:
+            # Eliminar espacios innecesarios y aplicar Title Case
+            self.nombre = self.nombre.strip().title()
+            # Corregir letras repetidas 3 o más veces
+            self.nombre = re.sub(r'(.)\1{2,}', r'\1\1', self.nombre)
+        
+        super().save(*args, **kwargs)
     
     # historial de cambios
     history = HistoricalRecords()

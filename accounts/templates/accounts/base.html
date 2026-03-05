@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}</title>
     {% load static %}
+    <!-- Favicon -->
+    {% if configuracion_cine %}
+        <link rel="icon" type="image/png" href="{{ configuracion_cine.get_logo_url }}">
+    {% else %}
+        <link rel="icon" type="image/png" href="{% static 'img/logo-placeholder.png' %}">
+    {% endif %}
     <link rel="stylesheet" href="{% static 'css/forms.css' %}?v=1.0">
     {% block extra_css %}{% endblock %}
 </head>
@@ -16,13 +22,19 @@
                 <div class="navbar-content">
                     
                     <a href="{% url 'accounts:dashboard' %}" class="logo">
-                        {% if configuracion_cine %}{{ configuracion_cine.nombre }}{% else %}CineGest{% endif %}
+                        {% if configuracion_cine %}
+                            <img src="{{ configuracion_cine.get_logo_url }}" alt="Logo" class="logo-img">
+                            <span>{{ configuracion_cine.nombre }}</span>
+                        {% else %}
+                            <img src="{% static 'img/logo-placeholder.png' %}" alt="Logo" class="logo-img">
+                            <span>Sistema</span>
+                        {% endif %}
                     </a>
                     
                     <ul class="nav-links">
-                        <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
                         
                         {% if user.is_superuser or user.rol == 'admin' %}
+                            <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
                             <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">Películas</a></li>
                             <li><a href="{% url 'cine:sala_list' %}" class="nav-link">Salas</a></li>
                             <li><a href="{% url 'cine:funcion_list' %}" class="nav-link">Funciones</a></li>
@@ -38,11 +50,35 @@
                             </li>
                         
                         {% elif user.rol == 'empleado' %}
-                            <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">🎭 Películas</a></li>
+                            <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
+                            <li><a href="{% url 'ventas:dashboard_presencial' %}" class="nav-link">🎫 Venta de Tickets</a></li>
+                            <li><a href="{% url 'ventas:canje_rapido' %}" class="nav-link">📲 Canje de Entradas</a></li>
                         
                         {% elif user.rol == 'cliente' %}
                             <li><a href="{% url 'ventas:mis_ventas' %}" class="nav-link">🎫 Mis Compras</a></li>
                             <li><a href="{% url 'cine:cartelera' %}" class="nav-link">🍿 Cartelera</a></li>
+                            <li><a href="{% url 'cine:preventa' %}" class="nav-link" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">⭐ ¡Preventa!</a></li>
+                            
+                            <!-- Campana de Notificaciones -->
+                            <li class="notificaciones-menu">
+                                <button class="notif-bell-btn nav-link" id="notifBellBtn" aria-label="Notificaciones">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
+                                        <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2M8 1.918l-.797.161A4.002 4.002 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4.002 4.002 0 0 0-3.203-3.92L8 1.917zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5.002 5.002 0 0 1 13 6c0 .88.32 4.2 1.22 6"/>
+                                    </svg>
+                                    {% if notificaciones_count > 0 %}
+                                        <span class="notif-badge">{{ notificaciones_count }}</span>
+                                    {% endif %}
+                                </button>
+                                <div class="notif-dropdown glass-container" id="notifDropdown">
+                                    <div class="notif-header">
+                                        <h4>Notificaciones</h4>
+                                        <button class="btn-mark-all" id="markAllReadBtn">Marcar todas como leídas</button>
+                                    </div>
+                                    <div class="notif-list" id="notifList">
+                                        <div class="notif-loading">Cargando...</div>
+                                    </div>
+                                </div>
+                            </li>
                         
                         {% endif %}
                         
@@ -76,9 +112,16 @@
 
         <main class="page-content">
             {% if messages %}
-                <div class="messages">
+                <div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 10000;">
                     {% for message in messages %}
-                        <div class="message message-{{ message.tags }}">{{ message }}</div>
+                        <div class="custom-toast toast-{{ message.tags }}" 
+                            style="background: #161624; border-left: 4px solid #8b5cf6; color: white; padding: 15px 25px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: flex; align-items: center; gap: 10px; animation: slideIn 0.5s ease-out;">
+                            <span>
+                                {% if 'success' in message.tags %}✅{% elif 'error' in message.tags %}⚠️{% else %}ℹ️{% endif %}
+                            </span>
+                            <span class="small fw-bold">{{ message }}</span>
+                            <button onclick="this.parentElement.remove()" style="background:none; border:none; color:gray; cursor:pointer; margin-left:10px; font-weight:bold;">✕</button>
+                        </div>
                     {% endfor %}
                 </div>
             {% endif %}

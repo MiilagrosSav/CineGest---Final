@@ -1,67 +1,10 @@
-const fin = window.financieroData.fin;
-const ctx = document.getElementById('finChart').getContext('2d');
-
-// Colores de CineGest (Tonos de violeta, verde, naranja, azul)
-const palette = [
-    '#9B59B6', // Primary Violet
-    '#4ecdc4', // Teal
-    '#FF6B6B', // Red
-    '#ffc107', // Amber
-    '#3498db', // Blue
-    '#e91e63', // Pink
-    '#00b894', // Green
-    '#6c5ce7'  // Deep Purple
-];
-
-const bgColors = fin.labels.map((l, i) => palette[i % palette.length]);
-
-const finChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-        labels: fin.labels,
-        datasets: [{ 
-            label: 'Ingresos', 
-            data: fin.values, 
-            backgroundColor: bgColors, 
-            borderRadius: 8, // Barras redondeadas
-            borderSkipped: false
-        }]
-    },
-    options: {
-        plugins: {
-            legend: { display: false }, // Ocultar leyenda porque los colores varían
-            datalabels: {
-                color: '#ffffff',
-                anchor: 'end',
-                align: 'end',
-                formatter: function(value){ 
-                    if(!value || value===0) return ''; 
-                    return '$' + Number(value).toLocaleString(); 
-                },
-                font: { weight: 'bold', size: 11 },
-                offset: 4
-            },
-            tooltip: { callbacks: { label: function(ctx){ return '$' + Number(ctx.parsed.y || ctx.parsed).toLocaleString(); } } }
-        },
-        scales: { 
-            x: { 
-                grid: { display: false },
-                ticks: { color: '#b0b0b0', autoSkip: false, maxRotation: 45, minRotation: 0 } 
-            }, 
-            y: { 
-                beginAtZero: true, 
-                grid: { color: 'rgba(255,255,255,0.05)' },
-                ticks: { color: '#b0b0b0', callback: v => '$' + Number(v).toLocaleString() } 
-            } 
-        },
-        responsive: true, 
-        maintainAspectRatio: false
-    },
-    plugins: [ChartDataLabels]
-});
-
-// Exportar PDF
-function getCookie(name) { const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)'); return v ? v.pop() : ''; }
+// ===========================================
+// EXPORTACIÓN A PDF CON ESTADO DE TABLAS
+// ===========================================
+function getCookie(name) { 
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)'); 
+    return v ? v.pop() : ''; 
+}
 
 document.getElementById('exportPdfBtn').addEventListener('click', async function(){
     const btn = this;
@@ -70,14 +13,59 @@ document.getElementById('exportPdfBtn').addEventListener('click', async function
     btn.disabled = true;
 
     try {
-        const chartImage = finChart.toBase64Image();
+        // CAPTURAR ESTADO DE LAS TABLAS (ordenamiento)
+        const tableStates = {};
+        
+        if (window.tablaRevpasInstance) {
+            const order = window.tablaRevpasInstance.order();
+            tableStates.revpas_order_col = order[0][0];
+            tableStates.revpas_order_dir = order[0][1];
+        }
+        
+        if (window.tablaRevenueDiaInstance) {
+            const order = window.tablaRevenueDiaInstance.order();
+            tableStates.dia_order_col = order[0][0];
+            tableStates.dia_order_dir = order[0][1];
+        }
+        
+        if (window.tablaDetallePeliculasInstance) {
+            const order = window.tablaDetallePeliculasInstance.order();
+            tableStates.detalle_order_col = order[0][0];
+            tableStates.detalle_order_dir = order[0][1];
+        }
+        
+        if (window.tablaEficienciaPromocionesInstance) {
+            const order = window.tablaEficienciaPromocionesInstance.order();
+            tableStates.promo_order_col = order[0][0];
+            tableStates.promo_order_dir = order[0][1];
+        }
+        
+        // Debug: Mostrar estado capturado
+        console.log('📊 Estado de tablas capturado:', tableStates);
+        console.log('📅 Fechas:', {
+            inicio: window.financieroData.fechaInicio,
+            fin: window.financieroData.fechaFin
+        });
+        
         const csrftoken = getCookie('csrftoken');
-        const url = `${window.financieroData.exportUrl}?fecha_inicio=${window.financieroData.fechaInicio}&fecha_fin=${window.financieroData.fechaFin}`;
+        
+        // Construir URL con parámetros de estado de tablas
+        const params = new URLSearchParams({
+            fecha_inicio: window.financieroData.fechaInicio,
+            fecha_fin: window.financieroData.fechaFin,
+            ...tableStates
+        });
+        
+        const url = `${window.financieroData.exportUrl}?${params.toString()}`;
+        console.log('🔗 URL de exportación:', url);
 
         const res = await fetch(url, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
-            body: JSON.stringify({ chart_image: chartImage })
+            credentials: 'same-origin',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'X-CSRFToken': csrftoken 
+            }
         });
 
         if (!res.ok) throw new Error('Error al generar PDF');

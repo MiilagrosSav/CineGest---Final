@@ -29,7 +29,7 @@ def disenar_layout_sala(request, sala_id):
     if sala.tiene_butacas_vendidas():
         messages.error(
             request, 
-            f'No se puede modificar el layout de la Sala {sala.numero} porque tiene butacas vendidas. '
+            f'No se puede modificar la distribución de asientos de la Sala {sala.numero} porque tiene butacas vendidas. '
             'Por seguridad, no es posible reconfigurar una sala con ventas activas.'
         )
         return redirect('cine:sala_list')
@@ -47,7 +47,7 @@ def disenar_layout_sala(request, sala_id):
 @user_passes_test(es_admin, login_url='/accounts/dashboard/')
 def api_guardar_layout_sala(request, sala_id):
     """
-    Recibe un JSON con el nuevo layout (incluyendo pasillos), 
+    Recibe un JSON con la nueva distribución de asientos (incluyendo pasillos), 
     borra las butacas antiguas y crea las nuevas.
     Solo accesible para administradores.
     Bloquea el guardado si la sala tiene butacas vendidas.
@@ -59,7 +59,7 @@ def api_guardar_layout_sala(request, sala_id):
         if sala.tiene_butacas_vendidas():
             return JsonResponse({
                 'status': 'error', 
-                'message': 'No se puede modificar el layout porque la sala tiene butacas vendidas.'
+                'message': 'No se puede modificar la distribución de asientos porque la sala tiene butacas vendidas.'
             }, status=403)
         
         data = json.loads(request.body)

@@ -7,6 +7,7 @@ import mercadopago
 from django.conf import settings
 from django.urls import reverse
 from promociones.models.cuponGenerado import CuponGenerado
+from cine.models import ConfiguracionCine
 
 
 class MercadoPagoService:
@@ -70,12 +71,19 @@ class MercadoPagoService:
         failure_url = f"{base_url}{reverse('ventas:pago_fallido')}?venta_id={venta.id_venta}"
         pending_url = f"{base_url}{reverse('ventas:pago_pendiente')}?venta_id={venta.id_venta}"
         
+        # Obtener nombre del cine desde configuración
+        try:
+            config = ConfiguracionCine.load()
+            nombre_cine = config.nombre if config else "CineGest"
+        except Exception:
+            nombre_cine = "CineGest"
+        
         # Datos de la preferencia
         preference_data = {
             "items": items,
             "payer": {
                 "name": venta.id_cliente.usuario.first_name or "Cliente",
-                "surname": venta.id_cliente.usuario.last_name or "CineGest",
+                "surname": venta.id_cliente.usuario.last_name or nombre_cine,
                 "email": venta.id_cliente.usuario.email,
             },
             "back_urls": {
@@ -85,7 +93,7 @@ class MercadoPagoService:
             },
             "auto_return": "approved",  # Redirigir automáticamente después del pago exitoso
             "external_reference": str(venta.id_venta),  # ID de tu venta para identificarla
-            "statement_descriptor": "CINEGEST",  # Nombre que aparece en el resumen de tarjeta
+            "statement_descriptor": nombre_cine.upper()[:22],  # Nombre que aparece en el resumen de tarjeta (max 22 chars)
             "binary_mode": True,  # Solo estados: aprobado o rechazado (no pendiente)
             
             # Habilitar tarjetas de crédito/débito para pruebas

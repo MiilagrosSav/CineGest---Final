@@ -9,6 +9,8 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse, HttpResponse
 from django.contrib import messages
 from django.conf import settings
+from django.utils import timezone
+from datetime import timedelta
 import json
 
 from ventas.models import Venta, Pago, MetodoPago
@@ -41,6 +43,32 @@ def iniciar_pago(request, venta_id):
     
     # 1. Obtener la venta
     venta = get_object_or_404(Venta, id_venta=venta_id, id_cliente__usuario=request.user)
+    
+    # ✅ VALIDACIÓN DE EXPIRACIÓN: Verificar si la venta ha expirado (>10 minutos)
+    from datetime import timedelta
+    from django.utils import timezone
+    
+    tiempo_expiracion_minutos = 10  # Política de reserva
+    tiempo_corte = timezone.now() - timedelta(minutes=tiempo_expiracion_minutos)
+    
+    if venta.estado == 'PENDIENTE' and venta.fecha_compra < tiempo_corte:
+        # La venta ha expirado - expirarla automáticamente
+        venta.estado = 'EXPIRADA'
+        venta.activo = False
+        venta.save(update_fields=['estado', 'activo'])
+        
+        # Liberar las butacas
+        from ventas.models import Entrada
+        Entrada.objects.filter(
+            id_venta=venta,
+            estado__in=['PENDIENTE', 'RESERVADA']
+        ).update(estado='EXPIRADA')
+        
+        messages.error(
+            request, 
+            '⏰ Tu sesión de reserva ha expirado. Por favor, selecciona tus asientos nuevamente.'
+        )
+        return redirect('cine:cartelera')
     
     # Verificar estado
     if venta.estado != 'PENDIENTE':
@@ -186,38 +214,114 @@ def pago_exitoso(request):
             venta = Venta.objects.get(id_venta=external_reference)
             print(f"📦 Procesando venta #{venta.id_venta} - Estado actual: {venta.estado}")
             
+            # ✅ VALIDACIÓN DE EXPIRACIÓN: Verificar si la venta ha expirado antes de procesar
+            from datetime import timedelta
+            tiempo_expiracion_minutos = 10  # Política de reserva
+            tiempo_corte = timezone.now() - timedelta(minutes=tiempo_expiracion_minutos)
+            
+            if venta.estado == 'PENDIENTE' and venta.fecha_compra < tiempo_corte:
+                # La venta ha expirado - marcarla como expirada
+                print(f"⏰ Venta #{venta.id_venta} ha expirado (>{tiempo_expiracion_minutos} minutos)")
+                venta.estado = 'EXPIRADA'
+                venta.activo = False
+                venta.save(update_fields=['estado', 'activo'])
+                
+                # Liberar las butacas
+                from ventas.models import Entrada
+                Entrada.objects.filter(
+                    id_venta=venta,
+                    estado__in=['PENDIENTE', 'RESERVADA']
+                ).update(estado='EXPIRADA')
+                
+                messages.error(
+                    request, 
+                    '⏰ Tu sesión de reserva ha expirado. Por favor, selecciona tus asientos nuevamente.'
+                )
+                return redirect('cine:cartelera')
+            
+            # ✅ VERIFICAR SI LA VENTA YA ESTÁ CONFIRMADA (por webhook o visita anterior)
+            if venta.estado == 'CONFIRMADA':
+                print(f"✅ Venta #{venta.id_venta} ya está confirmada. Mostrando pantalla de éxito.")
+                # Obtener el pago existente
+                pago = venta.pago if hasattr(venta, 'pago') else None
+                
+                context = {
+                    'venta': venta,
+                    'pago': pago,
+                    'payment_id': payment_id or (pago.nro_transaccion if pago else f'MP-{venta.id_venta}'),
+                    'ya_confirmada': True  # Flag para el template
+                }
+                
+                messages.success(request, '✅ ¡Tu compra ya fue confirmada exitosamente!')
+                return render(request, 'ventas/pago_exitoso_simple.html', context)
+            
             # VERIFICAR SI LA VENTA YA FUE CONFIRMADA POR INTERCAMBIO
             if hasattr(venta, 'pago') and venta.pago and venta.pago.id_metodo_pago.nombre == 'Intercambio':
-                print(f"⚠️ Venta #{venta.id_venta} ya fue confirmada por intercambio. Ignorando webhook de Mercado Pago.")
-                messages.info(request, '✅ Tu compra ya está confirmada.')
-                return redirect('ventas:detalle_venta', venta_id=venta.id_venta)
+                print(f"⚠️ Venta #{venta.id_venta} ya fue confirmada por intercambio.")
+                
+                context = {
+                    'venta': venta,
+                    'pago': venta.pago,
+                    'payment_id': venta.pago.nro_transaccion,
+                    'es_intercambio': True
+                }
+                
+                messages.info(request, '✅ Tu compra fue confirmada mediante intercambio.')
+                return render(request, 'ventas/pago_exitoso_simple.html', context)
+            
+            # Solo procesar el pago si la venta está pendiente
+            if venta.estado not in ['PENDIENTE', 'PENDIENTE_PAGO']:
+                print(f"ℹ️ Venta #{venta.id_venta} en estado {venta.estado}.")
+                # Aunque no sea CONFIRMADA ni PENDIENTE, mostrar el template de éxito
+                pago = venta.pago if hasattr(venta, 'pago') else None
+                
+                context = {
+                    'venta': venta,
+                    'pago': pago,
+                    'payment_id': payment_id or (pago.nro_transaccion if pago else f'MP-{venta.id_venta}'),
+                }
+                
+                messages.info(request, f'Tu venta está en estado: {venta.get_estado_display()}')
+                return render(request, 'ventas/pago_exitoso_simple.html', context)
             
             # Actualizar el estado de la venta
             venta.estado = 'CONFIRMADA'
             
-            # Buscar dinámicamente el MetodoPago
-            try:
-                metodo_pago = MetodoPago.objects.filter(
-                    nombre__icontains='Mercado Pago'
-                ).first() or MetodoPago.objects.filter(
-                    nombre__icontains='Online'
-                ).first()
-                
-                if not metodo_pago:
-                    raise MetodoPago.DoesNotExist
+            # Buscar dinámicamente el MetodoPago (solo si no tiene uno ya asignado)
+            if not venta.id_metodo_pago:
+                try:
+                    metodo_pago = MetodoPago.objects.filter(
+                        nombre__icontains='Mercado Pago'
+                    ).first() or MetodoPago.objects.filter(
+                        nombre__icontains='Online'
+                    ).first()
                     
-            except (MetodoPago.DoesNotExist, AttributeError):
-                print("❌ ERROR: MetodoPago 'Mercado Pago' no existe en la BD")
-                print("   Creando MetodoPago como fallback...")
-                metodo_pago = MetodoPago.objects.create(
-                    nombre='Mercado Pago',
-                    descripcion='Pago procesado por Mercado Pago'
+                    if not metodo_pago:
+                        raise MetodoPago.DoesNotExist
+                        
+                except (MetodoPago.DoesNotExist, AttributeError):
+                    print("❌ ERROR: MetodoPago 'Mercado Pago' no existe en la BD")
+                    print("   Creando MetodoPago como fallback...")
+                    metodo_pago = MetodoPago.objects.create(
+                        nombre='Mercado Pago',
+                        descripcion='Pago procesado por Mercado Pago'
+                    )
+                
+                # ✅ Actualizar solo estado y método de pago usando QuerySet.update()
+                # para evitar disparar validaciones del método save()
+                Venta.objects.filter(pk=venta.pk).update(
+                    estado='CONFIRMADA',
+                    id_metodo_pago=metodo_pago
                 )
+                # Refrescar instancia local
+                venta.refresh_from_db()
+            else:
+                # Ya tiene método de pago asignado, solo actualizar estado
+                metodo_pago = venta.id_metodo_pago
+                Venta.objects.filter(pk=venta.pk).update(estado='CONFIRMADA')
+                venta.refresh_from_db()
             
-            # ✅ ASIGNAR id_metodo_pago A LA VENTA
-            venta.id_metodo_pago = metodo_pago
-            venta.save()
-            print(f"✅ Venta actualizada a CONFIRMADA con método de pago: {metodo_pago.nombre}")
+            print(f"✅ Venta actualizada a CONFIRMADA con método de pago: {venta.id_metodo_pago.nombre}")
             
             pago, created = Pago.objects.get_or_create(
                 id_venta=venta,
@@ -249,10 +353,13 @@ def pago_exitoso(request):
             messages.success(request, '✅ ¡Pago procesado exitosamente! Tu compra ha sido confirmada.')
             
             # Enviar email de confirmación (incluir QR por entrada)
+            # Si falla el email, no se rompe el flujo de pago
             try:
                 notificacion_service.enviar_confirmacion_compra(venta, request)
+                print("📧 Email de confirmación enviado")
             except Exception as e:
-                print(f"Error enviando email de confirmación: {e}")
+                print(f"⚠️ Error enviando email de confirmación: {e}")
+                # No mostramos mensaje al usuario porque el pago ya fue exitoso
 
             # Persistir uso del cupón referenciado en la venta (si existe). Preferimos
             # usar `venta.cupon_utilizado` (persistido por MercadoPagoService) para
@@ -380,6 +487,11 @@ def webhook_mercadopago(request):
                 
                 # Actualizar según el estado del pago
                 if payment_status == 'approved':
+                    # ✅ Verificar si ya está confirmada para evitar procesamiento duplicado
+                    if venta.estado == 'CONFIRMADA':
+                        print(f"ℹ️ Webhook: Venta #{venta.id_venta} ya está confirmada. Ignorando.")
+                        return HttpResponse(status=200)
+                    
                     # Buscar dinámicamente el MetodoPago
                     try:
                         metodo_pago = MetodoPago.objects.filter(
@@ -399,10 +511,12 @@ def webhook_mercadopago(request):
                             descripcion='Pago procesado por Mercado Pago'
                         )
                     
-                    # ✅ ASIGNAR id_metodo_pago A LA VENTA
-                    venta.estado = 'CONFIRMADA'
-                    venta.id_metodo_pago = metodo_pago
-                    venta.save()
+                    # ✅ Actualizar usando QuerySet.update() para evitar validaciones del save()
+                    Venta.objects.filter(pk=venta.pk).update(
+                        estado='CONFIRMADA',
+                        id_metodo_pago=metodo_pago
+                    )
+                    venta.refresh_from_db()
 
                     # Si la venta tiene un cupón referenciado, marcarlo como usado.
                     try:
@@ -436,19 +550,21 @@ def webhook_mercadopago(request):
                     for entrada in venta.entradas.all():
                         entrada.estado = 'VENDIDA'
                         entrada.save()
+                    
                     # Enviar email de confirmación desde webhook (no hay request)
+                    # Si falla el email, no se rompe el webhook
                     try:
                         notificacion_service.enviar_confirmacion_compra(venta, None)
+                        print("📧 Email de confirmación enviado desde webhook")
                     except Exception as e:
-                        print(f"Error enviando email (webhook): {e}")
+                        print(f"⚠️ Error enviando email desde webhook: {e}")
+                        # No lanzar excepción para no romper el webhook
                     
                 elif payment_status == 'pending':
-                    venta.estado = 'PENDIENTE_PAGO'
-                    venta.save()
+                    Venta.objects.filter(pk=venta.pk).update(estado='PENDIENTE_PAGO')
                     
                 elif payment_status in ['rejected', 'cancelled']:
-                    venta.estado = 'CANCELADA'
-                    venta.save()
+                    Venta.objects.filter(pk=venta.pk).update(estado='CANCELADA')
         
         return HttpResponse(status=200)
         

@@ -18,15 +18,9 @@
                     
                     <!-- Poster de la película -->
                     <div style="flex-shrink: 0;">
-                        {% if funciones.0.pelicula.imagen_portada %}
-                            <img src="{{ funciones.0.pelicula.imagen_portada.url }}" 
-                                 alt="{{ titulo }}"
-                                 style="width: 150px; height: 220px; object-fit: cover; border-radius: var(--radius); box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
-                        {% else %}
-                            <div style="width: 150px; height: 220px; background: linear-gradient(135deg, rgba(74, 144, 226, 0.2), rgba(155, 89, 182, 0.2)); border-radius: var(--radius); display: flex; align-items: center; justify-content: center;">
-                                <span style="font-size: 3rem;">🎬</span>
-                            </div>
-                        {% endif %}
+                        <img src="{{ funciones.0.pelicula.get_poster_url }}" 
+                             alt="{{ titulo }}"
+                             style="width: 150px; height: 220px; object-fit: cover; border-radius: var(--radius); box-shadow: 0 4px 8px rgba(0,0,0,0.3);">
                     </div>
 
                     <!-- Contenido de funciones -->

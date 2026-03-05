@@ -15,7 +15,7 @@
             <h1 class="card-title text-gradient-primary" style="margin: 0;">🎬 Cartelera</h1>
         </div>
 
-        <form method="get" action="{% url 'cine:cartelera' %}" id="filtrosForm" style="display: flex; gap: var(--space-xs); align-items: center;">
+        <form method="get" action="{% url 'cine:cartelera' %}" id="filtrosForm" style="display: flex; gap: var(--space-xs); align-items: center; flex-wrap: wrap;">
             
             {% if intercambio_for %}
                 <input type="hidden" name="intercambio_for" value="{{ intercambio_for }}">
@@ -38,6 +38,13 @@
                 {% endfor %}
             </select>
 
+            <select name="idioma" class="form-select" style="width: 100px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
+                <option value="">Idioma</option>
+                {% for codigo, nombre in idiomas_disponibles %}
+                    <option value="{{ codigo }}" {% if filtro_idioma == codigo %}selected{% endif %}>{{ nombre }}</option>
+                {% endfor %}
+            </select>
+
             <select name="formato" class="form-select" style="width: 95px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
                 <option value="">Formato</option>
                 {% for codigo, nombre in formatos_disponibles %}
@@ -45,23 +52,18 @@
                 {% endfor %}
             </select>
 
-            <input type="date" 
-                   name="dia" 
-                   value="{{ dia_seleccionado }}"
-                   class="form-input" 
-                   style="width: 145px; font-size: 0.8rem; padding: 0.4rem 0.6rem; cursor: pointer;"
-                   title="Seleccionar fecha">
-
-            <select name="orden" class="form-select" style="width: 120px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
-                <option value="precio_asc" {% if filtro_orden == 'precio_asc' %}selected{% endif %}>Mejor Precio</option>
-                <option value="precio_desc" {% if filtro_orden == 'precio_desc' %}selected{% endif %}>Precio más alto</option>
+            <select name="clasificacion" class="form-select" style="width: 95px; font-size: 0.8rem; padding: 0.4rem 0.6rem;">
+                <option value="">Edad</option>
+                {% for codigo, nombre in clasificaciones_disponibles %}
+                    <option value="{{ codigo }}" {% if filtro_clasificacion == codigo %}selected{% endif %}>{{ codigo }}</option>
+                {% endfor %}
             </select>
 
             <button type="submit" class="btn btn-primary" style="font-size: 0.8rem; padding: 0.4rem 0.8rem;">
                 Filtrar
             </button>
             
-            {% if filtro_search or filtro_genero or filtro_formato or dia_seleccionado %}
+            {% if filtro_search or filtro_genero or filtro_formato or filtro_idioma or filtro_clasificacion or dia_seleccionado %}
             <a href="{% url 'cine:cartelera' %}{% if intercambio_for %}?intercambio_for={{ intercambio_for }}{% endif %}" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.4rem 0.6rem;" title="Limpiar">
                 ✖
             </a>
@@ -70,88 +72,271 @@
     </div>
 
     <!-- Lista de Días de la Semana -->
-    <div style="margin-bottom: var(--space-lg); overflow-x: auto; padding: var(--space-xs) 0; display: flex; justify-content: center;">
-        <div style="display: flex; gap: var(--space-xs); min-width: max-content;">
-            {% for dia in dias_semana %}
-                <a href="?dia={{ dia.fecha }}{% if filtro_genero %}&genero={{ filtro_genero }}{% endif %}{% if filtro_formato %}&formato={{ filtro_formato }}{% endif %}{% if filtro_search %}&search={{ filtro_search }}{% endif %}{% if filtro_orden %}&orden={{ filtro_orden }}{% endif %}{% if intercambio_for %}&intercambio_for={{ intercambio_for }}{% endif %}" 
-                   class="glass-container dia-item{% if dia_seleccionado == dia.fecha %} activo{% endif %}">
-                    <div class="dia-nombre">
-                        {{ dia.dia_nombre }}
-                    </div>
-                    <div class="dia-numero">
-                        {{ dia.dia_numero }}
-                    </div>
-                    <div class="dia-mes">
-                        {{ dia.mes_nombre }}
-                    </div>
-                    {% if dia.es_hoy %}
-                        <div class="dia-hoy">
-                            HOY
+    <div style="margin-bottom: var(--space-lg); position: relative; display: flex; align-items: center; gap: var(--space-sm);">
+        <!-- Botón Anterior -->
+        <button type="button" 
+                class="carousel-nav-btn" 
+                id="btnAnterior"
+                onclick="navegarDias(-7)"
+                {% if not puede_retroceder %}disabled{% endif %}
+                style="flex-shrink: 0;{% if not puede_retroceder %} opacity: 0.3; cursor: not-allowed;{% endif %}">
+            ‹
+        </button>
+        
+        <!-- Contenedor de días con scroll -->
+        <div style="overflow-x: auto; padding: var(--space-xs) 0; flex: 1;">
+            <div style="display: flex; gap: var(--space-xs); min-width: max-content; justify-content: center;">
+                {% for dia in dias_semana %}
+                    <a href="?dia={{ dia.fecha }}{% if filtro_genero %}&genero={{ filtro_genero }}{% endif %}{% if filtro_formato %}&formato={{ filtro_formato }}{% endif %}{% if filtro_idioma %}&idioma={{ filtro_idioma }}{% endif %}{% if filtro_clasificacion %}&clasificacion={{ filtro_clasificacion }}{% endif %}{% if filtro_search %}&search={{ filtro_search }}{% endif %}{% if intercambio_for %}&intercambio_for={{ intercambio_for }}{% endif %}" 
+                       class="glass-container dia-item{% if dia_seleccionado == dia.fecha %} activo{% endif %}">
+                        <div class="dia-nombre">
+                            {{ dia.dia_nombre }}
                         </div>
-                    {% endif %}
-                </a>
-            {% endfor %}
+                        <div class="dia-numero">
+                            {{ dia.dia_numero }}
+                        </div>
+                        <div class="dia-mes">
+                            {{ dia.mes_nombre }}
+                        </div>
+                        {% if dia.es_hoy %}
+                            <div class="dia-hoy">
+                                HOY
+                            </div>
+                        {% endif %}
+                    </a>
+                {% endfor %}
+            </div>
         </div>
+        
+        <!-- Botón Siguiente -->
+        <button type="button" 
+                class="carousel-nav-btn" 
+                id="btnSiguiente"
+                onclick="navegarDias(7)"
+                style="flex-shrink: 0;">
+            ›
+        </button>
     </div>
+
+    <!-- ========================================================================
+         SECCIÓN DESTACADOS: Promociones y Películas Más Vistas
+         ======================================================================== -->
+    {% if promociones_activas or peliculas_destacadas %}
+    <div class="destacados-section" style="margin-bottom: var(--space-xl);">
+        
+        <!-- BANNER DE PROMOCIONES -->
+        {% if promociones_activas %}
+        <div class="promociones-banner glass-neon">
+            <div class="banner-header">
+                <h2 class="text-gradient-accent" style="font-size: 1.8rem; margin: 0;">
+                    🎉 Promociones Especiales
+                </h2>
+                <p style="margin: 0.3rem 0 0 0; opacity: 0.8; font-size: 0.9rem;">
+                    ¡Aprovecha estas ofertas exclusivas!
+                </p>
+            </div>
+            
+            <!-- LAYOUT PARA UNA SOLA PROMOCIÓN -->
+            {% if promociones_activas|length == 1 %}
+                {% with item=promociones_activas.0 %}
+                <div class="promo-single-giant">
+                    <!-- COLUMNA IZQUIERDA: DÍAS + DESCRIPCIÓN -->
+                    <div class="promo-left-section">
+                        <div class="promo-dias-hero">
+                            {% if item.todos_los_dias %}
+                                <div class="dias-badge-giant">📅 Todos los días</div>
+                            {% else %}
+                                <div class="dias-badge-giant">📅 {{ item.dias_texto }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        {% if item.promo.descripcion %}
+                        <div class="promo-descripcion-hero">
+                            {{ item.promo.descripcion }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- COLUMNA DERECHA: BADGE GIGANTE -->
+                    <div class="promo-right-section">
+                        <div class="promo-badge-hero">
+                            {% if item.promo.tipo_descuento == '2X1' %}
+                                <div class="badge-hero-content">
+                                    <span class="badge-hero-text">2</span>
+                                    <span class="badge-hero-separator">×</span>
+                                    <span class="badge-hero-text">1</span>
+                                    <span class="badge-sparkle-hero">✨</span>
+                                </div>
+                            {% elif item.promo.tipo_descuento == 'PORCENTAJE' %}
+                                <div class="badge-hero-content">
+                                    <span class="badge-hero-percentage">{{ item.promo.valor_descuento|floatformat:0 }}%</span>
+                                    <span class="badge-hero-off">OFF</span>
+                                    <span class="badge-sparkle-hero">🔥</span>
+                                </div>
+                            {% else %}
+                                <div class="badge-hero-content">
+                                    <span class="badge-hero-money">${{ item.promo.valor_descuento|floatformat:0 }}</span>
+                                    <span class="badge-hero-off">OFF</span>
+                                    <span class="badge-sparkle-hero">💫</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endwith %}
+            
+            <!-- LAYOUT PARA MÚLTIPLES PROMOCIONES -->
+            {% else %}
+            <div class="promociones-grid">
+                {% for item in promociones_activas %}
+                <div class="promo-card">
+                    <div class="promo-icon">
+                        {% if item.promo.tipo_descuento == '2X1' %}
+                            🎟️
+                        {% elif item.promo.tipo_descuento == 'PORCENTAJE' %}
+                            💰
+                        {% else %}
+                            ✨
+                        {% endif %}
+                    </div>
+                    <div class="promo-content">
+                        <h3 class="promo-titulo">{{ item.promo.nombre }}</h3>
+                        <p class="promo-descripcion">{{ item.promo.descripcion|truncatewords:15 }}</p>
+                        
+                        <!-- INFO DE DÍAS -->
+                        {% if item.todos_los_dias %}
+                        <div class="promo-dias">
+                            📅 Válido: <strong>TODOS LOS DÍAS</strong>
+                        </div>
+                        {% elif item.tiene_dias_especificos %}
+                        <div class="promo-dias">
+                            📅 Válido: <strong>{{ item.dias_texto }}</strong>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- BADGE SUPER LLAMATIVO -->
+                        <div class="promo-badge-wrapper">
+                            {% if item.promo.tipo_descuento == '2X1' %}
+                                <div class="promo-badge-mega">
+                                    <span class="badge-text">2</span>
+                                    <span class="badge-separator">×</span>
+                                    <span class="badge-text">1</span>
+                                    <span class="badge-sparkle">✨</span>
+                                </div>
+                            {% elif item.promo.tipo_descuento == 'PORCENTAJE' %}
+                                <div class="promo-badge-mega">
+                                    <span class="badge-percentage">{{ item.promo.valor_descuento|floatformat:0 }}%</span>
+                                    <span class="badge-off">OFF</span>
+                                    <span class="badge-sparkle">🔥</span>
+                                </div>
+                            {% else %}
+                                <div class="promo-badge-mega">
+                                    <span class="badge-money">${{ item.promo.valor_descuento|floatformat:0 }}</span>
+                                    <span class="badge-off">OFF</span>
+                                    <span class="badge-sparkle">💫</span>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- PELÍCULAS MÁS VISTAS -->
+        {% if peliculas_destacadas %}
+        <div class="peliculas-destacadas">
+            <h2 class="text-gradient-primary" style="font-size: 1.6rem; margin: 0 0 var(--space-md) 0;">
+                🔥 Las Más Vistas
+            </h2>
+            
+            <div class="destacadas-grid">
+                {% for item in peliculas_destacadas %}
+                <div class="destacada-card">
+                    <div class="destacada-poster-wrapper">
+                        <img src="{{ item.pelicula.get_poster_url }}" 
+                             alt="{{ item.pelicula.titulo }}"
+                             class="destacada-poster">
+                        <div class="destacada-overlay">
+                            <a href="{% url 'ventas:seleccionar_butacas' item.funcion.pk %}" 
+                               class="btn-comprar-destacado">
+                                🎫 Comprar
+                            </a>
+                        </div>
+                    </div>
+                    <div class="destacada-info">
+                        <h4 class="destacada-titulo">{{ item.pelicula.titulo|truncatewords:3 }}</h4>
+                        <p class="destacada-stats">
+                            <span style="color: #fbbf24;">👁️</span> 
+                            {{ item.total_entradas }} espectadores
+                        </p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
 
     {% if peliculas_con_funciones %}
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-lg);">
             
             {% for item in peliculas_con_funciones %}
-                    <div class="card glass-container" style="display: flex; gap: var(--space-md); padding: var(--space-md); align-items: flex-start;">
+                    <div class="card glass-container pelicula-card" style="display: flex; gap: var(--space-md); padding: var(--space-md); align-items: flex-start;">
                         
                         <div class="pelicula-imagen" style="flex-shrink: 0; cursor: pointer;" data-pelicula-id="{{ item.pelicula.id }}">
-                            {% if item.pelicula.imagen_portada %}
-                                <img src="{{ item.pelicula.imagen_portada.url }}" 
-                                     alt="{{ item.pelicula.titulo }}"
-                                     style="width: 210px; height: 300px; object-fit: cover; border-radius: var(--radius); transition: transform 0.3s;">
-                            {% else %}
-                                <div style="width: 210px; height: 300px; background: linear-gradient(135deg, rgba(74, 144, 226, 0.2), rgba(155, 89, 182, 0.2)); border-radius: var(--radius); display: flex; align-items: center; justify-content: center; transition: transform 0.3s;">
-                                    <span style="font-size: 4rem;">🎬</span>
-                                </div>
-                            {% endif %}
+                            <img src="{{ item.pelicula.get_poster_url }}" 
+                                 alt="{{ item.pelicula.titulo }}"
+                                 style="width: 210px; height: 300px; object-fit: cover; border-radius: var(--radius); transition: transform 0.3s;">
                         </div>
 
                         <div style="flex: 1; display: flex; flex-direction: column;">
                             
+                            <!-- TÍTULO -->
                             <h3 class="text-gradient-accent" style="font-size: 1.3rem; margin-top: 0; margin-bottom: var(--space-xs);">
                                 {{ item.pelicula.titulo }}
                             </h3>
                             
-                            {% with stats=item.pelicula.get_valoraciones_stats %}
-                            <div style="display: flex; align-items: center; gap: 0.3rem; margin-bottom: var(--space-sm);">
-                                {% for i in "12345" %}
-                                    {% if forloop.counter <= stats.estrellas_llenas %}
-                                        <span style="color: #fbbf24; font-size: 1rem;">★</span>
+                            <!-- VALORACIONES + DURACIÓN/GÉNERO EN LA MISMA LÍNEA -->
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-sm); gap: var(--space-md); flex-wrap: wrap;">
+                                <!-- Valoraciones -->
+                                <div style="display: flex; align-items: center; gap: 0.3rem;">
+                                    {% for i in "12345" %}
+                                        {% if forloop.counter <= item.valoraciones.estrellas_llenas %}
+                                            <span style="color: #fbbf24; font-size: 1rem;">★</span>
+                                        {% else %}
+                                            <span style="color: #4a4a4a; font-size: 1rem;">★</span>
+                                        {% endif %}
+                                    {% endfor %}
+                                    {% if item.valoraciones.total > 0 %}
+                                        <span style="color: #9ca3af; font-size: 0.85rem; margin-left: 0.3rem; font-weight: 500;">
+                                            {{ item.valoraciones.promedio }}/5 ({{ item.valoraciones.total }})
+                                        </span>
                                     {% else %}
-                                        <span style="color: #e5e7eb; font-size: 1rem;">★</span>
+                                        <span style="color: #9ca3af; font-size: 0.85rem; margin-left: 0.3rem; font-style: italic;">
+                                            Sin valoraciones
+                                        </span>
                                     {% endif %}
-                                {% endfor %}
-                                {% if stats.total > 0 %}
-                                    <span style="color: #9ca3af; font-size: 0.85rem; margin-left: 0.3rem; font-weight: 500;">
-                                        {{ stats.promedio }}/5 ({{ stats.total }} valoracion{{ stats.total|pluralize:"es" }})
-                                    </span>
-                                {% else %}
-                                    <span style="color: #9ca3af; font-size: 0.85rem; margin-left: 0.3rem; font-style: italic;">
-                                        Sin valoraciones
-                                    </span>
-                                {% endif %}
-                            </div>
-                            {% endwith %}
-                            
-                            <div style="display: flex; flex-direction: column; gap: var(--space-xs); margin-bottom: var(--space-md); font-size: 0.9rem;">
-                                <div style="display: flex; align-items: center; gap: var(--space-xs);">
-                                    <span style="font-size: 1.1rem;">🕒</span>
+                                </div>
+                                
+                                <!-- Duración + Género -->
+                                <div style="display: flex; align-items: center; gap: var(--space-xs); font-size: 0.85rem;">
+                                    <span style="font-size: 1rem;">🕒</span>
                                     <span style="color: var(--text-light); font-weight: 500;">{{ item.pelicula.duracion }} min</span>
-                                    <span style="font-size: 1.1rem;">🎭</span>
+                                    <span style="font-size: 1rem;">🎭</span>
                                     <span style="color: var(--text-light); font-weight: 500;">{{ item.pelicula.get_genero_display }}</span>
                                 </div>
                             </div>
 
-                            <div style="display: grid; grid-template-columns: 1fr; gap: var(--space-sm); margin-bottom: var(--space-md);">
-                                <div>
-                                    <div class="info-label">Lanzamiento</div>
-                                    <div class="info-value">
+                            <!-- INFO EN 3 COLUMNAS HORIZONTALES + BADGE IDIOMA -->
+                            <div style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-md); flex-wrap: wrap;">
+                                <!-- Lanzamiento -->
+                                <div style="min-width: 100px;">
+                                    <div class="info-label" style="font-size: 0.7rem;">Lanzamiento</div>
+                                    <div class="info-value" style="font-size: 0.85rem;">
                                         {% if item.pelicula.fecha_estreno %}
                                             {{ item.pelicula.fecha_estreno|date:"d/m/Y" }}
                                         {% else %}
@@ -159,61 +344,112 @@
                                         {% endif %}
                                     </div>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: var(--space-xs);">
-                                    <div>
-                                        <div class="info-label">Clasificación</div>
-                                        <div class="info-value">
-                                            {% if item.pelicula.edad_minima %}
-                                                {{ item.pelicula.edad_minima }} años
-                                            {% elif item.pelicula.clasificacion %}
-                                                {{ item.pelicula.get_clasificacion_display }}
-                                            {% else %}
-                                                —
-                                            {% endif %}
-                                        </div>
+                                
+                                <!-- Clasificación -->
+                                <div style="min-width: 90px;">
+                                    <div class="info-label" style="font-size: 0.7rem;">Clasificación</div>
+                                    <div class="info-value" style="font-size: 0.85rem;">
+                                        {% if item.pelicula.edad_minima %}
+                                            +{{ item.pelicula.edad_minima }}
+                                        {% elif item.pelicula.clasificacion %}
+                                            {{ item.pelicula.clasificacion }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
                                     </div>
                                 </div>
-                                <div style="display: flex; align-items: center; gap: var(--space-xs);">
-                                    <div>
-                                        <div class="info-label">Formato</div>
-                                        <div class="info-value">
-                                            {% if item.funciones %}
-                                                {{ item.funciones.0.get_formatos_destacados }}
-                                            {% else %}
-                                                —
-                                            {% endif %}
-                                        </div>
+                                
+                                <!-- Formato -->
+                                <div style="min-width: 80px;">
+                                    <div class="info-label" style="font-size: 0.7rem;">Formato</div>
+                                    <div class="info-value" style="font-size: 0.85rem;">
+                                        {% if filtro_search and item.fechas %}
+                                            {% for fecha_str, datos_fecha in item.fechas.items %}
+                                                {% if forloop.first %}
+                                                    {{ datos_fecha.funciones.0.get_formatos_destacados }}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% elif item.funciones %}
+                                            {{ item.funciones.0.get_formatos_destacados }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
                                     </div>
                                 </div>
+                                
+                                <!-- Badge de idioma (inline con el resto) -->
+                                {% if filtro_search and item.fechas %}
+                                    {% for fecha_str, datos_fecha in item.fechas.items %}
+                                        {% if forloop.first and datos_fecha.funciones.0.idioma == 'SUBTITULADA' or datos_fecha.funciones.0.idioma == 'NATIVA' %}
+                                        <div style="padding: 0.25rem 0.6rem; background: rgba(155, 89, 182, 0.2); border: 1px solid var(--accent); border-radius: 6px; align-self: flex-end;">
+                                            <span style="font-size: 0.7rem; font-weight: 600; color: var(--accent); letter-spacing: 0.5px;">
+                                                {% if datos_fecha.funciones.0.idioma == 'SUBTITULADA' %}SUB{% else %}ORIGINAL{% endif %}
+                                            </span>
+                                        </div>
+                                        {% endif %}
+                                    {% endfor %}
+                                {% elif item.funciones.0.idioma == 'SUBTITULADA' or item.funciones.0.idioma == 'NATIVA' %}
+                                <div style="padding: 0.25rem 0.6rem; background: rgba(155, 89, 182, 0.2); border: 1px solid var(--accent); border-radius: 6px; align-self: flex-end;">
+                                    <span style="font-size: 0.7rem; font-weight: 600; color: var(--accent); letter-spacing: 0.5px;">
+                                        {% if item.funciones.0.idioma == 'SUBTITULADA' %}SUB{% else %}ORIGINAL{% endif %}
+                                    </span>
+                                </div>
+                                {% endif %}
                             </div>
 
-                            <!-- Indicador de idioma (solo si es subtitulada o nativa) -->
-                            {% if item.funciones.0.idioma == 'SUBTITULADA' or item.funciones.0.idioma == 'NATIVA' %}
-                            <div style="display: inline-block; padding: 0.3rem 0.6rem; background: rgba(155, 89, 182, 0.2); border: 1px solid var(--accent); border-radius: 6px; margin-bottom: var(--space-sm);">
-                                <span style="font-size: 0.75rem; font-weight: 600; color: var(--accent); letter-spacing: 0.5px;">
-                                    {% if item.funciones.0.idioma == 'SUBTITULADA' %}SUB{% else %}ORIGINAL{% endif %}
-                                </span>
-                            </div>
-                            {% endif %}
-
-                            <div class="info-label" style="margin-bottom: var(--space-sm);">Horarios</div>
-                            <div style="display: flex; flex-wrap: wrap; gap: var(--space-xs);">
-                                {% for funcion in item.funciones %}
-                                    <button type="button" 
-                                            class="btn btn-outline horario-btn btn-compra"
-                                            data-pelicula="{{ item.pelicula.titulo|escapejs }}"
-                                            data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
-                                            data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
-                                            data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
-                                            data-funcion-id="{{ funcion.id }}"
-                                            data-clasificacion="{{ item.pelicula.get_clasificacion_display|escapejs }}"
-                                            style="padding: 0.5rem 1rem; min-width: 80px;">
-                                        <span style="font-weight: 700; font-size: 1.1rem; color: var(--primary);">
-                                            {{ funcion.fecha_hora|date:"H:i" }}
-                                        </span>
-                                    </button>
+                            <!-- HORARIOS -->
+                            {% if filtro_search and item.fechas %}
+                                <!-- MODO BÚSQUEDA: Mostrar todas las fechas con sus funciones -->
+                                {% for fecha_str, datos_fecha in item.fechas.items %}
+                                    <!-- Encabezado de Fecha -->
+                                    <div style="background: linear-gradient(90deg, var(--primary), transparent); padding: 0.5rem 0.8rem; border-radius: 6px; margin-bottom: var(--space-xs); margin-top: {% if not forloop.first %}var(--space-md){% else %}0{% endif %};">
+                                        <div style="color: #fff; font-weight: 700; font-size: 0.9rem; display: flex; align-items: center; gap: 0.5rem;">
+                                            <span>📅</span>
+                                            <span>{{ datos_fecha.fecha|date:"d/m/Y" }} - {{ datos_fecha.fecha|date:"l" }}</span>
+                                        </div>
+                                    </div>
+                                    <!-- Horarios de esta fecha -->
+                                    <div class="horarios-grid" style="margin-bottom: var(--space-sm);">
+                                        {% for funcion in datos_fecha.funciones %}
+                                            <button type="button" 
+                                                    class="horario-btn{% if funcion.estado == 'PREVENTA' %} horario-preventa{% endif %}"
+                                                    data-pelicula="{{ item.pelicula.titulo|escapejs }}"
+                                                    data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
+                                                    data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
+                                                    data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
+                                                    data-funcion-id="{{ funcion.id }}"
+                                                    data-clasificacion="{{ item.pelicula.get_clasificacion_display|escapejs }}"
+                                                    data-estado="{{ funcion.estado }}">
+                                                <span class="horario-hora">{{ funcion.fecha_hora|date:"H:i" }}</span>
+                                                {% if funcion.estado == 'PREVENTA' %}
+                                                <span class="preventa-indicator" title="Venta Anticipada">⭐</span>
+                                                {% endif %}
+                                            </button>
+                                        {% endfor %}
+                                    </div>
                                 {% endfor %}
-                            </div>
+                            {% else %}
+                                <!-- MODO NORMAL: Mostrar funciones de la fecha seleccionada -->
+                                <div class="info-label" style="margin-bottom: var(--space-sm);">Horarios</div>
+                                <div class="horarios-grid">
+                                    {% for funcion in item.funciones %}
+                                        <button type="button" 
+                                                class="horario-btn{% if funcion.estado == 'PREVENTA' %} horario-preventa{% endif %}"
+                                                data-pelicula="{{ item.pelicula.titulo|escapejs }}"
+                                                data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
+                                                data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
+                                                data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
+                                                data-funcion-id="{{ funcion.id }}"
+                                                data-clasificacion="{{ item.pelicula.get_clasificacion_display|escapejs }}"
+                                                data-estado="{{ funcion.estado }}">
+                                            <span class="horario-hora">{{ funcion.fecha_hora|date:"H:i" }}</span>
+                                            {% if funcion.estado == 'PREVENTA' %}
+                                            <span class="preventa-indicator" title="Venta Anticipada">⭐</span>
+                                            {% endif %}
+                                        </button>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
 
                         </div>
                     </div>
@@ -317,8 +553,18 @@
         "fecha_estreno": "{{ item.pelicula.fecha_estreno|date:'d/m/Y'|default:'' }}",
         "sinopsis": "{{ item.pelicula.sinopsis|escapejs }}",
         "director": "{{ item.pelicula.director|default:''|escapejs }}",
-        "imagen": "{% if item.pelicula.imagen_portada %}{{ item.pelicula.imagen_portada.url }}{% endif %}",
-        "formato": "{{ item.pelicula.get_formato_display|escapejs }}"
+        "imagen": "{{ item.pelicula.get_poster_url }}",
+        "formato": "{{ item.pelicula.get_formato_display|escapejs }}",
+        "comentarios": [
+            {% for comentario in item.comentarios|slice:":3" %}
+            {
+                "cliente": "{{ comentario.cliente|escapejs }}",
+                "puntuacion": {{ comentario.puntuacion }},
+                "comentario": "{{ comentario.comentario|escapejs }}",
+                "fecha": "{{ comentario.fecha }}"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ]
     }{% if not forloop.last %},{% endif %}
     {% endfor %}
 }

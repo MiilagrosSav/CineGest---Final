@@ -3,7 +3,7 @@ Views para el módulo de Canje Rápido de Entradas Online
 Sistema de impresión rápida con lector QR
 """
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.template.loader import render_to_string
@@ -12,6 +12,7 @@ from django.db.models import Q
 from accounts.decorators import solo_empleados
 from ventas.models import Venta, Entrada
 from cine.models.configuracion_cine import ConfiguracionCine
+
 import json
 
 
@@ -107,24 +108,17 @@ def buscar_venta_para_impresion(request):
                 'detalles': 'Verifica que el código sea correcto y que la venta esté confirmada'
             }, status=404)
         
-        # Validar estado de las entradas
+        # Obtener datos de la venta
         entradas = venta.entradas.all()
         primera_entrada = entradas.first()
         
-        # Verificar si ya fueron entregadas o usadas
-        estados_entradas = entradas.values_list('estado', flat=True)
-        if all(estado in ['ENTREGADA', 'USADA'] for estado in estados_entradas):
-            return JsonResponse({
-                'success': False,
-                'error': '⚠️ Entradas ya retiradas',
-                'detalles': f'Esta venta ya fue procesada anteriormente',
-                'venta_info': {
-                    'id': venta.id_venta,
-                    'cliente': venta.id_cliente.usuario.get_full_name() or venta.id_cliente.usuario.username,
-                    'pelicula': primera_entrada.id_pelicula.titulo if primera_entrada else 'N/A',
-                    'fecha_compra': venta.fecha_compra.strftime('%d/%m/%Y %H:%M')
-                }
-            }, status=400)
+        # VALIDACIÓN: Verificar si la función ya pasó
+        from django.utils import timezone
+        ahora = timezone.now()
+        funcion_pasada = False
+        
+        if primera_entrada and primera_entrada.id_funcion.fecha_hora < ahora:
+            funcion_pasada = True
         
         # Obtener configuración del cine
         config = ConfiguracionCine.objects.first()
@@ -134,6 +128,14 @@ def buscar_venta_para_impresion(request):
         total_venta = venta.calcular_total()
         cantidad_entradas = entradas.count()
         precio_por_entrada = total_venta / cantidad_entradas if cantidad_entradas > 0 else 0
+        
+        # Si la función ya pasó, retornar error
+        if funcion_pasada:
+            return JsonResponse({
+                'success': False,
+                'error': '⏰ Esta función ya pasó',
+                'detalles': f'La función comenzó el {primera_entrada.id_funcion.fecha_hora:%d/%m/%Y a las %H:%M}. Las entradas de funciones pasadas no pueden canjearse.'
+            }, status=400)
         
         # Retornar datos exitosos con URL de redirección
         return JsonResponse({
@@ -167,14 +169,34 @@ def ticket_canje_view(request, venta_id):
     """
     Vista para mostrar el ticket de canje con UN TICKET POR CADA ENTRADA.
     Cada entrada tiene su propio QR único.
+    Al imprimir, se marcan como USADA (ticket entregado = acceso permitido).
     """
+    from django.utils import timezone
+    from django.contrib import messages
+    
     venta = get_object_or_404(Venta, id_venta=venta_id, tipo_venta='ONLINE', estado='CONFIRMADA')
     
-    # Obtener entradas y marcarlas como ENTREGADA (usando .save() para disparar validaciones)
+    # Obtener entradas
     entradas = venta.entradas.all()
+    
+    # VALIDACIÓN: Verificar que la función no haya pasado
+    ahora = timezone.now()
+    primera_entrada = entradas.first()
+    
+    if primera_entrada and primera_entrada.id_funcion.fecha_hora < ahora:
+        messages.error(
+            request,
+            f'❌ No se puede canjear esta entrada. '
+            f'La función comenzó el {primera_entrada.id_funcion.fecha_hora:%d/%m/%Y a las %H:%M}. '
+            f'Las entradas de funciones pasadas se cancelan automáticamente.'
+        )
+        return redirect('ventas:canje_rapido')
+    
+    # Marcar entradas como USADA (ticket impreso = acceso válido)
     for entrada in entradas:
-        entrada.estado = 'ENTREGADA'
-        entrada.save()
+        if entrada.estado not in ['USADA', 'CANCELADA']:
+            entrada.estado = 'USADA'
+            entrada.save()
     
     # Obtener configuración del cine
     config = ConfiguracionCine.objects.first()
@@ -202,8 +224,9 @@ def ticket_canje_view(request, venta_id):
 @require_http_methods(["POST"])
 def marcar_como_impreso(request):
     """
-    API endpoint para marcar las entradas como ENTREGADA.
+    API endpoint para marcar las entradas como USADA.
     Se ejecuta después de imprimir el ticket exitosamente.
+    (Ticket impreso = acceso permitido, no requiere validación en puerta)
     """
     try:
         data = json.loads(request.body)
@@ -217,19 +240,19 @@ def marcar_como_impreso(request):
         
         venta = get_object_or_404(Venta, id_venta=venta_id, tipo_venta='ONLINE', estado='CONFIRMADA')
         
-        # Actualizar estado de todas las entradas a ENTREGADA (usando .save() para disparar validaciones)
+        # Actualizar estado de todas las entradas a USADA (ticket impreso = válido para entrar)
         entradas_a_actualizar = venta.entradas.filter(
-            estado__in=['VENDIDA', 'RESERVADA']
+            estado__in=['VENDIDA', 'RESERVADA', 'ENTREGADA']
         )
         entradas_actualizadas = 0
         for entrada in entradas_a_actualizar:
-            entrada.estado = 'ENTREGADA'
+            entrada.estado = 'USADA'
             entrada.save()
             entradas_actualizadas += 1
         
         return JsonResponse({
             'success': True,
-            'message': f'✅ {entradas_actualizadas} entrada(s) marcada(s) como entregada(s)',
+            'message': f'✅ {entradas_actualizadas} entrada(s) marcada(s) como usada(s)',
             'entradas_actualizadas': entradas_actualizadas
         })
         

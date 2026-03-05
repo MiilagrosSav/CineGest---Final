@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.views.generic import UpdateView, DeleteView, ListView, CreateView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.views.decorators.http import require_POST
 from .forms import CustomUserCreationForm, CustomAuthenticationForm, EmployeeCreationForm, EmployeeUpdateForm, ClienteProfileForm, AdminProfileForm
 from core.services import notificacion_service
 from .models import Empleado # Importamos Empleado para la lista
@@ -13,6 +14,9 @@ from django.views.generic.edit import UpdateView
 from django.contrib.auth.views import PasswordChangeView, PasswordChangeDoneView
 from django.utils import timezone
 from .models import Cliente
+from auditoria.models import AuditEntry
+from django.core.serializers import serialize
+import json
 
 # Obtenemos nuestro modelo de Usuario personalizado
 Usuario = get_user_model()
@@ -213,6 +217,15 @@ class EmployeeCreateView(AdminRequiredMixin, CreateView):
     success_url = reverse_lazy('accounts:employee_list')
     paginate_by = 5
     
+    def get_initial(self):
+        """
+        Establece valores iniciales para el formulario.
+        La fecha de ingreso se establece automáticamente a hoy.
+        """
+        initial = super().get_initial()
+        initial['fecha_ingreso'] = timezone.now().date()
+        return initial
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo_pagina'] = 'Crear Nuevo Empleado'
@@ -296,3 +309,66 @@ def privacy_policy_view(request):
 
 def terms_of_service_view(request):
     return render(request, 'accounts/terms_of_service.html')
+
+
+# --- Vista para Dar de Baja Cuenta de Cliente ---
+@login_required
+@require_POST
+def dar_de_baja_cliente(request):
+    """
+    Permite al cliente darse de baja (baja lógica).
+    Solo accesible por usuarios autenticados mediante POST.
+    """
+    usuario = request.user
+    
+    # Verificar que sea un cliente
+    if usuario.rol != 'cliente':
+        messages.error(request, '❌ Esta acción solo está disponible para clientes.')
+        return redirect('accounts:dashboard')
+    
+    # Realizar baja lógica usando is_active (campo estándar de Django)
+    usuario.is_active = False
+    usuario.save()
+    
+    # Nota: Si el modelo Cliente tiene un campo fecha_baja, descomentar estas líneas:
+    # if hasattr(usuario, 'cliente'):
+    #     usuario.cliente.fecha_baja = timezone.now()
+    #     usuario.cliente.save()
+    
+    # Registrar en auditoría como ELIMINACIÓN (baja lógica = eliminación)
+    try:
+        fecha_baja = timezone.now()
+        snapshot = {
+            'username': usuario.username,
+            'email': usuario.email,
+            'nombre': usuario.nombre,
+            'apellido': usuario.apellido,
+            'rol': usuario.rol,
+            'is_active': False,
+            'fecha_baja': fecha_baja.isoformat(),
+        }
+        
+        AuditEntry.objects.create(
+            model_name='accountsusuario',
+            object_id=str(usuario.pk),
+            object_repr=str(usuario),
+            history_type='-',  # ELIMINACIÓN
+            history_date=fecha_baja,
+            history_user=usuario,  # Auto-eliminación
+            history_change_reason='Baja voluntaria de cuenta por parte del cliente',
+            snapshot=snapshot
+        )
+    except Exception as e:
+        # Si falla el registro de auditoría, continuar con la baja
+        pass
+    
+    # Cerrar sesión
+    logout(request)
+    
+    # Mensaje de despedida y redirección
+    messages.info(
+        request, 
+        '👋 Tu cuenta ha sido dada de baja exitosamente. '
+    )
+    
+    return redirect('cine:index')  # Redirigir a la página principal del cine

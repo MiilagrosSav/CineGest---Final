@@ -6,10 +6,11 @@ from cine.models.pelicula import Pelicula
 from cine.models.sala import Sala
 from simple_history.models import HistoricalRecords
 from django.core.validators import MinValueValidator
+from core.mixins import SoftDeleteMixin
 #----------------------------------------------------------------------------------------------
 #--------------------------------creamos la clase FUNCION---------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
-class Funcion(models.Model):
+class Funcion(SoftDeleteMixin, models.Model):
     """
     Modelo para representar una función (proyección) de una película en una sala.
     Una función es la combinación de una película, una sala y un horario específico.
@@ -93,6 +94,13 @@ class Funcion(models.Model):
         default='ACTIVA',
         help_text='Estado actual de la función'
     )
+    
+    # Fecha de activación automática (solo para funciones en PREVENTA)
+    fecha_activacion = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Fecha y hora en que la función pasará automáticamente de PREVENTA a ACTIVA'
+    )
 
     def __str__(self):
         formatos = self.get_formatos_destacados()
@@ -157,7 +165,7 @@ class Funcion(models.Model):
 
         # 5. INTEGRIDAD FÍSICA Y SOLAPAMIENTO
         # Validar que la sala esté operativa
-        if self.sala and not self.sala.activa:
+        if self.sala and not self.sala.activo:
             raise ValidationError({'sala': 'No se pueden programar funciones en salas que figuran como inactivas.'})
 
         # 6. VALIDACIÓN DE HORARIOS DE ATENCIÓN (Respeta horarios del cine y excepciones)
@@ -183,17 +191,27 @@ class Funcion(models.Model):
         # 7. VALIDACIÓN DE SOLAPAMIENTO EN SALA (Evita conflictos físicos)
         if self.sala and self.pelicula and self.fecha_hora:
             from datetime import timedelta
-            duracion_total = timedelta(minutes=self.pelicula.duracion + 30)
+            from cine.models import ConfiguracionCine
+            
+            # ✅ CORRECCIÓN: Usar minutos_limpieza de la configuración (no hardcodear 30)
+            config = ConfiguracionCine.load()
+            duracion_total = timedelta(minutes=self.pelicula.duracion + config.minutos_limpieza)
             fin_funcion = self.fecha_hora + duracion_total
 
+            # ✅ CORRECCIÓN CRÍTICA: Filtrar SOLO funciones del mismo día y futuras
+            # El bug anterior buscaba en TODAS las fechas del pasado causando falsos conflictos
             funciones_solapadas = Funcion.objects.filter(
                 sala=self.sala,
-                fecha_hora__lt=fin_funcion,
+                fecha_hora__date=self.fecha_hora.date(),  # ✅ Solo funciones del mismo día
+                fecha_hora__gte=timezone.now()  # ✅ Solo funciones futuras (excluir inactivas del pasado)
             ).exclude(pk=self.pk if self.pk else None)
 
             for f in funciones_solapadas:
-                duracion_otra = timedelta(minutes=f.pelicula.duracion + 30)
+                duracion_otra = timedelta(minutes=f.pelicula.duracion + config.minutos_limpieza)
                 fin_otra = f.fecha_hora + duracion_otra
+                
+                # Verificar solapamiento real: la nueva función empieza antes de que termine la existente
+                # Y la existente empieza antes de que termine la nueva
                 if f.fecha_hora < fin_funcion and self.fecha_hora < fin_otra:
                     raise ValidationError({
                         'fecha_hora': f'Conflicto de horario: La sala ya está ocupada por "{f.pelicula.titulo}" ({f.fecha_hora.strftime("%H:%M")}).'
@@ -274,14 +292,16 @@ class Funcion(models.Model):
         return ' + '.join(formatos_dimension) if formatos_dimension else ''
     
     def get_formatos_destacados(self):
-        """Retorna solo formatos VISUAL (2D/3D) y EXPERIENCIA (4DX, 4D, D-BOX)"""
+        """Retorna solo formatos VISUAL (2D/3D) y EXPERIENCIA (4DX, 4D, D-BOX), excluyendo Standard"""
         formatos = self.formatos_funcion.select_related('formato').all()
         formatos_destacados = []
         
         for ff in formatos:
             # Solo incluir categorías VISUAL y EXPERIENCIA
             if ff.formato.categoria in ['VISUAL', 'EXPERIENCIA']:
-                formatos_destacados.append(ff.formato.nombre)
+                # Excluir formatos que contengan "Standard" en su nombre
+                if 'STANDARD' not in ff.formato.nombre.upper():
+                    formatos_destacados.append(ff.formato.nombre)
         
         return ' + '.join(formatos_destacados) if formatos_destacados else '—'
 

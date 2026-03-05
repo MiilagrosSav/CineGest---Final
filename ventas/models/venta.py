@@ -10,6 +10,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from accounts.models import Cliente, Empleado
 from simple_history.models import HistoricalRecords
 from promociones.services import calcular_precio_final
+from ventas.managers import VentaManager
 
 
 class Venta(models.Model):
@@ -20,6 +21,7 @@ class Venta(models.Model):
         ('PENDIENTE_PAGO', 'Pendiente de Pago'),
         ('CONFIRMADA', 'Confirmada'),
         ('CANCELADA', 'Cancelada'),
+        ('EXPIRADA', 'Expirada'),
     ]
     
     TIPO_VENTA_CHOICES = [
@@ -98,6 +100,15 @@ class Venta(models.Model):
         validators=[MinValueValidator(0)],
         verbose_name='Total'
     )
+    activo = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name='Activo',
+        help_text='Indica si la venta está activa o ha sido dada de baja lógicamente'
+    )
+    
+    # Manager personalizado
+    objects = VentaManager()  # Manager con método limpiar_expiradas()
     
     class Meta:
         db_table = 'Venta'
@@ -130,17 +141,18 @@ class Venta(models.Model):
         ]
     
     def save(self, *args, **kwargs):
-        # 1. LIMPIEZA FORZOSA (Trim)
+        # 1. NORMALIZACIÓN Y LIMPIEZA FORZOSA (Trim + Upper)
         if self.codigo_compra:
-            self.codigo_compra = self.codigo_compra.strip()
+            self.codigo_compra = self.codigo_compra.strip().upper()
         if self.pk:
-        # Forzamos una limpieza total antes de cualquier cosa
-            self.codigo_compra = self.codigo_compra.strip() if self.codigo_compra else ""
-        
-        # Si el profesor borró parte del código en VS Code y el sistema intenta 
-        # hacer un update, esto lo va a detectar y RECHAZAR.
-        if not self.codigo_compra or len(self.codigo_compra) < 10:
-             raise ValidationError("ERROR CRÍTICO: El código de compra ha sido manipulado o está incompleto.")
+            # Forzamos una limpieza total antes de cualquier cosa
+            self.codigo_compra = self.codigo_compra.strip().upper() if self.codigo_compra else ""
+            
+            # Si el profesor borró parte del código en VS Code y el sistema intenta 
+            # hacer un update, esto lo va a detectar y RECHAZAR.
+            # ⚠️ IMPORTANTE: Esta validación SOLO aplica para ventas existentes (ediciones)
+            if not self.codigo_compra or len(self.codigo_compra) < 10:
+                raise ValidationError("ERROR CRÍTICO: El código de compra ha sido manipulado o está incompleto.")
 
         # 2. BLOQUEO PARA VENTAS EXISTENTES (Edición)
         if self.pk:

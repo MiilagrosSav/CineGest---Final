@@ -115,6 +115,7 @@ class ExcepcionHorario(models.Model):
         3. Si cerrado=False → hora_apertura y hora_cierre son OBLIGATORIOS
         4. hora_cierre > hora_apertura (cuando aplique)
         5. Verificar solapamientos de rangos con otras excepciones
+        6. CRÍTICO: Si cerrado=True → NO puede haber ventas confirmadas para esas fechas
         """
         super().clean()
         
@@ -194,10 +195,78 @@ class ExcepcionHorario(models.Model):
                     raise ValidationError({
                         'hora_cierre': 'La hora de cierre debe ser posterior a la hora de apertura.'
                     })
+        
+        # 6. VALIDACIÓN CRÍTICA: Si se intenta cerrar el cine, verificar ventas confirmadas
+        if self.cerrado and self.fecha:
+            from ventas.models import Venta
+            
+            # Determinar rango de fechas a verificar
+            fecha_inicio = self.fecha
+            fecha_final = self.fecha_fin if self.fecha_fin else self.fecha
+            
+            # Buscar ventas confirmadas para funciones en ese rango de fechas
+            # Estados que implican compromiso: CONFIRMADA, PENDIENTE_PAGO, PENDIENTE
+            ventas_comprometidas = Venta.objects.filter(
+                entradas__id_funcion__fecha_hora__date__gte=fecha_inicio,
+                entradas__id_funcion__fecha_hora__date__lte=fecha_final,
+                estado__in=['CONFIRMADA', 'PENDIENTE_PAGO', 'PENDIENTE']
+            ).distinct()
+            
+            if ventas_comprometidas.exists():
+                # Contar cuántas ventas y entradas
+                total_ventas = ventas_comprometidas.count()
+                total_entradas = 0
+                
+                for venta in ventas_comprometidas:
+                    total_entradas += venta.entradas.filter(
+                        id_funcion__fecha_hora__date__gte=fecha_inicio,
+                        id_funcion__fecha_hora__date__lte=fecha_final
+                    ).count()
+                
+                # Formatear mensaje según si es rango o día único
+                if fecha_final != fecha_inicio:
+                    fecha_str = f"del {fecha_inicio.strftime('%d/%m/%Y')} al {fecha_final.strftime('%d/%m/%Y')}"
+                else:
+                    fecha_str = f"el día {fecha_inicio.strftime('%d/%m/%Y')}"
+                
+                # Pluralización correcta
+                entrada_plural = "s" if total_entradas != 1 else ""
+                vendida_plural = "s" if total_entradas != 1 else ""
+                venta_plural = "s" if total_ventas != 1 else ""
+                
+                raise ValidationError({
+                    'cerrado': (
+                        f'No es posible cerrar el cine {fecha_str}: '
+                        f'Existen {total_entradas} entrada{entrada_plural} ya vendida{vendida_plural} '
+                        f'({total_ventas} venta{venta_plural}). '
+                        f'Debe cancelar las funciones y gestionar las devoluciones antes de proceder.'
+                    )
+                })
     
     def save(self, *args, **kwargs):
-        """Ejecuta validaciones antes de guardar"""
+        """Ejecuta validaciones antes de guardar y aplica baja lógica a funciones si corresponde"""
         self.full_clean()
+        
+        # Si se está cerrando el cine y pasó las validaciones (no hay ventas)
+        # marcar todas las funciones de ese día como inactivas
+        if self.cerrado and self.fecha:
+            from cine.models.funcion import Funcion
+            
+            # Determinar rango de fechas
+            fecha_inicio = self.fecha
+            fecha_final = self.fecha_fin if self.fecha_fin else self.fecha
+            
+            # Buscar funciones activas en ese rango
+            funciones_a_desactivar = Funcion.objects.filter(
+                fecha_hora__date__gte=fecha_inicio,
+                fecha_hora__date__lte=fecha_final,
+                activo=True
+            )
+            
+            # Aplicar baja lógica a todas las funciones del rango
+            for funcion in funciones_a_desactivar:
+                funcion.soft_delete()
+        
         super().save(*args, **kwargs)
     
     def __str__(self):

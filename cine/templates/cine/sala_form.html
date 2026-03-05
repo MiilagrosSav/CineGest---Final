@@ -19,7 +19,7 @@
             <strong>ℹ️ Nota importante:</strong>
             <p style="margin-top: var(--space-xs); font-size: 0.9rem;">
                 La <strong>capacidad de la sala</strong> se configurará automáticamente cuando diseñes la distribución de butacas. 
-                Después de crear la sala, haz clic en <strong>"✨ Configurar Layout"</strong> para establecer la disposición de asientos y pasillos.
+                Después de crear la sala, haz clic en <strong>"✨ Configurar Distribución de Asientos"</strong> para establecer la disposición de asientos y pasillos.
             </p>
         </div>
         {% endif %}
@@ -63,7 +63,7 @@
             <div class="message message-warning" style="margin-top: var(--space-md); text-align: left;">
                 <strong>⚠️ Advertencia:</strong>
                 <p style="margin-top: var(--space-xs); font-size: 0.9rem;">
-                    Esta sala tiene <strong>butacas vendidas</strong> y no se puede reconfigurar el layout por seguridad. 
+                    Esta sala tiene <strong>butacas vendidas</strong> y no se puede reconfigurar la distribución de asientos por seguridad. 
                     Solo puedes modificar el nombre, estado activo y observaciones de la sala.
                 </p>
             </div>
@@ -77,11 +77,11 @@
                 {% if object.pk %}
                     {% if tiene_butacas_vendidas %}
                         <button type="button" class="btn btn-accent btn-disabled" style="flex: 1; cursor: not-allowed;" disabled title="No se puede modificar: tiene butacas vendidas">
-                            🔒 Layout Bloqueado
+                            🔒 Distribución Bloqueada
                         </button>
                     {% else %}
-                        <a href="{% url 'cine:disenar_layout_sala' object.pk %}" class="btn btn-accent" style="flex: 1; text-align: center; text-decoration: none;">
-                            ✨ Configurar Layout
+                        <a href="{% url 'cine:disenar_distribucion_asientos' object.pk %}" class="btn btn-accent" style="flex: 1; text-align: center; text-decoration: none;">
+                            ✨ Configurar Distribución de Asientos
                         </a>
                     {% endif %}
                 {% endif %}

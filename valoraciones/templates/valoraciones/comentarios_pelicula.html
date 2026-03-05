@@ -1,0 +1,294 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Reseñas - {{ pelicula.titulo }} - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .comentarios-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+    
+    .pelicula-header {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(139, 95, 191, 0.2);
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 2rem;
+        align-items: start;
+    }
+    
+    .pelicula-portada img {
+        width: 100%;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    
+    .pelicula-info h1 {
+        margin: 0 0 1rem 0;
+        background: linear-gradient(135deg, #8B5FBF, #e94560);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 2rem;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .stat-item {
+        background: rgba(139, 95, 191, 0.1);
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary);
+        display: block;
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
+        color: var(--gray);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 0.3rem;
+    }
+    
+    .comentarios-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    
+    .comentario-card {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(139, 95, 191, 0.2);
+        border-left: 4px solid var(--primary);
+        border-radius: 12px;
+        padding: 1.5rem;
+        transition: all 0.3s;
+    }
+    
+    .comentario-card:hover {
+        background: rgba(139, 95, 191, 0.1);
+        transform: translateX(5px);
+        box-shadow: 0 4px 15px rgba(139, 95, 191, 0.2);
+    }
+    
+    .comentario-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.8rem;
+        border-bottom: 1px solid rgba(139, 95, 191, 0.15);
+    }
+    
+    .comentario-autor {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+    }
+    
+    .autor-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #8B5FBF, #e94560);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        color: white;
+        font-size: 1.1rem;
+    }
+    
+    .autor-info h4 {
+        margin: 0;
+        color: var(--white);
+        font-size: 1rem;
+    }
+    
+    .autor-info .fecha {
+        font-size: 0.75rem;
+        color: var(--gray);
+        margin-top: 0.2rem;
+    }
+    
+    .comentario-estrellas {
+        display: flex;
+        gap: 0.2rem;
+        font-size: 1.2rem;
+    }
+    
+    .star-filled {
+        color: #fbbf24;
+    }
+    
+    .star-empty {
+        color: #4a4a4a;
+    }
+    
+    .comentario-texto {
+        color: var(--white);
+        line-height: 1.6;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+    
+    .no-comentarios {
+        text-align: center;
+        padding: 4rem 2rem;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        border: 2px dashed rgba(139, 95, 191, 0.3);
+    }
+    
+    .no-comentarios-icon {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.3;
+    }
+    
+    .btn-volver {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: rgba(139, 95, 191, 0.2);
+        border: 1px solid var(--primary);
+        color: var(--white);
+        text-decoration: none;
+        border-radius: 8px;
+        transition: all 0.3s;
+        margin-bottom: 2rem;
+    }
+    
+    .btn-volver:hover {
+        background: var(--primary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(139, 95, 191, 0.3);
+    }
+    
+    .section-title {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-bottom: 1.5rem;
+        font-size: 1.3rem;
+        color: var(--white);
+    }
+    
+    @media (max-width: 768px) {
+        .pelicula-header {
+            grid-template-columns: 1fr;
+            text-align: center;
+        }
+        
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="comentarios-container">
+    <a href="{% url 'cine:cartelera' %}" class="btn-volver">
+        ← Volver a la cartelera
+    </a>
+    
+    <div class="pelicula-header">
+        <div class="pelicula-portada">
+            <img src="{{ pelicula.get_poster_url }}" alt="{{ pelicula.titulo }}">
+        </div>
+        
+        <div class="pelicula-info">
+            <h1>{{ pelicula.titulo }}</h1>
+            
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-value">
+                        {% for i in "12345" %}
+                            {% if forloop.counter <= stats.estrellas_llenas %}
+                                <span class="star-filled">★</span>
+                            {% else %}
+                                <span class="star-empty">★</span>
+                            {% endif %}
+                        {% endfor %}
+                    </span>
+                    <span class="stat-label">{{ stats.promedio }}/5</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="stat-value">{{ stats.total }}</span>
+                    <span class="stat-label">Valoraciones</span>
+                </div>
+                
+                <div class="stat-item">
+                    <span class="stat-value">{{ total_comentarios }}</span>
+                    <span class="stat-label">Comentarios</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <h2 class="section-title">
+        <span>💬</span>
+        <span>Reseñas de espectadores</span>
+    </h2>
+    
+    {% if valoraciones %}
+        <div class="comentarios-list">
+            {% for valoracion in valoraciones %}
+                <div class="comentario-card">
+                    <div class="comentario-header">
+                        <div class="comentario-autor">
+                            <div class="autor-avatar">
+                                {{ valoracion.cliente.usuario.get_full_name.0|default:valoracion.cliente.usuario.username.0|upper }}
+                            </div>
+                            <div class="autor-info">
+                                <h4>{{ valoracion.cliente.usuario.get_full_name|default:valoracion.cliente.usuario.username }}</h4>
+                                <div class="fecha">{{ valoracion.fecha_creacion|date:"d/m/Y H:i" }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="comentario-estrellas">
+                            {% for i in "12345" %}
+                                {% if forloop.counter <= valoracion.puntuacion %}
+                                    <span class="star-filled">★</span>
+                                {% else %}
+                                    <span class="star-empty">★</span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    {% if valoracion.comentario %}
+                    <p class="comentario-texto">{{ valoracion.comentario }}</p>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="no-comentarios">
+            <div class="no-comentarios-icon">💬</div>
+            <h3 style="color: var(--gray); margin-bottom: 0.5rem;">Aún no hay reseñas</h3>
+            <p style="color: var(--gray); font-size: 0.9rem;">Sé el primero en compartir tu opinión sobre esta película.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

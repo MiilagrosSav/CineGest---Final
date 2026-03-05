@@ -6,12 +6,11 @@ class PoliticaReembolso(models.Model):
     """Política que regula los intercambios (antes: políticas de reembolso).
 
     Esta política se consulta desde la vista de intercambio y puede impedir
-    o condicionar los cambios (por ejemplo, límite de días antes, penalidad).
+    o condicionar los cambios (por ejemplo, límite de días antes de la función).
     """
     nombre = models.CharField(max_length=140, default='Política de Intercambio')
     activo = models.BooleanField(default=True, help_text='Si está activa, esta política permite intercambios con las condiciones definidas')
     dias_antes_minimo = models.IntegerField(default=1, help_text='Número mínimo de días antes de la función para permitir intercambio')
-    penalidad_percent = models.DecimalField(max_digits=5, decimal_places=2, default=0.00, help_text='Porcentaje de penalidad aplicado al intercambio (si aplica)')
     max_cambios_por_compra = models.IntegerField(default=1, help_text='Máximo de intercambios permitidos por compra (0 = ilimitado)')
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
@@ -20,6 +19,12 @@ class PoliticaReembolso(models.Model):
         verbose_name = 'Política de Reembolso/Intercambio'
         verbose_name_plural = 'Políticas de Reembolso/Intercambio'
 
+    def save(self, *args, **kwargs):
+        """Normalizar nombre de la política a Title Case"""
+        if self.nombre:
+            self.nombre = self.nombre.strip().title()
+        super().save(*args, **kwargs)
+    
     def __str__(self):
         return self.nombre
 

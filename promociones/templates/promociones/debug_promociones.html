@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+
+{% block title %}🔍 Debug Promociones | CineGest{% endblock %}
+
+{% block content %}
+<div style="max-width: 1400px; margin: 0 auto; padding: var(--space-lg);">
+    
+    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                padding: var(--space-xl); 
+                border-radius: 12px; 
+                margin-bottom: var(--space-lg);
+                color: white;">
+        <h1 style="margin: 0 0 0.5rem 0; font-size: 2rem;">🔍 Debug de Promociones</h1>
+        <p style="margin: 0; opacity: 0.9;">
+            Vista de diagnóstico para verificar promociones activas y sus vínculos específicos
+        </p>
+        <p style="margin: 0.5rem 0 0 0; font-size: 0.9rem; opacity: 0.8;">
+            📅 {{ ahora|date:"d/m/Y H:i:s" }}
+        </p>
+    </div>
+
+    <div style="background: var(--card-bg); 
+                padding: var(--space-lg); 
+                border-radius: 12px;
+                margin-bottom: var(--space-lg);">
+        <h2 style="margin: 0 0 var(--space-md) 0;">📊 Resumen</h2>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-md);">
+            <div style="background: rgba(102, 126, 234, 0.1); padding: var(--space-md); border-radius: 8px;">
+                <div style="font-size: 2rem; font-weight: 700; color: #667eea;">{{ total_promociones }}</div>
+                <div style="font-size: 0.9rem; opacity: 0.8;">Promociones Automáticas Activas</div>
+            </div>
+        </div>
+    </div>
+
+    {% for data in promociones_data %}
+    <div style="background: var(--card-bg); 
+                padding: var(--space-lg); 
+                border-radius: 12px;
+                margin-bottom: var(--space-lg);
+                border: 2px solid {% if data.tiene_vinculos %}rgba(255, 140, 0, 0.3){% else %}rgba(102, 126, 234, 0.3){% endif %};">
+        
+        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--space-md);">
+            <div>
+                <h3 style="margin: 0 0 0.5rem 0; display: flex; align-items: center; gap: 0.5rem;">
+                    {% if data.tiene_vinculos %}🎯{% else %}✨{% endif %}
+                    {{ data.promo.codigo }} - {{ data.promo.nombre }}
+                    <span style="font-size: 0.8rem; 
+                                 background: {% if data.promo.activo %}rgba(46, 213, 115, 0.2){% else %}rgba(255, 71, 87, 0.2){% endif %}; 
+                                 color: {% if data.promo.activo %}#2ed573{% else %}#ff4757{% endif %};
+                                 padding: 0.2rem 0.6rem;
+                                 border-radius: 12px;">
+                        {{ data.promo.activo|yesno:"ACTIVO,INACTIVO" }}
+                    </span>
+                </h3>
+                <p style="margin: 0; opacity: 0.7; font-size: 0.9rem;">ID: {{ data.promo.pk }}</p>
+            </div>
+            
+            <div style="text-align: right;">
+                <div style="font-size: 1.5rem; font-weight: 700; 
+                           background: linear-gradient(135deg, #ff0080, #ff8c00);
+                           -webkit-background-clip: text;
+                           -webkit-text-fill-color: transparent;
+                           background-clip: text;">
+                    {% if data.promo.tipo_descuento == '2X1' %}
+                        2×1
+                    {% elif data.promo.tipo_descuento == 'PORCENTAJE' %}
+                        {{ data.promo.valor_descuento|floatformat:0 }}% OFF
+                    {% else %}
+                        ${{ data.promo.valor_descuento|floatformat:0 }} OFF
+                    {% endif %}
+                </div>
+                <div style="font-size: 0.8rem; opacity: 0.7;">{{ data.promo.tipo_descuento }}</div>
+            </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-md);">
+            <div>
+                <div style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 0.2rem;">📅 VIGENCIA</div>
+                <div style="font-size: 0.9rem;">
+                    {{ data.promo.fecha_inicio|date:"d/m/Y" }} → {{ data.promo.fecha_fin|date:"d/m/Y" }}
+                </div>
+            </div>
+            
+            <div>
+                <div style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 0.2rem;">📆 DÍAS DE SEMANA</div>
+                <div style="font-size: 0.9rem;">
+                    {% if data.promo.dias_semana %}
+                        {{ data.promo.dias_semana }}
+                    {% else %}
+                        Todos los días
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                <div style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 0.2rem;">🎬 GÉNERO REQUERIDO</div>
+                <div style="font-size: 0.9rem;">
+                    {% if data.promo.genero_requerido %}
+                        {{ data.promo.genero_requerido.nombre }}
+                    {% else %}
+                        Sin restricción
+                    {% endif %}
+                </div>
+            </div>
+
+            <div>
+                <div style="font-size: 0.8rem; opacity: 0.6; margin-bottom: 0.2rem;">⭐ ESTRENOS</div>
+                <div style="font-size: 0.9rem;">
+                    {{ data.promo.aplica_en_estrenos|yesno:"Sí aplica,No aplica" }}
+                </div>
+            </div>
+        </div>
+
+        {% if data.tiene_vinculos %}
+        <div style="background: rgba(255, 140, 0, 0.1); 
+                    padding: var(--space-md); 
+                    border-radius: 8px;
+                    border-left: 4px solid #ff8c00;">
+            <div style="font-weight: 700; margin-bottom: var(--space-sm); color: #ff8c00;">
+                🎯 VÍNCULOS ESPECÍFICOS ({{ data.count_vinculos }})
+            </div>
+            <div style="font-size: 0.85rem; opacity: 0.8; margin-bottom: var(--space-sm);">
+                Esta promoción SOLO aplica a las siguientes funciones/películas:
+            </div>
+            
+            {% for vinculo in data.vinculos %}
+            <div style="background: rgba(0, 0, 0, 0.2); 
+                        padding: var(--space-sm); 
+                        border-radius: 6px; 
+                        margin-bottom: 0.5rem;
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;">
+                <div>
+                    {% if vinculo.tipo == 'funcion' %}
+                        <span style="font-size: 1.2rem; margin-right: 0.5rem;">🎞️</span>
+                        <strong>{{ vinculo.descripcion }}</strong>
+                        <div style="font-size: 0.85rem; opacity: 0.7; margin-top: 0.2rem;">
+                            📅 {{ vinculo.fecha|date:"d/m/Y H:i" }} | 🎪 {{ vinculo.sala }} | 
+                            Estado: <strong>{{ vinculo.estado }}</strong>
+                        </div>
+                    {% else %}
+                        <span style="font-size: 1.2rem; margin-right: 0.5rem;">🎬</span>
+                        <strong>{{ vinculo.descripcion }}</strong>
+                        <div style="font-size: 0.85rem; opacity: 0.7; margin-top: 0.2rem;">
+                            📊 {{ vinculo.funciones_count }} funciones activas
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <div style="display: flex; gap: 0.5rem;">
+                    {% if vinculo.tipo == 'funcion' %}
+                        <span style="padding: 0.2rem 0.6rem; 
+                                     border-radius: 12px; 
+                                     font-size: 0.75rem;
+                                     background: {% if vinculo.activo %}rgba(46, 213, 115, 0.2){% else %}rgba(255, 71, 87, 0.2){% endif %};
+                                     color: {% if vinculo.activo %}#2ed573{% else %}#ff4757{% endif %};">
+                            Función: {{ vinculo.activo|yesno:"✓,✗" }}
+                        </span>
+                        <span style="padding: 0.2rem 0.6rem; 
+                                     border-radius: 12px; 
+                                     font-size: 0.75rem;
+                                     background: {% if vinculo.pelicula_activa %}rgba(46, 213, 115, 0.2){% else %}rgba(255, 71, 87, 0.2){% endif %};
+                                     color: {% if vinculo.pelicula_activa %}#2ed573{% else %}#ff4757{% endif %};">
+                            Película: {{ vinculo.pelicula_activa|yesno:"✓,✗" }}
+                        </span>
+                    {% else %}
+                        <span style="padding: 0.2rem 0.6rem; 
+                                     border-radius: 12px; 
+                                     font-size: 0.75rem;
+                                     background: {% if vinculo.activo %}rgba(46, 213, 115, 0.2){% else %}rgba(255, 71, 87, 0.2){% endif %};
+                                     color: {% if vinculo.activo %}#2ed573{% else %}#ff4757{% endif %};">
+                            {{ vinculo.activo|yesno:"✓,✗" }}
+                        </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="background: rgba(102, 126, 234, 0.1); 
+                    padding: var(--space-md); 
+                    border-radius: 8px;
+                    border-left: 4px solid #667eea;">
+            <div style="font-weight: 700; color: #667eea;">
+                ✨ SIN VÍNCULOS ESPECÍFICOS
+            </div>
+            <div style="font-size: 0.85rem; opacity: 0.8; margin-top: 0.3rem;">
+                Esta promoción aplica universalmente a todas las funciones que cumplan las condiciones generales 
+                (vigencia, días, género, estrenos, etc.)
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div style="background: var(--card-bg); 
+                padding: var(--space-xl); 
+                border-radius: 12px;
+                text-align: center;">
+        <div style="font-size: 3rem; margin-bottom: var(--space-md);">🎭</div>
+        <h3 style="margin: 0 0 0.5rem 0;">No hay promociones automáticas activas</h3>
+        <p style="margin: 0; opacity: 0.7;">
+            Crea promociones desde el panel de administración
+        </p>
+    </div>
+    {% endfor %}
+
+    <div style="background: rgba(255, 140, 0, 0.1); 
+                padding: var(--space-md); 
+                border-radius: 8px;
+                border-left: 4px solid #ff8c00;
+                margin-top: var(--space-lg);">
+        <div style="font-weight: 700; margin-bottom: 0.5rem;">💡 Cómo interpretar esta información</div>
+        <ul style="margin: 0; padding-left: 1.5rem; opacity: 0.9;">
+            <li><strong>✨ Sin vínculos:</strong> La promoción aplica a TODAS las funciones que cumplan las condiciones generales</li>
+            <li><strong>🎯 Con vínculos:</strong> La promoción SOLO aplica a las funciones/películas específicas listadas</li>
+            <li><strong>Estado de vínculos:</strong> Los vínculos a funciones/películas inactivas son ignorados automáticamente</li>
+        </ul>
+    </div>
+
+</div>
+{% endblock %}

@@ -140,7 +140,7 @@
                 
                 {% if info_descuento %}
                 <div style="background: rgba(78, 205, 196, 0.1); border-left: 3px solid #4ecdc4; padding: var(--space-sm); margin-bottom: var(--space-sm); border-radius: 4px;">
-                    <div style="font-size: 0.9rem; color: #4ecdc4; font-weight: 600; margin-bottom: 4px;">
+                    <div style="font-size: 0.9rem; color: #4ecdc4; font-weight: 600; margin-bottom: 4px; word-wrap: break-word; white-space: normal; line-height: 1.4;">
                         {{ info_descuento.descripcion }}
                     </div>
                     {% if precio_base and precio != precio_base %}
@@ -172,13 +172,7 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script>
-    window.FUNCION_ID = "{{ funcion.id }}";
-    window.CARTELERA_URL = "{% url 'cine:cartelera' %}";
-</script>
-<script src="{% static 'ventas/js/seleccionar_butacas.js' %}?v=3.0"></script>
-
+<!-- Datos ocultos para JavaScript -->
 <div id="requiere-4d-data" data-requiere-4d="{% if requiere_4d %}true{% else %}false{% endif %}" style="display:none"></div>
 {% if cantidad_requerida %}
 <div id="cantidad-data" data-cantidad="{{ cantidad_requerida }}" style="display:none"></div>
@@ -192,4 +186,11 @@
      data-precio-con-descuento="{{ info_descuento.precio_con_descuento }}"
      style="display:none"></div>
 {% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    window.FUNCION_ID = "{{ funcion.id }}";
+    window.CARTELERA_URL = "{% url 'cine:cartelera' %}";
+</script>
+<script src="{% static 'ventas/js/seleccionar_butacas_v2.js' %}"></script>
 {% endblock %}

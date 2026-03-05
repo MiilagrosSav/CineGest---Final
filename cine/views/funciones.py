@@ -31,15 +31,18 @@ class FuncionListView(AdminRequiredMixin, ListView):
             fecha_hora__lt=ahora
         ).exclude(estado='INACTIVA').update(estado='INACTIVA')
         
-        queryset = Funcion.objects.select_related('pelicula', 'sala').prefetch_related('formatos_funcion__formato')
-        
-        # Filtrar por estado: 'activas' (por defecto) => fecha_hora >= ahora; 'inactivas' => fecha_hora < ahora
+        # Filtrar por estado: 'activas' (por defecto) o 'inactivas' (historial)
         estado = self.request.GET.get('estado', 'activas')
-        # usar localtime para evitar comparaciones con datetimes naive/aware en distinto tz
+        
+        # Para el historial, usar all_objects para incluir funciones soft-deleted
         if estado == 'inactivas':
-            queryset = queryset.filter(fecha_hora__lt=ahora)
+            queryset = Funcion.all_objects.select_related('pelicula', 'sala').prefetch_related('formatos_funcion__formato')
+            # Mostrar funciones pasadas O funciones marcadas como inactivas (soft-deleted o estado INACTIVA)
+            queryset = queryset.filter(Q(fecha_hora__lt=ahora) | Q(activo=False) | Q(estado='INACTIVA'))
         else:
-            queryset = queryset.filter(fecha_hora__gte=ahora)
+            queryset = Funcion.objects.select_related('pelicula', 'sala').prefetch_related('formatos_funcion__formato')
+            # Mostrar solo funciones activas, futuras y que NO estén marcadas como INACTIVA
+            queryset = queryset.filter(fecha_hora__gte=ahora).exclude(estado='INACTIVA')
         
         # Filtro por búsqueda (título de película, sala o formato)
         search = self.request.GET.get('search', '').strip()
@@ -361,6 +364,7 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         kwargs = {
             'initial': self.get_initial(),
             'prefix': self.get_prefix(),
+            'funcion': self.object,  # ✅ Pasar la función para validar ventas
         }
         
         if self.request.method in ('POST', 'PUT'):
@@ -379,7 +383,8 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         # Separar fecha_hora en fecha y horarios
         initial['pelicula'] = funcion.pelicula.id
         initial['sala'] = funcion.sala.id
-        initial['fecha'] = funcion.fecha_hora.date()
+        # 🐛 FIX: Convertir a string en formato YYYY-MM-DD para el widget HTML5
+        initial['fecha'] = funcion.fecha_hora.strftime('%Y-%m-%d')
         # NO establecer horarios aquí - se cargarán automáticamente via AJAX
         # initial['horarios'] se dejará vacío para que JavaScript lo llene
         initial['precio_base'] = funcion.precio_base
@@ -446,6 +451,15 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         """Actualizar la función con los datos del formulario batch"""
         from cine.models import FuncionFormato
         
+        # 🔒 PROTECCIÓN: No permitir modificar funciones con entradas vendidas
+        if hasattr(form, '_tiene_entradas_vendidas') and form._tiene_entradas_vendidas:
+            messages.error(
+                self.request,
+                '🔒 No se puede modificar una función con entradas vendidas. '
+                'Por contrato con el cliente, esta información es INMUTABLE.'
+            )
+            return redirect('cine:funcion_list')
+        
         # Validar nuevamente que la función no haya terminado
         ahora = timezone.now()
         duracion_pelicula = self.object.pelicula.duracion
@@ -506,6 +520,13 @@ class FuncionDeleteView(AdminRequiredMixin, DeleteView):
     template_name = 'cine/funcion_confirm_delete.html'
     success_url = reverse_lazy('cine:funcion_list')
     
+    def get_queryset(self):
+        """
+        Usar all_objects para permitir acceso a funciones ya eliminadas (soft delete).
+        Esto previene 404 al acceder a la página de confirmación de eliminación.
+        """
+        return Funcion.all_objects.all()
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         funcion = self.get_object()
@@ -534,14 +555,19 @@ class FuncionDeleteView(AdminRequiredMixin, DeleteView):
         return context
     
     def delete(self, request, *args, **kwargs):
-        """Sobrescribir delete para manejar ProtectedError"""
+        """Sobrescribir delete para manejar ProtectedError y pasar usuario al soft delete"""
         from django.db.models.deletion import ProtectedError
         
         self.object = self.get_object()
         success_url = self.get_success_url()
         
         try:
-            self.object.delete()
+            # Llamar a soft_delete con el usuario para registro de auditoría
+            if hasattr(self.object, 'soft_delete'):
+                self.object.soft_delete(user=request.user)
+            else:
+                self.object.delete()
+            
             messages.success(
                 request,
                 f'✓ La función de "{self.object.pelicula.titulo}" del {self.object.fecha_hora.strftime("%d/%m/%Y %H:%M")} ha sido eliminada exitosamente.'

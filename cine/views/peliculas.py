@@ -5,6 +5,9 @@ from cine.models import Pelicula, Genero
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.contrib import messages
+from django.shortcuts import redirect
 
 
 # --- Vistas del CRUD de Películas ---
@@ -77,6 +80,20 @@ class PeliculaCreateView(AdminRequiredMixin, CreateView):
         # Pasar la lista de géneros para renderizado en plantilla (checkboxes)
         context['generos'] = Genero.objects.all().order_by('nombre')
         return context
+    
+    def form_valid(self, form):
+        """Capturar ValidationError del modelo y mostrarlo en el formulario"""
+        try:
+            return super().form_valid(form)
+        except ValidationError as e:
+            # Convertir ValidationError del modelo a errores de formulario
+            if hasattr(e, 'error_dict'):
+                for field, errors in e.error_dict.items():
+                    for error in errors:
+                        form.add_error(field, error.message)
+            else:
+                form.add_error(None, str(e))
+            return self.form_invalid(form)
 
 # UPDATE: Vista para mostrar el formulario de edición
 class PeliculaUpdateView(AdminRequiredMixin, UpdateView):
@@ -92,12 +109,33 @@ class PeliculaUpdateView(AdminRequiredMixin, UpdateView):
         # Pasar la lista de géneros para renderizado en plantilla (checkboxes)
         context['generos'] = Genero.objects.all().order_by('nombre')
         return context
+    
+    def form_valid(self, form):
+        """Capturar ValidationError del modelo y mostrarlo en el formulario"""
+        try:
+            return super().form_valid(form)
+        except ValidationError as e:
+            # Convertir ValidationError del modelo a errores de formulario
+            if hasattr(e, 'error_dict'):
+                for field, errors in e.error_dict.items():
+                    for error in errors:
+                        form.add_error(field, error.message)
+            else:
+                form.add_error(None, str(e))
+            return self.form_invalid(form)
 
 # DELETE: Vista para confirmar la eliminación
 class PeliculaDeleteView(AdminRequiredMixin, DeleteView):
     model = Pelicula
     template_name = 'cine/pelicula_confirm_delete.html'
     success_url = reverse_lazy('cine:pelicula_list')
+    
+    def get_queryset(self):
+        """
+        Usar all_objects para permitir acceso a películas ya eliminadas (soft delete).
+        Esto previene 404 al acceder a la página de confirmación de eliminación.
+        """
+        return Pelicula.all_objects.all()
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -113,3 +151,20 @@ class PeliculaDeleteView(AdminRequiredMixin, DeleteView):
         context['puede_eliminar'] = not funciones.exists()
         
         return context
+    
+    def delete(self, request, *args, **kwargs):
+        """Pasar usuario al soft delete para auditoría"""
+        self.object = self.get_object()
+        success_url = self.get_success_url()
+        
+        # Llamar a soft_delete con el usuario para registro de auditoría
+        if hasattr(self.object, 'soft_delete'):
+            self.object.soft_delete(user=request.user)
+        else:
+            self.object.delete()
+        
+        messages.success(
+            request,
+            f'✓ La película "{self.object.titulo}" ha sido eliminada exitosamente.'
+        )
+        return redirect(success_url)

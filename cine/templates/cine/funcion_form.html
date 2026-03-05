@@ -182,7 +182,9 @@
             </div>
             {% endwith %}
 
+            {# Estado - Mostrar siempre para elegir ACTIVA o PREVENTA #}
             {% with field=form.estado %}
+            {% if field %}
             <div class="form-group">
                 <label class="form-label" style="display: block; margin-bottom: var(--space-sm); font-weight: 600;">
                     {{ field.label }}
@@ -199,7 +201,19 @@
                 {% if field.help_text %}<small class="text-secondary" style="font-size: 0.85rem; opacity: 0.8; display: block; margin-top: var(--space-xs); font-style: italic;">💡 {{ field.help_text }}</small>{% endif %}
                 {% if field.errors %}{% for error in field.errors %}<span class="form-error" role="alert" style="display: block; margin-top: var(--space-xs);">⚠️ {{ error }}</span>{% endfor %}{% endif %}
             </div>
+            {% endif %}
             {% endwith %}
+            
+            {# Fecha de activación - Solo mostrar cuando se selecciona PREVENTA #}
+            <div class="form-group" id="fecha-activacion-group" style="display: none;">
+                <label for="{{ form.fecha_activacion.id_for_label }}" class="form-label">
+                    {{ form.fecha_activacion.label }}
+                    {% if form.fecha_activacion.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                </label>
+                {{ form.fecha_activacion }}
+                {% if form.fecha_activacion.help_text %}<small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">💡 {{ form.fecha_activacion.help_text }}</small>{% endif %}
+                {% if form.fecha_activacion.errors %}{% for error in form.fecha_activacion.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+            </div>
 
             {% with field=form.precio_base %}
             <div class="form-group">
@@ -247,6 +261,51 @@
 <script>
     window.CALCULAR_HORARIOS_URL = "{% url 'cine:calcular_horarios' %}";
     window.VERIFICAR_HORARIO_FECHA_URL = "{% url 'cine:verificar_horario_fecha' %}";
+</script>
+
+<script>
+    // Mostrar/ocultar fecha_activacion según el estado seleccionado
+    document.addEventListener('DOMContentLoaded', function() {
+        // Función para configurar el toggle
+        function setupEstadoToggle() {
+            const estadoRadios = document.querySelectorAll('input[name="estado"]');
+            const fechaActivacionGroup = document.getElementById('fecha-activacion-group');
+            
+            if (!estadoRadios.length || !fechaActivacionGroup) {
+                console.warn('No se encontraron los elementos necesarios');
+                return;
+            }
+            
+            // Función para actualizar visibilidad
+            function toggleFechaActivacion() {
+                const estadoSeleccionado = document.querySelector('input[name="estado"]:checked');
+                
+                if (fechaActivacionGroup) {
+                    if (estadoSeleccionado && estadoSeleccionado.value === 'PREVENTA') {
+                        fechaActivacionGroup.style.display = 'block';
+                    } else {
+                        fechaActivacionGroup.style.display = 'none';
+                        // Limpiar el campo si se deselecciona PREVENTA
+                        const fechaInput = fechaActivacionGroup.querySelector('input[name="fecha_activacion"]');
+                        if (fechaInput && estadoSeleccionado && estadoSeleccionado.value !== 'PREVENTA') {
+                            fechaInput.value = '';
+                        }
+                    }
+                }
+            }
+            
+            // Ejecutar al cargar la página
+            toggleFechaActivacion();
+            
+            // Escuchar cambios en los radios de estado
+            estadoRadios.forEach(radio => {
+                radio.addEventListener('change', toggleFechaActivacion);
+            });
+        }
+        
+        // Ejecutar la configuración
+        setupEstadoToggle();
+    });
 </script>
 
 <script src="{% static 'cine/js/funcion_form.js' %}?v=1.0"></script>

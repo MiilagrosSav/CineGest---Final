@@ -2,12 +2,14 @@ from django.db import models
 from simple_history.models import HistoricalRecords
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from django.core.exceptions import ValidationError
+from core.mixins import SoftDeleteMixin
 
 
 #----------------------------------------------------------------------------------------------
 #--------------------------------creamos la clase SALA---------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
-class Sala(models.Model):
+class Sala(SoftDeleteMixin, models.Model):
     """
     Modelo para representar una sala de cine.
     Cada sala tiene una capacidad específica y puede proyectar películas.
@@ -24,10 +26,7 @@ class Sala(models.Model):
         help_text="Nombre descriptivo de la sala (ej: 'Sala Premium A')"
     )
     capacidad_total = models.PositiveIntegerField(default=0, editable=False)
-    activa = models.BooleanField(
-        default=True,
-        help_text="Indica si la sala está disponible para proyecciones"
-    )
+    # Campo 'activo' viene de SoftDeleteMixin (antes era 'activa')
     
     observaciones = models.TextField(
         blank=True,
@@ -51,7 +50,25 @@ class Sala(models.Model):
     
     def get_status_display(self):
         """Retorna el estado de la sala con icono"""
-        return "🟢 Activa" if self.activa else "🔴 Inactiva"
+        return "🟢 Activa" if self.activo else "🔴 Inactiva"
+    
+    def delete(self, **kwargs):
+        """
+        Sobrescribe delete para validar integridad antes de dar de baja.
+        
+        No permite dar de baja una sala si tiene funciones activas.
+        Esto protege la integridad referencial y evita errores en cartelera.
+        """
+        # Verificar si tiene funciones activas
+        funciones_activas = self.funciones.filter(activo=True).exists()
+        if funciones_activas:
+            raise ValidationError(
+                f'No se puede dar de baja la sala "{self.nombre}" porque tiene '
+                'funciones activas asociadas. Primero desactive o elimine las funciones.'
+            )
+        
+        # Si no tiene funciones activas, proceder con baja lógica
+        return super().delete(**kwargs)
     
     def tiene_butacas_vendidas(self):
         """
@@ -63,6 +80,21 @@ class Sala(models.Model):
             id_sala=self,
             estado__in=['VENDIDA', 'ENTREGADA', 'USADA']
         ).exists()
+    
+    def save(self, *args, **kwargs):
+        """
+        Normalización de datos antes de guardar.
+        """
+        import re
+        
+        # Normalizar nombre de la sala
+        if self.nombre:
+            # Eliminar espacios innecesarios y aplicar Title Case
+            self.nombre = self.nombre.strip().title()
+            # Corregir letras repetidas 3 o más veces
+            self.nombre = re.sub(r'(.)\1{2,}', r'\1\1', self.nombre)
+        
+        super().save(*args, **kwargs)
 
     class Meta:
         verbose_name = "Sala"

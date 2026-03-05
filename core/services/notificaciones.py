@@ -1,343 +1,369 @@
 """
-Servicio de notificaciones por email.
-
-Centraliza toda la lógica de envío de emails del sistema:
-- Bienvenida (registro de usuarios)
-- Compras (confirmación de compra)
-- Intercambios (confirmación de intercambio)
+Servicio centralizado de notificaciones por email
 """
 
 import logging
-import base64
 import io
-import urllib.parse
-from decimal import Decimal
-from typing import Optional, Dict, Any, List
-try:
-    import qrcode  # type: ignore
-    HAS_QRCODE = True
-except Exception:  # pragma: no cover - runtime fallback if package missing
-    qrcode = None
-    HAS_QRCODE = False
-from PIL import Image
-from django.core.mail import send_mail, EmailMultiAlternatives
+import base64
+from typing import Optional
+from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
+from django.utils.html import strip_tags
+
+# Importaciones para QR
+try:
+    import qrcode
+    from qrcode.image.pure import PyPNGImage
+    QRCODE_AVAILABLE = True
+except ImportError:
+    QRCODE_AVAILABLE = False
+    
 
 logger = logging.getLogger(__name__)
 
 
 class NotificacionService:
     """
-    Servicio centralizado para envío de notificaciones por email.
+    Servicio para envío de notificaciones por email
     """
     
     def __init__(self):
-        self.logger = logger
-        self.from_email = settings.DEFAULT_FROM_EMAIL
-        if not HAS_QRCODE:
-            # Inform at service init time to help debugging in dev
-            self.logger.warning(
-                'La librería "qrcode" no está disponible en el entorno. '
-                'Se usará el servicio externo para generar QR como fallback.'
-            )
+        self.from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@cinegest.com')
     
-    def _enviar_email(
-        self,
-        asunto: str,
-        template_html: str,
-        template_txt: str,
-        destinatario: str,
-        context: Dict[str, Any]
-    ) -> bool:
+    def _get_configuracion_cine(self):
+        """Obtener configuración del cine (singleton)"""
+        try:
+            from cine.models import ConfiguracionCine
+            return ConfiguracionCine.obtener_configuracion()
+        except Exception as e:
+            logger.warning(f"No se pudo obtener configuración del cine: {e}")
+            return None
+    
+    def _get_site_name(self, request=None):
+        """Obtener nombre del sitio para URLs absolutas"""
+        try:
+            if request:
+                return request.build_absolute_uri('/').rstrip('/')
+            # Fallback simple sin usar Site framework
+            return getattr(settings, 'SITE_URL', 'http://localhost:8000')
+        except Exception:
+            return 'http://localhost:8000'
+    
+    def _generar_qr_base64(self, data: str) -> Optional[str]:
         """
-        Método privado para enviar emails con HTML y texto plano.
+        Generar código QR y devolverlo como base64 data URI
         
         Args:
-            asunto: Asunto del email
-            template_html: Path al template HTML
-            template_txt: Path al template de texto plano
-            destinatario: Email del destinatario
-            context: Contexto para renderizar templates
+            data: Texto a codificar en el QR
             
         Returns:
-            bool: True si se envió correctamente, False en caso contrario
+            String con data URI (data:image/png;base64,...) o None si falla
+        """
+        if not QRCODE_AVAILABLE:
+            logger.warning("qrcode library no está disponible")
+            return None
+        
+        try:
+            # Crear QR code
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(data)
+            qr.make(fit=True)
+            
+            # Generar imagen
+            img = qr.make_image(fill_color="black", back_color="white")
+            
+            # Convertir a base64
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            img_base64 = base64.b64encode(buffer.getvalue()).decode()
+            
+            return f"data:image/png;base64,{img_base64}"
+        except Exception as e:
+            logger.error(f"Error generando QR code: {e}")
+            return None
+    
+    def enviar_bienvenida(self, usuario) -> bool:
+        """
+        Enviar email de bienvenida a nuevo usuario
+        
+        Args:
+            usuario: Instancia de Usuario
+            
+        Returns:
+            True si se envió correctamente, False si falló
         """
         try:
-            # Renderizar templates
-            html_content = render_to_string(template_html, context)
-            text_content = render_to_string(template_txt, context)
+            configuracion_cine = self._get_configuracion_cine()
             
-            # Crear email con alternativas
+            # Preparar contexto
+            context = {
+                'usuario': usuario,
+                'nombre_completo': usuario.get_full_name() or usuario.username,
+                'configuracion_cine': configuracion_cine,
+                'site_name': configuracion_cine.nombre if configuracion_cine else 'CineGest',
+            }
+            
+            # Renderizar templates
+            html_content = render_to_string('core/emails/bienvenida.html', context)
+            text_content = render_to_string('core/emails/bienvenida.txt', context)
+            
+            # Crear email
+            subject = f"¡Bienvenido a {context['site_name']}!"
             email = EmailMultiAlternatives(
-                subject=asunto,
+                subject=subject,
                 body=text_content,
                 from_email=self.from_email,
-                to=[destinatario]
+                to=[usuario.email]
             )
             email.attach_alternative(html_content, "text/html")
             
             # Enviar
             email.send(fail_silently=False)
-            
-            self.logger.info(f"Email enviado exitosamente a {destinatario}: {asunto}")
+            logger.info(f"Email de bienvenida enviado a {usuario.email}")
             return True
             
         except Exception as e:
-            self.logger.error(f"Error enviando email a {destinatario}: {e}", exc_info=True)
+            logger.error(f"Error enviando email de bienvenida a {usuario.email}: {e}")
             return False
-    
-    def enviar_bienvenida(self, usuario) -> bool:
-        """
-        Envía email de bienvenida al registrar un nuevo usuario.
-        
-        Args:
-            usuario: Objeto Usuario (accounts.models.Usuario)
-            
-        Returns:
-            bool: True si se envió correctamente
-        """
-        context = {
-            'usuario': usuario,
-            'nombre_completo': usuario.get_full_name() or usuario.username,
-            'site_name': 'CineGest',
-        }
-        
-        return self._enviar_email(
-            asunto=f'¡Bienvenido a CineGest, {context["nombre_completo"]}!',
-            template_html='core/emails/bienvenida.html',
-            template_txt='core/emails/bienvenida.txt',
-            destinatario=usuario.email,
-            context=context
-        )
     
     def enviar_confirmacion_compra(self, venta, request=None) -> bool:
         """
-        Envía email de confirmación de compra.
+        Enviar email de confirmación de compra
         
         Args:
-            venta: Objeto Venta (ventas.models.Venta)
-            request: Request HTTP (opcional, para construir URLs absolutas)
+            venta: Instancia de Venta
+            request: HttpRequest (opcional, para URLs absolutas)
             
         Returns:
-            bool: True si se envió correctamente
+            True si se envió correctamente, False si falló
         """
-        cliente = venta.id_cliente
-        usuario = cliente.usuario
-        
-        # Optimizar consulta con select_related para evitar N+1 queries
-        entradas = venta.entradas.filter(estado__in=['RESERVADA', 'VENDIDA']).select_related(
-            'id_funcion',
-            'id_funcion__pelicula',
-            'id_sala',
-            'id_butaca',
-            'id_pelicula'
-        )
-
-        # Calcular total CON descuentos de promociones
-        total_final, promo_aplicada, detalle = venta.calcular_total(request=request, include_detalle=True)
-        
-        # Información de la promoción aplicada
-        promocion_aplicada = None
-        descuento_info = None
-        
-        if promo_aplicada:
-            promocion_aplicada = {
-                'nombre': promo_aplicada.nombre,
-                'descripcion': promo_aplicada.descripcion or '',
-                'tipo': promo_aplicada.tipo_descuento,
-                'valor': promo_aplicada.valor_descuento
-            }
-            
-            # Calcular descuento para mostrar
-            subtotal = detalle.get('total_original', Decimal('0.00'))
-            ahorro = detalle.get('ahorro', Decimal('0.00'))
-            
-            descuento_info = {
-                'subtotal': subtotal,
-                'descuento': ahorro,
-                'total_final': total_final
-            }
-        
-        total = total_final
-
-        # Generar QR ÚNICO para la venta completa (usando codigo_compra o ID)
-        qr_data_value = venta.codigo_compra if venta.codigo_compra else f"VENTA-{venta.id_venta}"
-        qr_src = None
         try:
-            qr = qrcode.QRCode(box_size=6, border=2)
-            qr.add_data(qr_data_value)
-            qr.make(fit=True)
-            img = qr.make_image(fill_color="black", back_color="white").convert('RGB')
-            buf = io.BytesIO()
-            img.save(buf, format='PNG')
-            buf.seek(0)
-            b64 = base64.b64encode(buf.read()).decode('ascii')
-            qr_src = f"data:image/png;base64,{b64}"
-        except Exception:
-            # Fallback a servicio externo si algo falla
-            qr_src = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={urllib.parse.quote(qr_data_value)}"
-
-        context = {
-            'usuario': usuario,
-            'venta': venta,
-            'entradas': entradas,
-            'qr_src': qr_src,
-            'qr_data': qr_data_value,
-            'total': total,
-            'cantidad': len(entradas),
-            'request': request,
-            'promocion_aplicada': promocion_aplicada,
-            'descuento_info': descuento_info,
-        }
-        
-        return self._enviar_email(
-            asunto=f'✅ Confirmación de Compra - Venta #{venta.id_venta}',
-            template_html='core/emails/confirmacion_compra.html',
-            template_txt='core/emails/confirmacion_compra.txt',
-            destinatario=usuario.email,
-            context=context
-        )
+            configuracion_cine = self._get_configuracion_cine()
+            usuario = venta.id_cliente.usuario
+            
+            # Obtener datos de la venta
+            entradas = venta.entradas.select_related(
+                'id_funcion__pelicula',
+                'id_funcion__id_sala',
+                'id_butaca'
+            ).all()
+            
+            primera_entrada = entradas.first() if entradas else None
+            cantidad = entradas.count()
+            
+            # Generar QR para la venta (código de compra)
+            qr_data = f"VENTA:{venta.codigo_compra}"
+            qr_src = self._generar_qr_base64(qr_data)
+            
+            # Generar QR individual para cada entrada
+            entradas_con_qr = []
+            for entrada in entradas:
+                entrada_qr = self._generar_qr_base64(f"ENTRADA:{entrada.codigo_entrada}")
+                entradas_con_qr.append({
+                    'entrada': entrada,
+                    'qr_src': entrada_qr
+                })
+            
+            # Información de promociones/descuentos
+            promocion_aplicada = None
+            descuento_info = None
+            
+            # Si la venta tiene cupón aplicado, obtener info de promoción
+            if hasattr(venta, 'cupon_utilizado') and venta.cupon_utilizado:
+                cupon = venta.cupon_utilizado
+                if hasattr(cupon, 'id_promocion'):
+                    promocion_aplicada = cupon.id_promocion
+                    # Calcular info de descuento
+                    subtotal = venta.monto_total  # Simplificado
+                    descuento_info = {
+                        'subtotal': subtotal,
+                        'descuento': 0,  # Calcular según tipo de promoción
+                        'total_final': venta.monto_total
+                    }
+            
+            # Preparar contexto
+            context = {
+                'usuario': usuario,
+                'venta': venta,
+                'primera_entrada': primera_entrada,
+                'cantidad': cantidad,
+                'entradas': entradas_con_qr,
+                'qr_src': qr_src,
+                'promocion_aplicada': promocion_aplicada,
+                'descuento_info': descuento_info,
+                'configuracion_cine': configuracion_cine,
+                'site_name': self._get_site_name(request),
+            }
+            
+            # Renderizar templates
+            html_content = render_to_string('core/emails/confirmacion_compra.html', context)
+            text_content = render_to_string('core/emails/confirmacion_compra.txt', context)
+            
+            # Crear email
+            nombre_cine = configuracion_cine.nombre if configuracion_cine else 'CineGest'
+            subject = f"Confirmación de Compra #{venta.id_venta} - {nombre_cine}"
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=self.from_email,
+                to=[usuario.email]
+            )
+            email.attach_alternative(html_content, "text/html")
+            
+            # Enviar
+            email.send(fail_silently=False)
+            logger.info(f"Email de confirmación de compra enviado a {usuario.email} para venta #{venta.id_venta}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error enviando email de confirmación de compra para venta #{venta.id_venta}: {e}")
+            return False
     
     def enviar_confirmacion_intercambio(
-        self,
-        venta,
-        intercambio,
-        funcion_origen,
-        funcion_destino,
+        self, 
+        venta, 
+        intercambio, 
+        funcion_origen, 
+        funcion_destino, 
         request=None
     ) -> bool:
         """
-        Envía email de confirmación de intercambio.
+        Enviar email de confirmación de intercambio
         
         Args:
-            venta: Objeto Venta
-            intercambio: Objeto Intercambio
-            funcion_origen: Función original (cancelada)
-            funcion_destino: Nueva función (confirmada)
-            request: Request HTTP (opcional)
+            venta: Instancia de Venta
+            intercambio: Instancia de Intercambio
+            funcion_origen: Función original
+            funcion_destino: Nueva función
+            request: HttpRequest (opcional)
             
         Returns:
-            bool: True si se envió correctamente
+            True si se envió correctamente, False si falló
         """
-        from ventas.constants import EstadoEntrada
-        
-        cliente = venta.id_cliente
-        usuario = cliente.usuario
-        entradas_nuevas = venta.entradas.filter(estado=EstadoEntrada.RESERVADA)
-        
-        context = {
-            'usuario': usuario,
-            'venta': venta,
-            'intercambio': intercambio,
-            'funcion_origen': funcion_origen,
-            'funcion_destino': funcion_destino,
-            'entradas_nuevas': entradas_nuevas,
-            'request': request,
-        }
-        
-        return self._enviar_email(
-            asunto=f'✅ Confirmación de Intercambio - Venta #{venta.id_venta}',
-            template_html='core/emails/confirmacion_intercambio.html',
-            template_txt='core/emails/confirmacion_intercambio.txt',
-            destinatario=usuario.email,
-            context=context
-        )
-
-    def enviar_oferta_promocion(self, cliente, promocion, cupon, link, funcion=None, request=None) -> bool:
-        """
-        Envía un email de oferta/promoción a un cliente usando las plantillas de `core/emails/promocion_oferta`.
-        Args:
-            cliente: `accounts.models.Cliente` (tiene relación a `usuario` con email)
-            promocion: instancia de `promociones.models.Promocion`
-            cupon: instancia de `promociones.models.CuponGenerado`
-            link: URL de canje
-            funcion: (opcional) función relacionada
-            request: (opcional) request HTTP
-        """
-        usuario = getattr(cliente, 'usuario', None)
-        destinatario = usuario.email if usuario else None
-        if not destinatario:
-            self.logger.warning('Cliente sin email, se omite el envío de oferta')
-            return False
-
-        # Seguridad de negocio: sólo enviar ofertas si la promoción está
-        # referenciada por al menos una PoliticaPromocion activa.
-        # Esto evita que promociones "sueltas" creadas en la tabla `Promocion`
-        # sean enviadas masivamente por error.
         try:
-            if promocion is None:
-                self.logger.warning('No hay promoción asociada al envío de oferta; se omite.')
-                return False
-            # Import local para evitar importaciones circulares
-            from promociones.models.politicaPromocion import PoliticaPromocion
-            politicas_qs = PoliticaPromocion.objects.filter(promocion_a_otorgar=promocion)
-            politicas_ids = list(politicas_qs.values_list('pk', flat=True))
-            tiene_politica = politicas_qs.filter(activa=True).exists()
-            # Sólo enviar promociones que vienen de políticas y que son del tipo 'cupón'
-            # (es_automatica == False). Las promociones marcadas como automáticas
-            # aplican en el flujo de compra pero NO deben enviarse por email.
-            if not tiene_politica:
-                # Si no existe PoliticaPromocion activa referenciando la promoción,
-                # permitir el envío únicamente si se nos pasó un `cupon` y ese cupón
-                # tiene `politica_origen` activa que referencia esta promoción.
-                try:
-                    politica_desde_cupon = getattr(cupon, 'politica_origen', None)
-                    if politica_desde_cupon and getattr(politica_desde_cupon, 'activa', False):
-                        # Verificar que la política del cupón apunte a la misma promoción
-                        try:
-                            promo_from_politica = getattr(politica_desde_cupon, 'promocion_a_otorgar', None)
-                            if promo_from_politica and getattr(promo_from_politica, 'pk', None) == getattr(promocion, 'pk', None):
-                                self.logger.info('Promoción %s no tiene PoliticaPromocion activa global, pero se permite envío porque el cupón proviene de Politica %s activa.', getattr(promocion, 'pk', None), getattr(politica_desde_cupon, 'pk', None))
-                                tiene_politica = True
-                        except Exception:
-                            self.logger.exception('Error validando politica_origen del cupon para promocion %s', getattr(promocion, 'pk', None))
-                except Exception:
-                    self.logger.exception('Error accediendo a atributo politica_origen del cupon para promocion %s', getattr(promocion, 'pk', None))
-
-            if not tiene_politica:
-                # Log detallado: listar políticas encontradas (si las hay) y estado
-                if politicas_ids:
-                    self.logger.warning(
-                        'Promoción %s tiene PoliticaPromocion(s) %s pero ninguna activa. No se envía oferta.',
-                        getattr(promocion, 'pk', None), politicas_ids
-                    )
-                else:
-                    self.logger.warning('Promoción %s no referenciada por ninguna PoliticaPromocion. No se envía oferta.', getattr(promocion, 'pk', None))
-                return False
-            try:
-                es_auto = getattr(promocion, 'es_automatica', False)
-                if es_auto:
-                    self.logger.warning('Promoción %s es automática (es_automatica=True); no se envían emails automáticos para promociones automáticas.', getattr(promocion, 'pk', None))
-                    return False
-            except Exception:
-                # En caso de problemas leyendo el atributo, cancelar el envío
-                self.logger.exception('Error leyendo atributo es_automatica para promocion %s. Cancelando envío.', getattr(promocion, 'pk', None))
-                return False
-        except Exception:
-            self.logger.exception('Error validando PoliticaPromocion para promocion %s; se cancela el envío.', getattr(promocion, 'pk', None))
+            configuracion_cine = self._get_configuracion_cine()
+            usuario = venta.id_cliente.usuario
+            
+            # Obtener entradas del intercambio
+            entradas_intercambiadas = intercambio.entradas.select_related(
+                'id_funcion__pelicula',
+                'id_funcion__id_sala',
+                'id_butaca'
+            ).all()
+            
+            # Generar QR para nuevas entradas
+            entradas_con_qr = []
+            for entrada in entradas_intercambiadas:
+                entrada_qr = self._generar_qr_base64(f"ENTRADA:{entrada.codigo_entrada}")
+                entradas_con_qr.append({
+                    'entrada': entrada,
+                    'qr_src': entrada_qr
+                })
+            
+            # Preparar contexto
+            context = {
+                'usuario': usuario,
+                'venta': venta,
+                'intercambio': intercambio,
+                'funcion_origen': funcion_origen,
+                'funcion_destino': funcion_destino,
+                'entradas': entradas_con_qr,
+                'cantidad': entradas_intercambiadas.count(),
+                'configuracion_cine': configuracion_cine,
+                'site_name': self._get_site_name(request),
+            }
+            
+            # Renderizar templates
+            html_content = render_to_string('core/emails/confirmacion_intercambio.html', context)
+            text_content = render_to_string('core/emails/confirmacion_intercambio.txt', context)
+            
+            # Crear email
+            nombre_cine = configuracion_cine.nombre if configuracion_cine else 'CineGest'
+            subject = f"Confirmación de Intercambio #{intercambio.id_intercambio} - {nombre_cine}"
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=self.from_email,
+                to=[usuario.email]
+            )
+            email.attach_alternative(html_content, "text/html")
+            
+            # Enviar
+            email.send(fail_silently=False)
+            logger.info(f"Email de confirmación de intercambio enviado a {usuario.email} para intercambio #{intercambio.id_intercambio}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error enviando email de confirmación de intercambio #{intercambio.id_intercambio}: {e}")
             return False
-        context = {
-            'cliente': cliente,
-            'usuario': usuario,
-            'promocion': promocion,
-            'cupon': cupon,
-            'link': link,
-            'funcion': funcion,
-            'site_name': 'CineGest',
-            'request': request,
-        }
+    
+    def enviar_oferta_promocion(
+        self, 
+        cliente, 
+        promocion, 
+        cupon, 
+        link, 
+        funcion=None
+    ) -> bool:
+        """
+        Enviar email con oferta de promoción/cupón
+        
+        Args:
+            cliente: Instancia de Cliente
+            promocion: Instancia de Promocion
+            cupon: Instancia de Cupon
+            link: URL para canjear el cupón
+            funcion: Función relacionada (opcional)
+            
+        Returns:
+            True si se envió correctamente, False si falló
+        """
+        try:
+            configuracion_cine = self._get_configuracion_cine()
+            usuario = cliente.usuario
+            
+            # Preparar contexto
+            context = {
+                'usuario': usuario,
+                'cliente': cliente,
+                'promocion': promocion,
+                'cupon': cupon,
+                'link': link,
+                'funcion': funcion,
+                'configuracion_cine': configuracion_cine,
+                'site_name': configuracion_cine.nombre if configuracion_cine else 'CineGest',
+            }
+            
+            # Renderizar templates
+            html_content = render_to_string('core/emails/promocion_oferta.html', context)
+            text_content = render_to_string('core/emails/promocion_oferta.txt', context)
+            
+            # Crear email
+            nombre_cine = configuracion_cine.nombre if configuracion_cine else 'CineGest'
+            subject = f"🎁 ¡Tenés una oferta especial de {nombre_cine}!"
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=self.from_email,
+                to=[usuario.email]
+            )
+            email.attach_alternative(html_content, "text/html")
+            
+            # Enviar
+            email.send(fail_silently=False)
+            logger.info(f"Email de oferta de promoción enviado a {usuario.email} - Cupón: {cupon.token}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error enviando email de oferta de promoción a {usuario.email}: {e}")
+            return False
 
-        asunto = f"Oferta limitada: {promocion.nombre} — ¡aprovechá ahora!"
 
-        return self._enviar_email(
-            asunto=asunto,
-            template_html='core/emails/promocion_oferta.html',
-            template_txt='core/emails/promocion_oferta.txt',
-            destinatario=destinatario,
-            context=context
-        )
-
-
-# Instancia singleton del servicio
+# Singleton del servicio
 notificacion_service = NotificacionService()

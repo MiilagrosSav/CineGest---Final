@@ -63,7 +63,119 @@
                 </a>
             </div>
 
+            <!-- Botón de Baja de Cuenta (solo para clientes) -->
+            {% if request.user.rol == 'cliente' %}
+            <div style="margin-top: var(--space-lg); padding-top: var(--space-lg); border-top: 1px solid var(--glass-border); text-align: center;">
+                <button type="button" class="btn btn-danger-outline" style="width: 100%;" id="btnAbrirModalBaja">
+                    ⚠️ Dar de Baja mi Cuenta
+                </button>
+            </div>
+            {% endif %}
+
         </form>
     </div>
+
+    <!-- Modal de Confirmación de Baja de Cuenta -->
+    {% if request.user.rol == 'cliente' %}
+    <div class="modal fade" id="modalBajaCuenta" tabindex="-1" role="dialog" aria-labelledby="modalBajaCuentaLabel" aria-hidden="true" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(8px);">
+        <div class="modal-dialog modal-dialog-centered" role="document" style="position: relative; margin: 10% auto; max-width: 500px; animation: modalSlideIn 0.3s ease-out;">
+            <div class="modal-content glass-container" style="background: rgba(20, 20, 40, 0.95); border: 1px solid rgba(255, 75, 43, 0.3); border-radius: 16px; backdrop-filter: blur(20px);">
+                <div class="modal-header" style="border-bottom: 1px solid rgba(255, 75, 43, 0.2); padding: var(--space-lg); display: flex; justify-content: space-between; align-items: center;">
+                    <h5 class="modal-title" id="modalBajaCuentaLabel" style="color: #ff4b2b; font-weight: 600; margin: 0;">
+                        ⚠️ Confirmar Baja de Cuenta
+                    </h5>
+                    <button type="button" class="close" id="btnCerrarModal" aria-label="Cerrar" style="background: none; border: none; color: #fff; opacity: 0.8; font-size: 1.5rem; cursor: pointer; padding: 0; line-height: 1;">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body" style="padding: var(--space-lg); color: rgba(255, 255, 255, 0.9);">
+                    <p style="font-size: 1rem; margin-bottom: var(--space-md);">
+                        ¿Estás seguro de que deseas dar de baja tu cuenta?
+                    </p>
+                    <div style="background: rgba(255, 75, 43, 0.15); border-left: 3px solid #ff4b2b; padding: var(--space-md); border-radius: 8px; margin-bottom: var(--space-md);">
+                        <p style="margin: 0; font-size: 0.9rem;">
+                            <strong>Esta acción significa que:</strong>
+                        </p>
+                        <ul style="margin: var(--space-sm) 0 0 var(--space-md); padding-left: var(--space-md); font-size: 0.9rem;">
+                            <li>Perderás acceso a tus beneficios de cliente</li>
+                            <li>No podrás acceder a tu historial de compras</li>
+                            <li>Tus cupones activos quedarán desactivados</li>
+                            <li>Dejarás de recibir promociones exclusivas</li>
+                        </ul>
+                    </div>
+                    
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid rgba(255, 75, 43, 0.2); padding: var(--space-md); display: flex; gap: var(--space-md);">
+                    <button type="button" class="btn btn-outline" id="btnCancelar" style="flex: 1;">
+                        Cancelar
+                    </button>
+                    <form method="post" action="{% url 'accounts:dar_de_baja_cliente' %}" style="flex: 1; margin: 0; display: flex;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn" style="width: 100%; background: linear-gradient(135deg, #ff4b2b 0%, #ff416c 100%); color: white; border: none; font-weight: 600;">
+                            Confirmar Baja
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if request.user.rol == 'cliente' %}
+<script>
+    // JavaScript para manejar el modal de baja de cuenta
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('modalBajaCuenta');
+        const btnAbrir = document.getElementById('btnAbrirModalBaja');
+        const btnCerrar = document.getElementById('btnCerrarModal');
+        const btnCancelar = document.getElementById('btnCancelar');
+        
+        // Abrir modal
+        if (btnAbrir) {
+            btnAbrir.addEventListener('click', function() {
+                modal.style.display = 'block';
+                setTimeout(() => {
+                    modal.style.opacity = '1';
+                }, 10);
+            });
+        }
+        
+        // Función para cerrar modal
+        function cerrarModal() {
+            modal.style.opacity = '0';
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 300);
+        }
+        
+        // Cerrar con botón X
+        if (btnCerrar) {
+            btnCerrar.addEventListener('click', cerrarModal);
+        }
+        
+        // Cerrar con botón Cancelar
+        if (btnCancelar) {
+            btnCancelar.addEventListener('click', cerrarModal);
+        }
+        
+        // Cerrar al hacer clic fuera del modal
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                cerrarModal();
+            }
+        });
+        
+        // Cerrar con tecla ESC
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape' && modal.style.display === 'block') {
+                cerrarModal();
+            }
+        });
+    });
+</script>
+{% endif %}
 {% endblock %}

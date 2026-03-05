@@ -5,6 +5,254 @@
 
 {% block extra_css %}
     <link rel="stylesheet" href="{% static 'reportes/css/financiero.css' %}?v=1.0">
+    <!-- jQuery (requerido para DataTables) -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        
+        .glass-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-box {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        .metric-box:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--neon-glow);
+            border-color: var(--primary);
+        }
+        .metric-box h4 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+            background: linear-gradient(135deg, #77135c, #a91b7a);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .metric-box small {
+            opacity: 0.7;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Estilos para Badges de Rating */
+        .badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge.bg-excelente { background: linear-gradient(135deg, #28a745, #20c997) !important; }
+        .badge.bg-bueno { background: linear-gradient(135deg, #17a2b8, #5dade2) !important; }
+        .badge.bg-regular { background: linear-gradient(135deg, #ffc107, #ff9800) !important; color: #000 !important; }
+        .badge.bg-malo { background: linear-gradient(135deg, #dc3545, #c92a2a) !important; }
+        
+        /* DataTables styling */
+        .dataTables_wrapper {
+            color: var(--text-light);
+        }
+        .dataTables_wrapper .dataTables_paginate {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 1.5rem;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            color: var(--text-light) !important;
+            background: var(--glass-bg) !important;
+            border: 1px solid var(--glass-border) !important;
+            border-radius: 6px;
+            margin: 0 4px;
+            padding: 8px 12px !important;
+            min-width: 40px;
+            text-align: center;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+            background: var(--primary-light) !important;
+            border-color: var(--primary) !important;
+            color: #fff !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
+            background: var(--primary) !important;
+            border-color: var(--primary) !important;
+            color: #fff !important;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .dataTables_wrapper .dataTables_info {
+            color: var(--text-secondary);
+        }
+        .dataTables_wrapper .dataTables_filter input {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-light);
+            border-radius: 8px;
+            padding: 8px 12px;
+        }
+        .dataTables_wrapper .dataTables_length select {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-light);
+            border-radius: 8px;
+            padding: 6px 10px;
+        }
+
+        table.dataTable {
+            border-collapse: separate;
+            border-spacing: 0 8px;
+        }
+        table.dataTable thead th {
+            background: var(--primary-light);
+            border: 1px solid var(--primary);
+            color: var(--text-light);
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+            padding: 14px 12px;
+        }
+        table.dataTable tbody tr {
+            background: var(--glass-bg);
+            transition: all 0.2s ease;
+        }
+        table.dataTable tbody tr:hover {
+            background: var(--primary-light);
+            transform: scale(1.01);
+        }
+        table.dataTable tbody td {
+            border-top: 1px solid var(--glass-border);
+            border-bottom: 1px solid var(--glass-border);
+            padding: 12px;
+            color: var(--text-light);
+        }
+        table.dataTable tbody td:first-child {
+            border-left: 1px solid var(--glass-border);
+            border-radius: 8px 0 0 8px;
+        }
+        table.dataTable tbody td:last-child {
+            border-right: 1px solid var(--glass-border);
+            border-radius: 0 8px 8px 0;
+        }
+        
+        /* Progress bar para índice */
+        .progress-bar-container {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.5s ease;
+        }
+        .progress-bar-fill.excelente { background: linear-gradient(90deg, #28a745, #20c997); }
+        .progress-bar-fill.bueno { background: linear-gradient(90deg, #17a2b8, #5dade2); }
+        .progress-bar-fill.regular { background: linear-gradient(90deg, #ffc107, #ffdd57); }
+        .progress-bar-fill.malo { background: linear-gradient(90deg, #dc3545, #e74c3c); }
+        
+        /* Estilos para canvas del gráfico */
+        .chart-container {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+        
+        /* Resaltado de filas en hover */
+        .table tbody tr:hover {
+            background-color: rgba(119, 19, 92, 0.1);
+            transition: background-color 0.2s ease;
+        }
+
+        /* Buttons */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #a91b7a);
+            border: none;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            box-shadow: var(--neon-glow);
+            transform: translateY(-2px);
+        }
+
+        /* Section headers */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--primary);
+        }
+        .section-header i {
+            font-size: 1.8rem;
+            color: var(--primary);
+        }
+        .section-header h3 {
+            margin: 0;
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .section-header p {
+            margin: 0;
+            font-size: 0.9rem;
+            opacity: 0.7;
+        }
+
+        /* Spacing utilities */
+        .mb-lg { margin-bottom: 2rem; }
+        .mb-md { margin-bottom: 1.5rem; }
+
+        /* Help icons */
+        .help-icon {
+            font-size: 0.85rem;
+            color: #17a2b8;
+            opacity: 0.7;
+            cursor: help;
+            margin-left: 4px;
+            transition: all 0.2s ease;
+        }
+        .help-icon:hover {
+            opacity: 1;
+            color: #5dade2;
+            transform: scale(1.1);
+        }
+
+        /* Tooltips personalizados */
+        .tooltip {
+            font-size: 0.85rem;
+        }
+        .tooltip-inner {
+            max-width: 300px;
+            text-align: left;
+            background-color: rgba(0, 0, 0, 0.95);
+            padding: 10px 14px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+    </style>
 {% endblock %}
 
 {% block content %}
@@ -46,32 +294,40 @@
         </div>
     </div>
 
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
-        
-        <div class="card glass-container" style="padding: var(--space-lg); text-align: center;">
-            <p style="font-size: 0.9rem; opacity: 0.7; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Ingresos Totales</p>
-            <h2 style="margin: 0; font-size: 2.5rem; color: var(--primary);">${{ kpis.total_recaudacion|floatformat:2 }}</h2>
+    <!-- Métricas KPI -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+        <div class="metric-box">
+            <small>Ingresos Totales</small>
+            <h4>${{ kpis.total_recaudacion|floatformat:2 }}</h4>
         </div>
-
-        <div class="card glass-container" style="padding: var(--space-lg); text-align: center;">
-            <p style="font-size: 0.9rem; opacity: 0.7; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Total de Entradas</p>
-            <h2 style="margin: 0; font-size: 2.5rem;">{{ kpis.total_tickets }}</h2>
+        <div class="metric-box">
+            <small>Total de Entradas</small>
+            <h4>{{ kpis.total_tickets }}</h4>
         </div>
-
-        <div class="card glass-container" style="padding: var(--space-lg); text-align: center;">
-            <p style="font-size: 0.9rem; opacity: 0.7; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 1px;">Entrada Promedio</p>
-            <h2 style="margin: 0; font-size: 2.5rem; color: #4CAF50;">${{ kpis.ticket_promedio|floatformat:2 }}</h2>
+        <div class="metric-box">
+            <small>Entrada Promedio</small>
+            <h4>${{ kpis.ticket_promedio|floatformat:2 }}</h4>
         </div>
+        {% if ranking_dia_revenue %}
+        <div class="metric-box">
+            <small>Día de Mayor Peso</small>
+            <h4 style="font-size: 1.5rem;">{{ ranking_dia_revenue.0.dia_nombre }}</h4>
+            <p style="margin: 0; font-size: 0.85rem; opacity: 0.7;">{{ ranking_dia_revenue.0.porcentaje_revenue_total|floatformat:1 }}% del total</p>
+        </div>
+        {% endif %}
     </div>
 
-    <!-- Heatmap y Marketing movidos a Reporte de Ocupación -->
-
+    <!-- Gráfico Principal: Evolución Temporal de Ingresos -->
+    {% if ranking_dia_revenue %}
     <div class="card glass-container" style="margin-bottom: 2rem;">
         <div style="padding: var(--space-lg);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-lg); flex-wrap: wrap; gap: 1rem;">
                 <div>
-                    <h3 style="margin: 0;">📊 Ingresos por Película (Top)</h3>
-                    <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Distribución de la recaudación</p>
+                    <h3 style="margin: 0;">📈 Evolución de Ingresos por Día de la Semana</h3>
+                    <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Análisis temporal de recaudación</p>
+                    <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; opacity: 0.6;">
+                        <i class="bi bi-calendar-range"></i> Período: <strong>{{ fecha_inicio }}</strong> al <strong>{{ fecha_fin }}</strong>
+                    </p>
                 </div>
                 <div style="display: flex; gap: 0.5rem;">
                     <button id="exportPdfBtn" class="btn btn-secondary btn-sm" style="display: flex; align-items: center; gap: 0.5rem;">
@@ -80,48 +336,82 @@
                 </div>
             </div>
 
-            <div style="position: relative; height: 400px; width: 100%;">
-                <canvas id="finChart"></canvas>
+            <div class="chart-container">
+                <canvas id="chartRevenueDia"></canvas>
             </div>
         </div>
     </div>
+    {% else %}
+    <div class="card glass-container" style="margin-bottom: 2rem;">
+        <div style="padding: var(--space-lg);">
+            <div style="margin-bottom: var(--space-lg);">
+                <h3 style="margin: 0;">📈 Evolución de Ingresos por Día de la Semana</h3>
+                <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Análisis temporal de recaudación</p>
+                <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; opacity: 0.6;">
+                    <i class="bi bi-calendar-range"></i> Período: <strong>{{ fecha_inicio }}</strong> al <strong>{{ fecha_fin }}</strong>
+                </p>
+            </div>
+            <div style="text-align: center; padding: 3rem 1rem; opacity: 0.6;">
+                <i class="bi bi-bar-chart" style="font-size: 3rem; color: #999;"></i>
+                <p style="margin: 1rem 0 0 0; font-size: 1.1rem; color: #666;">No hay datos disponibles para este período</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <div class="card glass-container">
         <div style="padding: var(--space-lg);">
-            <h3 style="margin-bottom: var(--space-md);">📋 Detalle por Película</h3>
+            <div style="margin-bottom: var(--space-md);">
+                <h3 style="margin: 0 0 0.2rem 0;">📋 Detalle por Película</h3>
+                <p style="margin: 0; font-size: 0.85rem; opacity: 0.6;">
+                    <i class="bi bi-calendar-range"></i> Período: <strong>{{ fecha_inicio }}</strong> al <strong>{{ fecha_fin }}</strong>
+                </p>
+            </div>
             
             <div class="table-responsive">
-                <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                <table id="tablaDetallePeliculas" class="table table-striped" style="width: 100%;">
                     <thead>
-                        <tr style="border-bottom: 1px solid var(--glass-border);">
-                            <th style="padding: var(--space-sm);">Película</th>
-                            <th style="padding: var(--space-sm); text-align: right;">Total</th>
-                            <th style="padding: var(--space-sm); text-align: right;">Precio Completo</th>
-                            <th style="padding: var(--space-sm); text-align: right;">Con Promo</th>
-                            <th style="padding: var(--space-sm); text-align: right;">Ingreso por Butaca</th>
+                        <tr>
+                            <th>Película</th>
+                            <th class="text-center">Tickets Vendidos</th>
+                            <th class="text-right">
+                                Ticket Prom. Película 
+                                <i class="bi bi-question-circle-fill help-icon" 
+                                   data-bs-toggle="tooltip" 
+                                   data-bs-placement="top" 
+                                   title="Ingreso promedio por entrada vendida. Se calcula dividiendo la recaudación total por la cantidad de tickets vendidos."></i>
+                            </th>
+                            <th class="text-right">Total</th>
+                            <th class="text-right">Precio Completo</th>
+                            <th class="text-right">Descuentos Aplicados</th>
+                            <th class="text-right">
+                                Ingreso por Butaca 
+                                <i class="bi bi-question-circle-fill help-icon" 
+                                   data-bs-toggle="tooltip" 
+                                   data-bs-placement="top" 
+                                   title="Revenue Per Available Seat (RevPAS): Ingresos totales divididos por la capacidad total de butacas. Mide la eficiencia de uso de la capacidad instalada."></i>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for item in fin_data.detalle %}
-                        <tr style="border-bottom: 1px solid var(--glass-border);">
-                            <td style="padding: var(--space-md); font-weight: 600;">{{ item.titulo }}</td>
-                            <td style="padding: var(--space-md); text-align: right; color: var(--primary); font-weight: 700;">
+                        <tr>
+                            <td style="font-weight: 600;">{{ item.titulo }}</td>
+                            <td class="text-center" style="font-weight: 700; color: #17a2b8;">{{ item.tickets }}</td>
+                            <td class="text-right" style="font-weight: 600;">
+                                ${{ item.ticket_promedio|floatformat:2 }}
+                            </td>
+                            <td class="text-right" style="color: var(--primary); font-weight: 700;">
                                 ${{ item.total|floatformat:2 }}
                             </td>
-                            <td style="padding: var(--space-md); text-align: right; opacity: 0.8;">
+                            <td class="text-right" style="opacity: 0.8;">
                                 ${{ item.full|floatformat:2 }}
                             </td>
-                            <td style="padding: var(--space-md); text-align: right; opacity: 0.8;">
+                            <td class="text-right" style="opacity: 0.8;">
                                 ${{ item.promo|floatformat:2 }}
                             </td>
-                            <td style="padding: var(--space-md); text-align: right; opacity: 0.8;">
+                            <td class="text-right" style="opacity: 0.8;">
                                 ${{ item.revpas|floatformat:2 }}
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="4" class="text-center" style="padding: var(--space-xl); opacity: 0.6;">
-                                No hay datos para este período.
                             </td>
                         </tr>
                         {% endfor %}
@@ -131,9 +421,183 @@
         </div>
     </div>
 
+    <!-- ============================= -->
+    <!-- RANKING REVPAS                -->
+    <!-- ============================= -->
+    <div class="card glass-container" style="margin-top: 2rem;">
+        <div style="padding: var(--space-lg);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+                <i class="bi bi-cash-coin" style="font-size: 1.8rem; color: #28a745;"></i>
+                <div>
+                    <h3 style="margin: 0;">💵 Ingreso por Butaca Disponible</h3>
+                    <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Eficiencia de ingreso por capacidad instalada</p>
+                    <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; opacity: 0.6;">
+                        <i class="bi bi-calendar-range"></i> Período: <strong>{{ fecha_inicio }}</strong> al <strong>{{ fecha_fin }}</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table id="tablaRevpas" class="table table-striped" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Película</th>
+                            <th class="text-center">Entradas</th>
+                            <th class="text-right">Capacidad Total</th>
+                            <th class="text-right">Recaudación</th>
+                            <th class="text-right">
+                                Ing. por Butaca 
+                                <i class="bi bi-question-circle-fill help-icon" 
+                                   data-bs-toggle="tooltip" 
+                                   data-bs-placement="top" 
+                                   title="Revenue Per Available Seat (RevPAS): Mide cuánto ingreso genera cada butaca disponible. Valor alto indica mejor aprovechamiento de la capacidad."></i>
+                            </th>
+                            <th class="text-center">
+                                Rating 
+                                <i class="bi bi-question-circle-fill help-icon" 
+                                   data-bs-toggle="tooltip" 
+                                   data-bs-placement="top" 
+                                   title="Clasificación de eficiencia basada en RevPAS: Excelente (>$50), Bueno ($30-$50), Regular ($15-$30), Malo (<$15)."></i>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in ranking_revpas %}
+                        <tr>
+                            <td style="font-weight: 600;">{{ item.titulo_pelicula }}</td>
+                            <td class="text-center" style="font-weight: 700; color: #17a2b8;">{{ item.entradas_vendidas }}</td>
+                            <td class="text-right">{{ item.capacidad_total }}</td>
+                            <td class="text-right" style="font-weight: 700; color: var(--primary);">${{ item.revenue_total|floatformat:2 }}</td>
+                            <td class="text-right" style="font-size: 1.1rem; font-weight: 700; color: #28a745;">${{ item.revpas|floatformat:2 }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-{{ item.rating|lower }}">{{ item.rating }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================= -->
+    <!-- TABLA RESUMEN POR DÍA         -->
+    <!-- ============================= -->
+    <div class="card glass-container" style="margin-top: 2rem;">
+        <div style="padding: var(--space-lg);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+                <i class="bi bi-calendar3" style="font-size: 1.8rem; color: #17a2b8;"></i>
+                <div>
+                    <h3 style="margin: 0;">📅 Análisis Detallado por Día de la Semana</h3>
+                    <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Distribución de ingresos semanales</p>
+                    <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; opacity: 0.6;">
+                        <i class="bi bi-calendar-range"></i> Período: <strong>{{ fecha_inicio }}</strong> al <strong>{{ fecha_fin }}</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table id="tablaRevenueDia" class="table table-striped" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Día</th>
+                            <th class="text-center">Tickets</th>
+                            <th class="text-right">Precio Promedio</th>
+                            <th class="text-right">Ingreso Total</th>
+                            <th class="text-center">% del Total</th>
+                            <th>
+                                Índice 
+                                <i class="bi bi-question-circle-fill help-icon" 
+                                   data-bs-toggle="tooltip" 
+                                   data-bs-placement="top" 
+                                   title="Indicador de rendimiento (0-100). El día con mayor recaudación tiene índice 100. Permite comparar el peso relativo de cada día."></i>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dia in ranking_dia_revenue %}
+                        <tr>
+                            <td style="font-weight: 600;">{{ dia.dia_nombre }}</td>
+                            <td class="text-center" style="font-weight: 700; color: #17a2b8;">{{ dia.total_tickets }}</td>
+                            <td class="text-right" style="font-weight: 600;">${{ dia.precio_promedio|floatformat:2 }}</td>
+                            <td class="text-right" style="font-size: 1.1rem; font-weight: 700; color: #77135c;">${{ dia.revenue_total|floatformat:0 }}</td>
+                            <td class="text-center" style="font-weight: 600;">{{ dia.porcentaje_revenue_total|floatformat:1 }}%</td>
+                            <td>
+                                <div class="progress-bar-container" style="width: 100%; height: 24px; background: rgba(119, 19, 92, 0.15); border-radius: 12px; overflow: hidden; position: relative;">
+                                    <div style="height: 100%; width: {{ dia.indice }}%; background: linear-gradient(90deg, #77135c 0%, #a91b7a 100%); transition: width 0.3s ease; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                                        <span style="position: absolute; left: 50%; transform: translateX(-50%); font-weight: 700; font-size: 0.85rem; color: {% if dia.indice > 40 %}#fff{% else %}#77135c{% endif %}; z-index: 1;">{{ dia.indice }}</span>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================= -->
+    <!-- EFICIENCIA DE PROMOCIONES     -->
+    <!-- ============================= -->
+    <div class="card glass-container" style="margin-top: 2rem; margin-bottom: 2rem;">
+        <div style="padding: var(--space-lg);">
+            <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
+                <i class="bi bi-percent" style="font-size: 1.8rem; color: #ffc107;"></i>
+                <div>
+                    <h3 style="margin: 0;">💰 Eficiencia de Promociones</h3>
+                    <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Comparativa: Precio Completo vs. Descuentos Aplicados</p>
+                    <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; opacity: 0.6;">
+                        <i class="bi bi-calendar-range"></i> Período: <strong>{{ fecha_inicio }}</strong> al <strong>{{ fecha_fin }}</strong>
+                    </p>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table id="tablaEficienciaPromociones" class="table table-striped" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            <th>Película</th>
+                            <th class="text-right">Precio Completo</th>
+                            <th class="text-right">Descuentos Aplicados</th>
+                            <th class="text-right">Total</th>
+                            <th class="text-center">% Descuentos</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in fin_data.detalle %}
+                        <tr>
+                            <td style="font-weight: 600;">{{ item.titulo|truncatechars:30 }}</td>
+                            <td class="text-right" style="color: #28a745; font-weight: 600;">${{ item.full|floatformat:2 }}</td>
+                            <td class="text-right" style="color: #ffc107; font-weight: 600;">${{ item.promo|floatformat:2 }}</td>
+                            <td class="text-right" style="font-weight: 700;">${{ item.total|floatformat:2 }}</td>
+                            <td class="text-center">
+                                {% widthratio item.promo item.full 100 as porcentaje_promo %}
+                                {% if porcentaje_promo > 50 %}
+                                <span class="badge badge-danger" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">{{ porcentaje_promo }}%</span>
+                                {% else %}
+                                <span style="color: #28a745; font-weight: 600;">{{ porcentaje_promo }}%</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div style="background: rgba(255, 193, 7, 0.1); padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-top: 1.5rem;">
+                <p style="margin: 0; font-size: 0.9rem;">
+                    <strong></strong> 
+                    Las películas con mayor % de descuentos dependen más de promociones para generar ingresos.
+                    Un porcentaje alto (>50%) puede indicar necesidad de ajustar estrategia de precios.
+                </p>
+            </div>
+        </div>
+    </div>
+
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 
 <script>
@@ -146,4 +610,175 @@
   };
 </script>
 <script src="{% static 'reportes/js/financiero.js' %}?v=1.1"></script>
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function() {
+        // Configuración en español para DataTables
+        const spanishConfig = {
+            "processing": "Procesando...",
+            "lengthMenu": "Mostrar _MENU_ registros",
+            "zeroRecords": "No se encontraron resultados",
+            "emptyTable": "No hay datos disponibles en la tabla",
+            "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
+            "infoFiltered": "(filtrado de un total de _MAX_ registros)",
+            "search": "Buscar:",
+            "loadingRecords": "Cargando...",
+            "paginate": {
+                "first": "Primero",
+                "last": "Último",
+                "next": "Siguiente",
+                "previous": "Anterior"
+            },
+            "aria": {
+                "sortAscending": ": Activar para ordenar la columna de manera ascendente",
+                "sortDescending": ": Activar para ordenar la columna de manera descendente"
+            }
+        };
+
+        // Inicializar DataTables con configuración en español
+        const numRowsRevpas = $('#tablaRevpas tbody tr').length;
+        window.tablaRevpasInstance = $('#tablaRevpas').DataTable({
+            language: spanishConfig,
+            order: [[4, 'desc']], // Ordenar por Ing. por Butaca descendente (columna 4)
+            pageLength: 10,
+            responsive: true,
+            paging: numRowsRevpas > 10, // Desactivar paginación si hay pocos registros
+            info: false, // Eliminar texto "Mostrando X de X registros"
+            dom: 'frtip',
+            destroy: true // Permitir reinicialización
+        });
+        
+        // Forzar mensaje de tabla vacía si no hay datos
+        if (numRowsRevpas === 0) {
+            setTimeout(function() {
+                $('#tablaRevpas').DataTable().draw();
+            }, 100);
+        }
+
+        window.tablaRevenueDiaInstance = $('#tablaRevenueDia').DataTable({
+            language: spanishConfig,
+            order: [[3, 'desc']], // Ordenar por Ingreso Total descendente
+            pageLength: 7, // 7 días de la semana
+            paging: false, // Desactivar paginación (solo 7 días)
+            responsive: true,
+            info: false,
+            dom: 'frt' // Sin paginación ni info
+        });
+
+        // Tabla Detalle por Película
+        const numRowsDetalle = $('#tablaDetallePeliculas tbody tr').length;
+        window.tablaDetallePeliculasInstance = $('#tablaDetallePeliculas').DataTable({
+            language: spanishConfig,
+            order: [[3, 'desc']], // Ordenar por Total descendente (ahora columna 3)
+            pageLength: 10,
+            responsive: true,
+            paging: numRowsDetalle > 10,
+            info: false,
+            dom: 'frtip'
+        });
+
+        // Tabla Eficiencia de Promociones
+        const numRowsPromo = $('#tablaEficienciaPromociones tbody tr').length;
+        window.tablaEficienciaPromocionesInstance = $('#tablaEficienciaPromociones').DataTable({
+            language: spanishConfig,
+            order: [[4, 'desc']], // Ordenar por % Descuentos descendente
+            pageLength: 10,
+            responsive: true,
+            paging: numRowsPromo > 10,
+            info: false,
+            dom: 'frtip'
+        });
+
+        // Gráfico de Barras para Revenue por Día
+        {% if ranking_dia_revenue %}
+        const ctxRevenue = document.getElementById('chartRevenueDia');
+        if (ctxRevenue) {
+            new Chart(ctxRevenue, {
+                type: 'bar',
+                data: {
+                    labels: [{% for dia in ranking_dia_revenue %}'{{ dia.dia_nombre }}'{% if not forloop.last %}, {% endif %}{% endfor %}],
+                    datasets: [{
+                        label: 'Revenue Total ($)',
+                        data: [{% for dia in ranking_dia_revenue %}{{ dia.revenue_total }}{% if not forloop.last %}, {% endif %}{% endfor %}],
+                        backgroundColor: 'rgba(119, 19, 92, 0.7)',
+                        borderColor: 'rgba(119, 19, 92, 1)',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        hoverBackgroundColor: 'rgba(160, 24, 117, 0.9)'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        datalabels: {
+                            anchor: 'end',
+                            align: 'top',
+                            color: 'rgba(255, 255, 255, 0.9)',
+                            font: {
+                                weight: 'bold',
+                                size: 12
+                            },
+                            formatter: function(value) {
+                                return '$' + value.toLocaleString('es-ES', {maximumFractionDigits: 0});
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            padding: 12,
+                            titleFont: { size: 14, weight: 'bold' },
+                            bodyFont: { size: 13 },
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Revenue: $' + context.parsed.y.toLocaleString('es-ES');
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                callback: function(value) {
+                                    return '$' + value.toLocaleString('es-ES');
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: 'rgba(255, 255, 255, 0.7)',
+                                font: {
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels]
+            });
+        }
+        {% endif %}
+
+        // Inicializar tooltips de Bootstrap
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl, {
+                html: true,
+                trigger: 'hover focus'
+            });
+        });
+    });
+</script>
 {% endblock %}

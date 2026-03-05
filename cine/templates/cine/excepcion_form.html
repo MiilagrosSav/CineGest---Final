@@ -296,6 +296,11 @@
                 {{ form.cerrado }}
                 🚫 Cine cerrado este día
             </label>
+            {% if form.cerrado.errors %}
+                <div class="field-error" style="margin-top: 0.75rem; display: block; background-color: rgba(239, 68, 68, 0.15); padding: 0.75rem; border-radius: 0.375rem; border-left: 3px solid #ef4444; color: #fecaca; font-weight: 500;">
+                    ⚠️ {{ form.cerrado.errors.0 }}
+                </div>
+            {% endif %}
         </div>
 
         <!-- Campos de Horario (se deshabilitan si cerrado=true) -->
@@ -305,7 +310,7 @@
                     🕐 Hora Apertura
                 </label>
                 {{ form.hora_apertura }}
-                {% if form.hora_apertura.errors %}
+                {% if form.hora_apertura.errors and not form.cerrado.errors %}
                     <span class="field-error">{{ form.hora_apertura.errors.0 }}</span>
                 {% endif %}
             </div>
@@ -315,7 +320,7 @@
                     🕐 Hora Cierre
                 </label>
                 {{ form.hora_cierre }}
-                {% if form.hora_cierre.errors %}
+                {% if form.hora_cierre.errors and not form.cerrado.errors %}
                     <span class="field-error">{{ form.hora_cierre.errors.0 }}</span>
                 {% endif %}
             </div>

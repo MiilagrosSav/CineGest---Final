@@ -1,182 +1,622 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
     <title>{{ titulo }}</title>
     <style type="text/css">
-        /* --- CONFIGURACIÓN DE PÁGINA --- */
+        /* ============================================
+           REPORTE OPERATIVO - DISEÑO FORMAL
+           Times New Roman, sin colores, sin emojis
+           ============================================ */
+
         @page {
             size: A4;
-            margin: 2cm;
-            margin-bottom: 2.5cm;
+            margin: 2.5cm 2cm 3cm 2cm;
+            
+            @frame footer {
+                -pdf-frame-content: footer-content;
+                bottom: 0.5cm;
+                margin-left: 2cm;
+                margin-right: 2cm;
+                height: 1.5cm;
+            }
         }
 
         body {
-            font-family: Helvetica, Arial, sans-serif;
-            font-size: 10pt;
-            color: #333333;
-            line-height: 1.3;
-        }
-
-        /* --- ENCABEZADO (Igual que antes) --- */
-        .header-table {
-            width: 100%;
-            border-bottom: 2px solid #77135c;
-            margin-bottom: 20px;
-            padding-bottom: 8px;
-        }
-        .logo-text { font-size: 20pt; font-weight: bold; color: #77135c; text-transform: uppercase; }
-        .report-title { font-size: 14pt; color: #000000; text-align: right; font-weight: normal; }
-        .meta-info { font-size: 8pt; color: #666666; text-align: right; margin-top: 2px; }
-
-        /* --- ESTILOS DE TABLAS DE DATOS --- */
-        h2 {
-            font-size: 12pt;
-            color: #77135c;
-            margin-top: 15px;
-            margin-bottom: 10px;
-            border-bottom: 1px solid #cccccc;
-            padding-bottom: 2px;
-        }
-
-        table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-        table.data-table th {
-            background-color: #77135c; color: #ffffff; font-weight: bold;
-            padding: 6px; text-align: left; font-size: 9pt; border: 1px solid #77135c;
-        }
-        table.data-table td { padding: 6px; border: 1px solid #cccccc; font-size: 9pt; color: #333; }
-        table.data-table tr:nth-child(even) { background-color: #f2f2f2; }
-        .text-center { text-align: center; }
-        .text-right { text-align: right; }
-        .ocupacion-alta { color: #2e7d32; font-weight: bold; }
-        .ocupacion-baja { color: #c62828; font-weight: bold; }
-
-        /* --- NUEVOS ESTILOS PARA GRÁFICOS (MEJORADO) --- */
-        /* Layout de gráficos: usamos tabla (xhtml2pdf soporta mejor tablas que flex) */
-        table.charts-layout {
-            width: 100%;
-            border: none;
-            margin-bottom: 18px;
-            table-layout: fixed;
-        }
-        table.charts-layout td {
-            border: none;
-            vertical-align: top;
-            padding: 8px;
-        }
-
-        /* Caja decorativa para las imágenes: fondo blanco, borde fino y padding mayor */
-        .chart-box {
-            border: 1px solid #dedede;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            color: #000000;
+            line-height: 1.5;
             background-color: #ffffff;
-            padding: 12px;
+        }
+
+        /* ============================================
+           ENCABEZADO DEL DOCUMENTO
+           ============================================ */
+        .header-section {
+            width: 100%;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #000000;
+        }
+
+        .header-title {
+            font-size: 18pt;
+            font-weight: bold;
             text-align: center;
-            border-radius: 4px;
-        }
-
-        /* Títulos y leyendas para gráficos */
-        .chart-caption {
-            font-size: 9pt;
-            color: #444444;
-            margin-top: 8px;
+            color: #000000;
+            margin-bottom: 8px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
-            font-weight: 700;
+            letter-spacing: 1px;
         }
 
-        /* Ajustes de imagen para evitar desbordes y mejorar resolución */
-        .chart-box img { display:block; margin: 0 auto; max-width: 100%; height: auto; }
-        .main-chart-img { max-width: 700px; }
-        .heatmap-img { width: 100%; max-width: 520px; }
-        .marketing-img { width: 220px; height: auto; margin: 8px auto 0 auto; }
+        .header-subtitle {
+            font-size: 11pt;
+            text-align: center;
+            color: #333333;
+            margin-bottom: 4px;
+        }
 
-        .nota { font-size: 8pt; color: #666666; font-style: italic; margin-top: 10px; background-color: #f9f9f9; padding: 8px; border: 1px solid #eeeeee; }
+        .header-metadata {
+            font-size: 9pt;
+            text-align: center;
+            color: #333333;
+            margin-top: 6px;
+        }
 
-        #footerContent { position: fixed; bottom: -1cm; left: 0; right: 0; width: 100%; text-align: right; font-size: 8pt; color: #999999; border-top: 1px solid #cccccc; padding-top: 5px; }
+        /* ============================================
+           TÍTULOS DE SECCIONES
+           ============================================ */
+        h2 {
+            font-size: 13pt;
+            font-weight: bold;
+            color: #000000;
+            margin-top: 24px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #000000;
+            padding-bottom: 4px;
+            text-transform: uppercase;
+        }
+
+        h3 {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #000000;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }
+
+        /* ============================================
+           TABLAS GENERALES
+           ============================================ */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 18px;
+            font-size: 10pt;
+            display: table;
+        }
+
+        table th {
+            background-color: #f5f5f5;
+            color: #000000;
+            font-weight: bold;
+            padding: 9px 10px;
+            text-align: left;
+            border: 1px solid #000000;
+        }
+
+        table td {
+            padding: 8px 10px;
+            border: 1px solid #999999;
+            vertical-align: top;
+        }
+
+        table tbody tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+
+        table tbody tr:nth-child(odd) {
+            background-color: #ffffff;
+        }
+
+        /* ============================================
+           ALINEACIONES
+           ============================================ */
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-left {
+            text-align: left;
+        }
+
+        /* ============================================
+           BLOQUES DE RECOMENDACIÓN
+           ============================================ */
+        .recomendacion {
+            margin-top: 12px;
+            margin-bottom: 18px;
+            padding: 10px;
+            border: 1px solid #999999;
+            background-color: #f5f5f5;
+            font-size: 10pt;
+            color: #000000;
+        }
+
+        .recomendacion-titulo {
+            font-weight: bold;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+        }
+
+        .recomendacion ul {
+            margin: 6px 0 0 20px;
+            padding: 0;
+        }
+
+        .recomendacion li {
+            margin-bottom: 4px;
+        }
+
+        /* ============================================
+           NOTA EXPLICATIVA
+           ============================================ */
+        .nota {
+            font-size: 9pt;
+            color: #333333;
+            font-style: italic;
+            margin-top: 8px;
+            margin-bottom: 16px;
+            padding: 8px;
+            border-left: 3px solid #999999;
+            background-color: #fafafa;
+        }
+
+        /* ============================================
+           MENSAJES DE ADVERTENCIA
+           ============================================ */
+        .warning-message {
+            margin: 16px 0;
+            padding: 16px;
+            border: 2px solid #999999;
+            background-color: #f5f5f5;
+            font-size: 11pt;
+            color: #000000;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        /* ============================================
+           PAGINACIÓN
+           ============================================ */
+        #footer-content {
+            text-align: right;
+            font-size: 9pt;
+            color: #999999;
+            border-top: 1px solid #999999;
+            padding-top: 6px;
+            padding-right: 10px;
+        }
+
+        /* ============================================
+           SALTOS DE PÁGINA
+           ============================================ */
+        .page-break {
+            page-break-after: always;
+        }
+
     </style>
 </head>
 <body>
 
-    <table class="header-table">
+    <!-- ENCABEZADO DEL DOCUMENTO -->
+    <table style="width: 100%; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 2px solid #000000; border-collapse: collapse;">
         <tr>
-            <td style="border:none; padding:0; vertical-align: bottom;">
-                <div class="logo-text">{{ configuracion_cine.nombre|default:'Sistema de Cine' }}</div>
+            <td style="width: 50%; vertical-align: top; border: none; padding: 0;">
+                <div style="font-size: 16pt; font-weight: bold; color: #000000; text-transform: uppercase;">
+                    {{ configuracion_cine.nombre|default:'SISTEMA DE GESTIÓN' }}
+                </div>
             </td>
-            <td style="border:none; padding:0; text-align:right; vertical-align: bottom;">
-                <div class="report-title">{{ titulo }}</div>
-                <div class="meta-info">
-                    Período: {{ fecha_inicio }} al {{ fecha_fin }}
-                    {% if requested_by %}<br/>Solicitado por: {{ requested_by }}{% endif %}
-                    <br/>Generado: {% now "d/m/Y H:i" %}
+            <td style="width: 50%; vertical-align: top; text-align: right; border: none; padding: 0;">
+                <div style="font-size: 13pt; font-weight: bold; color: #000000; text-transform: uppercase; margin-bottom: 4px;">
+                    REPORTE OPERATIVO DE SALAS
+                </div>
+                <div style="font-size: 9pt; color: #333333;">
+                    <strong>Período:</strong> {{ fecha_inicio|date:"d/m/Y" }} al {{ fecha_fin|date:"d/m/Y" }}<br/>
+                    {% if requested_by %}<strong>Solicitado por:</strong> {{ requested_by }}<br/>{% endif %}
+                    <strong>Generado:</strong> {% now "d/m/Y H:i" %}
+                    {% if tiene_filtros_personalizados %}<br/><strong style="color: #77135c;">📊 Reporte generado con filtros personalizados de ordenamiento</strong>{% endif %}
                 </div>
             </td>
         </tr>
     </table>
 
-    {% if chart_base64 %}
-    <div class="chart-box" style="margin-bottom: 18px; text-align:center;">
-        <img class="main-chart-img" src="{{ chart_base64 }}" style="height: auto;" />
-        <div class="chart-caption">Evolución de la Ocupación</div>
-    </div>
-    {% endif %}
 
-    {% if heatmap_base64 or marketing_base64 %}
-    <table class="charts-layout">
-        <tr>
-            {% if heatmap_base64 %}
-            <td style="width: 60%;">
-                <div class="chart-box">
-                    <img class="heatmap-img" src="{{ heatmap_base64 }}" />
-                    <div class="chart-caption">Mapa de Calor (Horarios)</div>
-                    <div style="font-size:9pt; color:#666; margin-top:6px;">Escala: % ocupación por franja</div>
-                </div>
-            </td>
-            {% endif %}
+    <!-- SECCIÓN 1: RANKING DE PELÍCULAS -->
+    {% if ranking_peliculas %}
+    <h2>1. Ranking de Películas por Performance</h2>
+    <p style="margin-bottom:10px; font-size:10pt; color:#333333;">
+        Ranking de películas ordenado por índice de performance combinado: Ocupación (60%) + Ingreso (40%).
+    </p>
 
-            {% if marketing_base64 %}
-            <td style="width: 40%; text-align:center;">
-                <div class="chart-box">
-                    <img class="marketing-img" src="{{ marketing_base64 }}" />
-                    <div class="chart-caption">Conversión (Marketing)</div>
-                    <div style="font-size:9pt; color:#666; margin-top:6px;">Canjeados / Enviados</div>
-                </div>
-            </td>
-            {% endif %}
-        </tr>
-    </table>
-    {% endif %}
-
-    <h2>Detalle Semanal</h2>
-    <table class="data-table">
+    <table>
         <thead>
             <tr>
-                <th>Día de la Semana</th>
-                <th class="text-center">Tickets Vendidos</th>
-                <th class="text-center">Capacidad Total</th>
-                <th class="text-right">% Ocupación</th>
+                <th style="width:7%;" class="text-center">Pos.</th>
+                <th style="width:33%;">Película</th>
+                <th style="width:12%;" class="text-center">Ocupación</th>
+                <th style="width:15%;" class="text-center">Ingreso Total</th>
+                <th style="width:13%;" class="text-center">Índice Perf.</th>
+                <th style="width:10%;" class="text-center">Rating</th>
+                <th style="width:10%;" class="text-center">Entradas</th>
             </tr>
         </thead>
         <tbody>
-            {% for dia in ocupacion %}
+            {% for pelicula in ranking_peliculas %}
             <tr>
-                <td><strong>{{ dia.dia }}</strong></td>
-                <td class="text-center">{{ dia.tickets }}</td>
-                <td class="text-center">{{ dia.capacidad }}</td>
-                <td class="text-right {% if dia.porcentaje >= 70 %}ocupacion-alta{% elif dia.porcentaje < 40 %}ocupacion-baja{% endif %}">
-                    {{ dia.porcentaje|floatformat:1 }}%
-                </td>
+                <td class="text-center"><strong>{{ pelicula.posicion_ranking }}</strong></td>
+                <td>{{ pelicula.titulo_pelicula|truncatechars:40 }}</td>
+                <td class="text-center">{{ pelicula.ocupacion_promedio|floatformat:1 }}%</td>
+                <td class="text-center">${{ pelicula.revenue_total|floatformat:0 }}</td>
+                <td class="text-center"><strong>{{ pelicula.indice_performance }}</strong></td>
+                <td class="text-center">{{ pelicula.rating }}</td>
+                <td class="text-center">{{ pelicula.total_entradas }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    
+
     <div class="nota">
-        <strong>Nota:</strong> La capacidad total considera el número de butacas disponibles (excluyendo pasillos) 
-        multiplicado por el número de funciones programadas en cada día de la semana durante el período analizado.
+        El Índice de Performance es un indicador combinado que pondera: 60% la ocupación promedio y 40% el ingreso normalizado.
+        Esta métrica permite identificar tanto las películas populares (alta ocupación) como las más rentables (alto ingreso).
     </div>
 
-    <div id="footerContent">
-        Pág <pdf:pagenumber/> de <pdf:pagecount/>
+    <div class="recomendacion">
+        <div class="recomendacion-titulo">Recomendaciones basadas en el ranking de películas</div>
+        <ul>
+            {% with mejor=ranking_peliculas.0 peor=ranking_peliculas|last %}
+            {% if mejor.ocupacion_promedio >= 40 %}
+            <li>La película "{{ mejor.titulo_pelicula }}" lidera con {{ mejor.ocupacion_promedio|floatformat:1 }}% de ocupación. Considere aumentar la cantidad de funciones programadas para esta película.</li>
+            {% else %}
+            <li>Ninguna película supera el 40% de ocupación promedio. Se recomienda revisar la oferta de cartelera y considerar cambios en la programación.</li>
+            {% endif %}
+
+            {% if peor.ocupacion_promedio < 5 %}
+            <li>La película "{{ peor.titulo_pelicula }}" tiene una ocupación crítica de {{ peor.ocupacion_promedio|floatformat:1 }}%. Se recomienda evaluar la retirada de esta película o reducir drásticamente sus funciones.</li>
+            {% elif peor.ocupacion_promedio < 15 %}
+            <li>La película "{{ peor.titulo_pelicula }}" presenta baja ocupación ({{ peor.ocupacion_promedio|floatformat:1 }}%). Considere reducir las funciones o implementar promociones específicas.</li>
+            {% endif %}
+
+            {% if ranking_peliculas|length > 3 %}
+            <li>Con {{ ranking_peliculas|length }} películas en cartelera, se recomienda concentrar la programación en las 3-4 películas con mejor desempeño.</li>
+            {% endif %}
+            {% endwith %}
+        </ul>
+    </div>
+    {% else %}
+    <h2>1. Ranking de Películas por Performance</h2>
+    <div class="warning-message">
+        ⚠️ No se registraron funciones de películas en el período seleccionado. No hay datos para analizar.
+    </div>
+    {% endif %}
+
+
+    <!-- SECCIÓN 2: RANKING DE HORARIOS POR DÍA -->
+    {% if tiene_horarios_validos %}
+    <div class="page-break"></div>
+    <h2>2. Ranking de Mejores Horarios por Día de la Semana</h2>
+    <p style="margin-bottom:10px; font-size:10pt; color:#333333;">
+        Para cada día se muestra el horario con mayor asistencia y el de menor asistencia.
+        Un horario con baja ocupación consistente representa un costo operativo sin retorno.
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:12%;">Día</th>
+                <th style="width:13%;" class="text-center">Mejor Horario</th>
+                <th style="width:13%;" class="text-center">Peor Horario</th>
+                <th style="width:12%;" class="text-center">Ocupación (%)</th>
+                <th style="width:14%;" class="text-center">Asientos Libres (%)</th>
+                <th style="width:36%;">Recomendación</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dia in ranking_horarios %}
+            <tr>
+                <td><strong>{{ dia.dia_nombre }}</strong></td>
+                <td class="text-center">{{ dia.mejor_horario }}</td>
+                <td class="text-center">{{ dia.peor_horario }}</td>
+                <td class="text-center"><strong>{{ dia.ocupacion_real|floatformat:1 }}%</strong></td>
+                <td class="text-center" style="color: {% if dia.asientos_libres > 70 %}#dc3545{% elif dia.asientos_libres > 50 %}#ffc107{% else %}#28a745{% endif %}; font-weight: bold;">
+                    {{ dia.asientos_libres|floatformat:1 }}%
+                </td>
+                <td style="font-size: 9pt;">{{ dia.recomendacion }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if ranking_horarios|length < 7 %}
+    <div class="nota">
+        <strong>Nota:</strong> Solo se muestran los días de la semana con funciones programadas durante el período analizado.
+        Los días ausentes no tuvieron funciones ni ventas registradas en este período.
+    </div>
+    {% endif %}
+
+    <div class="recomendacion">
+        <div class="recomendacion-titulo">Recomendaciones basadas en ocupación diaria</div>
+        <ul>
+            {% for d in ranking_horarios %}
+                {% if d.ocupacion_real >= 70 %}
+                    <li>El día <strong>{{ d.dia_nombre }}</strong> muestra alta demanda con {{ d.ocupacion_real|floatformat:1 }}% de ocupación. Se recomienda programar estrenos y películas de alta convocatoria en este día.</li>
+                {% endif %}
+            {% endfor %}
+            
+            {% for d in ranking_horarios %}
+                {% if d.asientos_libres > 70 %}
+                    <li><strong>ALERTA CRÍTICA:</strong> El día <strong>{{ d.dia_nombre }}</strong> tiene {{ d.asientos_libres|floatformat:1 }}% de asientos libres (solo {{ d.ocupacion_real|floatformat:1 }}% ocupación). Se recomienda evaluar la suspensión de funciones o implementar promociones agresivas.</li>
+                {% endif %}
+            {% endfor %}
+            
+            <li>Revise los días con mayor porcentaje de asientos libres (columna "Asientos Libres") para identificar oportunidades de redistribución de funciones hacia días de mayor demanda.</li>
+        </ul>
+    </div>
+    {% else %}
+    <div class="page-break"></div>
+    <h2>2. Ranking de Mejores Horarios por Día de la Semana</h2>
+    <div class="warning-message">
+        ⚠️ No se registraron funciones programadas en el período seleccionado. No hay datos de horarios para analizar.
+    </div>
+    {% endif %}
+
+
+    <!-- SECCIÓN 3: RANKING DE SALAS -->
+    {% if ranking_salas %}
+    <div class="page-break"></div>
+    <h2>3. Ranking de Salas por Aprovechamiento</h2>
+    <p style="margin-bottom:10px; font-size:10pt; color:#333333;">
+        Evaluación del aprovechamiento de cada sala durante el período analizado.
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:6%;" class="text-center">Pos.</th>
+                <th style="width:18%;">Sala</th>
+                <th style="width:11%;" class="text-center">Capacidad</th>
+                <th style="width:11%;" class="text-center">Funciones</th>
+                <th style="width:13%;" class="text-center">Butacas Ofrecidas</th>
+                <th style="width:13%;" class="text-center">Butacas Ocupadas</th>
+                <th style="width:11%;" class="text-center">% Ocupación</th>
+                <th style="width:17%;">Evaluación</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sala in ranking_salas %}
+            <tr>
+                <td class="text-center">{{ sala.posicion_ranking }}</td>
+                <td>{{ sala.nombre }}</td>
+                <td class="text-center">{{ sala.capacidad_total }}</td>
+                <td class="text-center">{{ sala.total_funciones }}</td>
+                <td class="text-center">{{ sala.butacas_ofrecidas }}</td>
+                <td class="text-center">{{ sala.butacas_ocupadas }}</td>
+                <td class="text-center"><strong>{{ sala.ocupacion_promedio|floatformat:1 }}%</strong></td>
+                <td>{{ sala.evaluacion }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="nota">
+        Evaluación: "Bien aprovechada" (≥40%), "Aprovechamiento moderado" (15-39%), "Subutilizada" (&lt;15%).
+    </div>
+
+    <div class="recomendacion">
+        <div class="recomendacion-titulo">Recomendaciones basadas en el ranking de salas</div>
+        <ul>
+            {% with mejor=ranking_salas.0 peor=ranking_salas|last %}
+            <li>{{ mejor.nombre }} es la sala mejor aprovechada con {{ mejor.ocupacion_promedio|floatformat:1 }}% de ocupación. Mantenga o aumente la programación en esta sala.</li>
+            
+            {% if peor.ocupacion_promedio < 15 %}
+            <li>{{ peor.nombre }} está subutilizada ({{ peor.ocupacion_promedio|floatformat:1 }}%). Se recomienda reducir funciones en esta sala o considerar su cierre temporal.</li>
+            {% elif peor.ocupacion_promedio < 30 %}
+            <li>{{ peor.nombre }} presenta aprovechamiento moderado-bajo ({{ peor.ocupacion_promedio|floatformat:1 }}%). Evalúe concentrar sus funciones en salas de mejor desempeño.</li>
+            {% endif %}
+
+            {% if ranking_salas|length > 2 %}
+            <li>Con {{ ranking_salas|length }} salas operativas, considere concentrar la programación en las {{ ranking_salas|length|add:"-1"|floatformat:"0" }} salas de mejor desempeño.</li>
+            {% endif %}
+            {% endwith %}
+        </ul>
+    </div>
+    {% else %}
+    <div class="page-break"></div>
+    <h2>3. Ranking de Salas por Aprovechamiento</h2>
+    <div class="warning-message">
+        ⚠️ No se registraron funciones en salas durante el período seleccionado. No hay datos para analizar.
+    </div>
+    {% endif %}
+
+
+    <!-- SECCIÓN 4: DETALLE DE ASISTENCIA SEMANAL -->
+    {% if tiene_ocupacion_valida %}
+    <div class="page-break"></div>
+    <h2>4. Detalle de Asistencia por Día de la Semana</h2>
+    <p style="margin-bottom:10px; font-size:10pt; color:#333333;">
+        Distribución de la asistencia por día de la semana durante el período analizado.
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width:25%;">Día de la Semana</th>
+                <th style="width:20%;" class="text-center">Entradas Vendidas</th>
+                <th style="width:25%;" class="text-center">Capacidad Total Ofrecida</th>
+                <th style="width:30%;" class="text-center">Porcentaje de Ocupación</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dia in ocupacion %}
+            {% if dia.capacidad > 0 %}
+            <tr>
+                <td><strong>{{ dia.dia }}</strong></td>
+                <td class="text-center">{{ dia.tickets }}</td>
+                <td class="text-center">{{ dia.capacidad }}</td>
+                <td class="text-center"><strong>{{ dia.porcentaje|floatformat:1 }}%</strong></td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="nota">
+        La capacidad total ofrecida es la suma de todas las butacas disponibles en las funciones programadas ese día.
+        Por ejemplo: si el martes hubo 3 funciones en una sala de 100 butacas, la capacidad ofrecida fue 300.
+        {% if ocupacion|length < 7 %}
+        <br/><strong>Nota:</strong> Solo se muestran los días con funciones programadas durante el período analizado. 
+        Los días ausentes de la tabla no tuvieron funciones ni ventas registradas.
+        {% endif %}
+    </div>
+
+    <div class="recomendacion">
+        <div class="recomendacion-titulo">Recomendaciones basadas en asistencia semanal</div>
+        <ul>
+            {% if ocupacion|length > 0 %}
+            {% with primer_dia=ocupacion|first ultimo_dia=ocupacion|last %}
+            {% if ocupacion|length > 1 %}
+            <li>Al inicio de la semana ({{ primer_dia.dia }}), la ocupación fue {{ primer_dia.porcentaje|floatformat:1 }}% con {{ primer_dia.tickets }} entradas vendidas.</li>
+            <li>Hacia el final ({{ ultimo_dia.dia }}), la ocupación alcanzó {{ ultimo_dia.porcentaje|floatformat:1 }}% con {{ ultimo_dia.tickets }} entradas vendidas.</li>
+            {% endif %}
+            
+            {% for dia in ocupacion %}
+                {% if dia.porcentaje < 10 %}
+                <li>{{ dia.dia }} registra ocupación crítica ({{ dia.porcentaje|floatformat:1 }}% - {{ dia.tickets }} entradas). Se recomienda suspender funciones este día o aplicar promociones agresivas.</li>
+                {% elif dia.porcentaje >= 50 %}
+                <li>{{ dia.dia }} muestra excelente rendimiento ({{ dia.porcentaje|floatformat:1 }}% - {{ dia.tickets }} entradas). Considere aumentar funciones en este día.</li>
+                {% endif %}
+            {% endfor %}
+            
+            <li>Considere aplicar estrategias de precios dinámicos según el comportamiento observado de cada día.</li>
+            {% endwith %}
+            {% else %}
+            <li>No hay datos suficientes de asistencia semanal para generar recomendaciones específicas.</li>
+            {% endif %}
+        </ul>
+    </div>
+    {% else %}
+    <div class="page-break"></div>
+    <h2>4. Detalle de Asistencia por Día de la Semana</h2>
+    <div class="warning-message">
+        ⚠️ No se registraron funciones programadas en el período seleccionado. No hay datos de asistencia para analizar.
+    </div>
+    {% endif %}
+
+
+    <!-- SECCIÓN 5: CONCLUSIONES Y ACCIONES SUGERIDAS -->
+    {% if dashboard_alertas %}
+    <div class="page-break"></div>
+    <h2>5. Conclusiones y Acciones Sugeridas</h2>
+
+    <h3>Estado General del Período</h3>
+    <p style="font-size:10pt; margin-bottom:16px;">
+        <strong>Ocupación Global:</strong> {{ dashboard_alertas.ocupacion_global|floatformat:1 }}%<br/>
+        <strong>Funciones Realizadas:</strong> {{ dashboard_alertas.total_funciones }}<br/>
+        <strong>Películas en Cartelera:</strong> {{ dashboard_alertas.total_peliculas }}<br/>
+        <strong>Precio Promedio por Entrada:</strong> ${{ dashboard_alertas.ticket_promedio|floatformat:2 }}
+    </p>
+
+    {% if dashboard_alertas.status == 'CRITICO' %}
+    <h3>Situación: CRÍTICA</h3>
+    <p style="font-size:10pt; margin-bottom:10px;">
+        La ocupación global es inferior al 5%, lo que indica que menos de 1 de cada 20 butacas ofrecidas fue vendida.
+        Esta situación requiere acciones inmediatas para reducir costos operativos y mejorar la eficiencia.
+    </p>
+    <div class="recomendacion">
+        <div class="recomendacion-titulo">Acciones Inmediatas</div>
+        <ul>
+            <li>Reducir entre 40% y 60% la cantidad de funciones diarias. Cada función adicional genera costos que no se recuperan con las ventas actuales.</li>
+            <li>Lanzar promociones agresivas 2×1 en horarios de menor asistencia para generar movimiento mínimo.</li>
+            <li>Concentrar la programación exclusivamente en las 1-2 películas con mejor desempeño según la tabla de ranking.</li>
+            <li>Suspender temporalmente las salas con ocupación inferior al 5%.</li>
+            <li>Evaluar cierre temporal parcial (3-4 días por semana) hasta que mejore la demanda.</li>
+        </ul>
+    </div>
+
+    {% elif dashboard_alertas.status == 'BAJO' %}
+    <h3>Situación: BAJA OCUPACIÓN</h3>
+    <p style="font-size:10pt; margin-bottom:10px;">
+        La ocupación global se encuentra entre 5% y 20%, indicando que menos de 1 de cada 5 butacas ofrecidas fue vendida.
+        Se requieren ajustes significativos en la programación y estrategias de captación de público.
+    </p>
+    <div class="recomendacion">
+        <div class="recomendacion-titulo">Acciones Sugeridas</div>
+        <ul>
+            <li>Identificar los 2-3 horarios con menor asistencia (ver Sección 2) y suspenderlos temporalmente.</li>
+            <li>Implementar descuentos de 30-40% en días de semana (lunes a jueves) para aumentar la demanda.</li>
+            <li>Reducir la cartelera a las 3 películas con mejor rendimiento según el ranking.</li>
+            <li>Aplicar promociones segmentadas: combos familia en fines de semana, descuentos estudiantes entre semana.</li>
+            <li>Evaluar alianzas con empresas locales para venta corporativa de entradas.</li>
+        </ul>
+    </div>
+
+    {% elif dashboard_alertas.status == 'NORMAL' %}
+    <h3>Situación: OCUPACIÓN NORMAL</h3>
+    <p style="font-size:10pt; margin-bottom:10px;">
+        La ocupación global se encuentra entre 20% y 40%, indicando un desempeño estándar con margen de mejora.
+        Se recomienda optimizar la programación y aplicar estrategias para incrementar la ocupación.
+    </p>
+    <div class="recomendacion">
+        <div class="recomendacion-titulo">Acciones Sugeridas</div>
+        <ul>
+            <li>Ajustar horarios de menor asistencia (ver Sección 2) para concentrar demanda en franjas exitosas.</li>
+            <li>Aplicar promociones segmentadas por día: descuentos puntuales en los días con menor asistencia.</li>
+            <li>Incrementar funciones en las salas mejor aprovechadas (ver Sección 3).</li>
+            <li>Implementar programa de fidelización para convertir asistentes ocasionales en frecuentes.</li>
+            <li>Evaluar estrategias de marketing digital para aumentar la visibilidad de la cartelera.</li>
+        </ul>
+    </div>
+
+    {% else %}
+    <h3>Situación: BUEN DESEMPEÑO</h3>
+    <p style="font-size:10pt; margin-bottom:10px;">
+        La ocupación global supera el 40%, indicando un desempeño exitoso del complejo cinematográfico.
+        Se recomienda mantener las estrategias actuales y explorar oportunidades de crecimiento.
+    </p>
+    <div class="recomendacion">
+        <div class="recomendacion-titulo">Acciones Sugeridas</div>
+        <ul>
+            <li>Mantener la programación actual, especialmente en las franjas horarias y días de mayor éxito.</li>
+            <li>Evaluar incrementar funciones en horarios y días con capacidad aún disponible.</li>
+            <li>Considerar precios premium en los horarios de mayor demanda para optimizar ingresos.</li>
+            <li>Expandir la oferta de servicios complementarios (confitería, merchandising) para aumentar el ticket promedio.</li>
+            <li>Implementar programa VIP o membresías para capitalizar la alta demanda.</li>
+        </ul>
+    </div>
+    {% endif %}
+
+    <h3>Observaciones Finales</h3>
+    <p style="font-size:10pt; margin-bottom:10px;">
+        Este reporte debe complementarse con análisis de costos operativos y estrategias de marketing.
+        Se recomienda revisar estos indicadores mensualmente para ajustar la programación de forma dinámica.
+    </p>
+    {% else %}
+    <div class="page-break"></div>
+    <h2>5. Conclusiones y Acciones Sugeridas</h2>
+    <div class="warning-message">
+        ⚠️ No se registraron datos suficientes para generar conclusiones en el período seleccionado. Verifique que existan funciones programadas en el rango de fechas.
+    </div>
+    {% endif %}
+
+
+    <!-- PIE DE PÁGINA CON NUMERACIÓN -->
+    <div id="footer-content">
+        Pág. <pdf:pagenumber/> de <pdf:pagecount/>
     </div>
 
 </body>

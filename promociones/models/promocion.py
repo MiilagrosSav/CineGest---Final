@@ -2,8 +2,9 @@ import django.db.models as models
 from django.core.exceptions import ValidationError
 from django.apps import apps
 from simple_history.models import HistoricalRecords
+from core.mixins import SoftDeleteMixin
 
-class Promocion(models.Model):
+class Promocion(SoftDeleteMixin, models.Model):
     """
     Modelo Promocion: representa un beneficio genérico que puede aplicarse
     a funciones o películas.
@@ -51,7 +52,17 @@ class Promocion(models.Model):
         default='',
         help_text='Días permitidos como CSV de índices (0=Lunes,..6=Domingo). Ej: "0,2,4". Vacío = todos los días.'
     )
-    activo = models.BooleanField(default=True)
+    
+    # Formatos aplicables (solo para promociones automáticas)
+    # ManyToMany con Formato. Si está vacío, aplica a todos los formatos.
+    formatos_aplicables = models.ManyToManyField(
+        'cine.Formato',
+        blank=True,
+        related_name='promociones_aplicables',
+        help_text='Formatos de proyección a los que aplica esta promoción. Vacío = todos los formatos.'
+    )
+    
+    # Campo 'activo' viene de SoftDeleteMixin
 
     class Meta:
         db_table = 'promociones_promocion'
@@ -69,6 +80,19 @@ class Promocion(models.Model):
         Override save para garantizar que 2x1 siempre tenga valor_descuento=50.
         Esto evita errores en cálculos y reportes que esperan un número.
         """
+        import re
+        
+        # Normalizar código a MAYÚSCULAS (evita duplicados case-sensitive)
+        if self.codigo:
+            self.codigo = self.codigo.strip().upper()
+        
+        # Normalizar nombre de la promoción
+        if self.nombre:
+            # Eliminar espacios innecesarios y aplicar Title Case
+            self.nombre = self.nombre.strip().title()
+            # Corregir letras repetidas 3 o más veces
+            self.nombre = re.sub(r'(.)\1{2,}', r'\1\1', self.nombre)
+        
         if self.tipo_descuento == '2X1':
             self.valor_descuento = 50
         super().save(*args, **kwargs)
@@ -158,8 +182,7 @@ class Promocion(models.Model):
                 if conflictos:
                     codigos_conflicto = ', '.join([p.codigo for p in conflictos[:3]])
                     raise ValidationError({
-                        'es_automatica': f'⚠️ ADVERTENCIA: Existe superposición de fechas con otras promociones automáticas globales ({codigos_conflicto}). El sistema aplicará automáticamente la que ofrezca el mayor descuento al cliente.'
-                    })
+                        'fecha_fin': f'❌ ERROR: Existe superposición de fechas con otras promociones automáticas globales: {codigos_conflicto}. Para evitar conflictos al aplicar descuentos, ajusta las fechas o vincula esta promoción a películas/funciones específicas.'                   })
     
     def get_dias_list(self):
         """Devuelve la lista de días como enteros. Si vacío -> todos los días ([])"""

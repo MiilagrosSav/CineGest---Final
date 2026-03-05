@@ -1,0 +1,180 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Historial de Promociones{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'promociones/css/promocion_list.css' %}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1200px; margin: 2rem auto;">
+    
+    <div class="mb-lg" style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); margin-bottom: var(--space-lg); flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: var(--space-md);">
+            <a href="{% url 'promociones:promocion_list' %}" class="btn btn-outline" style="padding: 0.5rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; border-radius: 50px; font-weight: 500;">
+                ← VOLVER
+            </a>
+            <div>
+                <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">📅 Historial de Promociones</h1>
+                <p style="margin: 0.3rem 0 0 0; font-size: 0.9rem; opacity: 0.7;">Promociones vencidas (fecha fin anterior a hoy)</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="card glass-container">
+        
+        {# Barra de Filtros #}
+        <div style="padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--glass-border);">
+            <form method="get" id="form-filtros" style="display: flex; gap: var(--space-xs); align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                <div style="position: relative; min-width: 180px; max-width: 250px;">
+                    <input type="text" 
+                           name="search" 
+                           id="search-input"
+                           value="{{ filtro_search }}"
+                           placeholder=" Nombre o código..."
+                           title="Buscar por nombre o código de promoción"
+                           class="form-input"
+                           style="width: 100%; padding: 0.4rem 0.4rem 0.4rem 2rem; font-size: 0.9rem;">
+                    <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
+                </div>
+                
+                <div style="display: flex; gap: var(--space-xs); align-items: center; flex-wrap: wrap;">
+                    <select name="tipo" class="form-select" style="width: 150px; padding: 0.4rem; font-size: 0.9rem;">
+                        <option value="">Todos los tipos</option>
+                        <option value="auto" {% if filtro_tipo == 'auto' %}selected{% endif %}>🛒 Automáticas</option>
+                        <option value="cupon" {% if filtro_tipo == 'cupon' %}selected{% endif %}>📧 Cupones</option>
+                    </select>
+                    
+                    <button type="button" id="btn-filter" class="btn btn-primary" style="padding: 0.35rem 0.6rem; font-size:0.85rem;">Buscar</button>
+                    
+                    {% if filtro_search or filtro_tipo %}
+                    <a href="{% url 'promociones:promocion_historial' %}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                        ✕
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+        
+        <div id="promocionTableContainer" style="padding: var(--space-md);">
+            {% if promociones %}
+            <div class="table-responsive">
+                <table class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--glass-border);">
+                            <th style="padding: var(--space-sm);">Tipo</th>
+                            <th style="padding: var(--space-sm);">Código</th>
+                            <th style="padding: var(--space-sm);">Nombre</th>
+                            <th style="padding: var(--space-sm);">Descuento</th>
+                            <th style="padding: var(--space-sm);">Vigencia</th>
+                            <th style="padding: var(--space-sm);">Vencida hace</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for promocion in promociones %}
+                        <tr style="border-bottom: 1px solid var(--glass-border); opacity: 0.7;">
+                            
+                            {# Columna TIPO #}
+                            <td style="padding: var(--space-sm);">
+                                {% if promocion.es_automatica %}
+                                    <span class="badge badge-auto">🛒 AUTO</span>
+                                {% else %}
+                                    <span class="badge badge-cupon">📧 CUPÓN</span>
+                                {% endif %}
+                            </td>
+                            
+                            <td style="padding: var(--space-sm);"><strong>{{ promocion.codigo }}</strong></td>
+                            <td style="padding: var(--space-sm);">{{ promocion.nombre }}</td>
+                            
+                            {# Columna DESCUENTO #}
+                            <td style="padding: var(--space-sm);">
+                                <span class="badge badge-tipo-{{ promocion.tipo_descuento|lower }}">
+                                    {{ promocion.get_tipo_descuento_display }}
+                                </span>
+                                {% if promocion.tipo_descuento == '2X1' %}
+                                    <span style="color: #b0b0b0; margin-left: 5px;">-</span>
+                                {% elif promocion.tipo_descuento == 'PORCENTAJE' %}
+                                    <strong style="margin-left: 5px;">{{ promocion.valor_descuento }}%</strong>
+                                {% else %}
+                                    <strong style="margin-left: 5px;">${{ promocion.valor_descuento }}</strong>
+                                {% endif %}
+                            </td>
+                            
+                            {# Columna VIGENCIA #}
+                            <td style="padding: var(--space-sm);">
+                                <div style="font-size: 0.85rem; line-height: 1.3;">
+                                    <div style="opacity: 0.7;">{{ promocion.fecha_inicio|date:"d/m/Y" }}</div>
+                                    <div style="color: var(--danger-color); font-weight: 600;">{{ promocion.fecha_fin|date:"d/m/Y" }}</div>
+                                </div>
+                            </td>
+                            
+                            {# Columna VENCIDA HACE #}
+                            <td style="padding: var(--space-sm);">
+                                <span style="color: var(--danger-color); font-weight: 500;">
+                                    {{ promocion.fecha_fin|timesince }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {# Paginación #}
+            {% if is_paginated %}
+            <div style="display: flex; justify-content: center; align-items: center; gap: var(--space-sm); margin-top: var(--space-md); padding: var(--space-md); border-top: 1px solid var(--glass-border);">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1{% if filtro_search %}&search={{ filtro_search }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}" class="btn btn-outline" style="padding: 0.4rem 0.8rem;">Primera</a>
+                    <a href="?page={{ page_obj.previous_page_number }}{% if filtro_search %}&search={{ filtro_search }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}" class="btn btn-outline" style="padding: 0.4rem 0.8rem;">← Anterior</a>
+                {% endif %}
+                
+                <span style="padding: 0.4rem 0.8rem; font-weight: 600;">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}{% if filtro_search %}&search={{ filtro_search }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}" class="btn btn-outline" style="padding: 0.4rem 0.8rem;">Siguiente →</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}{% if filtro_search %}&search={{ filtro_search }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}" class="btn btn-outline" style="padding: 0.4rem 0.8rem;">Última</a>
+                {% endif %}
+            </div>
+            {% endif %}
+            
+            {% else %}
+            <div style="text-align: center; padding: var(--space-xl); opacity: 0.7;">
+                <div style="font-size: 3rem; margin-bottom: var(--space-md);">🎉</div>
+                <h3 style="margin-bottom: var(--space-sm);">No hay promociones vencidas</h3>
+                <p style="margin: 0; font-size: 0.9rem;">Todas tus promociones están activas o aún no han comenzado.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="display: flex; justify-content: center; padding: var(--space-md); border-top: 1px solid var(--glass-border);">
+            <a href="{% url 'promociones:promocion_list' %}" class="btn btn-primary" style="padding: 0.5rem 1.5rem; font-size: 0.9rem;">
+                ← Volver a Promociones Activas
+            </a>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // Script simple para filtros
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnFilter = document.getElementById('btn-filter');
+        const formFiltros = document.getElementById('form-filtros');
+        
+        if (btnFilter && formFiltros) {
+            btnFilter.addEventListener('click', function() {
+                formFiltros.submit();
+            });
+            
+            // Submit al presionar Enter
+            formFiltros.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    formFiltros.submit();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

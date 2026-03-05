@@ -3,7 +3,7 @@ URLs para la app ventas
 """
 
 from django.urls import path
-from ventas.views import pagos, ventas, butacas, compra, reembolsos, canje
+from ventas.views import pagos, ventas, butacas, compra, reembolsos, canje, acceso
 from ventas import views as views_root
 from ventas.views import presencial
 
@@ -44,4 +44,9 @@ urlpatterns = [
     path('canje/buscar/', canje.buscar_venta_para_impresion, name='buscar_venta_canje'),
     path('canje/marcar-impreso/', canje.marcar_como_impreso, name='marcar_como_impreso'),
     path('canje/ticket/<int:venta_id>/', canje.ticket_canje_view, name='ticket_canje'),
+    
+    # Validación de acceso en puerta
+    path('acceso/', acceso.validar_acceso_view, name='validar_acceso'),
+    path('acceso/buscar/', acceso.buscar_entrada_api, name='buscar_entrada_api'),
+    path('acceso/manual/', acceso.validacion_manual_view, name='validacion_manual'),
 ]

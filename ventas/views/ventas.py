@@ -10,18 +10,12 @@ from django.contrib import messages
 from django.db import transaction
 from django.utils import timezone
 from accounts.models import Cliente
-try:
-    from valoraciones.services import puede_valorar
-    from valoraciones.models import Valoracion
-except Exception:
-    puede_valorar = None
-    Valoracion = None
 from cine.models import Funcion, Butaca
 from ventas.forms import IntercambioEntradaForm
 from ventas.services import obtener_funciones_candidatas
 from ventas.models import PoliticaReembolso
-from django.utils import timezone
 from django.db.models import Q
+from cine.models.configuracion_cine import ConfiguracionCine
 
 
 @login_required
@@ -132,77 +126,53 @@ def detalle_venta(request, venta_id):
     entradas_activas = venta.entradas.exclude(estado='CANCELADA')
     entradas_canceladas = venta.entradas.filter(estado='CANCELADA')
 
-    # Calcular qué funciones dentro de esta venta puede valorar el cliente
-    # Construir info detallada por función para mostrar en la plantilla
-    # SOLO incluir funciones que el cliente PUEDE valorar (no mostrar las que no puede)
-    can_valorar_info = []
-    if es_cliente:
-        try:
-            cliente_obj = Cliente.objects.get(usuario=request.user)
-            funciones = list({e.id_funcion for e in entradas_activas})
-            ahora = timezone.now()
-            for func in funciones:
-                # Tiene entrada en esta venta para esa función en estado VENDIDA o USADA?
-                tiene_entrada = entradas_activas.filter(id_funcion=func, estado__in=['VENDIDA', 'USADA']).exists()
-                # Función finalizada?
-                try:
-                    fin = func.get_hora_fin()
-                    funcion_finalizada = bool(fin and fin <= ahora)
-                except Exception:
-                    funcion_finalizada = False
-
-                # Ya valoró?
-                ya_valorada = False
-                if Valoracion is not None:
-                    try:
-                        ya_valorada = Valoracion.objects.filter(cliente=cliente_obj, funcion=func).exists()
-                    except Exception:
-                        ya_valorada = False
-
-                # Evaluar puede_valorar (si el servicio está disponible)
-                puede = False
-                if puede_valorar:
-                    try:
-                        puede = puede_valorar(cliente_obj, func)
-                    except Exception:
-                        puede = False
-
-                # SOLO agregar si puede valorar (filtrar las que no puede desde el backend)
-                if puede:
-                    can_valorar_info.append({
-                        'funcion': func,
-                        'tiene_entrada': tiene_entrada,
-                        'finalizada': funcion_finalizada,
-                        'ya_valorada': ya_valorada,
-                        'puede_valorar': puede,
-                    })
-        except Cliente.DoesNotExist:
-            can_valorar_info = []
-
     # Determinar si la venta todavía puede intercambiarse:
     # - Debe estar confirmada y tener pago
     # - No debe haber usado un cupón (las compras con cupón no permiten intercambio)
     # - No debe haber intercambios previos (entradas canceladas)
     # - La política, si existe, debe permitir el intercambio
     politica = PoliticaReembolso.objects.filter(activo=True).first()
+    configuracion_cine = ConfiguracionCine.objects.first()
+    nombre_cine = configuracion_cine.nombre if configuracion_cine else 'CineGest'
+    
     puede_intercambiar = False
-    motivo_no_intercambio = None
+    info_no_intercambio = None  # Cambio de string a dict con título, mensaje y tipo
 
     # Evaluar condiciones y proporcionar motivo legible cuando no se permite
     if venta.estado != 'CONFIRMADA':
-        motivo_no_intercambio = 'La venta no está confirmada.'
+        info_no_intercambio = {
+            'titulo': 'Intercambio no disponible',
+            'mensaje': 'Tu compra debe estar <strong>confirmada y pagada</strong> para poder realizar un intercambio de entradas.',
+            'tipo': 'warning'
+        }
     elif venta.cupon_utilizado:
         # Las compras con cupón no permiten intercambio
-        motivo_no_intercambio = 'Las compras realizadas con cupón no son elegibles para intercambio.'
+        info_no_intercambio = {
+            'titulo': 'Intercambio no disponible',
+            'mensaje': f'Las políticas de {nombre_cine} establecen que las compras realizadas con <strong>cupones o promociones especiales</strong> no son elegibles para intercambio.',
+            'tipo': 'info'
+        }
         puede_intercambiar = False
     elif entradas_canceladas.count() > 0:
-        motivo_no_intercambio = 'La venta ya tiene intercambios previos (entradas canceladas).'
+        info_no_intercambio = {
+            'titulo': 'Intercambio ya realizado',
+            'mensaje': 'Esta compra ya tiene un <strong>intercambio previo</strong>. Solo se permite un intercambio por compra.',
+            'tipo': 'info'
+        }
     elif venta.tipo_venta == 'PRESENCIAL':
         # Las ventas presenciales no permiten intercambio en línea
-        motivo_no_intercambio = 'Las ventas presenciales deben gestionarse en boletería.'
+        info_no_intercambio = {
+            'titulo': 'Intercambio no disponible',
+            'mensaje': 'Las compras realizadas en <strong>boletería presencial</strong> deben gestionarse directamente en nuestras instalaciones. Por favor, acercate a nuestra boletería para realizar el cambio.',
+            'tipo': 'info'
+        }
         puede_intercambiar = False
     elif not getattr(venta, 'pago', None):
-        motivo_no_intercambio = 'No se encontró un pago registrado para esta venta.'
+        info_no_intercambio = {
+            'titulo': 'Intercambio no disponible',
+            'mensaje': 'No se encontró un <strong>registro de pago</strong> asociado a esta compra. Contactá a nuestro soporte para más información.',
+            'tipo': 'warning'
+        }
     else:
         # Si hay política activa, delegar validación
         if politica:
@@ -211,7 +181,21 @@ def detalle_venta(request, venta_id):
                 puede_intercambiar = True
             else:
                 puede_intercambiar = False
-                motivo_no_intercambio = motivo or 'La política vigente no permite intercambio para esta venta.'
+                # Personalizar mensajes según el motivo específico de la política
+                if 'día(s) de anticipación' in motivo:
+                    dias_minimos = politica.dias_antes_minimo
+                    horas_minimas = dias_minimos * 24
+                    info_no_intercambio = {
+                        'titulo': 'Tiempo insuficiente para intercambio',
+                        'mensaje': f'Lo sentimos, las políticas de {nombre_cine} requieren al menos <strong>{dias_minimos} día{"s" if dias_minimos > 1 else ""} ({horas_minimas} horas)</strong> de anticipación para realizar intercambios. Tu función está muy próxima y ya no es posible modificar la reserva.',
+                        'tipo': 'error'
+                    }
+                else:
+                    info_no_intercambio = {
+                        'titulo': 'Intercambio no disponible',
+                        'mensaje': motivo or f'Las políticas vigentes de {nombre_cine} no permiten el intercambio para esta compra en este momento.',
+                        'tipo': 'warning'
+                    }
         else:
             # Sin política, permitir por defecto
             puede_intercambiar = True
@@ -222,8 +206,8 @@ def detalle_venta(request, venta_id):
         'entradas_canceladas': entradas_canceladas,
         'politica': politica,
         'puede_intercambiar': puede_intercambiar,
-        'motivo_no_intercambio': motivo_no_intercambio,
-        'can_valorar_info': can_valorar_info,
+        'info_no_intercambio': info_no_intercambio,
+        'configuracion_cine': configuracion_cine,
     }
     
     return render(request, 'ventas/detalle_venta.html', context)

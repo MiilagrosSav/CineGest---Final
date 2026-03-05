@@ -10,9 +10,14 @@
 {% block content %}
 <div class="container" style="max-width: 1000px;">
     
-    <div class="mb-lg">
-        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">📋 Políticas de Intercambio</h1>
-        <p class="card-subtitle">Gestiona las políticas que regulan los intercambios de entradas.</p>
+    <div class="mb-lg" style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-lg);">
+        <a href="{% url 'accounts:dashboard' %}" class="btn btn-outline" style="padding: 0.5rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; border-radius: 50px; font-weight: 500;">
+            ← VOLVER
+        </a>
+        <div>
+            <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">📋 Políticas de Intercambio</h1>
+            <p class="card-subtitle">Gestiona las políticas que regulan los intercambios de entradas.</p>
+        </div>
     </div>
 
     <div class="card glass-container">
@@ -23,7 +28,6 @@
                     <tr style="border-bottom: 1px solid var(--glass-border);">
                         <th style="padding: var(--space-sm);">Nombre</th>
                         <th style="padding: var(--space-sm);">Días Mínimos</th>
-                        <th style="padding: var(--space-sm);">Penalidad %</th>
                         <th style="padding: var(--space-sm);">Máx. Cambios</th>
                         <th style="padding: var(--space-sm);">Activa</th>
                     </tr>
@@ -33,7 +37,6 @@
                     <tr class="politica-row" data-id="{{ politica.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
                         <td style="padding: var(--space-sm); font-weight: 600;">{{ politica.nombre }}</td>
                         <td style="padding: var(--space-sm);">{{ politica.dias_antes_minimo }} día{{ politica.dias_antes_minimo|pluralize }}</td>
-                        <td style="padding: var(--space-sm);">{{ politica.penalidad_percent }}%</td>
                         <td style="padding: var(--space-sm);">{% if politica.max_cambios_por_compra == 0 %}Ilimitado{% else %}{{ politica.max_cambios_por_compra }}{% endif %}</td>
                         <td style="padding: var(--space-sm);">
                             {% if politica.activo %}
@@ -45,7 +48,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="text-center text-secondary" style="padding: var(--space-lg);">No hay políticas definidas.</td>
+                        <td colspan="4" class="text-center text-secondary" style="padding: var(--space-lg);">No hay políticas definidas.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

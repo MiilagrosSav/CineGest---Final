@@ -18,6 +18,21 @@ from promociones.services import calcular_precio_final
 @solo_empleados
 def dashboard_presencial(request):
     """Lista funciones del día agrupadas por película para venta rápida en boletería."""
+    
+    # ✅ LIMPIEZA AUTOMÁTICA: Expirar ventas pendientes antes de renderizar
+    try:
+        ventas_expiradas, butacas_liberadas = Venta.objects.limpiar_expiradas()
+        if ventas_expiradas > 0:
+            # Logging opcional para auditoría
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"Dashboard empleado: {ventas_expiradas} ventas expiradas, {butacas_liberadas} butacas liberadas")
+    except Exception as e:
+        # En caso de error, no bloqueamos el dashboard
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error al limpiar ventas expiradas: {str(e)}")
+    
     hoy = timezone.localdate()
     ahora = timezone.now()
     funciones = Funcion.objects.filter(
@@ -60,12 +75,55 @@ def seleccionar_butacas_presencial(request, funcion_id):
     precio_mostrar = funcion.precio_base
     promocion_aplicada = None
     info_descuento = None
+    promo_2x1 = False
+    promo_codigo = None
 
     total, promo_aplicada, detalle = calcular_precio_final(funcion, 1)
     if promo_aplicada:
+        from decimal import Decimal, ROUND_HALF_UP
+        
         promocion_aplicada = promo_aplicada
-        precio_mostrar = detalle.get('precio_unitario_final', precio_mostrar) or precio_mostrar
-        info_descuento = {'tipo': detalle.get('tipo_aplicado'), 'descripcion': detalle.get('descripcion'), 'precio_con_descuento': precio_mostrar}
+        tipo_aplicado = detalle.get('tipo_aplicado', '').upper()
+        promo_codigo = promo_aplicada.codigo
+        
+        # ✅ CORRECCIÓN: Construir descripción con formato idéntico a vista de clientes
+        if tipo_aplicado == '2X1':
+            promo_2x1 = True
+            precio_mostrar = funcion.precio_base  # En 2x1, el precio unitario no cambia
+            info_descuento = {
+                'tipo': '2X1',
+                'descripcion': f'🎉 {promo_aplicada.nombre}: Pagás 1 y llevás 2',
+                'precio_con_descuento': funcion.precio_base
+            }
+        elif tipo_aplicado == 'PORCENTAJE':
+            porcentaje = Decimal(promo_aplicada.valor_descuento or 0) / Decimal(100)
+            precio_con_desc = (funcion.precio_base * (Decimal(1) - porcentaje)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            precio_mostrar = precio_con_desc
+            ahorro = funcion.precio_base - precio_con_desc
+            info_descuento = {
+                'tipo': 'PORCENTAJE',
+                'descripcion': f'🔥 {promo_aplicada.nombre}: {int(promo_aplicada.valor_descuento)}% OFF (ahorrás ${ahorro})',
+                'precio_con_descuento': precio_con_desc
+            }
+        elif tipo_aplicado == 'MONTO_FIJO':
+            monto = Decimal(promo_aplicada.valor_descuento or 0)
+            precio_con_desc = (funcion.precio_base - monto).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            if precio_con_desc < 0: 
+                precio_con_desc = Decimal('0.00')
+            precio_mostrar = precio_con_desc
+            info_descuento = {
+                'tipo': 'MONTO_FIJO',
+                'descripcion': f'💰 {promo_aplicada.nombre}: ${monto} OFF',
+                'precio_con_descuento': precio_con_desc
+            }
+        else:
+            # Fallback por si hay un tipo desconocido
+            precio_mostrar = detalle.get('precio_unitario_final', funcion.precio_base)
+            info_descuento = {
+                'tipo': tipo_aplicado,
+                'descripcion': detalle.get('descripcion', promo_aplicada.nombre),
+                'precio_con_descuento': precio_mostrar
+            }
 
     # Verificar si la función requiere butacas 4D (tiene formato 4DX o 4D en experiencia)
     requiere_4d = False
@@ -91,16 +149,16 @@ def seleccionar_butacas_presencial(request, funcion_id):
         'funcion': funcion,
         'sala': sala,
         'butacas_por_fila': sorted(butacas_por_fila.items()),
-        'precio': precio_mostrar,
-        'precio_base': funcion.precio_base,
+        'precio': precio_mostrar,  # ✅ Precio CON descuento (si aplica)
+        'precio_base': funcion.precio_base,  # ✅ Precio SIN descuento (para comparación)
         'promocion_aplicada': promocion_aplicada,
         'info_descuento': info_descuento,
         'form_action_name': 'ventas:confirmar_venta_presencial',
         'mercadopago_public_key': None,
         'venta_id': None,
         'cantidad_requerida': None,
-        'promo_2x1': False,
-        'promo_codigo': None,
+        'promo_2x1': promo_2x1,  # ✅ Ahora se detecta correctamente
+        'promo_codigo': promo_codigo,
         'expiracion_iso': (timezone.now() + timedelta(minutes=int(tiempo_limite))).isoformat(),
         'requiere_4d': requiere_4d,
     }
@@ -199,13 +257,18 @@ def procesar_venta_presencial(request):
         # Obtener el MetodoPago desde la BD
         metodo_pago_obj = MetodoPago.objects.get(nombre=metodo_nombre)
         
+        # Obtener el total calculado desde la sesión
+        from decimal import Decimal
+        total_venta = Decimal(datos_venta['total'])
+        
         with transaction.atomic():
             venta = Venta.objects.create(
                 id_cliente=cliente,
                 id_empleado=getattr(request.user, 'empleado', None),
                 tipo_venta='PRESENCIAL',
                 estado='CONFIRMADA',
-                id_metodo_pago=metodo_pago_obj
+                id_metodo_pago=metodo_pago_obj,
+                total=total_venta  # ✅ Asignar el total calculado
             )
 
             # Crear entradas y marcar como VENDIDA
@@ -363,8 +426,14 @@ def ticket_exitoso(request, venta_id):
     config = ConfiguracionCine.objects.first()
     nombre_cine = config.nombre if config else "CineGest"
     
-    # Calcular precio por entrada (dividir total entre cantidad)
+    # Marcar entradas como USADA (ticket impreso = acceso válido)
     entradas = venta.entradas.all()
+    for entrada in entradas:
+        if entrada.estado in ['VENDIDA', 'RESERVADA', 'ENTREGADA']:
+            entrada.estado = 'USADA'
+            entrada.save()
+    
+    # Calcular precio por entrada (dividir total entre cantidad)
     total_venta = venta.calcular_total()
     cantidad_entradas = entradas.count()
     precio_por_entrada = total_venta / cantidad_entradas if cantidad_entradas > 0 else 0
