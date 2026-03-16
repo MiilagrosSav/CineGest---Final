@@ -2,6 +2,9 @@ let funcionIdSeleccionada = null;
 let intercambioVentaId = '';
 let peliculasData = {};
 let offsetDias = 0; // Para controlar la navegación del carrusel
+const CARTELERA_JS_VERSION = '2.6-title-unescape-fix';
+
+console.info('[CARTELERA] JS version:', CARTELERA_JS_VERSION);
 
 // Función de inicialización
 function inicializarCartelera() {
@@ -30,7 +33,7 @@ if (document.readyState === 'loading') {
 
 function navegarDias(dias) {
     offsetDias += dias;
-    
+
     // Normalizar la fecha de hoy a medianoche
     const hoy = new Date();
     hoy.setHours(0, 0, 0, 0);
@@ -56,17 +59,53 @@ function navegarDias(dias) {
         console.log('⚠️ No se puede navegar a fechas pasadas (antes de hoy)');
         return; // Bloquear navegación hacia atrás
     }
-    
+
     // Actualizar el parámetro 'dia' en la URL
     params.set('dia', nuevaFecha);
-    
-    // Redirigir con la nueva fecha
-    window.location.search = params.toString();
+
+    // Navegación normal con recarga completa
+    window.location.href = `${window.location.pathname}?${params.toString()}`;
 }
 
+function cargarPeliculasDataDesdeDOM() {
+    const peliculasDataElement = document.getElementById('peliculasDataJson');
+    peliculasData = peliculasDataElement ? JSON.parse(peliculasDataElement.textContent) : {};
+}
+
+async function cargarCarteleraAjax(url, pushState = true) {
+    window.location.href = url;
+}
+
+function seleccionarDiaAjax(event, anchorElement) {
+    if (event) {
+        event.stopPropagation();
+    }
+    const url = anchorElement ? anchorElement.getAttribute('href') : null;
+    if (!url) {
+        return false;
+    }
+    window.location.href = url;
+    return true;
+}
+
+window.seleccionarDiaAjax = seleccionarDiaAjax;
+
 function mostrarPopupCompra(pelicula, formato, fecha, hora, funcionId, clasificacion) {
+    const peliculaNormalizada = (function(rawTitle) {
+        if (!rawTitle) {
+            return '';
+        }
+        return String(rawTitle)
+            .replace(/\\u([0-9a-fA-F]{4})/g, function(_, hex) {
+                return String.fromCharCode(parseInt(hex, 16));
+            })
+            .replace(/\\x([0-9a-fA-F]{2})/g, function(_, hex) {
+                return String.fromCharCode(parseInt(hex, 16));
+            });
+    })(pelicula);
+
     // Solo mostrar película, fecha y hora
-    document.getElementById('popupPelicula').textContent = pelicula;
+    document.getElementById('popupPelicula').textContent = peliculaNormalizada;
     document.getElementById('popupFecha').textContent = fecha;
     document.getElementById('popupHora').textContent = hora;
     funcionIdSeleccionada = funcionId;
@@ -104,6 +143,14 @@ function comprarEntrada() {
 function mostrarDetallesPelicula(peliculaId) {
     const pelicula = peliculasData[peliculaId];
     if (!pelicula) return;
+
+    const formatoNormalizado = (() => {
+        const raw = (pelicula.formato || '').trim();
+        if (!raw || raw === '-' || raw === '—' || raw.toUpperCase() === 'N/A') {
+            return 'Estándar';
+        }
+        return raw;
+    })();
     
     // Contenido inicial (sin comentarios aún)
     const contenidoBase = `
@@ -133,7 +180,7 @@ function mostrarDetallesPelicula(peliculaId) {
                     </div>
                     <div>
                         <span style="color: var(--text-secondary);">Formato:</span>
-                        <span style="color: var(--text-light);">${pelicula.formato}</span>
+                        <span style="color: var(--text-light);">${formatoNormalizado}</span>
                     </div>
                 </div>
                 
@@ -163,10 +210,46 @@ function mostrarDetallesPelicula(peliculaId) {
             </div>
         </div>
         
+        ${pelicula.youtube_trailer_key ? `
+        <div style="margin-bottom: 1rem;">
+            <div style="color: var(--text-secondary); font-size: 0.75rem; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;">
+                🎬 Tráiler Oficial
+            </div>
+            <div id="trailer-container-${pelicula.id || 'default'}" class="ratio ratio-16x9" style="border-radius: 8px; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.3); background: #000; position: relative;">
+                <iframe 
+                    id="trailer-iframe-${pelicula.id || 'default'}"
+                    src="https://www.youtube.com/embed/${pelicula.youtube_trailer_key}?enablejsapi=1" 
+                    title="Trailer de ${pelicula.titulo}"
+                    frameborder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+                    allowfullscreen
+                    loading="lazy"
+                    style="width: 100%; height: 100%;"
+                    onerror="handleTrailerError('${pelicula.id || 'default'}', '${pelicula.youtube_trailer_key}', '${pelicula.titulo}')">
+                </iframe>
+            </div>
+            <div style="margin-top: 0.5rem; text-align: center; display: flex; gap: 1rem; justify-content: center; align-items: center;">
+                <a href="https://www.youtube.com/watch?v=${pelicula.youtube_trailer_key}" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   class="trailer-youtube-link"
+                   style="color: var(--accent); font-size: 0.8rem; text-decoration: none; display: inline-flex; align-items: center; gap: 0.3rem; padding: 0.4rem 0.8rem; border: 1px solid var(--accent); border-radius: 4px; transition: all 0.2s;">
+                    <span style="font-size: 1rem;">▶</span>
+                    <span>Ver en YouTube</span>
+                </a>
+                <button 
+                    onclick="reloadTrailer('${pelicula.id || 'default'}', '${pelicula.youtube_trailer_key}')"
+                    style="color: var(--text-secondary); font-size: 0.75rem; background: none; border: 1px solid var(--text-secondary); padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; transition: all 0.2s;">
+                    🔄 Reintentar
+                </button>
+            </div>
+        </div>
+        ` : `
         <div style="background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 6px; text-align: center; color: var(--text-secondary); font-size: 0.85rem;">
             <span style="font-size: 1.5rem; display: block; margin-bottom: 0.3rem;">🎥</span>
             <span>Tráiler no disponible</span>
         </div>
+        `}
     `;
     
     // Establecer contenido inicial
@@ -318,6 +401,11 @@ function cerrarPopupDetalles() {
 }
 
 function inicializarEventListeners() {
+    if (window._carteleraListenersInitialized) {
+        return;
+    }
+    window._carteleraListenersInitialized = true;
+
     // Cerrar popups al hacer clic fuera
     document.addEventListener('click', function(e) {
         if (e.target.id === 'popupCompra') {
@@ -326,39 +414,37 @@ function inicializarEventListeners() {
         if (e.target.id === 'popupDetalles') {
             cerrarPopupDetalles();
         }
-    });
 
-    // Event listeners para imágenes de películas (mostrar detalles)
-    document.querySelectorAll('.pelicula-imagen').forEach(function(elemento) {
-        elemento.addEventListener('click', function() {
-            const peliculaId = this.getAttribute('data-pelicula-id');
+        // Día seleccionado del carrusel (navegación normal)
+        const diaLink = e.target.closest('.dia-item');
+        if (diaLink) {
+            return;
+        }
+
+        // Tarjeta de película (abrir detalles)
+        const peliculaCard = e.target.closest('.pelicula-imagen');
+        if (peliculaCard) {
+            const peliculaId = peliculaCard.getAttribute('data-pelicula-id');
             mostrarDetallesPelicula(peliculaId);
-        });
-        
-        // Efecto hover
-        elemento.addEventListener('mouseenter', function() {
-            const img = this.querySelector('img, div');
-            if (img) img.style.transform = 'scale(1.05)';
-        });
-        
-        elemento.addEventListener('mouseleave', function() {
-            const img = this.querySelector('img, div');
-            if (img) img.style.transform = 'scale(1)';
-        });
-    });
+            return;
+        }
 
-    // Event listeners para botones de compra (horarios)
-    document.querySelectorAll('.horario-btn').forEach(function(btn) {
-        btn.addEventListener('click', function() {
-            const pelicula = this.getAttribute('data-pelicula');
-            const formato = this.getAttribute('data-formato');
-            const fecha = this.getAttribute('data-fecha');
-            const hora = this.getAttribute('data-hora');
-            const funcionId = this.getAttribute('data-funcion-id');
-            const clasificacion = this.getAttribute('data-clasificacion');
-            
+        // Botón de horario (abrir popup de compra)
+        const horarioBtn = e.target.closest('.horario-btn');
+        if (horarioBtn) {
+            const estado = horarioBtn.getAttribute('data-estado');
+            if (estado === 'AGOTADA') {
+                return;
+            }
+            const pelicula = horarioBtn.getAttribute('data-pelicula');
+            const formato = horarioBtn.getAttribute('data-formato');
+            const fecha = horarioBtn.getAttribute('data-fecha');
+            const hora = horarioBtn.getAttribute('data-hora');
+            const funcionId = horarioBtn.getAttribute('data-funcion-id');
+            const clasificacion = horarioBtn.getAttribute('data-clasificacion');
+
             mostrarPopupCompra(pelicula, formato, fecha, hora, funcionId, clasificacion);
-        });
+        }
     });
 
     // Event listeners para botones de popups
@@ -400,3 +486,59 @@ function inicializarBusquedaExpandible() {
         });
     }
 }
+
+// ============================================================================
+// FUNCIONES PARA MANEJO DE TRAILERS DE YOUTUBE
+// ============================================================================
+
+/**
+ * Funci�n global para manejar errores del iframe de YouTube
+ */
+window.handleTrailerError = function(peliculaId, youtubeKey, titulo) {
+    console.error('Error loading YouTube trailer for:', titulo);
+    const container = document.getElementById('trailer-container-' + peliculaId);
+    if (container) {
+        container.innerHTML = '<div style=\"display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; padding: 2rem; text-align: center; color: var(--text-secondary);\">' +
+            '<span style=\"font-size: 3rem; margin-bottom: 1rem;\">??</span>' +
+            '<p style=\"font-size: 0.9rem; margin-bottom: 1rem;\">El video no se puede reproducir aqu�</p>' +
+            '<p style=\"font-size: 0.75rem; opacity: 0.7; margin-bottom: 1rem;\">Este video tiene restricciones de reproducci�n embebida</p>' +
+            '<a href=\"https://www.youtube.com/watch?v=' + youtubeKey + '\" target=\"_blank\" rel=\"noopener noreferrer\" ' +
+            'style=\"color: #fff; background: #FF0000; padding: 0.6rem 1.2rem; border-radius: 4px; text-decoration: none; display: inline-flex; align-items: center; gap: 0.5rem;\">' +
+            '<span>?</span> Ver en YouTube' +
+            '</a>' +
+            '</div>';
+    }
+};
+
+/**
+ * Funci�n global para recargar el trailer
+ */
+window.reloadTrailer = function(peliculaId, youtubeKey) {
+    const iframe = document.getElementById('trailer-iframe-' + peliculaId);
+    if (iframe) {
+        // Forzar recarga agregando timestamp
+        const timestamp = new Date().getTime();
+        iframe.src = 'https://www.youtube.com/embed/' + youtubeKey + '?enablejsapi=1&t=' + timestamp;
+    }
+};
+
+// Detectar YouTube Player API errors
+window.addEventListener('message', function(event) {
+    // Escuchar mensajes del iframe de YouTube
+    if (event.origin === 'https://www.youtube.com') {
+        try {
+            const data = JSON.parse(event.data);
+            // Si hay un error del player, mostrarlo
+            if (data.event === 'onError') {
+                console.error('YouTube Player Error:', data);
+            }
+        } catch (e) {
+            // Ignorar errores de parsing
+        }
+    }
+});
+
+// Agregar estilos hover para el enlace de YouTube
+const style = document.createElement('style');
+style.textContent = '.trailer-youtube-link:hover { background: var(--accent); color: #fff !important; }';
+document.head.appendChild(style);

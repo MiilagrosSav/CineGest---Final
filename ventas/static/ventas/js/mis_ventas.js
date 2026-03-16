@@ -30,7 +30,7 @@
             if(historyTitle){
                 if(filter === 'confirmadas') historyTitle.innerText = '✅ Compras Confirmadas';
                 else if(filter === 'intercambiadas') historyTitle.innerText = '🔄 Compras Intercambiadas';
-                else if(filter === 'canceladas') historyTitle.innerText = '❌ Compras Canceladas';
+                else if(filter === 'expiradas') historyTitle.innerText = '⏳ Compras Expiradas';
             }
         }).catch(err => {
             console.error('Error fetching partial:', err);

@@ -21,20 +21,26 @@ class MercadoPagoService:
             print("⚠️ Para producción, configura MERCADOPAGO_ACCESS_TOKEN en las variables de entorno")
         self.sdk = mercadopago.SDK(access_token)
     
-    def crear_preferencia_pago(self, venta, request):
+    def crear_preferencia_pago(self, venta, request, total_override=None, presencial=False):
         """
         Crear una preferencia de pago en Mercado Pago
-        
+
         Args:
             venta: Objeto Venta con los datos de la compra
             request: Request de Django para generar URLs absolutas
-            
+            total_override: Si se pasa, usa este valor como monto en lugar de recalcular.
+                            Útil para garantizar que el monto que ve el usuario en pantalla
+                            sea exactamente el mismo que se cobra en Mercado Pago.
+
         Returns:
             dict: Respuesta de Mercado Pago con la preferencia creada
         """
-        # Calcular el monto total de la venta (pasamos request para aplicar posible promoción en sesión)
-        # Antes de crear la preferencia, si existe `promo_token` en sesión, asociar el cupón a la venta
-        total = venta.calcular_total(request)
+        # Si el llamador ya calculó el total con descuento aplicado, usarlo directamente.
+        # Caso contrario, recalcular (compatibilidad con llamadas sin override).
+        if total_override is not None:
+            total = total_override
+        else:
+            total = venta.calcular_total(request)
         try:
             promo_token = None
             if request is not None:
@@ -92,17 +98,21 @@ class MercadoPagoService:
                 "pending": pending_url
             },
             "auto_return": "approved",  # Redirigir automáticamente después del pago exitoso
-            "external_reference": str(venta.id_venta),  # ID de tu venta para identificarla
-            "statement_descriptor": nombre_cine.upper()[:22],  # Nombre que aparece en el resumen de tarjeta (max 22 chars)
-            "binary_mode": True,  # Solo estados: aprobado o rechazado (no pendiente)
-            
-            # Habilitar tarjetas de crédito/débito para pruebas
+            "external_reference": str(venta.id_venta),
+            "statement_descriptor": nombre_cine.upper()[:22],
+            "binary_mode": True,
             "payment_methods": {
-                "excluded_payment_methods": [],  # No excluir ningún método
-                "excluded_payment_types": [],    # No excluir ningún tipo
-                "installments": 12,              # Hasta 12 cuotas
+                "excluded_payment_methods": [],
+                "excluded_payment_types": [],
+                "installments": 12,
             }
         }
+
+        # Cobro presencial por QR: el empleado usa polling, no necesita auto-redirect.
+        # Sin back_urls el cliente no ve ningún botón "Volver a la tienda" en la pantalla de MP.
+        if presencial:
+            preference_data.pop("auto_return", None)
+            preference_data.pop("back_urls", None)
         
         print(f"📦 Creando preferencia para venta #{venta.id_venta} - Total: ${total}")
         print(f"🔗 Back URLs configuradas:")

@@ -1,0 +1,395 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Lista de Ventas - {{ configuracion_cine.nombre|default:'CineGest' }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .glass-container {
+        background: var(--glass-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 16px;
+        backdrop-filter: blur(10px);
+    }
+
+    .filters-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 0.9rem;
+        align-items: end;
+    }
+
+    .form-label-lite {
+        display: block;
+        margin-bottom: 0.35rem;
+        font-size: 0.82rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        font-weight: 700;
+    }
+
+    .input-lite,
+    .select-lite {
+        width: 100%;
+        border-radius: 10px;
+        border: 1px solid var(--glass-border);
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text-light);
+        padding: 0.6rem 0.7rem;
+        font-size: 0.92rem;
+    }
+
+    .input-lite:focus,
+    .select-lite:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+    }
+
+    .select-lite option {
+        background: #1e1a30;
+        color: #f3f4f6;
+    }
+
+    .table-shell {
+        overflow-x: auto;
+        border: 1px solid var(--glass-border);
+        border-radius: 12px;
+    }
+
+    .ventas-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 980px;
+    }
+
+    .ventas-table thead th {
+        text-align: left;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--text-secondary);
+        padding: 0.9rem 0.85rem;
+        background: rgba(255, 255, 255, 0.04);
+        border-bottom: 1px solid var(--glass-border);
+    }
+
+    .ventas-table tbody td {
+        padding: 0.85rem;
+        border-bottom: 1px solid var(--glass-border);
+        vertical-align: middle;
+        color: var(--text-light);
+        font-size: 0.92rem;
+    }
+
+    .ventas-table tbody tr:hover {
+        background: rgba(139, 92, 246, 0.08);
+    }
+
+    .badge-state {
+        display: inline-block;
+        font-size: 0.74rem;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        border-radius: 999px;
+        padding: 0.32rem 0.58rem;
+    }
+
+    .estado-confirmada { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .estado-pendiente { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+    .estado-pendiente-pago { background: rgba(59, 130, 246, 0.2); color: #60a5fa; }
+    .estado-cancelada { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    .estado-expirada { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+
+    .table-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        margin-top: 0.9rem;
+    }
+
+    .pager {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+
+    .pager a,
+    .pager span {
+        border: 1px solid var(--glass-border);
+        border-radius: 8px;
+        padding: 0.35rem 0.55rem;
+        min-width: 34px;
+        text-align: center;
+        color: var(--text-light);
+        text-decoration: none;
+        font-size: 0.86rem;
+    }
+
+    .pager a:hover {
+        border-color: var(--primary);
+        background: rgba(139, 92, 246, 0.18);
+    }
+
+    .pager .current {
+        border-color: var(--primary);
+        background: rgba(139, 92, 246, 0.22);
+        font-weight: 700;
+    }
+
+    .emp-filters-wrap {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        width: 100%;
+    }
+
+    .emp-filters-main {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex-wrap: wrap;
+        flex: 1;
+        min-width: 280px;
+    }
+
+    .emp-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.28rem;
+        border: 1px solid var(--glass-border);
+        border-radius: 999px;
+        padding: 0.22rem 0.55rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        color: var(--text-secondary);
+        background: rgba(255, 255, 255, 0.04);
+        text-transform: uppercase;
+    }
+
+    .btn-caja-min {
+        border: 1px solid var(--glass-border);
+        border-radius: 999px;
+        padding: 0.35rem 0.75rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+        background: rgba(255, 255, 255, 0.03);
+        text-decoration: none;
+        transition: all 0.2s ease;
+    }
+
+    .btn-caja-min:hover {
+        color: var(--text-light);
+        border-color: rgba(255, 255, 255, 0.28);
+        background: rgba(255, 255, 255, 0.07);
+    }
+
+    @media (max-width: 900px) {
+        .filters-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1280px;">
+    <div class="mb-lg">
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🧾 Lista de Ventas</h1>
+        {% if es_admin %}
+        <p class="card-subtitle">Vista general de operaciones, con filtros por empleado, fecha y método de pago</p>
+        {% else %}
+        <p class="card-subtitle">Tus ventas presenciales del día {{ hoy|date:'d/m/Y' }} para respaldo de cierre de caja</p>
+        {% endif %}
+    </div>
+
+    <div class="card glass-container" style="padding: 1.1rem; margin-bottom: 1rem;">
+        {% if es_admin %}
+        <form method="get" id="form-filtros" style="display: flex; gap: var(--space-xs); align-items: center; justify-content: space-between; flex-wrap: wrap;">
+            <div style="position: relative; min-width: 180px; max-width: 250px;">
+                <input type="text"
+                       name="search"
+                       id="search-input"
+                       value="{{ search_query }}"
+                       placeholder=" Película, cliente o código..."
+                       class="input-lite"
+                       style="width: 100%; padding: 0.4rem 0.4rem 0.4rem 2rem; font-size: 0.9rem;">
+                <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
+            </div>
+
+            <div style="display: flex; gap: var(--space-xs); align-items: center; flex-wrap: wrap;">
+                <select class="select-lite" id="empleado" name="empleado" style="width: 170px; padding: 0.4rem; font-size: 0.9rem;">
+                    <option value="">Empleado</option>
+                    <option value="sin_empleado" {% if filtro_empleado == 'sin_empleado' %}selected{% endif %}>Sin empleado (online)</option>
+                    {% for empleado in empleados_disponibles %}
+                    <option value="{{ empleado.pk }}" {% if filtro_empleado == empleado.pk|stringformat:'s' %}selected{% endif %}>
+                        {{ empleado.usuario.get_full_name|default:empleado.usuario.username }}
+                    </option>
+                    {% endfor %}
+                </select>
+
+                <select class="select-lite" id="estado" name="estado" style="width: 140px; padding: 0.4rem; font-size: 0.9rem;">
+                    <option value="">Estado</option>
+                    <option value="CONFIRMADA" {% if filtro_estado == 'CONFIRMADA' %}selected{% endif %}>Confirmada</option>
+                    <option value="PENDIENTE" {% if filtro_estado == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+                    <option value="PENDIENTE_PAGO" {% if filtro_estado == 'PENDIENTE_PAGO' %}selected{% endif %}>Pendiente Pago</option>
+                    <option value="CANCELADA" {% if filtro_estado == 'CANCELADA' %}selected{% endif %}>Cancelada</option>
+                    <option value="EXPIRADA" {% if filtro_estado == 'EXPIRADA' %}selected{% endif %}>Expirada</option>
+                </select>
+
+                <div style="display: flex; align-items: center; gap: 0.3rem;">
+                    <span style="font-size: 0.78rem; color: var(--text-muted);">Desde</span>
+                    <input class="input-lite" type="date" id="fecha_desde" name="fecha_desde" value="{{ filtro_desde }}" style="width: 145px; padding: 0.4rem; font-size: 0.9rem;" title="Desde">
+                </div>
+                <div style="display: flex; align-items: center; gap: 0.3rem;">
+                    <span style="font-size: 0.78rem; color: var(--text-muted);">Hasta</span>
+                    <input class="input-lite" type="date" id="fecha_hasta" name="fecha_hasta" value="{{ filtro_hasta }}" style="width: 145px; padding: 0.4rem; font-size: 0.9rem;" title="Hasta">
+                </div>
+
+                <select class="select-lite" id="medio_pago" name="medio_pago" style="width: 150px; padding: 0.4rem; font-size: 0.9rem;">
+                    <option value="">Medio de pago</option>
+                    {% for metodo in metodos_pago %}
+                    <option value="{{ metodo.pk }}" {% if filtro_medio_pago == metodo.pk|stringformat:'s' %}selected{% endif %}>{{ metodo.nombre }}</option>
+                    {% endfor %}
+                </select>
+
+                <button type="submit" class="btn btn-primary" style="padding: 0.35rem 0.6rem; font-size: 0.85rem;">Filtrar</button>
+
+                {% if search_query or filtro_empleado or filtro_estado or filtro_desde or filtro_hasta or filtro_medio_pago %}
+                <a href="{% url 'ventas:lista_ventas' %}" class="btn btn-outline" style="padding: 0.25rem 0.55rem; font-size: 0.8rem; line-height: 1;">✕</a>
+                {% endif %}
+            </div>
+        </form>
+        {% else %}
+        <form method="get" id="form-filtros-empleado" class="emp-filters-wrap">
+            <div class="emp-filters-main">
+                <div style="position: relative; min-width: 180px; max-width: 250px;">
+                <input type="text"
+                       name="search"
+                       value="{{ search_query }}"
+                       placeholder=" Película, cliente o código..."
+                       class="input-lite"
+                       style="width: 100%; padding: 0.4rem 0.4rem 0.4rem 2rem; font-size: 0.9rem;">
+                <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
+                </div>
+
+                <div style="display: flex; gap: var(--space-xs); align-items: center; flex-wrap: wrap;">
+                <select class="select-lite" id="estado" name="estado" style="width: 140px; padding: 0.4rem; font-size: 0.9rem;">
+                    <option value="">Estado</option>
+                    <option value="CONFIRMADA" {% if filtro_estado == 'CONFIRMADA' %}selected{% endif %}>Confirmada</option>
+                    <option value="PENDIENTE" {% if filtro_estado == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+                    <option value="PENDIENTE_PAGO" {% if filtro_estado == 'PENDIENTE_PAGO' %}selected{% endif %}>Pendiente Pago</option>
+                    <option value="CANCELADA" {% if filtro_estado == 'CANCELADA' %}selected{% endif %}>Cancelada</option>
+                    <option value="EXPIRADA" {% if filtro_estado == 'EXPIRADA' %}selected{% endif %}>Expirada</option>
+                </select>
+
+                <button type="submit" class="btn btn-primary" style="padding: 0.35rem 0.6rem; font-size: 0.85rem;">Filtrar</button>
+                {% if search_query or filtro_estado %}
+                <a href="{% url 'ventas:lista_ventas' %}" class="btn btn-outline" style="padding: 0.25rem 0.55rem; font-size: 0.8rem; line-height: 1;">✕</a>
+                {% endif %}
+                </div>
+
+                <span class="emp-chip">Ventas del día</span>
+            </div>
+
+            <a href="{% url 'ventas:cierre_caja' %}" class="btn-caja-min">Cierre de caja</a>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="card glass-container" style="padding: 1rem;">
+        <div class="table-shell">
+            <table class="ventas-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Empleado</th>
+                        <th>Medio de Pago</th>
+                        <th>Tipo</th>
+                        <th>Estado</th>
+                        <th>Entradas</th>
+                        <th style="text-align: right;">Total</th>
+                        <th>Detalle</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for venta in ventas_page %}
+                    <tr>
+                        <td>#{{ venta.id_venta }}</td>
+                        <td>{{ venta.fecha_compra|date:'d/m/Y H:i' }}</td>
+                        <td>
+                            {% if venta.id_cliente %}
+                                {{ venta.id_cliente.usuario.get_full_name|default:venta.id_cliente.usuario.username }}
+                            {% elif venta.email_invitado %}
+                                {{ venta.email_invitado }}
+                            {% else %}
+                                Consumidor Final
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if venta.id_empleado %}
+                                {{ venta.id_empleado.usuario.get_full_name|default:venta.id_empleado.usuario.username }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ venta.id_metodo_pago.nombre|default:'-' }}</td>
+                        <td>{{ venta.get_tipo_venta_display }}</td>
+                        <td>
+                            <span class="badge-state estado-{{ venta.estado|lower|cut:'_' }}">
+                                {{ venta.get_estado_display }}
+                            </span>
+                        </td>
+                        <td>{{ venta.cantidad_entradas }}</td>
+                        <td style="text-align: right; font-weight: 700;">${{ venta.total_mostrado|floatformat:2 }}</td>
+                        <td>
+                            <a href="{% url 'ventas:detalle_venta' venta.id_venta %}?next={{ request.get_full_path|urlencode }}" class="btn btn-outline" style="padding: 0.35rem 0.6rem;">
+                                Ver
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" style="text-align: center; padding: 2rem 1rem; opacity: 0.8;">
+                            No se encontraron ventas para los filtros seleccionados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="table-footer">
+            <div style="opacity: 0.85; font-size: 0.88rem;">
+                Mostrando {{ ventas_page.start_index }} - {{ ventas_page.end_index }} de {{ ventas_page.paginator.count }} ventas
+            </div>
+
+            {% if ventas_page.paginator.num_pages > 1 %}
+            <div class="pager">
+                {% if ventas_page.has_previous %}
+                <a href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" title="Primera">«</a>
+                <a href="?page={{ ventas_page.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" title="Anterior">‹</a>
+                {% endif %}
+
+                <span class="current">{{ ventas_page.number }}</span>
+
+                {% if ventas_page.has_next %}
+                <a href="?page={{ ventas_page.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" title="Siguiente">›</a>
+                <a href="?page={{ ventas_page.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}" title="Última">»</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

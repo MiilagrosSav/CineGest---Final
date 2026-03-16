@@ -120,13 +120,20 @@ class BaseCompraTestCase(TestCase):
         # Crear género (usar get_or_create para evitar duplicados)
         cls.genero, _ = Genero.objects.get_or_create(nombre='Acción')
         
+        # Obtener clasificación ATP
+        from cine.models import Clasificacion
+        cls.clasificacion_atp, _ = Clasificacion.objects.get_or_create(
+            nombre='ATP',
+            defaults={'descripcion': 'Apta para todo público', 'edad_minima': 0}
+        )
+        
         # Crear película
         from datetime import date, timedelta
         cls.pelicula = Pelicula.objects.create(
             titulo='Matrix Resurrections',
             sinopsis='El regreso a la Matrix',
             duracion=148,
-            clasificacion='ATP',
+            clasificacion=cls.clasificacion_atp,
             imagen_portada='',
             fecha_estreno=date.today() + timedelta(days=30)
         )
@@ -1298,13 +1305,22 @@ class RaceConditionTestCase(TransactionTestCase):
         # Crear género (usar get_or_create para evitar duplicados)
         self.genero, _ = Genero.objects.get_or_create(nombre='Acción')
         
+        # Crear clasificación
+        self.clasificacion_atp, _ = Clasificacion.objects.get_or_create(
+            nombre='ATP',
+            defaults={
+                'descripcion': 'Apta para todo público',
+                'edad_minima': 0
+            }
+        )
+        
         # Crear película
         from datetime import date, timedelta
         self.pelicula = Pelicula.objects.create(
             titulo='Matrix',
             sinopsis='The Matrix',
             duracion=136,
-            clasificacion='ATP',
+            clasificacion=self.clasificacion_atp,
             fecha_estreno=date.today() + timedelta(days=30)
         )
         self.pelicula.generos.add(self.genero)

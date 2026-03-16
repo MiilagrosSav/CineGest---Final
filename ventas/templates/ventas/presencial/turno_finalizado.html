@@ -1,0 +1,127 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Turno Finalizado — {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
+
+{% block content %}
+<div style="min-height: 80vh; display: flex; align-items: center; justify-content: center; padding: 2rem 1rem;">
+    <div style="max-width: 480px; width: 100%; text-align: center;">
+
+        
+        <div style="font-size: 5rem; margin-bottom: 1rem; animation: popIn 0.5s cubic-bezier(0.18, 1.2, 0.4, 1) both;">✅</div>
+
+        <h1 style="font-size: 2rem; font-weight: 800; margin: 0 0 0.5rem 0;
+                   background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+                   -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+            Turno Finalizado
+        </h1>
+        <p style="opacity: 0.55; margin: 0 0 2rem 0; font-size: 0.95rem;">
+            La caja fue cerrada correctamente. Gracias por tu trabajo.
+        </p>
+
+        {% if sesion %}
+        <div class="resumen-card">
+            <div class="res-row">
+                <span>Empleado</span>
+                <strong>{{ sesion.empleado.get_full_name|default:sesion.empleado.username }}</strong>
+            </div>
+            <div class="res-row">
+                <span>Apertura</span>
+                <strong>{{ sesion.fecha_apertura|date:"d/m/Y H:i" }}hs</strong>
+            </div>
+            <div class="res-row">
+                <span>Cierre</span>
+                <strong>{{ sesion.fecha_cierre|date:"d/m/Y H:i" }}hs</strong>
+            </div>
+            <div class="res-row">
+                <span>Ventas registradas</span>
+                <strong>{{ sesion.total_ventas_cerrado }} tickets</strong>
+            </div>
+            <div class="res-row" style="border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 0.8rem; margin-top: 0.3rem;">
+                <span>Efectivo esperado</span>
+                <strong>${{ sesion.monto_esperado|floatformat:2 }}</strong>
+            </div>
+            <div class="res-row">
+                <span>Efectivo declarado</span>
+                <strong>${{ sesion.monto_real_declarado|floatformat:2 }}</strong>
+            </div>
+            {% with diff=sesion.diferencia %}
+            <div class="res-row {% if diff and diff|floatformat:2 != '0.00' %}has-diff{% endif %}">
+                <span>Diferencia</span>
+                <strong id="diff-val">
+                    {% if diff %}
+                        {% if diff > 0 %}+{% endif %}${{ diff|floatformat:2 }}
+                    {% else %}
+                        $0.00
+                    {% endif %}
+                </strong>
+            </div>
+            {% endwith %}
+            {% if sesion.observaciones %}
+            <div class="res-row obs-row">
+                <span style="align-self:flex-start;">Observaciones</span>
+                <span style="text-align:right; opacity:0.75; font-size:0.85rem; max-width:60%;">{{ sesion.observaciones }}</span>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1.5rem;">
+            <a href="{% url 'ventas:apertura_caja' %}" class="btn btn-primary" style="height: 50px; font-size: 1rem;">
+                🖥️ Iniciar Nuevo Turno
+            </a>
+            <a href="{% url 'accounts:logout' %}" class="btn btn-outline" style="height: 50px; font-size: 1rem;">
+                🚪 Cerrar Sesión
+            </a>
+        </div>
+
+        <p style="margin-top: 1.5rem; font-size: 0.75rem; opacity: 0.35;">
+            No es posible realizar ventas hasta abrir una nueva caja.
+        </p>
+    </div>
+</div>
+
+<style>
+    @keyframes popIn {
+        from { transform: scale(0.5); opacity: 0; }
+        to   { transform: scale(1);   opacity: 1; }
+    }
+
+    .resumen-card {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.1);
+        border-radius: 18px;
+        padding: 1.2rem 1.4rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        text-align: left;
+    }
+    .res-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.9rem;
+    }
+    .res-row span:first-child { opacity: 0.55; }
+    .res-row.has-diff strong { color: #ef9a9a; }
+    .obs-row { align-items: flex-start; }
+
+    .btn {
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+        text-decoration: none; border: none;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, #2575fc, #6a11cb);
+        color: white;
+        box-shadow: 0 4px 15px rgba(37,117,252,0.35);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37,117,252,0.45); }
+    .btn-outline {
+        background: transparent; color: white;
+        border: 1px solid rgba(255,255,255,0.2);
+    }
+    .btn-outline:hover { background: rgba(255,255,255,0.08); }
+</style>
+{% endblock %}

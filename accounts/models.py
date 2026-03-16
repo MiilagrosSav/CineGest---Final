@@ -7,11 +7,31 @@ from simple_history.models import HistoricalRecords
 from django.utils import timezone
 from datetime import date, datetime
 
+# Validador de DNI (7-8 dígitos numéricos)
+DNI_VALIDATOR = RegexValidator(
+    regex=r'^\d{7,8}$',
+    message='El DNI debe contener entre 7 y 8 dígitos numéricos, sin letras ni espacios.'
+)
+
 # Validador de teléfono (7-15 dígitos)
 TELEFONO_VALIDATOR = RegexValidator(
     regex=r'^\+?\d{7,15}$',
     message='El teléfono debe contener entre 7 y 15 dígitos numéricos. Puede incluir + al inicio.',
     code='telefono_invalido'
+)
+
+# Validador de username alfanumérico
+USERNAME_ALPHANUMERIC_VALIDATOR = RegexValidator(
+    regex=r'^[a-zA-Z0-9]+$',
+    message='El nombre de usuario solo puede contener letras y números, sin espacios ni caracteres especiales.',
+    code='username_invalido'
+)
+
+# Validador para nombres y apellidos (sin números)
+NOMBRE_VALIDATOR = RegexValidator(
+    regex=r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s\-\.]+$',
+    message='El nombre no puede contener números.',
+    code='nombre_invalido'
 )
 
 
@@ -53,8 +73,20 @@ class Usuario(AbstractUser):
         ('cliente', 'Cliente'),
     )
     
+    # Sobreescribir username para restringir a caracteres alfanuméricos
+    username = models.CharField(
+        'nombre de usuario',
+        max_length=150,
+        unique=True,
+        help_text='150 caracteres o menos. Solo letras y números.',
+        validators=[USERNAME_ALPHANUMERIC_VALIDATOR],
+        error_messages={
+            'unique': 'Ya existe un usuario con ese nombre de usuario.',
+        },
+    )
+
     # Campos adicionales de tu diagrama
-    dni = models.CharField(max_length=20, unique=True, null=True, blank=True)
+    dni = models.CharField(max_length=20, unique=True, null=True, blank=True, validators=[DNI_VALIDATOR])
     telefono = models.CharField(
         max_length=20, 
         null=True, 
@@ -135,8 +167,6 @@ class Usuario(AbstractUser):
         # Normalizar email a minúsculas
         if self.email:
             self.email = self.email.strip().lower()
-        
-        self.clean()
         
         # Gestionar is_staff según el rol
         if self.rol == 'admin':
@@ -232,6 +262,19 @@ class Usuario(AbstractUser):
     def esta_dado_de_baja(self):
         """Propiedad de conveniencia para verificar si está dado de baja"""
         return not self.is_active
+
+    @property
+    def es_perfil_completo(self):
+        """Verifica si el usuario tiene DNI y username definidos."""
+        return bool(self.dni) and bool(self.username)
+
+    @property
+    def is_google_user(self):
+        """Verifica si el usuario se autenticó con Google."""
+        try:
+            return self.social_auth.filter(provider='google-oauth2').exists()
+        except Exception:
+            return False
     
     def is_admin(self):
         """
@@ -268,35 +311,24 @@ class Usuario(AbstractUser):
         verbose_name = "Usuario"
         verbose_name_plural = "Usuarios"
         
-        constraints = [
-        models.UniqueConstraint(
-            fields=['email'], 
-            name='email_unico'  # 📧 Nombre que tú elijas
-        ),
-        models.UniqueConstraint(
-            fields=['dni'], 
-            name='dni_unico'    # 🆔 Nombre que tú elijas
-        ),
-    ]
+        # Las constraints de unicidad de email y dni ya están garantizadas
+        # por unique=True en los campos. No se duplican aquí.
 
 # 2. Estos son los modelos de "Perfil" que extienden al Usuario
 # -----------------------------------------------------------
 # Usamos OneToOneField para la relación 1 a 1 (la línea con "1" en cada extremo)
 
 class Administrador(models.Model):
-    # Esto crea el id_usuario (FK) y lo hace la clave primaria (PK)
     usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, primary_key=True)
-    
-    # Campos específicos de Administrador
-    nivel_acceso = models.CharField(max_length=50)
 
     def __str__(self):
         return f"Admin: {self.usuario.username}"
 
     class Meta:
-        db_table = "administradores"  # 👨‍💼 Tabla personalizada
+        db_table = "administradores"
         verbose_name = "Administrador"
         verbose_name_plural = "Administradores"
+
 
 def validar_fecha_ingreso_no_futura(value):
     """
@@ -326,32 +358,11 @@ class Empleado(models.Model):
         verbose_name = "Empleado"
         verbose_name_plural = "Empleados"
 
-def validar_fecha_nacimiento(value):
-    """
-    Validador personalizado para fecha de nacimiento.
-    - No debe ser posterior al día de hoy
-    - No debe ser anterior al año 1900
-    """
-    if value > date.today():
-        raise ValidationError(
-            'La fecha de nacimiento no puede ser posterior al día de hoy.'
-        )
-    if value < date(1900, 1, 1):
-        raise ValidationError(
-            'La fecha de nacimiento no puede ser anterior al 1 de enero de 1900.'
-        )
-
 class Cliente(models.Model):
     usuario = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, primary_key=True)
     
     # Campos específicos de Cliente
     acepta_marketing = models.BooleanField(default=False, verbose_name='Acepta marketing', help_text='Opt-in para recibir novedades y ofertas')
-    fecha_nacimiento = models.DateField(
-        null=True, 
-        blank=True,
-        validators=[validar_fecha_nacimiento],
-        help_text='Debe ser una fecha entre el 1/1/1900 y hoy'
-    )
     fecha_registro = models.DateField(default=date.today) # Se pone la fecha actual al crear
 
     def save(self, *args, **kwargs):

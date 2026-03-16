@@ -7,6 +7,9 @@ Tenemos una oferta por tiempo limitado: {{ promocion.nombre }}
 Cupón: {{ cupon.token }}
 Canjealo aquí: {{ link }}
 
+{% if cupon.expira_en %}Expira el: {{ cupon.expira_en|date:"d/m/Y" }} a las {{ cupon.expira_en|time:"H:i" }}
+{% endif %}
+
 {% if funcion %}La oferta aplica para la función: {{ funcion.pelicula.titulo }} — {{ funcion.fecha_hora }}
 {% endif %}
 

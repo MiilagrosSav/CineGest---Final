@@ -10,6 +10,52 @@
         <p class="card-subtitle">Funciones de hoy. Seleccioná una función para vender entradas.</p>
     </div>
 
+    <!-- ══ Widget de Caja ══ -->
+    {% if sesion_caja %}
+    <div class="caja-widget caja-abierta">
+        <div class="caja-widget-left">
+            <span class="caja-dot abierta-dot"></span>
+            <div>
+                <p class="caja-w-title">CAJA ABIERTA</p>
+                <p class="caja-w-subtitle">desde las {{ sesion_caja.fecha_apertura|time:"H:i" }} &mdash; {{ totales_caja.ventas }} venta{{ totales_caja.ventas|pluralize }}</p>
+            </div>
+        </div>
+        <div class="caja-widget-stats">
+            <div class="caja-stat-item">
+                <span class="caja-stat-label">Fondo inicial</span>
+                <span class="caja-stat-val">${{ totales_caja.fondo_inicial|floatformat:2 }}</span>
+            </div>
+            <div class="caja-stat-sep"></div>
+            <div class="caja-stat-item">
+                <span class="caja-stat-label">💵 Efectivo cobrado</span>
+                <span class="caja-stat-val caja-green">${{ totales_caja.efectivo|floatformat:2 }}</span>
+            </div>
+            <div class="caja-stat-item">
+                <span class="caja-stat-label">📱 QR cobrado</span>
+                <span class="caja-stat-val">${{ totales_caja.qr|floatformat:2 }}</span>
+            </div>
+            <div class="caja-stat-sep"></div>
+            <div class="caja-stat-item caja-total-item">
+                <span class="caja-stat-label">💰 Total en caja</span>
+                <span class="caja-stat-val caja-big">${{ totales_caja.total_caja|floatformat:2 }}</span>
+            </div>
+        </div>
+        <div class="caja-widget-right">
+            <a href="{% url 'ventas:cierre_caja' %}" class="btn-caja btn-caja-cerrar">🔒 Cerrar Caja</a>
+        </div>
+    </div>
+    {% else %}
+    <div class="caja-widget caja-cerrada">
+        <span class="caja-dot cerrada-dot"></span>
+        <div style="flex:1;">
+            <p class="caja-w-title" style="color:#ef9a9a;">CAJA NO ABIERTA</p>
+            <p class="caja-w-subtitle">Abrí la caja para registrar el efectivo del turno.</p>
+        </div>
+        <a href="{% url 'ventas:apertura_caja' %}" class="btn-caja btn-caja-abrir">💰 Abrir Caja</a>
+    </div>
+    {% endif %}
+    <!-- ════════════════════ -->
+
     {% if agrupado %}
         <div style="display: flex; flex-direction: column; gap: 2rem;">
             {% for titulo, funciones in agrupado.items %}
@@ -42,18 +88,30 @@
                                         <span>🏛️ Sala {{ f.sala.numero }}</span>
                                         <span style="color: var(--primary); font-weight: 600;">${{ f.precio_base|floatformat:0 }}</span>
                                     </div>
+                                    <div style="margin-top: 0.35rem; display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                                        {% if f.agotada %}
+                                        <span class="badge-agotada">AGOTADA</span>
+                                        {% else %}
+                                        <span class="badge-disponibles">{{ f.asientos_disponibles }} disponibles</span>
+                                        {% endif %}
+                                    </div>
                                     
                                     <!-- Formato -->
-                                    {% if f.get_formatos_destacados != "—" %}
+                                    {% if f.get_formatos_destacados != "—" and f.get_formatos_destacados != "Estándar" %}
                                     <div style="margin-top: 0.5rem;">
                                         <span class="badge-formato">{{ f.get_formatos_destacados }}</span>
                                     </div>
                                     {% endif %}
                                 </div>
-                                
+                                {% if f.agotada %}
+                                <span class="btn btn-disabled btn-block" aria-disabled="true">
+                                    ⛔ Agotada
+                                </span>
+                                {% else %}
                                 <a href="{% url 'ventas:seleccionar_butacas_presencial' f.id %}" class="btn btn-primary btn-block">
                                     🛒 Vender
                                 </a>
+                                {% endif %}
                             </div>
                             {% endfor %}
                         </div>
@@ -146,6 +204,27 @@
         border: 1px solid rgba(139, 95, 191, 0.4);
     }
 
+    .badge-disponibles {
+        background: rgba(78, 205, 196, 0.18);
+        color: #4ecdc4;
+        font-size: 0.72rem;
+        padding: 3px 8px;
+        border-radius: 9999px;
+        border: 1px solid rgba(78, 205, 196, 0.35);
+        font-weight: 700;
+    }
+
+    .badge-agotada {
+        background: rgba(255, 107, 107, 0.2);
+        color: #ff8a80;
+        font-size: 0.72rem;
+        padding: 3px 8px;
+        border-radius: 9999px;
+        border: 1px solid rgba(255, 107, 107, 0.45);
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
     /* --- Botones --- */
     .btn {
         padding: 0.6rem 1.2rem;
@@ -179,6 +258,15 @@
         box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.3);
     }
 
+    .btn-disabled {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.55);
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        cursor: not-allowed;
+        pointer-events: none;
+        text-transform: uppercase;
+    }
+
     .btn-outline {
         background: transparent;
         color: var(--text-light);
@@ -191,5 +279,72 @@
         background: rgba(var(--primary-rgb), 0.1);
         transform: translateY(-1px);
     }
+
+    /* === Widget de Caja === */
+    .caja-widget {
+        display: flex;
+        align-items: center;
+        gap: 1.2rem;
+        padding: 1rem 1.4rem;
+        border-radius: 16px;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+    .caja-abierta {
+        background: rgba(102, 187, 106, 0.06);
+        border: 1px solid rgba(102, 187, 106, 0.3);
+    }
+    .caja-cerrada {
+        background: rgba(239, 154, 154, 0.06);
+        border: 1px solid rgba(239, 154, 154, 0.3);
+    }
+    .caja-dot {
+        width: 11px; height: 11px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+    .abierta-dot { background: #66bb6a; box-shadow: 0 0 7px #66bb6a; }
+    .cerrada-dot  { background: #ef9a9a; }
+    .caja-w-title {
+        margin: 0; font-size: 0.7rem; font-weight: 800;
+        letter-spacing: 1.2px; text-transform: uppercase;
+        color: #66bb6a;
+    }
+    .caja-w-subtitle { margin: 0; font-size: 0.8rem; color: var(--text-secondary); }
+    .caja-widget-left  { display: flex; align-items: center; gap: 0.7rem; }
+    .caja-widget-right { margin-left: auto; }
+    .caja-widget-stats {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+        flex: 1;
+        justify-content: flex-end;
+    }
+    .caja-stat-item { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+    .caja-stat-label { font-size: 0.7rem; color: var(--text-secondary); white-space: nowrap; }
+    .caja-stat-val   { font-size: 0.95rem; font-weight: 700; color: white; }
+    .caja-stat-sep   { width: 1px; height: 30px; background: rgba(255,255,255,0.12); margin: 0 0.2rem; }
+    .caja-green  { color: #66bb6a; }
+    .caja-big    { font-size: 1.25rem; color: var(--primary); }
+    .btn-caja {
+        padding: 0.5rem 1.1rem; border-radius: 9999px;
+        font-weight: 700; font-size: 0.82rem; text-transform: uppercase;
+        letter-spacing: 0.4px; text-decoration: none; white-space: nowrap;
+        transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 0.3rem;
+        border: none; cursor: pointer; font-family: inherit;
+    }
+    .btn-caja-cerrar {
+        background: rgba(229, 57, 53, 0.15);
+        border: 1px solid rgba(229, 57, 53, 0.5);
+        color: #ef9a9a;
+    }
+    .btn-caja-cerrar:hover { background: rgba(229,57,53,0.3); color: white; }
+    .btn-caja-abrir {
+        background: rgba(var(--primary-rgb), 0.15);
+        border: 1px solid rgba(var(--primary-rgb), 0.5);
+        color: var(--primary);
+    }
+    .btn-caja-abrir:hover { background: rgba(var(--primary-rgb), 0.3); color: white; }
 </style>
 {% endblock %}

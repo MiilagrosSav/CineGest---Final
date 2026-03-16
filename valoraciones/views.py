@@ -1,5 +1,6 @@
 from django.shortcuts import get_object_or_404, redirect, render
 from django.http import JsonResponse
+from django.db.models import Q
 import logging
 
 logger = logging.getLogger(__name__)
@@ -191,7 +192,7 @@ def modal_valoracion(request):
             # Mensaje más detallado según la razón
             from valoraciones.models import Valoracion
             if Valoracion.objects.filter(cliente=cliente, funcion=funcion).exists():
-                messages.warning(request, '✅ Ya valoraste esta función anteriormente.')
+                messages.warning(request, 'Ya valoraste esta función anteriormente.')
             else:
                 from django.utils import timezone
                 try:
@@ -314,3 +315,189 @@ def obtener_valoraciones_pelicula(request, pelicula_id):
             'message': 'Error al cargar valoraciones.'
         }, status=500)
 
+
+@login_required
+def mis_resenas(request):
+    """
+    Vista para que el cliente vea sus valoraciones (reseñas) y cree nuevas.
+    - Pendientes limitadas a los últimos 30 días.
+    - Publicadas paginadas (6 por página) con soporte AJAX.
+    """
+    from valoraciones.models import Valoracion
+    from ventas.models import Entrada
+    from datetime import timedelta
+    from django.utils import timezone
+    from django.core.paginator import Paginator
+
+    if hasattr(request.user, 'rol') and request.user.rol == 'empleado':
+        messages.warning(request, '⚠️ Los empleados no tienen reseñas propias.')
+        return redirect('accounts:dashboard')
+
+    try:
+        cliente = Cliente.objects.get(usuario=request.user)
+    except Cliente.DoesNotExist:
+        messages.error(request, '⚠️ No tenés perfil de cliente.')
+        return redirect('accounts:dashboard')
+
+    # Valoraciones paginadas
+    valoraciones_qs = Valoracion.objects.filter(
+        cliente=cliente
+    ).select_related('pelicula', 'funcion').order_by('-fecha_creacion')
+
+    paginator = Paginator(valoraciones_qs, 6)
+    page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    # Respuesta AJAX: devolver solo el HTML de las cards
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        from django.template.loader import render_to_string
+        html = render_to_string(
+            'valoraciones/_resenas_cards.html',
+            {'page_obj': page_obj},
+            request=request,
+        )
+        return JsonResponse({
+            'html': html,
+            'has_next': page_obj.has_next(),
+            'has_previous': page_obj.has_previous(),
+            'current_page': page_obj.number,
+            'num_pages': paginator.num_pages,
+        })
+
+    # Pendientes: solo de los últimos 30 días
+    ahora = timezone.now()
+    limite = ahora - timedelta(days=30)
+    ya_valoradas_ids = set(valoraciones_qs.values_list('funcion_id', flat=True))
+
+    entradas_pendientes = (
+        Entrada.objects
+        .filter(
+            id_venta__id_cliente=cliente,
+            estado__in=['VENDIDA', 'USADA'],
+            id_funcion__fecha_hora__gte=limite,
+        )
+        .exclude(id_funcion_id__in=ya_valoradas_ids)
+        .select_related('id_funcion', 'id_funcion__pelicula')
+        .order_by('-id_funcion__fecha_hora')
+    )
+
+    funciones_pendientes = []
+    vistas = set()
+    for entrada in entradas_pendientes:
+        funcion = entrada.id_funcion
+        if funcion.id in vistas:
+            continue
+        try:
+            fin = funcion.get_hora_fin()
+        except Exception:
+            try:
+                fin = funcion.fecha_hora + timedelta(minutes=funcion.pelicula.duracion)
+            except Exception:
+                continue
+        if fin and fin <= ahora:
+            vistas.add(funcion.id)
+            funciones_pendientes.append(funcion)
+
+    context = {
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'funciones_pendientes': funciones_pendientes,
+    }
+    return render(request, 'valoraciones/mis_resenas.html', context)
+
+
+@login_required
+@require_POST
+def crear_resena(request):
+    """Crea una valoración (reseña) para una función ya vista."""
+    from valoraciones.models import Valoracion
+    from cine.models.funcion import Funcion as FuncionModel
+    from valoraciones.services import puede_valorar
+
+    funcion_id = request.POST.get('funcion_id')
+    puntuacion = request.POST.get('puntuacion')
+    comentario = request.POST.get('comentario', '').strip()
+
+    if not funcion_id or not puntuacion:
+        messages.error(request, '❌ Debés seleccionar una puntuación.')
+        return redirect('valoraciones:mis_resenas')
+
+    try:
+        puntuacion = int(puntuacion)
+        if puntuacion < 1 or puntuacion > 5:
+            raise ValueError
+    except ValueError:
+        messages.error(request, '❌ Puntuación inválida.')
+        return redirect('valoraciones:mis_resenas')
+
+    funcion = get_object_or_404(FuncionModel, pk=funcion_id)
+
+    try:
+        cliente = Cliente.objects.get(usuario=request.user)
+    except Cliente.DoesNotExist:
+        messages.error(request, '⚠️ No tenés perfil de cliente.')
+        return redirect('valoraciones:mis_resenas')
+
+    if not puede_valorar(cliente, funcion):
+        messages.error(request, '❌ No podés valorar esta función (ya la valoraste o aún no terminó).')
+        return redirect('valoraciones:mis_resenas')
+
+    Valoracion.objects.create(
+        cliente=cliente,
+        pelicula=funcion.pelicula,
+        funcion=funcion,
+        puntuacion=puntuacion,
+        comentario=comentario[:500],
+    )
+
+    messages.success(request, f' ¡Reseña de "{funcion.pelicula.titulo}" guardada!')
+    return redirect('valoraciones:mis_resenas')
+
+
+@login_required
+def gestion_resenas(request):
+    """
+    Vista de administración para gestionar todas las reseñas del sistema.
+    Solo accesible para admin/superuser.
+    Permite eliminar reseñas individuales.
+    """
+    from valoraciones.models import Valoracion
+
+    if not (request.user.is_superuser or getattr(request.user, 'rol', None) == 'admin'):
+        messages.error(request, '⛔ No tenés permiso para acceder a esta sección.')
+        return redirect('accounts:dashboard')
+
+    # Eliminación de valoración individual
+    if request.method == 'POST':
+        val_id = request.POST.get('eliminar_resena_id')
+        if val_id:
+            try:
+                Valoracion.objects.get(pk=int(val_id)).delete()
+                messages.success(request, '✅ Reseña eliminada correctamente.')
+            except (Valoracion.DoesNotExist, ValueError):
+                messages.error(request, '❌ La reseña no existe o ya fue eliminada.')
+        return redirect('valoraciones:gestion_resenas')
+
+    # Filtros opcionales por GET
+    q_pelicula = request.GET.get('pelicula', '').strip()
+    q_usuario = request.GET.get('usuario', '').strip()
+
+    valoraciones = Valoracion.objects.select_related(
+        'cliente__usuario', 'pelicula', 'funcion'
+    ).order_by('-fecha_creacion')
+
+    if q_pelicula:
+        valoraciones = valoraciones.filter(pelicula__titulo__icontains=q_pelicula)
+    if q_usuario:
+        valoraciones = valoraciones.filter(
+            Q(cliente__usuario__username__icontains=q_usuario) |
+            Q(cliente__usuario__first_name__icontains=q_usuario) |
+            Q(cliente__usuario__last_name__icontains=q_usuario)
+        )
+
+    context = {
+        'resenas': valoraciones,          # mismo nombre para no cambiar el template
+        'q_pelicula': q_pelicula,
+        'q_usuario': q_usuario,
+        'total': valoraciones.count(),
+    }
+    return render(request, 'valoraciones/gestion_resenas.html', context)

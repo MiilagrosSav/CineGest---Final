@@ -76,10 +76,6 @@ class IntercambioService:
         Returns:
             Tuple[bool, str]: (es_valido, mensaje_error)
         """
-        # Validar que la venta no usó un cupón (las compras con cupón no permiten intercambio)
-        if venta.cupon_utilizado:
-            return (False, 'Las compras realizadas con cupón no son elegibles para intercambio.')
-        
         # Obtener política si no se proveyó
         if politica is None:
             politica = self.obtener_politica_activa()
@@ -88,36 +84,7 @@ class IntercambioService:
         if not politica or not politica.activo:
             return (False, 'No hay una política de intercambio activa en este momento.')
         
-        # Validar venta tiene entradas
-        entradas = venta.entradas.filter(estado__in=EstadoEntrada.ESTADOS_ACTIVOS)
-        if not entradas.exists():
-            return (False, 'La compra no tiene entradas activas para intercambiar.')
-        
-        # Obtener función original
-        funcion_origen = entradas.first().id_funcion
-        
-        # Validar tiempo de anticipación
-        ahora = timezone.now()
-        horas_minimas = politica.dias_antes_minimo * 24
-        horas_restantes = (funcion_origen.fecha_hora - ahora).total_seconds() / 3600.0
-        
-        if horas_restantes < horas_minimas:
-            return (False, f'Los intercambios requieren al menos {politica.dias_antes_minimo} día(s) de anticipación.')
-        
-        # Validar que la función destino es futura
-        if funcion_destino.fecha_hora <= ahora:
-            return (False, 'La función seleccionada ya pasó o está en curso.')
-        
-        # Validar mismo precio
-        if funcion_origen.precio_base != funcion_destino.precio_base:
-            return (False, 'Solo puedes intercambiar por funciones del mismo precio.')
-        
-        # Validar límite de intercambios
-        puede, mensaje = Intercambio.puede_intercambiar(venta, politica)
-        if not puede:
-            return (False, mensaje)
-        
-        return (True, '')
+        return politica.validar_intercambio(venta, funcion_destino)
     
     def verificar_disponibilidad(
         self,
@@ -265,9 +232,18 @@ class IntercambioService:
                             id_sala=funcion_destino.sala,
                             id_butaca=butaca,
                             id_pelicula=funcion_destino.pelicula,
-                            estado=EstadoEntrada.VENDIDA  # VENDIDA porque el intercambio no requiere pago
+                            reservado_por=venta.id_cliente.usuario,
+                            estado=EstadoEntrada.VENDIDA,  # VENDIDA porque el intercambio no requiere pago
+                            precio_unitario=Decimal(str(funcion_destino.precio_base)),
                         )
                         nuevas_entradas.append(entrada)
+
+                    # Recalcular disponibilidad en origen/destino
+                    try:
+                        funcion_origen.actualizar_estado_por_disponibilidad()
+                        funcion_destino.actualizar_estado_por_disponibilidad()
+                    except Exception:
+                        pass
                     
                     self.logger.info(
                         f"Creadas {len(nuevas_entradas)} nuevas entradas para venta {venta.id_venta}"
@@ -290,18 +266,19 @@ class IntercambioService:
                             descripcion='Intercambio de entradas sin costo adicional'
                         )
                     
-                    # Actualizar pago existente o crear uno nuevo
-                    pago, created = Pago.objects.update_or_create(
-                        id_venta=venta,
-                        defaults={
-                            'monto': Decimal('0.00'),
-                            'estado': 'COMPLETADO',
-                            'id_metodo_pago': metodo_intercambio,
-                            'nro_transaccion': f'INTERCAMBIO-{venta.id_venta}'
-                        }
-                    )
-                    action = "creado" if created else "actualizado"
-                    self.logger.info(f"Registro de pago {action} para intercambio venta {venta.id_venta}")
+                    # Mantener pago original intacto; solo crear si no existe ninguno
+                    try:
+                        pago = Pago.objects.get(id_venta=venta)
+                        self.logger.info(f"Pago existente conservado para intercambio venta {venta.id_venta}")
+                    except Pago.DoesNotExist:
+                        pago = Pago.objects.create(
+                            id_venta=venta,
+                            monto=Decimal('0.00'),
+                            estado='COMPLETADO',
+                            id_metodo_pago=metodo_intercambio,
+                            nro_transaccion=f'INTERCAMBIO-{venta.id_venta}'
+                        )
+                        self.logger.info(f"Registro de pago creado para intercambio venta {venta.id_venta}")
                     
                     # 7. Registrar intercambio en auditoría
                     intercambio = Intercambio.objects.create(
@@ -338,7 +315,9 @@ class IntercambioService:
                 try:
                     from promociones.services import procesar_butaca_liberada
                     # cliente_excluido: el cliente de la venta que liberó las butacas
-                    procesar_butaca_liberada(funcion_origen, cliente_excluido=venta.id_cliente)
+                    # ignorar_ventana=True: cuando se libera una butaca hay que notificar de inmediato
+                    # sin importar las horas de anticipación configuradas en la política
+                    procesar_butaca_liberada(funcion_origen, cliente_excluido=venta.id_cliente, ignorar_ventana=True)
                 except Exception as e:
                     self.logger.error(f"Error procesando butaca liberada para marketing: {e}")
 

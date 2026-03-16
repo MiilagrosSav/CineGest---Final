@@ -8,6 +8,10 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.shortcuts import redirect
+from cine.services.tmdb_service import tmdb_service
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # --- Vistas del CRUD de Películas ---
@@ -77,14 +81,47 @@ class PeliculaCreateView(AdminRequiredMixin, CreateView):
         context = super().get_context_data(**kwargs)
         context['titulo_pagina'] = '🎬 Añadir Nueva Película'
         context['nombre_boton'] = '✨ Crear Película'
+        context['titulo_ayuda_extra'] = 'El titulo puede ser solo numeros.'
         # Pasar la lista de géneros para renderizado en plantilla (checkboxes)
         context['generos'] = Genero.objects.all().order_by('nombre')
         return context
     
     def form_valid(self, form):
-        """Capturar ValidationError del modelo y mostrarlo en el formulario"""
+        """
+        Capturar ValidationError del modelo y descargar póster desde TMDB si aplica
+        """
         try:
-            return super().form_valid(form)
+            # Verificar si se proporcionó un poster_path de TMDB
+            tmdb_poster_path = self.request.POST.get('tmdb_poster_path', '').strip()
+            
+            if tmdb_poster_path:
+                logger.info(f"Descargando póster desde TMDB: {tmdb_poster_path}")
+                
+                # Descargar y redimensionar el póster
+                poster_file = tmdb_service.download_poster(tmdb_poster_path)
+                
+                if poster_file:
+                    # Guardar el póster en el campo imagen_local
+                    form.instance.imagen_local = poster_file
+                    logger.info("Póster descargado y asignado correctamente")
+
+                else:
+                    logger.warning("No se pudo descargar el póster desde TMDB")
+                    messages.warning(
+                        self.request,
+                        'No se pudo descargar el póster automáticamente. Puedes subirlo manualmente más tarde.'
+                    )
+            
+            # Guardar la película
+            response = super().form_valid(form)
+            if getattr(form, 'director_warning_message', None):
+                messages.warning(self.request, form.director_warning_message)
+            messages.success(
+                self.request,
+                f'✓ Película "{form.instance.titulo}" creada exitosamente'
+            )
+            return response
+            
         except ValidationError as e:
             # Convertir ValidationError del modelo a errores de formulario
             if hasattr(e, 'error_dict'):
@@ -106,14 +143,62 @@ class PeliculaUpdateView(AdminRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context['titulo_pagina'] = 'Editar Película'
         context['nombre_boton'] = 'Guardar Cambios'
+        context['titulo_ayuda_extra'] = 'El titulo puede ser solo numeros.'
         # Pasar la lista de géneros para renderizado en plantilla (checkboxes)
         context['generos'] = Genero.objects.all().order_by('nombre')
         return context
     
     def form_valid(self, form):
-        """Capturar ValidationError del modelo y mostrarlo en el formulario"""
+        """
+        Capturar ValidationError del modelo y descargar póster desde TMDB si aplica
+        """
         try:
-            return super().form_valid(form)
+            if form.cleaned_data.get('desactivar'):
+                funciones_activas = self.object.funciones.filter(
+                    activo=True,
+                    fecha_hora__gte=timezone.now(),
+                ).exclude(estado='INACTIVA').exists()
+                if funciones_activas:
+                    form.add_error('desactivar', 'No se puede desactivar porque hay funciones activas.')
+                    return self.form_invalid(form)
+
+                self.object.soft_delete(user=self.request.user)
+                messages.success(
+                    self.request,
+                    f'✓ Película "{self.object.titulo}" desactivada correctamente.'
+                )
+                return redirect(self.success_url)
+
+            # Verificar si se proporcionó un nuevo poster_path de TMDB
+            tmdb_poster_path = self.request.POST.get('tmdb_poster_path', '').strip()
+            
+            if tmdb_poster_path:
+                logger.info(f"Actualizando póster desde TMDB: {tmdb_poster_path}")
+                
+                # Descargar y redimensionar el póster
+                poster_file = tmdb_service.download_poster(tmdb_poster_path)
+                
+                if poster_file:
+                    # Actualizar el póster en el campo imagen_local
+                    form.instance.imagen_local = poster_file
+                    logger.info("Póster actualizado correctamente")
+                else:
+                    logger.warning("No se pudo descargar el póster desde TMDB")
+                    messages.warning(
+                        self.request,
+                        'No se pudo actualizar el póster automáticamente.'
+                    )
+            
+            # Guardar los cambios
+            response = super().form_valid(form)
+            if getattr(form, 'director_warning_message', None):
+                messages.warning(self.request, form.director_warning_message)
+            messages.success(
+                self.request,
+                f'✓ Película "{form.instance.titulo}" actualizada exitosamente'
+            )
+            return response
+            
         except ValidationError as e:
             # Convertir ValidationError del modelo a errores de formulario
             if hasattr(e, 'error_dict'):

@@ -1,5 +1,6 @@
 from django.db import models
 from django.core.validators import RegexValidator
+from django.utils import timezone
 from simple_history.models import HistoricalRecords
 from cloudinary.models import CloudinaryField
 from cine.image_utils import procesar_imagen_hibrida, verificar_conexion_cloudinary
@@ -68,6 +69,13 @@ class ConfiguracionCine(models.Model):
         max_length=200,
         verbose_name="Razón Social",
         help_text="Nombre legal de la empresa"
+    )
+
+    fecha_inicio_actividad = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Fecha de Inicio de Actividad",
+        help_text="Fecha en que el cine comenzó sus actividades (para comprobantes)"
     )
     
     # Datos de contacto
@@ -144,25 +152,15 @@ class ConfiguracionCine(models.Model):
     def get_logo_url(self):
         """
         Devuelve la URL del logo del cine.
-        
-        Lógica híbrida:
-        1. Si hay conexión a Cloudinary y existe logo_red, devuelve URL de Cloudinary
-        2. Si no hay conexión o logo_red está vacío, devuelve URL local
-        3. Si logo_local está vacío, busca en logo (retrocompatibilidad)
-        4. Si no hay ningún logo, devuelve URL de placeholder
+
+        Lógica local-first (optimización de rendimiento):
+        1. Usa logo_local
+        2. Si no existe, usa logo (retrocompatibilidad)
+        3. Si no hay logo, devuelve placeholder
         
         Returns:
             str: URL del logo (Cloudinary, local o placeholder)
         """
-        # Intentar usar Cloudinary primero
-        if self.logo_red:
-            try:
-                # Verificar si hay conexión antes de intentar obtener la URL
-                if verificar_conexion_cloudinary():
-                    return self.logo_red.url
-            except Exception as e:
-                logger.warning(f"Error al obtener URL de Cloudinary para logo: {e}")
-        
         # Fallback 1: Usar logo local optimizado
         if self.logo_local:
             try:
@@ -205,6 +203,12 @@ class ConfiguracionCine(models.Model):
                 'reserva_tiempo_espera': "El tiempo de reserva no puede superar los 60 minutos."
             })
 
+        # 3. No permitir fecha de inicio de actividad en el futuro.
+        if self.fecha_inicio_actividad and self.fecha_inicio_actividad > timezone.localdate():
+            raise ValidationError({
+                'fecha_inicio_actividad': "La fecha de inicio de actividad no puede ser futura."
+            })
+
         # NOTA: La validación de horarios de apertura/cierre fue removida porque
         # ahora se usa el sistema flexible de HorarioAtencion por día de la semana.
         # Cada día tiene sus propios rangos horarios configurados en HorarioAtencion.
@@ -244,10 +248,10 @@ class ConfiguracionCine(models.Model):
         
         # Verificar si hay un logo en el campo logo (campo legacy/formulario)
         if self.logo and hasattr(self.logo, 'file'):
-            logo_nuevo = self.logo.file
+            logo_nuevo = self.logo
         # O si se subió directamente a logo_local
         elif self.logo_local and hasattr(self.logo_local, 'file'):
-            logo_nuevo = self.logo_local.file
+            logo_nuevo = self.logo_local
         
         # Procesar el logo si hay uno nuevo
         if logo_nuevo:

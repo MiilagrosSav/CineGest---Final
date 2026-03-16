@@ -48,46 +48,107 @@
             </div>
         </div>
 
-        <form method="POST" action="{% url 'ventas:procesar_venta_presencial' %}" style="padding: var(--space-lg);">
+        <form method="POST" id="form-pago-presencial" action="{% url 'ventas:procesar_venta_presencial' %}" style="padding: var(--space-lg);">
             {% csrf_token %}
-            
-            <h3 style="margin: 0 0 var(--space-md) 0; font-size: 1.2rem;">💳 Medio de Pago</h3>
-            
-            <div class="payment-options-row">
-                <label class="payment-card-mini">
-                    <input type="radio" name="medio_pago" value="EFECTIVO" checked required>
-                    <div class="payment-content-mini">
-                        <span class="payment-icon-mini">💵</span>
-                        <span class="payment-title-mini">Efectivo</span>
-                    </div>
-                </label>
 
-                <label class="payment-card-mini">
-                    <input type="radio" name="medio_pago" value="MERCADOPAGO" required>
-                    <div class="payment-content-mini">
-                        <span class="payment-icon-mini">📱</span>
-                        <span class="payment-title-mini">Digital / QR</span>
-                    </div>
-                </label>
+            <h3 style="margin: 0 0 var(--space-md) 0; font-size: 1.2rem;">💳 Método de Cobro</h3>
 
-                <label class="payment-card-mini">
-                    <input type="radio" name="medio_pago" value="TARJETA" required>
-                    <div class="payment-content-mini">
-                        <span class="payment-icon-mini">💳</span>
-                        <span class="payment-title-mini">Tarjeta</span>
-                    </div>
-                </label>
+            <!-- ▋ Display de Caja ▋ -->
+            <div class="display-caja">
+                <p class="caja-label">💰 Total a Cobrar</p>
+                <p class="caja-total">${{ total|floatformat:2 }}</p>
+                <p class="caja-detalle">{{ cantidad }} entrada{{ cantidad|pluralize }} &times; ${{ precio_unitario|floatformat:2 }} c/u</p>
             </div>
 
-            <div style="margin-top: 2rem; display: flex; gap: var(--space-md); justify-content: center;">
-                <a href="{% url 'ventas:dashboard_presencial' %}" class="btn btn-outline">
-                    Cancelar
-                </a>
-                <button type="submit" class="btn btn-primary">
-                    Confirmar Venta
+            <input type="hidden" name="medio_pago" id="id_medio_pago" value="">
+
+            <!-- Campo opcional de correo para enviar ticket -->
+            <div style="margin-bottom: 1.5rem;">
+                <label for="id_email_cliente" style="display:block; font-size:0.75rem; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:0.5rem;">
+                    📧 Correo del cliente <span style="opacity:0.5; font-weight:400; text-transform:none;">(opcional — para enviar el ticket)</span>
+                </label>
+                <input
+                    type="email"
+                    id="id_email_cliente"
+                    name="email_cliente"
+                    placeholder="cliente@ejemplo.com"
+                    autocomplete="email"
+                    style="width:100%; box-sizing:border-box; padding:0.7rem 1rem; font-size:0.95rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-radius:10px; color:white; outline:none; transition:border-color 0.2s;"
+                    onfocus="this.style.borderColor='var(--primary)'"
+                    onblur="this.style.borderColor='rgba(255,255,255,0.15)'"
+                >
+            </div>
+
+            <!-- Botones grandes de cobro (solo Efectivo y QR para empleados) -->
+            <div class="botones-cobro">
+                <button type="button" class="btn-cobro btn-cobro-efectivo" onclick="pagarEfectivo()">
+                    <span class="cobro-icon">💵</span>
+                    <span class="cobro-label">Cobrar en Efectivo</span>
+                </button>
+                <button type="button" class="btn-cobro btn-cobro-qr" onclick="abrirModalQR()">
+                    <span class="cobro-icon">📱</span>
+                    <span class="cobro-label">Cobrar por QR</span>
                 </button>
             </div>
+
+            <div style="margin-top: 1.5rem; text-align: center;">
+                <a href="{% url 'ventas:dashboard_presencial' %}" class="btn btn-outline">Cancelar</a>
+            </div>
         </form>
+
+    </div>
+</div>
+
+<!-- ===== Modal QR de Pago ===== -->
+<div id="modal-qr-wrapper" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center; padding:1rem;">
+    <div class="modal-qr-card">
+
+        <!-- Header -->
+        <div class="modal-qr-header">
+            <span style="font-size:1.5rem;">📱</span>
+            <h2 style="margin:0; font-size:1.3rem; font-weight:700; color:white;">Cobro por QR / Mercado Pago</h2>
+        </div>
+
+        <!-- Monto a cobrar -->
+        <div class="modal-qr-monto">
+            <p style="margin:0 0 0.2rem 0; font-size:0.8rem; letter-spacing:1px; text-transform:uppercase; opacity:0.65; color:white;">Total a pagar</p>
+            <p style="margin:0 0 0.2rem 0; font-size:2.6rem; font-weight:800; color:var(--primary); line-height:1;">${{ total|floatformat:2 }}</p>
+            <p style="margin:0; font-size:0.88rem; opacity:0.55; color:white;">{{ cantidad }} entrada{{ cantidad|pluralize }} &middot; Ref.&nbsp;MP-{{ funcion.id }}</p>
+        </div>
+
+        <!-- Spinner de carga (visible mientras se genera el QR) -->
+        <div id="qr-loading" style="text-align:center; padding:1rem 0;">
+            <div style="width:50px; height:50px; border:4px solid rgba(255,255,255,0.1); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 0.8rem;"></div>
+            <p style="margin:0; opacity:0.65; font-size:0.9rem; color:white;">Generando código QR…</p>
+        </div>
+
+        <!-- QR generado dinámicamente por JS -->
+        <div class="modal-qr-img-wrapper" id="qr-img-wrapper" style="display:none;">
+            <img id="qr-pago-img" src="" alt="Código QR de Pago"
+                 width="260" height="260"
+                 style="border-radius:10px; display:block;">
+        </div>
+
+        <!-- Estado de espera -->
+        <div class="modal-qr-waiting" id="qr-waiting-row" style="display:none;">
+            <div class="waiting-dot"></div>
+            <span id="qr-status-text">Esperando pago del cliente&hellip;</span>
+        </div>
+
+        <!-- Overlay de éxito (oculto hasta que MP confirme) -->
+        <div id="qr-success-overlay" style="display:none; flex-direction:column; align-items:center; gap:1rem; text-align:center;">
+            <div style="font-size:4rem; animation:pop-in 0.4s ease;">✅</div>
+            <p style="margin:0; font-size:1.4rem; font-weight:800; color:#66bb6a;">¡Pago Confirmado!</p>
+            <p style="margin:0; font-size:0.9rem; opacity:0.7; color:white;">Cargando tickets…</p>
+        </div>
+
+        <!-- Acciones -->
+        <div class="modal-qr-actions" id="qr-actions-row" style="display:none;">
+            <button type="button" class="btn btn-outline" id="btn-cancelar-qr" onclick="cerrarModalQR()"
+                    style="min-width:130px;">
+                ✕&nbsp; Cancelar
+            </button>
+        </div>
 
     </div>
 </div>
@@ -179,5 +240,369 @@
     
     .btn-outline { background: transparent; color: white; border: 2px solid rgba(255, 255, 255, 0.3); }
     .btn-outline:hover { background: rgba(255, 255, 255, 0.08); border-color: white; transform: translateY(-1px); }
+
+    /* === Display de Caja === */
+    .display-caja {
+        text-align: center;
+        background: rgba(var(--primary-rgb), 0.08);
+        border: 1px solid rgba(var(--primary-rgb), 0.3);
+        border-radius: 14px;
+        padding: 1.2rem 1rem;
+        margin-bottom: 1.8rem;
+    }
+    .caja-label {
+        margin: 0 0 0.3rem 0;
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 1.2px;
+        text-transform: uppercase;
+        color: var(--text-secondary);
+    }
+    .caja-total {
+        margin: 0 0 0.25rem 0;
+        font-size: 3rem;
+        font-weight: 800;
+        color: var(--primary);
+        line-height: 1;
+    }
+    .caja-detalle {
+        margin: 0;
+        font-size: 0.88rem;
+        opacity: 0.6;
+        color: white;
+    }
+
+    /* === Botones grandes de cobro === */
+    .botones-cobro {
+        display: flex;
+        gap: 1.2rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+    .btn-cobro {
+        flex: 1 1 0;
+        min-width: 150px;
+        max-width: 220px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 1.6rem 1rem;
+        border-radius: 18px;
+        border: 2px solid rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.03);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: white;
+        font-family: inherit;
+    }
+    .btn-cobro:hover   { transform: translateY(-3px); background: rgba(255,255,255,0.07); }
+    .btn-cobro:active  { transform: translateY(0); }
+    .cobro-icon  { font-size: 2.4rem; }
+    .cobro-label { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.3px; text-align:center; }
+    .btn-cobro-efectivo:hover { border-color: #66bb6a; box-shadow: 0 4px 20px rgba(102,187,106,0.2); }
+    .btn-cobro-qr:hover       { border-color: var(--primary); box-shadow: 0 4px 20px rgba(var(--primary-rgb),0.25); }
+
+    /* === Modal QR === */
+    .modal-qr-card {
+        background: #16162a;
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 24px;
+        padding: 2rem 2.2rem;
+        max-width: 400px;
+        width: 92vw;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.3rem;
+        box-shadow: 0 30px 90px rgba(0,0,0,0.75);
+    }
+    .modal-qr-header  { display:flex; align-items:center; gap:0.7rem; }
+    .modal-qr-monto   { text-align:center; }
+    .modal-qr-img-wrapper {
+        background: white;
+        border-radius: 14px;
+        padding: 12px;
+        display: inline-flex;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .modal-qr-waiting {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        color: #90caf9;
+        font-size: 0.93rem;
+        font-weight: 500;
+    }
+    .waiting-dot {
+        width: 10px; height: 10px;
+        border-radius: 50%;
+        background: #42a5f5;
+        animation: pulse-dot 1.4s ease-in-out infinite;
+        flex-shrink: 0;
+    }
+    @keyframes pulse-dot {
+        0%, 100% { transform: scale(1);   opacity: 1; }
+        50%       { transform: scale(1.7); opacity: 0.4; }
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    @keyframes pop-in {
+        0%   { transform: scale(0.3); opacity: 0; }
+        70%  { transform: scale(1.15); }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .modal-qr-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        width: 100%;
+        align-items: center;
+    }
+
+    /* === Modal Efectivo / Vuelto === */
+    .modal-ef-card {
+        background: #16162a;
+        border: 1px solid rgba(255,255,255,0.14);
+        border-radius: 24px;
+        padding: 2rem 2.2rem;
+        max-width: 380px;
+        width: 92vw;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1.3rem;
+        box-shadow: 0 30px 90px rgba(0,0,0,0.75);
+    }
+    .vuelto-display {
+        font-size: 3rem;
+        font-weight: 900;
+        color: #66bb6a;
+        line-height: 1;
+        transition: color 0.2s;
+    }
+    .vuelto-display.insuficiente { color: #ef9a9a; }
 </style>
+
+<!-- ===== Modal Efectivo / Calculadora de Vuelto ===== -->
+<div id="modal-ef-wrapper" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999; justify-content:center; align-items:center; padding:1rem;">
+    <div class="modal-ef-card">
+
+        <div style="display:flex; align-items:center; gap:0.7rem;">
+            <span style="font-size:1.5rem;">💵</span>
+            <h2 style="margin:0; font-size:1.3rem; font-weight:700; color:white;">Cobro en Efectivo</h2>
+        </div>
+
+        <!-- Total a cobrar -->
+        <div style="text-align:center;">
+            <p style="margin:0 0 0.2rem 0; font-size:0.75rem; letter-spacing:1px; text-transform:uppercase; opacity:0.6; color:white;">Total a cobrar</p>
+            <p style="margin:0; font-size:2.2rem; font-weight:800; color:var(--primary); line-height:1;">${{ total|floatformat:2 }}</p>
+        </div>
+
+        <!-- Campo paga con -->
+        <div style="width:100%;">
+            <label style="display:block; font-size:0.75rem; font-weight:700; letter-spacing:0.8px; text-transform:uppercase; color:rgba(255,255,255,0.55); margin-bottom:0.4rem;">
+                Paga con $
+            </label>
+            <div style="position:relative;">
+                <span style="position:absolute; left:0.9rem; top:50%; transform:translateY(-50%); color:var(--primary); font-size:1.3rem; font-weight:700; pointer-events:none;">$</span>
+                <input
+                    type="number"
+                    id="ef-paga-con"
+                    min="0" step="0.01"
+                    value="{{ total|floatformat:2 }}"
+                    autofocus
+                    style="width:100%; box-sizing:border-box; padding:0.9rem 0.9rem 0.9rem 2.4rem; font-size:1.8rem; font-weight:700; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.2); border-radius:12px; color:white; text-align:right;"
+                >
+            </div>
+        </div>
+
+        <!-- Vuelto calculado -->
+        <div style="text-align:center; width:100%; background:rgba(102,187,106,0.06); border:1px solid rgba(102,187,106,0.2); border-radius:14px; padding:1rem;" id="vuelto-box">
+            <p style="margin:0 0 0.3rem 0; font-size:0.75rem; letter-spacing:1px; text-transform:uppercase; opacity:0.6; color:white;">Vuelto</p>
+            <p class="vuelto-display" id="vuelto-display">$0.00</p>
+        </div>
+
+        <!-- Botones -->
+        <div style="display:flex; flex-direction:column; gap:0.75rem; width:100%; align-items:center;">
+            <button type="button" id="btn-confirmar-efectivo" class="btn btn-primary"
+                    onclick="confirmarPagoEfectivo()"
+                    style="min-width:230px; font-size:1rem; padding:0.85rem 1.5rem;">
+                ✅&nbsp; Confirmar Cobro
+            </button>
+            <button type="button" class="btn btn-outline" onclick="cerrarModalEfectivo()">
+                ✕&nbsp; Cancelar
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const _form   = document.getElementById('form-pago-presencial');
+    const _total  = parseFloat('{{ total|floatformat:2 }}');
+
+    // ── Efectivo ──────────────────────────────────────────
+    function pagarEfectivo() {
+        document.getElementById('id_medio_pago').value = 'EFECTIVO';
+        const wrapper = document.getElementById('modal-ef-wrapper');
+        wrapper.style.display = 'flex';
+        const inp = document.getElementById('ef-paga-con');
+        inp.value = _total.toFixed(2);
+        inp.focus();
+        inp.select();
+        calcularVuelto();
+    }
+
+    function calcularVuelto() {
+        const pagaCon = parseFloat(document.getElementById('ef-paga-con').value) || 0;
+        const vuelto  = pagaCon - _total;
+        const disp    = document.getElementById('vuelto-display');
+        const box     = document.getElementById('vuelto-box');
+        const btn     = document.getElementById('btn-confirmar-efectivo');
+        const fmt     = (n) => '$' + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+
+        if (vuelto < -0.005) {
+            disp.textContent = '— Monto insuficiente';
+            disp.style.fontSize = '1.3rem';
+            disp.classList.add('insuficiente');
+            box.style.background = 'rgba(229,57,53,0.06)';
+            box.style.borderColor = 'rgba(229,57,53,0.25)';
+            btn.disabled = true;
+            btn.style.opacity = '0.45';
+        } else {
+            disp.textContent = fmt(vuelto);
+            disp.style.fontSize = '3rem';
+            disp.classList.remove('insuficiente');
+            box.style.background = 'rgba(102,187,106,0.06)';
+            box.style.borderColor = 'rgba(102,187,106,0.2)';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('ef-paga-con').addEventListener('input', calcularVuelto);
+        document.getElementById('ef-paga-con').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !document.getElementById('btn-confirmar-efectivo').disabled) {
+                confirmarPagoEfectivo();
+            }
+        });
+    });
+
+    function confirmarPagoEfectivo() {
+        const btn = document.getElementById('btn-confirmar-efectivo');
+        btn.disabled = true;
+        btn.textContent = '⏳ Procesando…';
+        _form.submit();
+    }
+
+    function cerrarModalEfectivo() {
+        document.getElementById('modal-ef-wrapper').style.display = 'none';
+        document.getElementById('id_medio_pago').value = '';
+    }
+
+    document.getElementById('modal-ef-wrapper').addEventListener('click', function(e) {
+        if (e.target === this) cerrarModalEfectivo();
+    });
+
+    // ── QR (Mercado Pago real) ─────────────────────────────
+    let _ventaQrId   = null;
+    let _pollTimer   = null;
+    const _crearPrefUrl  = '{% url "ventas:presencial_crear_preferencia_qr" %}';
+    const _csrfToken     = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    function _qrSetState(state) {
+        // states: 'loading' | 'qr' | 'success'
+        document.getElementById('qr-loading').style.display       = state === 'loading' ? 'block' : 'none';
+        document.getElementById('qr-img-wrapper').style.display   = state === 'qr'      ? 'inline-flex' : 'none';
+        document.getElementById('qr-waiting-row').style.display   = state === 'qr'      ? 'flex' : 'none';
+        document.getElementById('qr-actions-row').style.display   = (state === 'qr' || state === 'loading') ? 'flex' : 'none';
+        document.getElementById('qr-success-overlay').style.display = state === 'success' ? 'flex' : 'none';
+        // lock cancel button during loading
+        document.getElementById('btn-cancelar-qr').disabled = (state === 'loading');
+    }
+
+    async function abrirModalQR() {
+        document.getElementById('id_medio_pago').value = 'MERCADOPAGO';
+        _ventaQrId = null;
+        _qrSetState('loading');
+        document.getElementById('modal-qr-wrapper').style.display = 'flex';
+
+        const emailCliente = document.getElementById('id_email_cliente').value.trim();
+
+        let data;
+        try {
+            const resp = await fetch(_crearPrefUrl, {
+                method: 'POST',
+                headers: {'X-CSRFToken': _csrfToken, 'Content-Type': 'application/json'},
+                body: JSON.stringify({email_cliente: emailCliente || null}),
+            });
+            data = await resp.json();
+            if (!resp.ok) throw new Error(data.error || 'Error al generar QR');
+        } catch (err) {
+            alert('No se pudo generar el QR: ' + err.message);
+            cerrarModalQR();
+            return;
+        }
+
+        _ventaQrId = data.venta_id;
+        const qrData = encodeURIComponent(data.init_point);
+        document.getElementById('qr-pago-img').src =
+            'https://api.qrserver.com/v1/create-qr-code/?size=260x260&format=png' +
+            '&bgcolor=ffffff&color=000000&qzone=2&data=' + qrData;
+        _qrSetState('qr');
+        _iniciarPolling();
+    }
+
+    function _iniciarPolling() {
+        if (_pollTimer) clearInterval(_pollTimer);
+        _pollTimer = setInterval(async () => {
+            if (!_ventaQrId) return;
+            try {
+                const resp = await fetch(
+                    '/ventas/presencial/qr/estado/' + _ventaQrId + '/',
+                    {headers: {'X-CSRFToken': _csrfToken}}
+                );
+                if (!resp.ok) { clearInterval(_pollTimer); return; }
+                const d = await resp.json();
+                if (d.estado === 'CONFIRMADA') {
+                    clearInterval(_pollTimer);
+                    _pollTimer = null;
+                    _qrSetState('success');
+                    // Redirigir directo a los tickets en 1.2 segundos
+                    setTimeout(() => {
+                        window.location.href = d.ticket_url;
+                    }, 1200);
+                } else if (d.estado === 'CANCELADA' || d.estado === 'EXPIRADA') {
+                    clearInterval(_pollTimer);
+                    _pollTimer = null;
+                    document.getElementById('qr-status-text').textContent = 'Venta cancelada o expirada.';
+                }
+            } catch (_) { /* ignora errores de red transitorios */ }
+        }, 3000);
+    }
+
+    async function cerrarModalQR() {
+        if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+        if (_ventaQrId) {
+            // Cancelar la venta pendiente en el servidor
+            try {
+                await fetch('/ventas/presencial/qr/cancelar/' + _ventaQrId + '/', {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': _csrfToken},
+                });
+            } catch (_) {}
+            _ventaQrId = null;
+        }
+        document.getElementById('modal-qr-wrapper').style.display = 'none';
+        document.getElementById('id_medio_pago').value = '';
+        _qrSetState('loading');  // reset para próxima vez
+    }
+
+    document.getElementById('modal-qr-wrapper').addEventListener('click', function(e) {
+        if (e.target === this) cerrarModalQR();
+    });
+</script>
 {% endblock %}

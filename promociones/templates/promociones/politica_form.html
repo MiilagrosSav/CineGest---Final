@@ -170,25 +170,15 @@
                     </div>
                 </div>
                 
-                <div id="yield-campos" style="display: none; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-md);">
-                        <div class="form-group">
-                            <label for="{{ form.umbral_ocupacion.id_for_label }}" class="form-label">
-                                {{ form.umbral_ocupacion.label }}
-                                {% if form.umbral_ocupacion.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
-                            </label>
-                            {{ form.umbral_ocupacion }}
-                            <small class="form-text">Ej: Si ocupación &lt; 30%</small>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="{{ form.horas_anticipacion.id_for_label }}" class="form-label">
-                                {{ form.horas_anticipacion.label }}
-                                {% if form.horas_anticipacion.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
-                            </label>
-                            {{ form.horas_anticipacion }}
-                            <small class="form-text">Revisar X horas antes</small>
-                        </div>
+                <div id="yield-campos" style="display: none; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1); opacity: 0; max-height: 0; overflow: hidden; transition: opacity 0.3s ease-in-out, max-height 0.3s ease-in-out;">
+                    <div class="form-group" id="umbral-ocupacion-group">
+                        <label for="{{ form.umbral_ocupacion.id_for_label }}" class="form-label">
+                            {{ form.umbral_ocupacion.label }}
+                            {% if form.umbral_ocupacion.field.required %}<span style="color: #ff6b6b;">*</span>{% endif %}
+                        </label>
+                        {{ form.umbral_ocupacion }}
+                        {% if form.umbral_ocupacion.errors %}<span class="form-error">⚠️ {{ form.umbral_ocupacion.errors.0 }}</span>{% endif %}
+                        <small class="form-text">Ej: Si ocupación &lt; 30%</small>
                     </div>
                 </div>
             </div>

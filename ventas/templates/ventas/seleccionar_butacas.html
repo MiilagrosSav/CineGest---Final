@@ -57,6 +57,9 @@
                 {% if venta_id %}
                     <input type="hidden" name="venta_id" value="{{ venta_id }}">
                 {% endif %}
+                {% if provisional_venta_id %}
+                    <input type="hidden" name="provisional_venta_id" value="{{ provisional_venta_id }}">
+                {% endif %}
                 <div class="mapa-butacas">
                     {% for fila, butacas in butacas_por_fila %}
                     <div class="fila-butacas">
@@ -64,15 +67,17 @@
                         {% for butaca in butacas %}
                         <div class="butaca 
                                 {% if butaca.es_pasillo %}pasillo{% endif %}
-                                {% if butaca.ocupada and not butaca.es_pasillo %}ocupada{% endif %}
-                                {% if butaca.tipo == '4D' and not butaca.es_pasillo %}tipo-4d{% endif %}
-                                {% if requiere_4d and butaca.tipo != '4D' and not butaca.es_pasillo %}deshabilitada{% endif %}
-                                {% if not requiere_4d and butaca.tipo == '4D' and not butaca.es_pasillo %}deshabilitada{% endif %}"
+                                {% if butaca.en_mantenimiento and not butaca.es_pasillo %}mantenimiento{% endif %}
+                                {% if butaca.ocupada and not butaca.es_pasillo and not butaca.en_mantenimiento %}ocupada{% endif %}
+                                {% if butaca.tipo == '4D' and not butaca.es_pasillo and not butaca.en_mantenimiento %}tipo-4d{% endif %}
+                                {% if requiere_4d and butaca.tipo != '4D' and not butaca.es_pasillo and not butaca.en_mantenimiento %}deshabilitada{% endif %}
+                                {% if not requiere_4d and butaca.tipo == '4D' and not butaca.es_pasillo and not butaca.en_mantenimiento %}deshabilitada{% endif %}"
                              data-butaca-id="{{ butaca.id }}"
                              data-tipo-butaca="{{ butaca.tipo }}"
                              data-fila="{{ fila }}"
                              data-numero="{{ butaca.numero }}"
-                             {% if not butaca.ocupada and not butaca.es_pasillo %}{% if requiere_4d and butaca.tipo == '4D' or not requiere_4d and butaca.tipo != '4D' %}onclick="toggleButaca(this)"{% endif %}{% endif %}>
+                             {% if butaca.en_mantenimiento and not butaca.es_pasillo %}title="🔧 Butaca en mantenimiento"{% endif %}
+                             {% if not butaca.ocupada and not butaca.es_pasillo and not butaca.en_mantenimiento %}{% if requiere_4d and butaca.tipo == '4D' or not requiere_4d and butaca.tipo != '4D' %}onclick="toggleButaca(this)"{% endif %}{% endif %}>
                             {% if not butaca.es_pasillo %}{{ butaca.numero }}{% endif %}
                         </div>
                         {% endfor %}
@@ -93,6 +98,10 @@
                     <div class="leyenda-item">
                         <div class="leyenda-cuadro" style="background: rgba(255, 107, 107, 0.3); border-color: #ff6b6b;"></div>
                         <span>Ocupada</span>
+                    </div>
+                    <div class="leyenda-item">
+                        <div class="leyenda-cuadro" style="background: repeating-linear-gradient(45deg, #ff980033 0px, #ff980033 4px, transparent 4px, transparent 8px); border-color: #ff9800;"></div>
+                        <span>Mantenimiento</span>
                     </div>
                     <div class="leyenda-item">
                         <div class="leyenda-cuadro" style="background: linear-gradient(135deg, rgba(126, 211, 33, 0.3), rgba(106, 191, 13, 0.2)); border-color: #7ED321;"></div>

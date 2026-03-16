@@ -49,12 +49,11 @@ document.getElementById('exportPdfBtn').addEventListener('click', async function
         
         const csrftoken = getCookie('csrftoken');
         
-        // Construir URL con parámetros de estado de tablas
-        const params = new URLSearchParams({
-            fecha_inicio: window.financieroData.fechaInicio,
-            fecha_fin: window.financieroData.fechaFin,
-            ...tableStates
-        });
+        // Construir URL preservando filtros actuales + estado de tablas
+        const params = new URLSearchParams(window.location.search);
+        params.set('fecha_inicio', window.financieroData.fechaInicio);
+        params.set('fecha_fin', window.financieroData.fechaFin);
+        Object.entries(tableStates).forEach(([key, value]) => params.set(key, value));
         
         const url = `${window.financieroData.exportUrl}?${params.toString()}`;
         console.log('🔗 URL de exportación:', url);

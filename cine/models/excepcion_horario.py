@@ -196,8 +196,8 @@ class ExcepcionHorario(models.Model):
                         'hora_cierre': 'La hora de cierre debe ser posterior a la hora de apertura.'
                     })
         
-        # 6. VALIDACIÓN CRÍTICA: Si se intenta cerrar el cine, verificar ventas confirmadas
-        if self.cerrado and self.fecha:
+        # 6. VALIDACIÓN CRÍTICA: No permitir cerrar o modificar si hay ventas confirmadas para la fecha
+        if self.fecha:
             from ventas.models import Venta
             
             # Determinar rango de fechas a verificar

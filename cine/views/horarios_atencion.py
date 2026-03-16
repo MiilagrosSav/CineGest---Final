@@ -96,30 +96,51 @@ def editar_horarios_dia_view(request, dia_semana):
     ).order_by('orden', 'hora_apertura')
     
     if request.method == 'POST':
+        # Validar si hay entradas vendidas para este día en el futuro o hoy
+        from cine.models import Funcion
+        from django.utils import timezone
+
+        iso_dia = dia_semana + 1
+        hoy = timezone.now().date()
+
+        funciones_vendidas = Funcion.objects.filter(
+            fecha_hora__date__gte=hoy,
+            fecha_hora__iso_week_day=iso_dia,
+            entradas__estado__in=['VENDIDA', 'ENTREGADA', 'USADA', 'RESERVADA']
+        ).distinct()
+
+        if funciones_vendidas.exists():
+            messages.error(
+                request,
+                f'No se pueden modificar los horarios del {dia_nombre} porque actualmente hay funciones '
+                'con entradas vendidas para este día de la semana. Debes cancelar dichas ventas primero.'
+            )
+            return redirect('cine:gestionar_horarios')
+
         formset = HorarioAtencionFormSet(request.POST, queryset=queryset)
-        
+
         if formset.is_valid():
             try:
                 with transaction.atomic():
                     # Guardar todos los formularios del formset
                     instances = formset.save(commit=False)
-                    
+
                     # Asignar configuracion_cine y dia_semana a cada instancia nueva
                     for instance in instances:
                         instance.configuracion_cine = configuracion
                         instance.dia_semana = dia_semana
                         instance.save()
-                    
+
                     # Eliminar los marcados para borrar
                     for obj in formset.deleted_objects:
                         obj.delete()
-                    
+
                     messages.success(
                         request,
-                        f'✅ Horarios del {dia_nombre} actualizados correctamente.'
+                        f'Horarios del {dia_nombre} actualizados correctamente.'
                     )
                     return redirect('cine:gestionar_horarios')
-                    
+
             except ValidationError as e:
                 # Capturar errores de validación del modelo (solapamientos, etc.)
                 messages.error(request, f'❌ Error de validación: {e}')
@@ -195,10 +216,27 @@ def copiar_horarios_dia_view(request):
             total_copiados = 0
             dias_afectados = []
             dias_nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
-            
+
+            from cine.models import Funcion
+            from django.utils import timezone
+            hoy = timezone.now().date()
+
             for dia_destino in dias_destino:
-                # Si sobrescribir=True, eliminar horarios existentes del día destino
+                # Validar restricciones de funciones vendidas para el día destino
                 if sobrescribir:
+                    iso_dia = dia_destino + 1
+                    funciones_vendidas = Funcion.objects.filter(
+                        fecha_hora__date__gte=hoy,
+                        fecha_hora__iso_week_day=iso_dia,
+                        entradas__estado__in=['VENDIDA', 'ENTREGADA', 'USADA', 'RESERVADA']
+                    ).distinct()
+
+                    if funciones_vendidas.exists():
+                        dia_nombre = dias_nombres[dia_destino]
+                        return JsonResponse({
+                            'error': f'No se puede sobrescribir el horario del {dia_nombre} porque actualmente hay funciones con entradas vendidas para este día de la semana. Debes cancelar dichas ventas primero.'
+                        }, status=400)
+
                     count_eliminados = HorarioAtencion.objects.filter(
                         configuracion_cine=config,
                         dia_semana=dia_destino
@@ -222,7 +260,7 @@ def copiar_horarios_dia_view(request):
                 dias_afectados.append(dias_nombres[dia_destino])
             
             mensaje = (
-                f'✅ Copia exitosa: {len(horarios_origen)} horario(s) de '
+                f'Copia exitosa: {len(horarios_origen)} horario(s) de '
                 f'{dias_nombres[dia_origen]} copiados a {len(dias_destino)} día(s): '
                 f'{", ".join(dias_afectados)}'
             )
@@ -252,10 +290,29 @@ def eliminar_horario_view(request, horario_id):
     Vista para eliminar un horario específico.
     """
     horario = get_object_or_404(HorarioAtencion, pk=horario_id)
-    
+
     dias_nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
     dia_nombre = dias_nombres[horario.dia_semana]
     
+    # Validar si hay entradas vendidas para este día en el futuro o hoy
+    from cine.models import Funcion
+    from django.utils import timezone
+    hoy = timezone.now().date()
+    iso_dia = horario.dia_semana + 1
+    funciones_vendidas = Funcion.objects.filter(
+        fecha_hora__date__gte=hoy,
+        fecha_hora__iso_week_day=iso_dia,
+        entradas__estado__in=['VENDIDA', 'ENTREGADA', 'USADA', 'RESERVADA']
+    ).distinct()
+
+    if funciones_vendidas.exists():
+        messages.error(
+            request, 
+            f'No se puede eliminar el horario del {dia_nombre} porque actualmente hay funciones '
+            'con entradas vendidas para este día de la semana. Debes cancelar dichas ventas primero.'
+        )
+        return redirect('cine:gestionar_horarios')
+
     try:
         horario.delete()
         messages.success(
@@ -296,12 +353,12 @@ def crear_excepcion_view(request):
                     # Mensaje personalizado según tipo de excepción
                     if excepcion.cerrado:
                         mensaje = (
-                            f'✅ Excepción creada: Cine CERRADO el {excepcion.fecha.strftime("%d/%m/%Y")}. '
+                            f'Excepción creada: Cine CERRADO el {excepcion.fecha.strftime("%d/%m/%Y")}. '
                             f'Motivo: {excepcion.descripcion or "Sin especificar"}'
                         )
                     else:
                         mensaje = (
-                            f'✅ Excepción creada: Horario modificado el {excepcion.fecha.strftime("%d/%m/%Y")} '
+                            f'Excepción creada: Horario modificado el {excepcion.fecha.strftime("%d/%m/%Y")} '
                             f'({excepcion.hora_apertura.strftime("%H:%M")} - {excepcion.hora_cierre.strftime("%H:%M")}). '
                             f'Motivo: {excepcion.descripcion or "Sin especificar"}'
                         )
@@ -359,9 +416,24 @@ def editar_excepcion_view(request, excepcion_id):
     excepcion = get_object_or_404(ExcepcionHorario, pk=excepcion_id)
     
     if request.method == 'POST':
-        form = ExcepcionHorarioForm(request.POST, instance=excepcion)
+        # Validar si hay entradas vendidas en esa vieja excepcion
+        from cine.models import Funcion
+        fecha_inicio = excepcion.fecha
+        fecha_final = excepcion.fecha_fin if excepcion.fecha_fin else excepcion.fecha
         
-        if form.is_valid():
+        funciones_vendidas = Funcion.objects.filter(
+            fecha_hora__date__gte=fecha_inicio,
+            fecha_hora__date__lte=fecha_final,
+            entradas__estado__in=['VENDIDA', 'ENTREGADA', 'USADA', 'RESERVADA']
+        ).distinct()
+
+        if funciones_vendidas.exists():
+            messages.error(
+                request, 
+                'No se puede modificar la excepción de horario porque hay funciones o entradas vendidas en las fechas originales afectadas.'
+            )
+            return redirect('cine:gestionar_horarios')
+
             try:
                 with transaction.atomic():
                     excepcion = form.save()
@@ -369,12 +441,12 @@ def editar_excepcion_view(request, excepcion_id):
                     # Mensaje personalizado según tipo de excepción
                     if excepcion.cerrado:
                         mensaje = (
-                            f'✅ Excepción actualizada: Cine CERRADO el {excepcion.fecha.strftime("%d/%m/%Y")}. '
+                            f'Excepción actualizada: Cine CERRADO el {excepcion.fecha.strftime("%d/%m/%Y")}. '
                             f'Motivo: {excepcion.descripcion or "Sin especificar"}'
                         )
                     else:
                         mensaje = (
-                            f'✅ Excepción actualizada: Horario modificado el {excepcion.fecha.strftime("%d/%m/%Y")} '
+                            f'Excepción actualizada: Horario modificado el {excepcion.fecha.strftime("%d/%m/%Y")} '
                             f'({excepcion.hora_apertura.strftime("%H:%M")} - {excepcion.hora_cierre.strftime("%H:%M")}). '
                             f'Motivo: {excepcion.descripcion or "Sin especificar"}'
                         )
@@ -431,7 +503,25 @@ def eliminar_excepcion_view(request, excepcion_id):
     Muestra mensaje de confirmación y redirige al listado.
     """
     excepcion = get_object_or_404(ExcepcionHorario, pk=excepcion_id)
+
+    # Validar que no haya cancelaciones de ventas (las excepciones no se pueden eliminar si hay compras)
+    from cine.models import Funcion
+    fecha_inicio = excepcion.fecha
+    fecha_final = excepcion.fecha_fin if excepcion.fecha_fin else excepcion.fecha
     
+    funciones_vendidas = Funcion.objects.filter(
+        fecha_hora__date__gte=fecha_inicio,
+        fecha_hora__date__lte=fecha_final,
+        entradas__estado__in=['VENDIDA', 'ENTREGADA', 'USADA', 'RESERVADA']
+    ).distinct()
+
+    if funciones_vendidas.exists():
+        messages.error(
+            request, 
+            'No se puede eliminar la excepción de horario porque hay funciones o entradas vendidas en las fechas afectadas.'
+        )
+        return redirect('cine:gestionar_horarios')
+
     # Guardar información para el mensaje antes de eliminar
     fecha_str = excepcion.fecha.strftime('%d/%m/%Y')
     descripcion = excepcion.descripcion or 'Sin descripción'

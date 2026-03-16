@@ -106,7 +106,13 @@ class Venta(models.Model):
         verbose_name='Activo',
         help_text='Indica si la venta está activa o ha sido dada de baja lógicamente'
     )
-    
+    email_invitado = models.EmailField(
+        null=True,
+        blank=True,
+        verbose_name='Email Invitado',
+        help_text='Correo del comprador cuando no tiene cuenta registrada (ventas presenciales)'
+    )
+
     # Manager personalizado
     objects = VentaManager()  # Manager con método limpiar_expiradas()
     
@@ -208,9 +214,14 @@ class Venta(models.Model):
         Si la venta ya tiene un total persistido, lo retorna directamente para evitar
         discrepancias en reportes financieros.
         """
-        # ✅ OPTIMIZACIÓN: Si ya hay un total guardado y es confirmada, usarlo
-        if self.total is not None and self.estado == 'CONFIRMADA' and not include_detalle:
-            return self.total
+        # ✅ OPTIMIZACIÓN: Para confirmadas, priorizar monto financiero real.
+        if self.estado == 'CONFIRMADA' and not include_detalle:
+            if self.total is not None and self.total > 0:
+                return self.total
+
+            pago_obj = getattr(self, 'pago', None)
+            if pago_obj and pago_obj.monto is not None and pago_obj.monto > 0:
+                return pago_obj.monto
         
         # 1. Preparar datos básicos
         entradas = self.entradas.all()
@@ -276,6 +287,20 @@ class Venta(models.Model):
         
         # Fallback: Si no hay información disponible
         return 'No especificado'
+
+    @staticmethod
+    def obtener_mejor_promocion(funcion):
+        """
+        Devuelve (Promocion | None, es_especifica: bool) para la función dada.
+
+        Delega completamente en promociones.services.obtener_mejor_promocion,
+        que aplica la jerarquía de especificidad:
+          - Prioridad 1: promos con VinculoPromocional (específicas)
+          - Prioridad 2: promos globales (sin vínculos)
+          - Regla de Oro: si hay específicas, las globales son ignoradas.
+        """
+        from promociones.services import obtener_mejor_promocion as _svc
+        return _svc(funcion)
 
     # historial de cambios
     history = HistoricalRecords()

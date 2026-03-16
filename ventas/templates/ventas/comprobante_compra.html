@@ -1,0 +1,172 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Confirmaci&oacute;n de Compra #{{ venta.id_venta }} - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
+
+{% block content %}
+<div style="max-width: 640px; margin: 0 auto; padding: 0 16px 40px;">
+
+    <!-- Bot&oacute;n volver (no se imprime) -->
+    <div style="display:flex; justify-content: flex-start; margin-bottom: 14px;">
+        <a href="{% url 'ventas:detalle_venta' venta.id_venta %}"
+           style="background:#fff; color:#333; border:1.5px solid #ccc; padding:8px 18px; border-radius:6px; font-weight:600; font-size:.88rem; text-decoration:none;">
+            &#8592; Volver
+        </a>
+    </div>
+
+    <div style="background:#fff; border-radius:10px; padding:30px; box-shadow:0 2px 10px rgba(0,0,0,.1);">
+
+        <!-- ENCABEZADO -->
+        <div style="text-align:center; padding-bottom:20px; border-bottom:3px solid #27ae60; margin-bottom:30px;">
+            <h1 style="font-size:2rem; font-weight:700; color:#e74c3c; margin:0;">
+                &#127916; {{ configuracion_cine.nombre|default:"CineGest" }}
+            </h1>
+            <div style="background:#27ae60; color:#fff; padding:10px 20px; border-radius:5px; display:inline-block; margin:10px 0;">
+                &#9989; COMPRA CONFIRMADA
+            </div>
+        </div>
+
+        <h2 style="color:#2c3e50; margin-bottom:10px;">
+            &#161;Gracias por tu compra, {{ usuario.first_name|default:usuario.username }}!
+        </h2>
+        <p style="color:#555; margin-bottom:10px;">
+            Tu compra ha sido procesada exitosamente. A continuaci&oacute;n encontrar&aacute;s los detalles de tu pedido:
+        </p>
+
+        <div style="font-size:1.5rem; color:#e74c3c; font-weight:700; margin:10px 0 20px;">
+            Pedido #{{ venta.id_venta }}
+        </div>
+
+        <!-- DETALLES DE LA FUNCI&Oacute;N -->
+        <div style="background:#f8f9fa; border-left:4px solid #27ae60; padding:20px; margin:20px 0;">
+            <h3 style="margin-top:0; color:#27ae60;">&#128203; Detalles de la Funci&oacute;n</h3>
+
+            {% if primera_entrada %}
+            <div style="margin:15px 0; padding:10px; border-bottom:1px dashed #ddd;">
+                <span style="font-weight:700; color:#555; display:inline-block; width:120px;">&#127916; Pel&iacute;cula:</span>
+                <span style="color:#333;">{{ primera_entrada.id_pelicula.titulo }}</span>
+            </div>
+            <div style="margin:15px 0; padding:10px; border-bottom:1px dashed #ddd;">
+                <span style="font-weight:700; color:#555; display:inline-block; width:120px;">&#128197; Fecha:</span>
+                <span style="color:#333;">{{ primera_entrada.id_funcion.fecha_hora|date:"d/m/Y" }}</span>
+            </div>
+            <div style="margin:15px 0; padding:10px; border-bottom:1px dashed #ddd;">
+                <span style="font-weight:700; color:#555; display:inline-block; width:120px;">&#128336; Hora:</span>
+                <span style="color:#333;">{{ primera_entrada.id_funcion.fecha_hora|date:"H:i" }}h</span>
+            </div>
+            <div style="margin:15px 0; padding:10px; border-bottom:1px dashed #ddd;">
+                <span style="font-weight:700; color:#555; display:inline-block; width:120px;">&#127963; Sala:</span>
+                <span style="color:#333;">{{ primera_entrada.id_sala.nombre|default:primera_entrada.id_sala.numero }}</span>
+            </div>
+            {% else %}
+            <div style="margin:15px 0; padding:10px;">
+                <span style="font-weight:700; color:#555;">&#9888;</span>
+                <span style="color:#333;">No hay entradas disponibles</span>
+            </div>
+            {% endif %}
+
+            <div style="margin:15px 0; padding:10px;">
+                <span style="font-weight:700; color:#555; display:inline-block; width:120px;">&#127903; Cantidad:</span>
+                <span style="color:#333;">{{ cantidad }} entrada{{ cantidad|pluralize }}</span>
+            </div>
+        </div>
+
+        <!-- TICKET DIGITAL CON QR &Uacute;NICO -->
+        {% if venta.tipo_venta == 'ONLINE' and venta.codigo_compra %}
+        <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); border-radius:10px; padding:30px; text-align:center; margin:20px 0; color:white;">
+            <h3 style="margin-top:0; color:white;">&#127903; Tu Ticket Digital</h3>
+            <p style="margin-bottom:20px; font-size:14px;">Usa este c&oacute;digo &uacute;nico para toda tu compra</p>
+
+            <div style="background:white; border-radius:10px; padding:20px; display:inline-block;">
+                {% if qr_src %}
+                <img src="{{ qr_src }}" alt="QR Code Compra" width="200" height="200" style="display:block; margin:0 auto;">
+                {% endif %}
+
+                <div style="background:#f5f5f5; padding:15px; margin-top:15px; border-radius:5px;">
+                    <div style="color:#666; font-size:12px; margin-bottom:5px;">C&Oacute;DIGO DE COMPRA</div>
+                    <div style="font-family:'Courier New',monospace; font-size:24px; font-weight:700; color:#333; letter-spacing:2px;">
+                        {{ venta.codigo_compra }}
+                    </div>
+                </div>
+            </div>
+
+            <div style="background:rgba(255,255,255,.2); padding:15px; margin-top:20px; border-radius:5px; border:2px dashed rgba(255,255,255,.5);">
+                <p style="margin:0; font-size:14px; line-height:1.6;">
+                    <strong>&#128241; Instrucciones:</strong><br>
+                    Mostrá este código en la boletaría o escanealo en el kiosco para imprimir tus entradas físicas.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- BUTACAS RESERVADAS -->
+        <h3 style="color:#2c3e50;">&#129683; Tus Butacas Reservadas:</h3>
+        <div style="background:#fff; padding:10px; margin:10px 0; border-radius:5px; border:1px solid #ddd;">
+            {% for item in entradas %}
+            <div style="padding:10px; margin-bottom:8px; background:#f8f9fa; border-left:3px solid #27ae60; border-radius:3px;">
+                <div style="font-weight:700; color:#2c3e50;">&#127903; Butaca: {{ item.entrada.id_butaca.fila }}{{ item.entrada.id_butaca.numero }}</div>
+                <div style="color:#666; font-size:.95rem; margin-top:4px;">
+                    {{ item.entrada.id_pelicula.titulo }} &mdash; {{ item.entrada.id_funcion.fecha_hora|date:"d/m/Y H:i" }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- PROMOCI&Oacute;N APLICADA -->
+        {% if promocion_aplicada %}
+        <div style="background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%); border-radius:10px; padding:25px; margin:20px 0; color:white; text-align:center;">
+            <h3 style="margin-top:0; color:white;">&#127881; &#161;Promoci&oacute;n Aplicada!</h3>
+            <div style="background:rgba(255,255,255,.2); border-radius:8px; padding:15px; margin:15px 0;">
+                <div style="font-size:20px; font-weight:700; margin-bottom:5px;">{{ promocion_aplicada.nombre }}</div>
+                {% if promocion_aplicada.descripcion %}
+                <div style="font-size:14px; opacity:.95;">{{ promocion_aplicada.descripcion }}</div>
+                {% endif %}
+            </div>
+
+            {% if descuento_info %}
+            <div style="background:rgba(0,0,0,.2); border-radius:8px; padding:15px; margin-top:15px;">
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:14px;">
+                    <span>Subtotal:</span><span>${{ descuento_info.subtotal }}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:14px; color:#90EE90;">
+                    <span>Descuento:</span><span>-${{ descuento_info.descuento }}</span>
+                </div>
+                <div style="border-top:2px solid rgba(255,255,255,.3); padding-top:8px; margin-top:8px;">
+                    <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:700;">
+                        <span>Total Final:</span><span>${{ descuento_info.total_final }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- TOTAL -->
+        <div style="background:#2c3e50; color:white; padding:20px; margin:20px 0; border-radius:5px; text-align:center;">
+            <div>TOTAL PAGADO</div>
+            <div style="font-size:2rem; font-weight:700; margin:10px 0;">${{ total_real|floatformat:2 }}</div>
+        </div>
+
+        <!-- INFO IMPORTANTE -->
+        <div style="background:#fff3cd; border-left:4px solid #ffc107; padding:15px; margin:20px 0;">
+            <strong>&#8505;&#65039; Informaci&oacute;n Importante:</strong>
+            <ul style="margin:10px 0; padding-left:20px;">
+                <li>Lleg&aacute; al cine con <strong>15 minutos de anticipaci&oacute;n</strong></li>
+                <li>Pod&eacute;s intercambiar tus entradas hasta <strong>24 horas antes</strong> de la funci&oacute;n</li>
+                <li>Una vez iniciada la funci&oacute;n no se permiten intercambios</li>
+            </ul>
+        </div>
+
+        <p style="text-align:center; margin:30px 0;">
+            <strong>&#161;Disfrutá tu película! &#127871;&#127916;</strong>
+        </p>
+
+        <!-- FOOTER -->
+        <div style="margin-top:30px; padding-top:20px; border-top:1px solid #ddd; text-align:center; font-size:14px; color:#777;">
+            <p><strong>{{ configuracion_cine.nombre|default:"CineGest" }}</strong></p>
+            <p>Este comprobante fue generado el {% now "d/m/Y H:i" %}.</p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

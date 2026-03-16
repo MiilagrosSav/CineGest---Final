@@ -1,79 +1,92 @@
 from django import forms
 from django.db import models
-from .models import Pelicula, Sala, Funcion, Formato, FuncionFormato, ConfiguracionCine, Genero, ExcepcionHorario
+from .models import Pelicula, Sala, Funcion, Formato, FuncionFormato, ConfiguracionCine, Genero, Clasificacion, ExcepcionHorario, Director
 from datetime import date, datetime, timedelta
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 class PeliculaForm(forms.ModelForm):
     """
-    Formulario para crear y editar películas con validaciones HTML completas
+    Formulario profesionalizado para Pelicula con director normalizado (FK).
+    Soporta:
+    - Seleccion de director existente
+    - Alta manual de director (modal -> campos ocultos)
+    - Reuso/get_or_create para evitar duplicados
     """
-    
+
     titulo = forms.CharField(
-        label='🎬 Título de la película',
+        label='Titulo de la pelicula',
         max_length=200,
         widget=forms.TextInput(attrs={
             'class': 'form-input',
             'placeholder': 'Ej: Avatar: El Camino del Agua',
             'required': True,
-            'minlength': '2',
+            'minlength': '1',
             'maxlength': '200',
-            'title': 'El título es obligatorio (2-200 caracteres)'
+            'title': 'El titulo es obligatorio (1-200 caracteres). Puede ser numerico.'
         }),
         error_messages={
-            'required': 'El título de la película es obligatorio.',
-            'max_length': 'El título no puede tener más de 200 caracteres.'
+            'required': 'El titulo de la pelicula es obligatorio.',
+            'max_length': 'El titulo no puede tener mas de 200 caracteres.'
         }
     )
-    
+
     sinopsis = forms.CharField(
-        label='📝 Sinopsis',
+        label='Sinopsis',
         widget=forms.Textarea(attrs={
             'class': 'form-input',
-            'placeholder': 'Describe brevemente la historia de la película...',
+            'placeholder': 'Describe brevemente la historia de la pelicula...',
             'required': True,
             'minlength': '10',
             'maxlength': '1000',
             'rows': 4,
-            'title': 'Describe la película (mínimo 10 caracteres)'
+            'title': 'Describe la pelicula (minimo 10 caracteres)'
         }),
         error_messages={
             'required': 'La sinopsis es obligatoria.'
         }
     )
-    
-    director = forms.CharField(
-        label='🎭 Director',
-        max_length=100,
-        widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Ej: James Cameron',
-            'required': True,
-            'minlength': '2',
-            'maxlength': '100',
-            'pattern': '^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\\s.,-]+$',
-            'title': 'El director es obligatorio (solo letras, espacios y signos básicos)'
+
+    director = forms.ModelChoiceField(
+        label='Director',
+        queryset=Director.objects.all().order_by('apellido', 'nombre'),
+        required=False,
+        empty_label='Selecciona un director existente...',
+        widget=forms.Select(attrs={
+            'class': 'form-select',
+            'title': 'Selecciona un director existente o crea uno nuevo'
         }),
         error_messages={
-            'required': 'El director de la película es obligatorio.',
-            'max_length': 'El nombre del director no puede tener más de 100 caracteres.'
-        }
+            'invalid_choice': 'Selecciona un director valido.'
+        },
+        help_text='Puedes seleccionar uno existente o crear uno nuevo desde el boton "Nuevo director".'
     )
-    
+
+    # Campos ocultos para alta manual desde modal
+    director_usar_manual = forms.CharField(required=False, widget=forms.HiddenInput())
+    director_nombre_manual = forms.CharField(required=False, max_length=100, widget=forms.HiddenInput())
+    director_apellido_manual = forms.CharField(required=False, max_length=100, widget=forms.HiddenInput())
+    director_fecha_nacimiento_manual = forms.DateField(
+        required=False,
+        input_formats=['%Y-%m-%d'],
+        widget=forms.HiddenInput()
+    )
+    director_biografia_manual = forms.CharField(required=False, widget=forms.HiddenInput())
+    director_tmdb_id_manual = forms.IntegerField(required=False, widget=forms.HiddenInput())
+
     generos = forms.ModelMultipleChoiceField(
-        label='🎪 Géneros',
+        label='Generos',
         queryset=None,
         required=True,
         widget=forms.CheckboxSelectMultiple(attrs={'class': 'genre-checkboxes'}),
-        help_text='Selecciona uno o más géneros para la película',
+        help_text='Selecciona uno o mas generos para la pelicula',
         error_messages={
-            'required': 'Debe seleccionar al menos un género.'
+            'required': 'Debe seleccionar al menos un genero.'
         }
     )
-    
+
     duracion = forms.IntegerField(
-        label='⏰ Duración (minutos)',
+        label='Duracion (minutos)',
         widget=forms.NumberInput(attrs={
             'class': 'form-input',
             'placeholder': 'Ej: 120',
@@ -81,20 +94,20 @@ class PeliculaForm(forms.ModelForm):
             'min': '30',
             'max': '300',
             'step': '1',
-            'title': 'La duración es obligatoria (30-300 minutos)'
+            'title': 'La duracion es obligatoria (30-300 minutos)'
         }),
         error_messages={
-            'required': 'La duración de la película es obligatoria.',
-            'min_value': 'La duración mínima es de 30 minutos.',
-            'max_value': 'La duración máxima es de 300 minutos.'
+            'required': 'La duracion de la pelicula es obligatoria.',
+            'min_value': 'La duracion minima es de 30 minutos.',
+            'max_value': 'La duracion maxima es de 300 minutos.'
         }
     )
-    
+
     fecha_estreno = forms.DateField(
-        label='📅 Fecha de estreno',
-        input_formats=['%Y-%m-%d'],  # Formato ISO para HTML5
+        label='Fecha de estreno',
+        input_formats=['%Y-%m-%d'],
         widget=forms.DateInput(
-            format='%Y-%m-%d',  # Formato de salida
+            format='%Y-%m-%d',
             attrs={
                 'class': 'form-input',
                 'type': 'date',
@@ -104,92 +117,108 @@ class PeliculaForm(forms.ModelForm):
         ),
         error_messages={
             'required': 'La fecha de estreno es obligatoria.',
-            'invalid': 'Ingresa una fecha válida.'
+            'invalid': 'Ingresa una fecha valida.'
         }
     )
-    
-    clasificacion = forms.ChoiceField(
-        label='🔞 Clasificación',
-        choices=[
-            ('ATP', 'Apta para todo público'),
-            ('+13', 'Mayores de 13 años'),
-            ('+16', 'Mayores de 16 años'),
-            ('+18', 'Mayores de 18 años'),
-        ],
+
+    clasificacion = forms.ModelChoiceField(
+        label='Clasificacion',
+        queryset=Clasificacion.objects.filter(activo=True).order_by('edad_minima', 'nombre'),
+        empty_label='Selecciona una clasificacion',
         widget=forms.Select(attrs={
             'class': 'form-select',
             'required': True,
-            'title': 'Selecciona la clasificación por edad de la película'
+            'title': 'Selecciona la clasificacion por edad de la pelicula'
         }),
         error_messages={
-            'required': 'La clasificación es obligatoria.'
-        }
+            'required': 'La clasificacion es obligatoria.',
+            'invalid_choice': 'Selecciona una clasificacion valida.'
+        },
+        help_text='Clasificacion por edad segun normativa vigente'
     )
-    
+
     imagen_portada = forms.ImageField(
-        label='🖼️ Imagen de portada',
+        label='Imagen de portada (opcional si usas TMDB)',
         required=False,
         widget=forms.FileInput(attrs={
             'class': 'form-input',
             'accept': 'image/*',
-            'title': 'Selecciona una imagen para la portada (opcional)'
-        })
+            'title': 'Selecciona una imagen para la portada (opcional si buscas en TMDB)'
+        }),
+        help_text='Si importas desde TMDB, el poster se descarga automaticamente. Tambien puedes subirlo manualmente aqui.'
     )
-    
+
+    youtube_trailer_key = forms.CharField(
+        label='Trailer de YouTube (ID)',
+        max_length=20,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej: dQw4w9WgXcQ',
+            'title': 'ID del video de YouTube del trailer oficial (se autocompleta desde TMDB)'
+        }),
+        help_text='Se autocompleta desde TMDB. Tambien puedes pegar manualmente el ID del video de YouTube.'
+    )
+
+    desactivar = forms.BooleanField(
+        label='Desactivar pelicula',
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-checkbox'
+        }),
+        help_text='Dar de baja logica la pelicula (no elimina registros).'
+    )
+
     class Meta:
         model = Pelicula
-        fields = ['titulo', 'sinopsis', 'director', 'generos', 'duracion', 'fecha_estreno', 'clasificacion', 'imagen_portada', 'es_estreno', 'acepta_promociones']
-        
-    def clean_titulo(self):
-        """Validación y normalización del título"""
-        titulo = self.cleaned_data.get('titulo', '')
-        titulo = titulo.strip()
-        if len(titulo) < 2:
-            raise forms.ValidationError('El título debe tener al menos 2 caracteres.')
-        # Normalizar: Title Case
-        return titulo.title()
-    
-    def clean_director(self):
-        """Validación y normalización del director"""
-        director = self.cleaned_data.get('director', '')
-        director = director.strip()
-        if len(director) < 2:
-            raise forms.ValidationError('El nombre del director debe tener al menos 2 caracteres.')
-        # Normalizar: Title Case
-        return director.title()
+        fields = [
+            'titulo', 'sinopsis', 'director', 'generos', 'duracion',
+            'fecha_estreno', 'clasificacion', 'imagen_portada',
+            'youtube_trailer_key', 'es_estreno', 'acepta_promociones'
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Inicializar queryset de géneros dinámicamente
+        self.director_warning_message = None
+        self._director_manual_payload = None
+        self._desactivar_permitido = True
+
         try:
             self.fields['generos'].queryset = Genero.objects.all().order_by('nombre')
         except Exception:
-            # En entornos donde el modelo no existe aún (migrations) fallamos silenciosamente
             self.fields['generos'].queryset = []
 
-        # ========================================================================
-        # CONFIGURACIÓN DE WIDGET DE FECHA
-        # ========================================================================
-        # NO agregamos 'min' al widget HTML5 porque puede causar problemas con zonas horarias
-        # Las validaciones se manejan en el servidor (clean_fecha_estreno y modelo)
-        # Esto evita que el navegador rechace fechas válidas debido a diferencias de zona horaria
+        self.fields['director'].queryset = Director.objects.all().order_by('apellido', 'nombre')
 
-        # ========================================================================
-        # PROTECCIÓN DE DATOS: Bloqueo de campos si hay entradas vendidas
-        # ========================================================================
-        # Si estamos editando una película existente, verificar si tiene ventas
+        if self.instance and self.instance.pk:
+            # Determinar si se permite desactivar la pelicula
+            try:
+                funciones_activas = self.instance.funciones.filter(
+                    activo=True,
+                    fecha_hora__gte=timezone.now(),
+                ).exclude(estado='INACTIVA').exists()
+                self._desactivar_permitido = not funciones_activas
+            except Exception:
+                self._desactivar_permitido = True
+
+            if not self._desactivar_permitido:
+                self.fields['desactivar'].disabled = True
+                self.fields['desactivar'].help_text = (
+                    'No se puede desactivar porque existen funciones activas asociadas.'
+                )
+        else:
+            # No mostrar desactivar al crear
+            self.fields.pop('desactivar', None)
+
         if self.instance and self.instance.pk:
             try:
-                # Verificar si la película tiene funciones con entradas vendidas
                 if self.instance.tiene_entradas_vendidas():
-                    # Deshabilitar título y fecha de estreno en la interfaz
                     self.fields['titulo'].disabled = True
                     self.fields['titulo'].widget.attrs['readonly'] = True
                     self.fields['titulo'].widget.attrs['class'] = 'form-input input-disabled'
                     self.fields['titulo'].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed;'
                     self.fields['titulo'].help_text = (
-                        '⚠️ El título no puede modificarse porque esta película tiene funciones con entradas vendidas. '
-                        'Por contrato con el cliente, esta información es INMUTABLE.'
+                        'No se puede modificar porque esta pelicula tiene funciones con entradas vendidas.'
                     )
 
                     self.fields['fecha_estreno'].disabled = True
@@ -197,89 +226,208 @@ class PeliculaForm(forms.ModelForm):
                     self.fields['fecha_estreno'].widget.attrs['class'] = 'form-input input-disabled'
                     self.fields['fecha_estreno'].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed;'
                     self.fields['fecha_estreno'].help_text = (
-                        '⚠️ La fecha de estreno no puede modificarse porque esta película tiene funciones con entradas vendidas. '
-                        'Por contrato con el cliente, esta información es INMUTABLE.'
+                        'No se puede modificar porque esta pelicula tiene funciones con entradas vendidas.'
                     )
-                    
-                    # Bloquear también otros campos críticos relacionados con las ventas
+
                     self.fields['director'].disabled = True
-                    self.fields['director'].widget.attrs['readonly'] = True
-                    self.fields['director'].widget.attrs['class'] = 'form-input input-disabled'
+                    self.fields['director'].widget.attrs['class'] = 'form-select input-disabled'
                     self.fields['director'].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed;'
-                    self.fields['director'].help_text = '⚠️ No puede modificarse porque hay funciones con entradas vendidas.'
-                    
+                    self.fields['director'].help_text = 'No puede modificarse porque hay funciones con entradas vendidas.'
+
                     self.fields['duracion'].disabled = True
                     self.fields['duracion'].widget.attrs['readonly'] = True
                     self.fields['duracion'].widget.attrs['class'] = 'form-input input-disabled'
                     self.fields['duracion'].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed;'
-                    self.fields['duracion'].help_text = '⚠️ No puede modificarse porque hay funciones con entradas vendidas.'
-                    
+                    self.fields['duracion'].help_text = 'No puede modificarse porque hay funciones con entradas vendidas.'
+
                     self.fields['clasificacion'].disabled = True
                     self.fields['clasificacion'].widget.attrs['class'] = 'form-select input-disabled'
                     self.fields['clasificacion'].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed;'
-                    self.fields['clasificacion'].help_text = '⚠️ No puede modificarse porque hay funciones con entradas vendidas.'
+                    self.fields['clasificacion'].help_text = 'No puede modificarse porque hay funciones con entradas vendidas.'
             except Exception:
-                # Si hay algún error al verificar, seguir adelante sin bloquear
-                # La validación en clean() del modelo seguirá protegiéndolo
                 pass
-    
+
+    def _normalizar_texto(self, valor):
+        return ' '.join((valor or '').strip().split())
+
+    def _to_bool(self, valor):
+        return str(valor).strip().lower() in {'1', 'true', 'on', 'si', 'yes'}
+
+    def _resolver_director_manual(self, *, nombre, apellido, fecha_nacimiento=None, biografia='', tmdb_id=None):
+        nombre = self._normalizar_texto(nombre).title()
+        apellido = self._normalizar_texto(apellido).title()
+        biografia = (biografia or '').strip()
+
+        if tmdb_id:
+            # Buscar por tmdb_id primero
+            director = Director.objects.filter(tmdb_id=tmdb_id).first()
+            if not director:
+                # Buscar por nombre (manual previo sin tmdb_id)
+                director = Director.objects.filter(
+                    nombre__iexact=nombre,
+                    apellido__iexact=apellido,
+                    tmdb_id__isnull=True,
+                ).first()
+                if director:
+                    director.tmdb_id = tmdb_id
+                    director.save(update_fields=['tmdb_id'])
+                else:
+                    director = Director.objects.create(
+                        tmdb_id=tmdb_id,
+                        nombre=nombre,
+                        apellido=apellido,
+                        fecha_nacimiento=fecha_nacimiento,
+                        biografia=biografia,
+                    )
+        else:
+            director = Director.objects.filter(
+                nombre__iexact=nombre,
+                apellido__iexact=apellido,
+            ).first()
+            if not director:
+                director = Director.objects.create(
+                    nombre=nombre,
+                    apellido=apellido,
+                    fecha_nacimiento=fecha_nacimiento,
+                    biografia=biografia,
+                )
+
+        cambios = []
+        if tmdb_id and not director.tmdb_id:
+            director.tmdb_id = tmdb_id
+            cambios.append('tmdb_id')
+        if fecha_nacimiento and not director.fecha_nacimiento:
+            director.fecha_nacimiento = fecha_nacimiento
+            cambios.append('fecha_nacimiento')
+        if biografia and not director.biografia:
+            director.biografia = biografia
+            cambios.append('biografia')
+
+        if cambios:
+            director.save(update_fields=cambios)
+
+        return director
+
+    def _build_director_warning(self, director):
+        if director and director.fecha_nacimiento:
+            return (
+                f'Ya existe un director con este nombre nacido el '
+                f'{director.fecha_nacimiento.strftime("%d/%m/%Y")}. ¿Es la misma persona?'
+            )
+        return 'Ya existe un director con este nombre en la base. ¿Es la misma persona?'
+
+    def clean_titulo(self):
+        titulo = self._normalizar_texto(self.cleaned_data.get('titulo', ''))
+        if len(titulo) < 1:
+            raise forms.ValidationError('El titulo debe tener al menos 1 caracter.')
+        return titulo.title()
+
     def clean_duracion(self):
-        """Validación personalizada para la duración"""
         duracion = self.cleaned_data['duracion']
         if duracion < 30:
-            raise forms.ValidationError('La duración mínima es de 30 minutos.')
+            raise forms.ValidationError('La duracion minima es de 30 minutos.')
         if duracion > 300:
-            raise forms.ValidationError('La duración máxima es de 300 minutos.')
+            raise forms.ValidationError('La duracion maxima es de 300 minutos.')
         return duracion
-    
+
     def clean_fecha_estreno(self):
-        """Validación personalizada para la fecha de estreno"""
-        fecha_estreno = self.cleaned_data.get('fecha_estreno')
-        if not fecha_estreno:
-            return fecha_estreno
-            
-        # Solo validar "no pasado" para películas NUEVAS
-        # PERMITIDO: Hoy y futuro
-        # BLOQUEADO: Solo fechas anteriores a hoy (pasado)
-        if not self.instance.pk:  # Si es creación
-            hoy = timezone.now().date()
-            if fecha_estreno < hoy:  # Menor que HOY (no incluye hoy)
-                raise forms.ValidationError(
-                    f'La fecha de estreno no puede ser anterior al día de hoy ({hoy.strftime("%d/%m/%Y")}). '
-                    f'Puedes seleccionar hoy o cualquier fecha futura.'
-                )
-        
-        return fecha_estreno
-    
+        return self.cleaned_data.get('fecha_estreno')
+
     def clean(self):
-        """Validación global del formulario que captura errores del modelo"""
         cleaned_data = super().clean()
-        
-        # Verificar duplicados de título + año antes de llegar al modelo
+        # Si el usuario quiere desactivar, validar permiso
+        if cleaned_data.get('desactivar') and not self._desactivar_permitido:
+            self.add_error('desactivar', 'No se puede desactivar porque hay funciones activas.')
+
         titulo = cleaned_data.get('titulo')
         fecha_estreno = cleaned_data.get('fecha_estreno')
-        
+        director_obj = cleaned_data.get('director')
+        self._director_manual_payload = None
+        self.director_warning_message = None
+
+        # Si campos criticos estan deshabilitados, usar valores actuales de la instancia
+        if self.instance and self.instance.pk:
+            if self.fields.get('titulo') and self.fields['titulo'].disabled and not titulo:
+                titulo = self.instance.titulo
+                cleaned_data['titulo'] = titulo
+            if self.fields.get('fecha_estreno') and self.fields['fecha_estreno'].disabled and not fecha_estreno:
+                fecha_estreno = self.instance.fecha_estreno
+                cleaned_data['fecha_estreno'] = fecha_estreno
+            if self.fields.get('director') and self.fields['director'].disabled and not director_obj:
+                director_obj = self.instance.director
+                cleaned_data['director'] = director_obj
+
+        usar_manual = self._to_bool(cleaned_data.get('director_usar_manual'))
+        if usar_manual:
+            nombre = self._normalizar_texto(cleaned_data.get('director_nombre_manual'))
+            apellido = self._normalizar_texto(cleaned_data.get('director_apellido_manual'))
+            fecha_nac = cleaned_data.get('director_fecha_nacimiento_manual')  # opcional
+            biografia = (cleaned_data.get('director_biografia_manual') or '').strip()
+            tmdb_id = cleaned_data.get('director_tmdb_id_manual')
+
+            if not nombre or not apellido:
+                self.add_error('director', 'Debes completar nombre y apellido del nuevo director en el modal.')
+
+            if nombre and apellido:
+                nombre_normalizado = nombre.title()
+                apellido_normalizado = apellido.title()
+
+                self._director_manual_payload = {
+                    'nombre': nombre_normalizado,
+                    'apellido': apellido_normalizado,
+                    'fecha_nacimiento': fecha_nac,
+                    'biografia': biografia,
+                    'tmdb_id': tmdb_id,
+                }
+
+                if not tmdb_id:
+                    director_existente = Director.objects.filter(
+                        nombre__iexact=nombre_normalizado,
+                        apellido__iexact=apellido_normalizado,
+                    ).order_by('pk').first()
+                    if director_existente:
+                        self.director_warning_message = self._build_director_warning(director_existente)
+
+        if not director_obj:
+            if not self._director_manual_payload:
+                self.add_error('director', 'Debes seleccionar un director o crear uno nuevo.')
+
         if titulo and fecha_estreno:
             anio = fecha_estreno.year
-            
-            # Buscar películas con el mismo título y año
             peliculas_existentes = Pelicula.objects.filter(
                 titulo=titulo,
                 anio_estreno=anio
             )
-            
-            # Si estamos editando, excluir la película actual
             if self.instance.pk:
                 peliculas_existentes = peliculas_existentes.exclude(pk=self.instance.pk)
-            
-            # Si existe otra película con el mismo título y año, lanzar error
             if peliculas_existentes.exists():
-                self.add_error('titulo', 
-                    f"Esta película ya está registrada con esa fecha de estreno ({anio}). "
-                    f"Por favor, verifica el título o selecciona otro año."
+                self.add_error(
+                    'titulo',
+                    (
+                        f'Esta pelicula ya esta registrada con esa fecha de estreno ({anio}). '
+                        f'Por favor, verifica el titulo o selecciona otro año.'
+                    )
                 )
-        
+
         return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+
+        payload = self._director_manual_payload
+        if payload:
+            director_obj = self._resolver_director_manual(**payload)
+            if not self.director_warning_message and not payload.get('tmdb_id'):
+                self.director_warning_message = self._build_director_warning(director_obj)
+            instance.director = director_obj
+        elif self.cleaned_data.get('director'):
+            instance.director = self.cleaned_data['director']
+
+        if commit:
+            instance.save()
+            self.save_m2m()
+
+        return instance
 
 
 class SalaForm(forms.ModelForm):
@@ -305,7 +453,7 @@ class SalaForm(forms.ModelForm):
             'max_value': 'El número no puede ser mayor a 100.'
         }
     )
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Si estamos editando (instance existe), deshabilitar el campo número
@@ -347,7 +495,6 @@ class SalaForm(forms.ModelForm):
    
     
     activo = forms.BooleanField(
-        label='✅ Sala activa',
         required=False,
         initial=True,
         widget=forms.CheckboxInput(attrs={
@@ -450,8 +597,8 @@ class FuncionForm(forms.ModelForm):
     
     # Campo agrupado en categorías: una opción por cada categoría
     formatos_visual = forms.ModelChoiceField(
-        label='1. Formato_Visual',
-        queryset=Formato.objects.filter(nombre__in=['2D', '3D']).order_by('nombre'),
+        label='1. Formato Visual',
+        queryset=Formato.objects.filter(categoria='VISUAL').order_by('nombre'),
         widget=forms.RadioSelect,
         required=True,
         empty_label=None,
@@ -459,8 +606,8 @@ class FuncionForm(forms.ModelForm):
     )
 
     formatos_pantalla = forms.ModelChoiceField(
-        label='2. Formato_Pantalla',
-        queryset=Formato.objects.filter(nombre__in=['Pantalla Standard', 'IMAX', 'ScreenX']).order_by('nombre'),
+        label='2. Formato Pantalla',
+        queryset=Formato.objects.filter(categoria='PANTALLA').order_by('nombre'),
         widget=forms.RadioSelect,
         required=True,
         empty_label=None,
@@ -468,8 +615,8 @@ class FuncionForm(forms.ModelForm):
     )
 
     formatos_experiencia = forms.ModelChoiceField(
-        label='3. Formato_Experiencia',
-        queryset=Formato.objects.filter(nombre__in=['Experiencia Standard', '4DX', 'D-BOX']).order_by('nombre'),
+        label='3. Formato Experiencia',
+        queryset=Formato.objects.filter(categoria='EXPERIENCIA').order_by('nombre'),
         widget=forms.RadioSelect,
         required=True,
         empty_label=None,
@@ -494,6 +641,21 @@ class FuncionForm(forms.ModelForm):
         error_messages={'required': 'Debes seleccionar un estado.'}
     )
     
+    fecha_activacion = forms.DateField(
+        label='📅 Fecha de activación automática',
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-input',
+            'type': 'date',
+            'title': 'Fecha en que la función pasará automáticamente de PREVENTA a ACTIVA a las 00:00'
+        }, format='%Y-%m-%d'),
+        input_formats=['%Y-%m-%d'],
+        help_text='Solo para funciones en PREVENTA. La función se activará automáticamente a las 00:00 de esta fecha.',
+        error_messages={
+            'invalid': 'Ingresa una fecha válida.'
+        }
+    )
+    
     precio_base = forms.DecimalField(
         label='💰 Precio de entrada',
         min_value=0.01,
@@ -516,7 +678,7 @@ class FuncionForm(forms.ModelForm):
 
     class Meta:
         model = Funcion
-        fields = ['pelicula', 'sala', 'fecha_hora', 'idioma', 'estado', 'precio_base']
+        fields = ['pelicula', 'sala', 'fecha_hora', 'idioma', 'estado', 'fecha_activacion', 'precio_base']
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -549,29 +711,30 @@ class FuncionForm(forms.ModelForm):
             # ========================================================================
             try:
                 # Verificar si la función tiene entradas vendidas
-                tiene_entradas_vendidas = self.instance.entradas.filter(
+                entradas_vendidas_count = self.instance.entradas.filter(
                     estado__in=['VENDIDA', 'ENTREGADA', 'USADA', 'RESERVADA']
-                ).exists()
+                ).count()
 
-                if tiene_entradas_vendidas:
-                    # 🔒 BLOQUEO VISUAL: Solo readonly para mostrar pero NO disabled
-                    # (disabled=True hace que los campos no se envíen en el POST)
+                if entradas_vendidas_count > 0:
+                    # 🔒 BLOQUEO: Deshabilitar todos los campos
+                    # Usamos disabled para que funcione con todos los tipos (text, select, radio, etc.)
                     for field_name in self.fields:
-                        self.fields[field_name].widget.attrs['readonly'] = True
-                        self.fields[field_name].widget.attrs['class'] = self.fields[field_name].widget.attrs.get('class', '') + ' input-disabled'
-                        self.fields[field_name].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed; pointer-events: none;'
-                        self.fields[field_name].widget.attrs['tabindex'] = '-1'
+                        field = self.fields[field_name]
+                        field.disabled = True
+                        field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' input-disabled'
+                        field.widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed;'
+                        field.widget.attrs['title'] = f'Este campo está bloqueado porque hay {entradas_vendidas_count} entrada(s) vendida(s)'
                     
                     # Mensaje de advertencia general
                     self.fields['pelicula'].help_text = (
-                        '🔒 FUNCIÓN BLOQUEADA: Esta función tiene entradas vendidas. '
-                        'Por contrato con el cliente, NO se permite ninguna modificación. '
-                        'Si necesitas cambiar algo, debes contactar al cliente y ofrecer un reembolso.'
+                        f'🔒 FUNCIÓN BLOQUEADA: Esta función tiene {entradas_vendidas_count} entrada(s) vendida(s). '
+                        f'Por contrato con el cliente, NO se permite ninguna modificación. '
+                        f'Si necesitas cambiar algo, debes contactar al cliente y ofrecer un reembolso.'
                     )
                     
                     # Marcar que esta instancia tiene ventas (para save())
                     self._tiene_entradas_vendidas = True
-            except Exception:
+            except Exception as e:
                 # Si hay algún error al verificar, seguir adelante sin bloquear
                 # La validación en clean() del modelo seguirá protegiéndolo
                 pass
@@ -580,8 +743,8 @@ class FuncionForm(forms.ModelForm):
             formatos_actuales = self.instance.formatos_funcion.select_related('formato').all()
             # Inicializar por categoría (tomando el primer formato que coincida con cada categoría)
             visual = formatos_actuales.filter(formato__nombre__in=['2D', '3D']).first()
-            pantalla = formatos_actuales.filter(formato__nombre__in=['Pantalla Standard', 'IMAX', 'ScreenX']).first()
-            experiencia = formatos_actuales.filter(formato__nombre__in=['Experiencia Standard', '4DX', 'D-BOX']).first()
+            pantalla = formatos_actuales.filter(formato__nombre__in=['Pantalla estándar', 'IMAX', 'ScreenX']).first()
+            experiencia = formatos_actuales.filter(formato__nombre__in=['Experiencia estándar', '4D', 'D-BOX']).first()
             if visual:
                 self.initial['formatos_visual'] = visual.formato_id
             if pantalla:
@@ -589,17 +752,17 @@ class FuncionForm(forms.ModelForm):
             if experiencia:
                 self.initial['formatos_experiencia'] = experiencia.formato_id
         else:
-            # Si es creación nueva, preseleccionar las opciones 'standard' cuando sea posible
+            # Si es creación nueva, preseleccionar las opciones 'standard' por defecto
             try:
-                visual_default = Formato.objects.filter(nombre__in=['2D', '2D Standard']).first() or Formato.objects.filter(categoria='VISUAL').order_by('nombre').first()
+                visual_default = Formato.objects.filter(nombre='2D').first() or Formato.objects.filter(categoria='VISUAL').order_by('nombre').first()
                 if visual_default:
                     self.initial.setdefault('formatos_visual', visual_default.id)
 
-                pantalla_default = Formato.objects.filter(nombre__icontains='Standard', categoria='PANTALLA').first() or Formato.objects.filter(categoria='PANTALLA').order_by('nombre').first()
+                pantalla_default = Formato.objects.filter(nombre__icontains='standard', categoria='PANTALLA').first() or Formato.objects.filter(categoria='PANTALLA').order_by('nombre').first()
                 if pantalla_default:
                     self.initial.setdefault('formatos_pantalla', pantalla_default.id)
 
-                experiencia_default = Formato.objects.filter(nombre__icontains='Standard', categoria='EXPERIENCIA').first() or Formato.objects.filter(categoria='EXPERIENCIA').order_by('nombre').first()
+                experiencia_default = Formato.objects.filter(nombre__icontains='standard', categoria='EXPERIENCIA').first() or Formato.objects.filter(categoria='EXPERIENCIA').order_by('nombre').first()
                 if experiencia_default:
                     self.initial.setdefault('formatos_experiencia', experiencia_default.id)
             except Exception:
@@ -662,12 +825,36 @@ class FuncionForm(forms.ModelForm):
                         if incompatible in formatos_sel:
                             raise ValidationError(f'No puedes combinar {nombre} con {incompatible}. Son tecnologías mutuamente excluyentes.')
         
+        # 🛡️ VALIDACIÓN: No permitir funciones para películas que aún no se han estrenado
+        if pelicula and fecha_hora:
+            fecha_funcion = fecha_hora.date()
+            if pelicula.fecha_estreno > fecha_funcion:
+                raise ValidationError({
+                    'pelicula': f'No se pueden programar funciones antes del estreno de la película. '
+                                f'Esta película se estrena el {pelicula.fecha_estreno.strftime("%d/%m/%Y")}. '
+                                f'Estás intentando crear una función para el {fecha_funcion.strftime("%d/%m/%Y")}.'
+                })
+        
         if sala and pelicula and fecha_hora:
             # Verificar que la sala esté activa
             if not sala.activo:
                 raise ValidationError({
                     'sala': 'No se pueden programar funciones en salas inactivas.'
                 })
+
+            requiere_4d = Funcion.requiere_4d_en_formatos([visual, pantalla, experiencia])
+            if requiere_4d is not None:
+                tiene_4d, tiene_estandar = Funcion.sala_tiene_butacas_para(sala)
+                if requiere_4d and not tiene_4d:
+                    raise ValidationError({
+                        'sala': 'La sala no tiene butacas 4D para una funcion con formato 4D o D-BOX.'
+                    })
+                if requiere_4d is False and not tiene_estandar:
+                    raise ValidationError({
+                        'sala': 'La sala no tiene butacas estandar para funciones sin 4D.'
+                    })
+            else:
+                tiene_4d, tiene_estandar = Funcion.sala_tiene_butacas_para(sala)
             
             # Obtener configuración del cine para los minutos de limpieza
             from cine.models import ConfiguracionCine
@@ -683,12 +870,16 @@ class FuncionForm(forms.ModelForm):
             # Buscar funciones que se solapen
             funciones_solapadas = Funcion.objects.filter(
                 sala=sala,
+                fecha_hora__date=fecha_hora.date(),
                 fecha_hora__lt=fin_funcion,
+                fecha_hora__gte=timezone.now(),
             )
             
             # Si estamos editando, excluir la función actual
             if self.instance.pk:
                 funciones_solapadas = funciones_solapadas.exclude(pk=self.instance.pk)
+
+            funciones_solapadas = funciones_solapadas.prefetch_related('formatos_funcion__formato')
             
             for funcion in funciones_solapadas:
                 duracion_otra = timedelta(minutes=funcion.pelicula.duracion + minutos_limpieza)
@@ -696,10 +887,34 @@ class FuncionForm(forms.ModelForm):
                 
                 # Verificar si hay solapamiento
                 if funcion.fecha_hora < fin_funcion and fecha_hora < fin_otra:
+                    requiere_4d_otra = Funcion.requiere_4d_en_formatos(funcion.formatos_funcion.all())
+                    if funcion.fecha_hora != fecha_hora:
+                        raise ValidationError({
+                            'fecha_hora': (
+                                f'Esta función se solapa con "{funcion.pelicula.titulo}" '
+                                f'programada a las {funcion.fecha_hora.strftime("%d/%m/%Y %H:%M")} en la misma sala.'
+                            )
+                        })
+
+                    if funcion.pelicula_id != pelicula.id:
+                        raise ValidationError({
+                            'fecha_hora': (
+                                f'Conflicto de Proyección: La sala {sala.nombre} ya tiene '
+                                f'programada la película "{funcion.pelicula.titulo}" en este horario.'
+                            )
+                        })
+                    if Funcion.permite_solape_bisala(requiere_4d, requiere_4d_otra, tiene_4d, tiene_estandar):
+                        continue
+                    if requiere_4d is None or requiere_4d_otra is None:
+                        detalle_bisala = 'No se puede solapar sin definir formato de experiencia (4D o estandar).'
+                    elif requiere_4d and requiere_4d_otra:
+                        detalle_bisala = 'Ambas funciones requieren butacas 4D. El solape solo se permite cuando una es 4D y la otra estandar.'
+                    else:
+                        detalle_bisala = 'Ambas funciones son estandar. El solape solo se permite cuando una es 4D y la otra estandar.'
                     raise ValidationError({
                         'fecha_hora': f'Esta función se solapa con "{funcion.pelicula.titulo}" '
                                     f'programada a las {funcion.fecha_hora.strftime("%d/%m/%Y %H:%M")} en la misma sala. '
-                                    f'Debe haber al menos {minutos_limpieza} minutos de diferencia entre funciones.'
+                                    f'{detalle_bisala}'
                     })
         
         return cleaned_data
@@ -720,35 +935,44 @@ class FuncionForm(forms.ModelForm):
 
 class FuncionBatchForm(forms.Form):
     """
-    Formulario para CREAR múltiples funciones (lote) en un solo día.
-    Reemplaza 'fecha_hora' por 'fecha' y 'horarios' (un string).
+    Formulario para crear funciones en lote por rango de fechas y dias de semana.
     """
-    
-    # --- Campos copiados de FuncionForm (son los datos que se repiten) ---
-    
+
+    DIAS_SEMANA_CHOICES = [
+        ('0', 'Lunes'),
+        ('1', 'Martes'),
+        ('2', 'Miercoles'),
+        ('3', 'Jueves'),
+        ('4', 'Viernes'),
+        ('5', 'Sabado'),
+        ('6', 'Domingo'),
+    ]
+
     pelicula = forms.ModelChoiceField(
-        label='Película',
+        label='Pelicula',
         queryset=Pelicula.objects.all().order_by('titulo'),
         empty_label='Selecciona una película...',
         widget=forms.Select(attrs={
-            'class': 'form-select', 'required': True, 
+            'class': 'form-select',
+            'required': True,
             'title': 'Selecciona la película a proyectar'
         })
     )
-    
+
     sala = forms.ModelChoiceField(
         label='Sala',
-        queryset=Sala.objects.none(),  # Se inicializa en __init__
+        queryset=Sala.objects.none(),
         empty_label='Selecciona una sala...',
         widget=forms.Select(attrs={
-            'class': 'form-select', 'required': True, 
+            'class': 'form-select',
+            'required': True,
             'title': 'Selecciona la sala donde se proyectará'
         })
     )
-    
+
     formatos_visual = forms.ModelChoiceField(
-        label='1. Formato_Visual',
-        queryset=Formato.objects.filter(nombre__in=['2D', '3D']).order_by('nombre'),
+        label='1. Formato Visual',
+        queryset=Formato.objects.filter(categoria='VISUAL').order_by('nombre'),
         widget=forms.RadioSelect,
         required=True,
         empty_label=None,
@@ -756,8 +980,8 @@ class FuncionBatchForm(forms.Form):
     )
 
     formatos_pantalla = forms.ModelChoiceField(
-        label='2. Formato_Pantalla',
-        queryset=Formato.objects.filter(nombre__in=['Pantalla Standard', 'IMAX', 'ScreenX']).order_by('nombre'),
+        label='2. Formato Pantalla',
+        queryset=Formato.objects.filter(categoria='PANTALLA').order_by('nombre'),
         widget=forms.RadioSelect,
         required=True,
         empty_label=None,
@@ -765,8 +989,8 @@ class FuncionBatchForm(forms.Form):
     )
 
     formatos_experiencia = forms.ModelChoiceField(
-        label='3. Formato_Experiencia',
-        queryset=Formato.objects.filter(nombre__in=['Experiencia Standard', '4DX', 'D-BOX']).order_by('nombre'),
+        label='3. Formato Experiencia',
+        queryset=Formato.objects.filter(categoria='EXPERIENCIA').order_by('nombre'),
         widget=forms.RadioSelect,
         required=True,
         empty_label=None,
@@ -791,28 +1015,70 @@ class FuncionBatchForm(forms.Form):
         error_messages={'required': 'Debes seleccionar un estado.'}
     )
     
+    fecha_activacion = forms.DateField(
+        label='Fecha de activacion automatica',
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-input',
+            'type': 'date',
+            'title': 'Fecha en que la función pasará automáticamente de PREVENTA a ACTIVA a las 00:00'
+        }, format='%Y-%m-%d'),
+        input_formats=['%Y-%m-%d'],
+        help_text='Solo para funciones en PREVENTA. Se activara automaticamente a las 00:00 de esta fecha.',
+        error_messages={
+            'invalid': 'Ingresa una fecha válida.'
+        }
+    )
+
     precio_base = forms.DecimalField(
         label='Precio de entrada',
-        min_value=0.01, max_digits=8, decimal_places=2,
+        min_value=0.01,
+        max_digits=8,
+        decimal_places=2,
         widget=forms.NumberInput(attrs={
-            'class': 'form-input', 'placeholder': 'Ej: 1500.00',
-            'required': True, 'min': '0.01', 'step': '0.01',
+            'class': 'form-input',
+            'placeholder': 'Ej: 1500.00',
+            'required': True,
+            'min': '0.01',
+            'step': '0.01',
             'title': 'Precio de entrada para esta función'
         })
     )
-    
-    # --- Nuevos campos para la creación por lote ---
-    
-    fecha = forms.DateField(
-        label='Día de las funciones',
+
+    fecha_inicio = forms.DateField(
+        label='Fecha inicio',
+        initial=timezone.localdate,
         widget=forms.DateInput(attrs={
             'class': 'form-input',
             'type': 'date',
             'required': True,
-            'title': 'Elige el día para todas las funciones'
-        })
+            'title': 'Primer dia del rango'
+        }, format='%Y-%m-%d'),
+        input_formats=['%Y-%m-%d']
     )
-    
+
+    fecha_fin = forms.DateField(
+        label='Fecha fin (opcional)',
+        required=False,
+        widget=forms.DateInput(attrs={
+            'class': 'form-input',
+            'type': 'date',
+            'title': 'Ultimo dia del rango (opcional)'
+        }, format='%Y-%m-%d'),
+        input_formats=['%Y-%m-%d'],
+        help_text='Si no completas fecha fin, se programa solo para la fecha de inicio.'
+    )
+
+    dias_semana = forms.MultipleChoiceField(
+        label='Dias de la semana',
+        choices=DIAS_SEMANA_CHOICES,
+        required=False,
+        widget=forms.CheckboxSelectMultiple(attrs={
+            'class': 'btn-check dia-semana-input'
+        }),
+        help_text='Selecciona los dias sobre los que se repetiran los horarios.'
+    )
+
     horarios = forms.CharField(
         label="Horarios (separados por coma)",
         widget=forms.TextInput(attrs={
@@ -823,6 +1089,21 @@ class FuncionBatchForm(forms.Form):
         }),
         help_text="Introduce uno o más horarios en formato HH:MM, separados por comas."
     )
+
+    def _validar_limite_fecha(self, fecha_valor):
+        hoy = timezone.now().date()
+        if fecha_valor < hoy:
+            raise forms.ValidationError(
+                f'La fecha no puede ser en el pasado. Hoy es {hoy.strftime("%d/%m/%Y")}.'
+            )
+
+        limite_futuro = hoy + timedelta(days=365)
+        if fecha_valor > limite_futuro:
+            raise forms.ValidationError(
+                f'No se pueden crear funciones a mas de 1 ano en el futuro. '
+                f'Limite maximo: {limite_futuro.strftime("%d/%m/%Y")}.'
+            )
+        return fecha_valor
 
     def clean_horarios(self):
         """
@@ -857,41 +1138,52 @@ class FuncionBatchForm(forms.Form):
         # ¡Éxito! Retornamos la LISTA de objetos 'time' limpios
         return horarios_obj_lista
 
-    def clean_fecha(self):
-        """Validación para la fecha de las funciones"""
-        fecha = self.cleaned_data.get('fecha')
-        
-        if not fecha:
-            raise forms.ValidationError('Debes seleccionar una fecha.')
-        
-        # Validar que no sea en el pasado
-        hoy = timezone.now().date()
-        if fecha < hoy:
-            raise forms.ValidationError(
-                f'La fecha no puede ser en el pasado. '
-                f'Hoy es {hoy.strftime("%d/%m/%Y")}.'
-            )
-        
-        # 🛡️ VALIDACIÓN: No permitir funciones a más de 1 año en el futuro
-        limite_futuro = hoy + timedelta(days=365)
-        if fecha > limite_futuro:
-            raise forms.ValidationError(
-                f'❌ No se pueden crear funciones a más de 1 año en el futuro. '
-                f'Límite máximo: {limite_futuro.strftime("%d/%m/%Y")}'
-            )
-        
-        return fecha
+    def clean_fecha_inicio(self):
+        fecha_inicio = self.cleaned_data.get('fecha_inicio')
+        if not fecha_inicio:
+            raise forms.ValidationError('Debes seleccionar la fecha de inicio.')
+        return self._validar_limite_fecha(fecha_inicio)
+
+    def clean_fecha_fin(self):
+        fecha_fin = self.cleaned_data.get('fecha_fin')
+        if not fecha_fin:
+            return None
+        return self._validar_limite_fecha(fecha_fin)
+
+    def clean_dias_semana(self):
+        dias_semana = self.cleaned_data.get('dias_semana', [])
+        if not dias_semana:
+            return []
+
+        dias_limpios = []
+        for dia in dias_semana:
+            try:
+                dia_int = int(dia)
+            except (TypeError, ValueError):
+                raise forms.ValidationError('Seleccion de dias invalida.')
+            if dia_int < 0 or dia_int > 6:
+                raise forms.ValidationError('Seleccion de dias invalida.')
+            dias_limpios.append(dia_int)
+
+        return sorted(set(dias_limpios))
+
+    def _generar_fechas_objetivo(self, fecha_inicio, fecha_fin, dias_semana):
+        fechas_objetivo = []
+        dias_set = set(dias_semana)
+        fecha_cursor = fecha_inicio
+        while fecha_cursor <= fecha_fin:
+            if fecha_cursor.weekday() in dias_set:
+                fechas_objetivo.append(fecha_cursor)
+            fecha_cursor += timedelta(days=1)
+        return fechas_objetivo
 
     def __init__(self, *args, **kwargs):
-        # ✅ Extraer la función si es edición
         funcion = kwargs.pop('funcion', None)
         super().__init__(*args, **kwargs)
-        
-        # Inicializar flag de protección
+
         self._tiene_entradas_vendidas = False
         self._funcion = funcion
-        
-        # 🔒 PROTECCIÓN: Bloqueo de campos si hay entradas vendidas
+
         if funcion and funcion.pk:
             try:
                 tiene_entradas_vendidas = funcion.entradas.filter(
@@ -905,17 +1197,21 @@ class FuncionBatchForm(forms.Form):
                         self.fields[field_name].widget.attrs['class'] = self.fields[field_name].widget.attrs.get('class', '') + ' input-disabled'
                         self.fields[field_name].widget.attrs['style'] = 'background-color: #f0f0f0; cursor: not-allowed; pointer-events: none;'
                         self.fields[field_name].widget.attrs['tabindex'] = '-1'
-                    
+
                     self.fields['pelicula'].help_text = (
-                        '🔒 FUNCIÓN BLOQUEADA: Esta función tiene entradas vendidas. '
-                        'Por contrato con el cliente, NO se permite ninguna modificación.'
+                        'FUNCION BLOQUEADA: esta funcion tiene entradas vendidas y no puede editarse.'
                     )
-                    
+
                     self._tiene_entradas_vendidas = True
             except Exception:
                 pass
-        
-        # 🛡️ FILTRAR SALAS: Solo salas activas CON butacas configuradas
+
+        if funcion and funcion.fecha_hora:
+            fecha_funcion_local = timezone.localtime(funcion.fecha_hora).date() if timezone.is_aware(funcion.fecha_hora) else funcion.fecha_hora.date()
+            self.initial.setdefault('fecha_inicio', fecha_funcion_local)
+            self.initial.setdefault('fecha_fin', fecha_funcion_local)
+            self.initial.setdefault('dias_semana', [str(fecha_funcion_local.weekday())])
+
         from django.db.models import Count
         salas_con_butacas = Sala.objects.filter(
             activo=True
@@ -932,130 +1228,95 @@ class FuncionBatchForm(forms.Form):
                 '⚠️ No hay salas disponibles con butacas configuradas. '
                 'Por favor, configura la distribución de asientos en al menos una sala.'
             )
-        
-        # Ensure sensible defaults for formatos when creating a new batch
+
         try:
-            # If no initial provided for formatos, pick reasonable 'standard' defaults
             if not self.initial.get('formatos_visual'):
-                visual_default = Formato.objects.filter(nombre__in=['2D', '2D Standard', '2D/Standard']).first() or Formato.objects.filter(categoria='VISUAL').order_by('nombre').first()
+                visual_default = Formato.objects.filter(nombre='2D').first() or Formato.objects.filter(categoria='VISUAL').order_by('nombre').first()
                 if visual_default:
                     self.initial['formatos_visual'] = visual_default.id
 
             if not self.initial.get('formatos_pantalla'):
-                pantalla_default = Formato.objects.filter(nombre__icontains='Standard', categoria='PANTALLA').first() or Formato.objects.filter(categoria='PANTALLA').order_by('nombre').first()
+                pantalla_default = Formato.objects.filter(nombre__icontains='standard', categoria='PANTALLA').first() or Formato.objects.filter(categoria='PANTALLA').order_by('nombre').first()
                 if pantalla_default:
                     self.initial['formatos_pantalla'] = pantalla_default.id
 
             if not self.initial.get('formatos_experiencia'):
-                experiencia_default = Formato.objects.filter(nombre__icontains='Standard', categoria='EXPERIENCIA').first() or Formato.objects.filter(categoria='EXPERIENCIA').order_by('nombre').first()
+                experiencia_default = Formato.objects.filter(nombre__icontains='standard', categoria='EXPERIENCIA').first() or Formato.objects.filter(categoria='EXPERIENCIA').order_by('nombre').first()
                 if experiencia_default:
                     self.initial['formatos_experiencia'] = experiencia_default.id
         except Exception:
-            # Don't fail form construction if DB is not ready; defaults are best-effort
             pass
-    
-    # NOTE: validations for formats will run inside clean()
-    
+
     def clean(self):
         """
-        Validación cruzada para solapamiento de funciones,
-        adaptada de la lógica original de FuncionForm.
+        Validacion cruzada para:
+        - coherencia de rango
+        - horarios validos dentro de horario de atencion/excepciones
+        - solapamiento entre horarios propuestos y funciones existentes
         """
         cleaned_data = super().clean()
         sala = cleaned_data.get('sala')
         pelicula = cleaned_data.get('pelicula')
-        fecha = cleaned_data.get('fecha')
-        horarios = cleaned_data.get('horarios') # Esta es la *lista* de objetos 'time' de clean_horarios
+        fecha_inicio = cleaned_data.get('fecha_inicio')
+        fecha_fin = cleaned_data.get('fecha_fin')
+        dias_semana = cleaned_data.get('dias_semana')
+        horarios = cleaned_data.get('horarios')
 
-        # --- Validación de formatos por categoría ---
         formatos_sel = []
         visual = cleaned_data.get('formatos_visual')
         pantalla = cleaned_data.get('formatos_pantalla')
         experiencia = cleaned_data.get('formatos_experiencia')
-        idioma_valor = cleaned_data.get('idioma')  # Este es un string, no un Formato
+        idioma_valor = cleaned_data.get('idioma')
 
         if not all([visual, pantalla, experiencia, idioma_valor]):
-            raise ValidationError('Debes seleccionar una opción para cada categoría de formato.')
+            raise ValidationError('Debes seleccionar una opcion para cada categoria de formato.')
 
-        # Reunir nombres para validación cruzada (solo formatos, no idioma)
         for f in (visual, pantalla, experiencia):
             if f:
                 formatos_sel.append(f.nombre)
 
-        # Verificar incompatibilidades (2D vs 3D)
         from cine.models.funcion_formato import FORMATOS_INCOMPATIBLES
         for nombre in formatos_sel:
             if nombre in FORMATOS_INCOMPATIBLES:
                 for incompatible in FORMATOS_INCOMPATIBLES[nombre]:
                     if incompatible in formatos_sel:
-                        raise ValidationError(f'No puedes combinar {nombre} con {incompatible}. Son tecnologías mutuamente excluyentes.')
+                        raise ValidationError(f'No puedes combinar {nombre} con {incompatible}. Son tecnologias mutuamente excluyentes.')
 
-        # Si faltan datos básicos, la validación de campos ya falló, no hacemos nada más
-        if not all([sala, pelicula, fecha, horarios]):
+        if not all([sala, pelicula, fecha_inicio, horarios]):
             return cleaned_data
-            
-        # Verificar que la sala esté activa
+
+        # Flujo de dia unico (sin fecha_fin)
+        if not fecha_fin:
+            cleaned_data['fechas_objetivo'] = [fecha_inicio]
+            cleaned_data['dias_semana'] = [fecha_inicio.weekday()]
+        else:
+            if fecha_fin < fecha_inicio:
+                raise ValidationError({
+                    'fecha_fin': 'La fecha de fin debe ser igual o posterior a la fecha de inicio.'
+                })
+
+            if not dias_semana:
+                raise ValidationError({
+                    'dias_semana': 'Debes seleccionar al menos un dia cuando completas la fecha fin.'
+                })
+
+            fechas_objetivo = self._generar_fechas_objetivo(fecha_inicio, fecha_fin, dias_semana)
+            if not fechas_objetivo:
+                raise ValidationError({
+                    'dias_semana': 'El rango seleccionado no contiene dias coincidentes con los dias elegidos.'
+                })
+            cleaned_data['fechas_objetivo'] = fechas_objetivo
+
         if not sala.activo:
             raise ValidationError({'sala': 'No se pueden programar funciones en salas inactivas.'})
-        
-        # Obtener configuración del cine para los minutos de limpieza
-        from cine.models import ConfiguracionCine
-        configuracion = ConfiguracionCine.load()
-        minutos_limpieza = configuracion.minutos_limpieza
-        
-        # Primero, verificar que los horarios seleccionados no se solapen ENTRE SÍ
-        horarios_con_duracion = []
-        for hora_obj in horarios:
-            try:
-                fecha_hora_naive = datetime.combine(fecha, hora_obj)
-                current_tz = timezone.get_current_timezone()
-                fecha_hora_aware = timezone.make_aware(fecha_hora_naive, current_tz)
-                duracion_total = timedelta(minutes=pelicula.duracion + minutos_limpieza)
-                fin_funcion = fecha_hora_aware + duracion_total
-                horarios_con_duracion.append((fecha_hora_aware, fin_funcion, hora_obj))
-            except Exception:
-                raise ValidationError(f"No se pudo procesar el horario {hora_obj}.")
-        
-        # Verificar solapamiento entre los horarios seleccionados
-        for i, (inicio_i, fin_i, hora_i) in enumerate(horarios_con_duracion):
-            for j, (inicio_j, fin_j, hora_j) in enumerate(horarios_con_duracion):
-                if i != j and inicio_i < fin_j and inicio_j < fin_i:
-                    raise ValidationError({
-                        'horarios': f'Los horarios {hora_i.strftime("%H:%M")} y {hora_j.strftime("%H:%M")} se solapan entre sí. '
-                                   f'Cada función dura {pelicula.duracion} min + {minutos_limpieza} min de limpieza.'
-                    })
-        
-        # Iterar sobre cada horario que el usuario quiere crear
-        for fecha_hora_propuesta, fin_funcion_propuesta, hora_obj in horarios_con_duracion:
-            
-            # Validar que no sea en el pasado
-            if fecha_hora_propuesta < timezone.now():
-                raise ValidationError({'horarios': f'El horario {hora_obj.strftime("%H:%M")} del día {fecha.strftime("%d/%m")} ya pasó.'})
-            
-            # Buscar SOLO funciones en la misma sala y el MISMO DÍA
-            funciones_existentes = Funcion.objects.filter(
-                sala=sala,
-                fecha_hora__date=fecha  # FILTRO POR DÍA ESPECÍFICO
-            ).order_by('fecha_hora')
-            
-            # ✅ Si estamos EDITANDO una función, excluirla de la validación
-            if hasattr(self, '_funcion') and self._funcion and self._funcion.pk:
-                funciones_existentes = funciones_existentes.exclude(pk=self._funcion.pk)
 
-            # Verificar solapamiento con cada función existente
-            for funcion_existente in funciones_existentes:
-                inicio_existente = funcion_existente.fecha_hora
-                fin_existente = inicio_existente + timedelta(minutes=funcion_existente.pelicula.duracion + minutos_limpieza)
-                
-                # Condición de solapamiento: 
-                # Se solapan si la nueva empieza antes de que termine la existente
-                # Y la nueva termina después de que empiece la existente
-                if fecha_hora_propuesta < fin_existente and fin_funcion_propuesta > inicio_existente:
-                    raise ValidationError({
-                        'horarios': f'El horario {hora_obj.strftime("%H:%M")} se solapa con "{funcion_existente.pelicula.titulo}" '
-                                    f'programada de {inicio_existente.strftime("%H:%M")} a {fin_existente.strftime("%H:%M")} en la misma sala. '
-                                    f'(Se incluyen {minutos_limpieza} min. de limpieza entre funciones).'
-                    })
+        requiere_4d = Funcion.requiere_4d_en_formatos([visual, pantalla, experiencia])
+        if requiere_4d is not None:
+            tiene_4d, tiene_estandar = Funcion.sala_tiene_butacas_para(sala)
+            if requiere_4d and not tiene_4d:
+                raise ValidationError({'sala': 'La sala no tiene butacas 4D para una funcion con formato 4D o D-BOX.'})
+            if requiere_4d is False and not tiene_estandar:
+                raise ValidationError({'sala': 'La sala no tiene butacas estandar para funciones sin 4D.'})
 
         return cleaned_data
 
@@ -1107,6 +1368,22 @@ class ConfiguracionCineForm(forms.ModelForm):
             'required': 'El CUIL/CUIT es obligatorio.',
             'invalid': 'Formato inválido. Use XX-XXXXXXXX-X'
         }
+    )
+
+    fecha_inicio_actividad = forms.DateField(
+        label='📅 Fecha de Inicio de Actividad',
+        required=False,
+        input_formats=['%Y-%m-%d'],
+        widget=forms.DateInput(
+            format='%Y-%m-%d',
+            attrs={
+                'class': 'form-input',
+                'type': 'date',
+                'title': 'Fecha en que el cine inició sus actividades (para comprobantes fiscales)'
+            }
+        ),
+        help_text='Aparece en comprobantes de pago y correos de confirmación.',
+        error_messages={'invalid': 'Ingresá una fecha válida.'}
     )
     
     direccion = forms.CharField(
@@ -1257,12 +1534,17 @@ class ConfiguracionCineForm(forms.ModelForm):
     class Meta:
         model = ConfiguracionCine
         fields = [
-            'nombre', 'logo', 'razon_social', 'cuil_cuit', 'descripcion',
+            'nombre', 'logo', 'razon_social', 'cuil_cuit', 'fecha_inicio_actividad', 'descripcion',
             'direccion', 'telefono', 'email',
             'minutos_limpieza',
             'reserva_tiempo_espera',
             'facebook', 'instagram', 'twitter'
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Evita selección de fechas futuras desde el datepicker.
+        self.fields['fecha_inicio_actividad'].widget.attrs['max'] = timezone.localdate().isoformat()
     
     def clean_cuil_cuit(self):
         """Validar formato de CUIL/CUIT"""
@@ -1272,6 +1554,13 @@ class ConfiguracionCineForm(forms.ModelForm):
             if not re.match(r'^\d{2}-\d{8}-\d{1}$', cuil_cuit):
                 raise ValidationError('El formato debe ser XX-XXXXXXXX-X (ej: 20-12345678-9)')
         return cuil_cuit
+
+    def clean_fecha_inicio_actividad(self):
+        """No permitir fechas de inicio de actividad en el futuro."""
+        fecha = self.cleaned_data.get('fecha_inicio_actividad')
+        if fecha and fecha > timezone.localdate():
+            raise ValidationError('La fecha de inicio de actividad no puede ser futura.')
+        return fecha
     
     # Nota: La validación de horarios ahora se maneja en HorarioAtencion
     # No es necesario el método clean() aquí
@@ -1609,3 +1898,187 @@ class ExcepcionHorarioForm(forms.ModelForm):
             excepcion.save()
         
         return excepcion
+
+
+class ClasificacionForm(forms.ModelForm):
+    """
+    Formulario para crear y editar clasificaciones de edad.
+    """
+    nombre = forms.CharField(
+        label='Nombre',
+        max_length=10,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej: ATP, +13, +16, +18',
+            'required': True,
+            'maxlength': '10',
+            'title': 'Nombre de la clasificación (máximo 10 caracteres)'
+        }),
+        error_messages={
+            'required': 'El nombre de la clasificación es obligatorio.',
+            'max_length': 'El nombre no puede tener más de 10 caracteres.'
+        }
+    )
+    
+    descripcion = forms.CharField(
+        label='Descripción',
+        max_length=200,
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej: Apta para todo público',
+            'required': True,
+            'maxlength': '200',
+            'title': 'Descripción de la clasificación'
+        }),
+        error_messages={
+            'required': 'La descripción es obligatoria.',
+            'max_length': 'La descripción no puede tener más de 200 caracteres.'
+        }
+    )
+    
+    edad_minima = forms.IntegerField(
+        label='Edad Mínima',
+        min_value=0,
+        max_value=99,
+        widget=forms.NumberInput(attrs={
+            'class': 'form-input',
+            'placeholder': '0',
+            'required': True,
+            'min': '0',
+            'max': '99',
+            'title': 'Edad mínima requerida (0-99 años)'
+        }),
+        error_messages={
+            'required': 'La edad mínima es obligatoria.',
+            'min_value': 'La edad mínima no puede ser negativa.',
+            'max_value': 'La edad mínima no puede ser mayor a 99 años.'
+        }
+    )
+    
+    class Meta:
+        model = Clasificacion
+        fields = ['nombre', 'descripcion', 'edad_minima', 'activo']
+        widgets = {
+            'activo': forms.CheckboxInput(attrs={
+                'class': 'form-checkbox'
+            })
+        }
+    
+    def __init__(self, *args, **kwargs):
+        """
+        Personalizar el formulario según si es creación o edición.
+        - Si is_creation=True, se oculta el campo 'activo' (será True por defecto).
+        - Si is_creation=False (edición), solo se puede modificar 'descripcion', el resto es de solo lectura.
+        """
+        is_creation = kwargs.pop('is_creation', False)
+        super().__init__(*args, **kwargs)
+        
+        if is_creation:
+            # En creación, eliminar el campo activo (se establecerá automáticamente en True)
+            self.fields.pop('activo', None)
+        else:
+            # En edición, hacer solo lectura todos los campos excepto 'descripcion'
+            if 'nombre' in self.fields:
+                self.fields['nombre'].disabled = True
+                self.fields['nombre'].widget.attrs['readonly'] = 'readonly'
+            if 'edad_minima' in self.fields:
+                self.fields['edad_minima'].disabled = True
+                self.fields['edad_minima'].widget.attrs['readonly'] = 'readonly'
+            if 'activo' in self.fields:
+                self.fields['activo'].disabled = True
+                self.fields['activo'].widget.attrs['readonly'] = 'readonly'
+    
+    def clean_nombre(self):
+        """
+        Validar que el nombre de la clasificación sea único (ignorando mayúsculas/minúsculas).
+        """
+        nombre = self.cleaned_data.get('nombre', '').strip()
+        
+        if not nombre:
+            raise ValidationError('El nombre no puede estar vacío.')
+        
+        # Verificar unicidad (el modelo ya normaliza a mayúsculas en save())
+        nombre_normalizado = nombre.upper()
+        
+        # Excluir la instancia actual en caso de edición
+        qs = Clasificacion.all_objects.filter(nombre__iexact=nombre_normalizado)
+        if self.instance and self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        
+        if qs.exists():
+            raise ValidationError(
+                f'Ya existe una clasificación con el nombre "{nombre_normalizado}".'
+            )
+        
+        return nombre
+    
+    def clean(self):
+        """
+        Validaciones adicionales del formulario.
+        """
+        cleaned_data = super().clean()
+        edad_minima = cleaned_data.get('edad_minima')
+        nombre = cleaned_data.get('nombre')
+        
+        # Validar coherencia edad_minima con nombre (advertencia, no error)
+        if edad_minima is not None and nombre:
+            nombre_norm = nombre.upper().strip()
+            if '+' in nombre_norm:
+                try:
+                    # Intentar extraer el número del nombre (ej: "+13" → 13)
+                    edad_en_nombre = int(nombre_norm.replace('+', '').replace('A', '').strip())
+                    if edad_minima != edad_en_nombre:
+                        self.add_error(
+                            'edad_minima',
+                            f'La edad mínima ({edad_minima}) no coincide con el número en el nombre ({edad_en_nombre}).'
+                        )
+                except (ValueError, AttributeError):
+                    pass  # Si no se puede extraer número, ignorar validación
+        
+        return cleaned_data
+
+
+class DirectorForm(forms.ModelForm):
+    """
+    Formulario para editar directores desde Configuración del Cine.
+    """
+
+    class Meta:
+        model = Director
+        fields = ['nombre', 'apellido', 'fecha_nacimiento']
+        widgets = {
+            'nombre': forms.TextInput(attrs={
+                'class': 'form-input',
+                'maxlength': 100,
+                'placeholder': 'Ej: Christopher',
+            }),
+            'apellido': forms.TextInput(attrs={
+                'class': 'form-input',
+                'maxlength': 100,
+                'placeholder': 'Ej: Nolan',
+            }),
+            'fecha_nacimiento': forms.DateInput(attrs={
+                'class': 'form-input',
+                'type': 'date',
+            }),
+        }
+        labels = {
+            'nombre': 'Nombre',
+            'apellido': 'Apellido',
+            'fecha_nacimiento': 'Fecha de nacimiento',
+        }
+
+    @staticmethod
+    def _normalizar(valor):
+        return ' '.join((valor or '').strip().split())
+
+    def clean_nombre(self):
+        nombre = self._normalizar(self.cleaned_data.get('nombre'))
+        if not nombre:
+            raise ValidationError('El nombre del director es obligatorio.')
+        return nombre.title()
+
+    def clean_apellido(self):
+        apellido = self._normalizar(self.cleaned_data.get('apellido'))
+        return apellido.title()
+

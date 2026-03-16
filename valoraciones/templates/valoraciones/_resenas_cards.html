@@ -1,0 +1,19 @@
+{% for r in page_obj %}
+<div class="rc">
+    <div class="rc-score {% if r.puntuacion >= 4 %}rc-score--high{% elif r.puntuacion <= 2 %}rc-score--low{% else %}rc-score--mid{% endif %}">
+        {{ r.puntuacion }}
+    </div>
+    <div class="rc-body">
+        <div class="rc-top">
+            <span class="rc-title">{{ r.pelicula.titulo }}</span>
+            <span class="rc-stars">{% for i in "12345" %}{% if forloop.counter <= r.puntuacion %}★{% else %}☆{% endif %}{% endfor %}</span>
+        </div>
+        <div class="rc-meta">{{ r.funcion.fecha_hora|date:"d/m/Y" }}</div>
+        {% if r.comentario %}
+        <p class="rc-comment">"{{ r.comentario }}"</p>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<p class="rc-empty">Todavía no tenés reseñas publicadas.</p>
+{% endfor %}

@@ -1,0 +1,76 @@
+﻿{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Gestión de Directores{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'cine/css/pelicula_list.css' %}?v=1.0">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <div class="mb-lg" style="display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-lg);">
+        <a href="{% url 'cine:configuracion' %}" class="btn btn-outline" style="padding: 0.5rem 1.5rem; display: flex; align-items: center; gap: 0.5rem; text-decoration: none; border-radius: 50px; font-weight: 500;">
+            ← VOLVER
+        </a>
+        <div>
+            <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🎬 Gestión de Directores</h1>
+        </div>
+    </div>
+
+    <div class="card glass-container">
+
+        <div style="padding: var(--space-sm) var(--space-md); border-bottom: 1px solid var(--glass-border);">
+            <form method="get" id="form-filtros" style="display: flex; gap: var(--space-xs); align-items: center; justify-content: space-between; flex-wrap: wrap;">
+                <div style="position: relative; min-width: 180px; max-width: 320px;">
+                    <input type="text"
+                           name="search"
+                           id="search-input"
+                           value="{{ filtro_search }}"
+                           placeholder="Buscar director..."
+                           class="form-input"
+                           style="width: 100%; padding: 0.4rem 0.4rem 0.4rem 2rem; font-size: 0.9rem;">
+                    <span style="position: absolute; left: 0.5rem; top: 50%; transform: translateY(-50%); font-size: 1rem; opacity: 0.5;">🔍</span>
+                </div>
+
+                <div style="display: flex; gap: var(--space-xs); align-items: center;">
+                    {% if filtro_search %}
+                    <a href="{% url 'cine:gestionar_directores' %}" class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                        ✕
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+
+        <div id="directorTableContainer"
+             data-edit-url-template="{% url 'cine:editar_director' 0 %}"
+             data-delete-url-template="{% url 'cine:eliminar_director' 0 %}">
+            {% include 'cine/_director_table.html' %}
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--space-md); padding: var(--space-md); border-top: 1px solid var(--glass-border);">
+            <div>
+                <a href="{% url 'cine:crear_director' %}" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;">
+                    ✚ Crear Nuevo Director
+                </a>
+            </div>
+
+            <div style="display: flex; gap: var(--space-sm);">
+                <button id="btn-modificar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
+                    ✏️ Modificar
+                </button>
+                <button id="btn-eliminar" class="btn btn-outline" style="padding: 0.5rem 1rem; font-size: 0.9rem;" disabled>
+                    🗑️ Eliminar
+                </button>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'cine/js/directores_list.js' %}?v=1.2"></script>
+{% endblock %}

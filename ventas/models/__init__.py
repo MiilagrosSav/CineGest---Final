@@ -9,6 +9,7 @@ from .pago import Pago
 from .politica_reembolso import PoliticaReembolso
 from .intercambio import Intercambio
 from .acceso import RegistroAcceso
+from .caja_sesion import CajaSesion
 
 __all__ = [
     'Venta',
@@ -18,4 +19,5 @@ __all__ = [
     'PoliticaReembolso',
     'Intercambio',
     'RegistroAcceso',
+    'CajaSesion',
 ]

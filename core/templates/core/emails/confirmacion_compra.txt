@@ -49,15 +49,13 @@ Total Final:    ${{ descuento_info.total_final }}
 {% endif %}
 
 
-TOTAL PAGADO: ${{ total }}
+TOTAL PAGADO: ${{ total_real|floatformat:2 }}
 ================================================
 
 
 ℹ️ INFORMACIÓN IMPORTANTE
 --------------------------------------------------
 • Llega al cine con 15 minutos de anticipación
-• Presenta este email o tu DNI en la entrada
-• Puedes intercambiar tus entradas hasta 24 horas antes de la función
 • Recuerda que una vez iniciada la función no se permiten intercambios
 
 

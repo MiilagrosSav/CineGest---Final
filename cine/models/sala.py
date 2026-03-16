@@ -51,6 +51,30 @@ class Sala(SoftDeleteMixin, models.Model):
     def get_status_display(self):
         """Retorna el estado de la sala con icono"""
         return "🟢 Activa" if self.activo else "🔴 Inactiva"
+
+    def clean(self):
+        """
+        Evita desactivar una sala con ventas activas futuras.
+        """
+        super().clean()
+        if not self.pk:
+            return
+
+        if not self.activo:
+            from django.utils import timezone
+            from ventas.models import Entrada
+
+            ahora = timezone.now()
+            tiene_ventas_futuras = Entrada.objects.filter(
+                id_sala=self,
+                estado__in=['RESERVADA', 'VENDIDA', 'ENTREGADA', 'USADA'],
+                id_funcion__fecha_hora__gte=ahora,
+            ).exists()
+
+            if tiene_ventas_futuras:
+                raise ValidationError(
+                    'No se puede desactivar la sala porque tiene ventas activas en funciones futuras.'
+                )
     
     def delete(self, **kwargs):
         """

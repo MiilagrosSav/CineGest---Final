@@ -22,7 +22,7 @@
             {% if es_edicion %}
                 Modifica los detalles de la función.
             {% else %}
-                Programa una o más funciones seleccionando la película, sala, día y los horarios.
+                Programa funciones por rango de fechas, dias de semana y horarios.
             {% endif %}
         </p>
     </div>
@@ -76,18 +76,53 @@
             </div>
             {% endwith %}
 
-            {% with field=form.fecha %}
-            <div class="form-group">
-                <label for="{{ field.id_for_label }}" class="form-label">
+            <div class="form-row" style="display: grid; gap: var(--space-md); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+                {% with field=form.fecha_inicio %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}<small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">💡 {{ field.help_text }}</small>{% endif %}
+                    {% if field.errors %}{% for error in field.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+                </div>
+                {% endwith %}
+
+                {% with field=form.fecha_fin %}
+                <div class="form-group">
+                    <label for="{{ field.id_for_label }}" class="form-label">
+                        {{ field.label }}
+                        {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                    </label>
+                    {{ field }}
+                    {% if field.help_text %}<small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">💡 {{ field.help_text }}</small>{% endif %}
+                    {% if field.errors %}{% for error in field.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
+                </div>
+                {% endwith %}
+            </div>
+
+            {% with field=form.dias_semana %}
+            <div class="form-group" id="dias-semana-section" style="display: none;">
+                <label class="form-label" style="display: block; margin-bottom: var(--space-sm); font-weight: 600;">
                     {{ field.label }}
                     {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
                 </label>
-                {{ field }}
+                <div style="display: flex; justify-content: flex-end; margin-bottom: var(--space-xs);">
+                    <button type="button" id="btn-seleccionar-todos-dias" class="btn btn-outline" style="padding: 0.35rem 0.8rem; font-size: 0.8rem;">
+                        Seleccionar todos
+                    </button>
+                </div>
+                <div class="dias-semana-group" role="group" aria-label="Días de la semana">
+                    {% for checkbox in field %}
+                        {{ checkbox.tag }}
+                        <label class="btn btn-outline-primary dia-semana-btn" for="{{ checkbox.id_for_label }}">
+                            {{ checkbox.choice_label }}
+                        </label>
+                    {% endfor %}
+                </div>
                 {% if field.help_text %}<small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">💡 {{ field.help_text }}</small>{% endif %}
                 {% if field.errors %}{% for error in field.errors %}<span class="form-error" role="alert">⚠️ {{ error }}</span>{% endfor %}{% endif %}
-                
-                <!-- Alerta de excepción de horario -->
-                <div id="excepcion-alerta" style="display: none; margin-top: var(--space-sm);"></div>
             </div>
             {% endwith %}
 
@@ -99,7 +134,7 @@
                 </label>
                 <div id="horarios-disponibles" style="margin-bottom: var(--space-sm); padding: var(--space-md); background: rgba(255,255,255,0.05); border-radius: var(--radius); min-height: 60px;">
                     <p class="text-secondary" style="text-align: center; font-size: 0.9rem;">
-                        Selecciona película, sala y fecha para ver los horarios disponibles
+                        Selecciona pelicula, sala y fecha de inicio. La fecha fin es opcional para modo rango.
                     </p>
                 </div>
                 <div style="display: none;">{{ field }}</div>
@@ -260,7 +295,7 @@
 
 <script>
     window.CALCULAR_HORARIOS_URL = "{% url 'cine:calcular_horarios' %}";
-    window.VERIFICAR_HORARIO_FECHA_URL = "{% url 'cine:verificar_horario_fecha' %}";
+    window.PRECHECK_DIAS_URL = "{% url 'cine:precheck_dias_funcion' %}";
 </script>
 
 <script>
@@ -310,3 +345,5 @@
 
 <script src="{% static 'cine/js/funcion_form.js' %}?v=1.0"></script>
 {% endblock %}
+
+

@@ -25,8 +25,8 @@
                 <button class="filter-btn {% if current_filter == 'intercambiadas' %}active{% endif %}" data-filter="intercambiadas">
                     🔄 Intercambiadas
                 </button>
-                <button class="filter-btn {% if current_filter == 'canceladas' %}active{% endif %}" data-filter="canceladas">
-                    ❌ Canceladas
+                <button class="filter-btn {% if current_filter == 'expiradas' %}active{% endif %}" data-filter="expiradas">
+                    ⏳ Expiradas
                 </button>
                 
                 <!-- Buscador -->
@@ -54,7 +54,12 @@
 
         {% if ventas_historial %}
         <div class="ventas-historial" style="padding: var(--space-lg);"> 
-            <h2 id="historial-titulo" style="margin: 0 0 var(--space-md) 0; color: var(--primary);">📚 Historial de Compras</h2>
+            <h2 id="historial-titulo" style="margin: 0 0 var(--space-md) 0; color: var(--primary);">
+                {% if current_filter == 'confirmadas' %}✅ Compras Confirmadas
+                {% elif current_filter == 'intercambiadas' %}🔄 Compras Intercambiadas
+                {% elif current_filter == 'expiradas' %}⏳ Compras Expiradas
+                {% else %}📚 Historial de Compras{% endif %}
+            </h2>
             <div id="ventasHistorialContainer">
                 {% include 'ventas/_ventas_historial.html' %}
             </div>

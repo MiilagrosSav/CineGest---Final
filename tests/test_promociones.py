@@ -22,12 +22,19 @@ class PromocionSimpleTestCase(TestCase):
         # Crear género
         self.genero, _ = Genero.objects.get_or_create(nombre='Test')
         
+        # Obtener clasificación ATP
+        from cine.models import Clasificacion
+        self.clasificacion_atp, _ = Clasificacion.objects.get_or_create(
+            nombre='ATP',
+            defaults={'descripcion': 'Apta para todo público', 'edad_minima': 0}
+        )
+        
         # Crear película
         self.pelicula = Pelicula.objects.create(
             titulo='Test Movie',
             sinopsis='Test',
             duracion=120,
-            clasificacion='ATP',
+            clasificacion=self.clasificacion_atp,
             fecha_estreno=date.today(),
             acepta_promociones=True
         )

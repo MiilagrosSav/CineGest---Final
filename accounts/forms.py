@@ -1,27 +1,47 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
+from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, PasswordChangeForm, PasswordResetForm
 from django.db import transaction
-from django.core.validators import RegexValidator
-from .models import Usuario, Cliente, Empleado
+from .models import Usuario, Cliente, Empleado, DNI_VALIDATOR, TELEFONO_VALIDATOR, USERNAME_ALPHANUMERIC_VALIDATOR, NOMBRE_VALIDATOR
 from ventas.models import PoliticaReembolso
 from datetime import date
+from django.core.exceptions import ValidationError
 
-# Validador de DNI (7-8 dígitos numéricos)
-DNI_VALIDATOR = RegexValidator(
-    regex=r'^\d{7,8}$',
-    message='El DNI debe contener entre 7 y 8 dígitos numéricos, sin letras ni espacios.'
-)
+# ==================== VALIDADORES PERSONALIZADOS ====================
 
-# Validador de Teléfono (7-15 dígitos)
-TELEFONO_VALIDATOR = RegexValidator(
-    regex=r'^\+?\d{7,15}$',
-    message='El teléfono debe contener entre 7 y 15 dígitos numéricos. Puede incluir + al inicio.',
-    code='telefono_invalido'
-)
+def validar_password_minimo(password):
+    """Validador para asegurar que la contraseña tenga mínimo 8 caracteres"""
+    if len(password) < 8:
+        raise ValidationError(
+            'La contraseña debe tener un mínimo de 8 caracteres.',
+            code='password_too_short'
+        )
 
-# --- Formulario de Registro de Clientes ---
+
+def validar_nombre_sin_numeros(nombre):
+    """Validador para asegurar que el nombre no contenga números"""
+    if any(char.isdigit() for char in nombre):
+        raise ValidationError(
+            'El nombre no puede contener números.',
+            code='nombre_con_numeros'
+        )
+
+
+# ==================== FORMULARIOS ====================
+class CustomPasswordResetForm(PasswordResetForm):
+    """
+    Permite reset para usuarios activos con cuenta Google aunque no tengan password usable.
+    """
+
+    def get_users(self, email):
+        email = email.strip().lower()
+        qs = Usuario.all_objects.filter(email__iexact=email, is_active=True)
+        for user in qs:
+            if user.has_usable_password() or user.is_google_user:
+                yield user
+
+
 class CustomUserCreationForm(UserCreationForm):
-    # Campos del perfil Cliente
+    # Campo marketing del perfil Cliente
     acepta_marketing = forms.BooleanField(
         label='Deseo recibir novedades y promociones exclusivas',
         required=False,
@@ -29,90 +49,77 @@ class CustomUserCreationForm(UserCreationForm):
         initial=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
-    fecha_nacimiento = forms.DateField(
-        label='Fecha de Nacimiento', 
-        required=False, 
-        widget=forms.DateInput(attrs={'class': 'form-input', 'type': 'date'})
-    )
-    
-    # Campos del Usuario (puedes añadir dni, telefono si quieres pedirlos en el registro)
-    dni = forms.CharField(
-        label='DNI', 
-        max_length=8, 
-        required=False, 
-        validators=[DNI_VALIDATOR],
-        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Ej: 12345678'})
-    )
-    telefono = forms.CharField(
-        label='Teléfono', 
-        max_length=20, 
-        required=False,
-        validators=[TELEFONO_VALIDATOR],
-        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': '+54 9 11 1234-5678'})
-    )
 
     class Meta(UserCreationForm.Meta):
         model = Usuario
-        fields = ('username', 'email', 'first_name', 'last_name', 'dni', 'telefono', 'acepta_marketing') # Campos del Usuario
+        fields = ('username', 'email', 'first_name', 'last_name', 'acepta_marketing')
 
     def clean_username(self):
-        """Validación personalizada para username único (considerando normalización a minúsculas)"""
+        """Valida que el username sea alfanumérico y único."""
         username = self.cleaned_data.get('username')
         if username:
-            # Normalizar a minúsculas como lo hace el modelo
             username_normalizado = username.strip().lower()
+            # Validar caracteres alfanuméricos
+            if not username_normalizado.isalnum():
+                raise forms.ValidationError('El nombre de usuario solo puede contener letras y números.')
             if Usuario.objects.filter(username=username_normalizado).exists():
                 raise forms.ValidationError('Ya existe un usuario con este nombre de usuario.')
             return username
         return username
 
+    def clean_first_name(self):
+        """Valida que el first_name no contenga números"""
+        first_name = self.cleaned_data.get('first_name', '').strip()
+        if not first_name:
+            raise forms.ValidationError('El nombre es requerido.')
+        validar_nombre_sin_numeros(first_name)
+        return first_name
+
+    def clean_last_name(self):
+        """Valida que el last_name no contenga números"""
+        last_name = self.cleaned_data.get('last_name', '').strip()
+        if not last_name:
+            raise forms.ValidationError('El apellido es requerido.')
+        validar_nombre_sin_numeros(last_name)
+        return last_name
+
+    def clean_password1(self):
+        """Valida que la contraseña tenga mínimo 8 caracteres"""
+        password1 = self.cleaned_data.get('password1', '')
+        validar_password_minimo(password1)
+        return password1
+
     def clean_email(self):
-        """Validación personalizada para email único"""
-        email = self.cleaned_data['email']
-        if Usuario.objects.filter(email=email).exists():
+        """Validación personalizada para email único, considerando baja lógica"""
+        email = self.cleaned_data['email'].strip().lower()
+        
+        # Buscar en todos los usuarios (activos e inactivos)
+        usuario_existente = Usuario.all_objects.filter(email=email).first()
+        
+        if usuario_existente:
+            # Si el usuario existe pero está inactivo (baja lógica)
+            if not usuario_existente.is_active:
+                raise forms.ValidationError(
+                    'Este email fue dado de baja. Por favor contacta al soporte para reactivar tu cuenta o usa otro email.'
+                )
+            # Si el usuario está activo, no permitir el registro
             raise forms.ValidationError('Ya existe un usuario con este email.')
+        
         return email
 
-    def clean_dni(self):
-        """Validación personalizada para DNI único"""
-        dni = self.cleaned_data.get('dni')
-        if dni and Usuario.objects.filter(dni=dni).exists():
-            raise forms.ValidationError('Ya existe un usuario con este DNI.')
-        return dni
-
-    def clean_fecha_nacimiento(self):
-        """Validación personalizada para fecha de nacimiento"""
-        fecha_nac = self.cleaned_data.get('fecha_nacimiento')
-        if fecha_nac:
-            if fecha_nac > date.today():
-                raise forms.ValidationError('La fecha de nacimiento no puede ser posterior al día de hoy.')
-            if fecha_nac < date(1900, 1, 1):
-                raise forms.ValidationError('La fecha de nacimiento no puede ser anterior al 1 de enero de 1900.')
-        return fecha_nac
-
-    @transaction.atomic # Asegura que o se crean los dos (Usuario y Cliente) o ninguno
+    @transaction.atomic
     def save(self, commit=True):
-        # 1. Guarda el objeto Usuario
-        user = super().save(commit=False) # No guarda en BD todavía
-        user.rol = 'cliente' # Asigna el rol de cliente
+        user = super().save(commit=False)
+        user.rol = 'cliente'
         user.is_staff = False
-        
-        # 2. Guarda los campos extra del Usuario
-        user.dni = self.cleaned_data.get('dni')
-        user.telefono = self.cleaned_data.get('telefono')
-        
         if commit:
-            user.save() # Ahora sí, guarda el Usuario
-        
-        # 3. Crea y guarda el objeto Cliente enlazado
+            user.save()
         cliente = Cliente(
             usuario=user,
             acepta_marketing=bool(self.cleaned_data.get('acepta_marketing', False)),
-            fecha_nacimiento=self.cleaned_data.get('fecha_nacimiento')
         )
         if commit:
             cliente.save()
-            
         return user
 
 # --- Formulario de Creación de Empleados (para Admins) ---
@@ -142,15 +149,13 @@ class EmployeeCreationForm(UserCreationForm):
     
     # Campos del perfil Empleado
     fecha_ingreso = forms.DateField(
-        label='🗓️ Fecha de Ingreso', 
-        initial=date.today(),  # Valor por defecto: fecha de hoy
+        label='🗓️ Fecha de Ingreso',
         input_formats=['%Y-%m-%d'],  # Acepta formato ISO (YYYY-MM-DD)
         widget=forms.DateInput(
             format='%Y-%m-%d',  # Renderiza en formato ISO para HTML5
             attrs={
                 'class': 'form-input',
                 'type': 'date',
-                'max': date.today().isoformat()  # Bloquea fechas futuras en el calendario del navegador
             }
         ),
         help_text='La fecha de ingreso no puede ser posterior al día de hoy.'
@@ -186,6 +191,11 @@ class EmployeeCreationForm(UserCreationForm):
         self.fields['password2'].label = 'Confirmar contraseña'
         self.fields['password2'].widget.attrs['placeholder'] = '••••••••'
 
+        # Establecer 'hoy' en tiempo de instanciación (no de importación)
+        today = date.today()
+        self.fields['fecha_ingreso'].initial = today
+        self.fields['fecha_ingreso'].widget.attrs['max'] = today.isoformat()
+
     def clean_username(self):
         """Validar que el username sea único (considerando normalización a minúsculas)"""
         username = self.cleaned_data.get('username')
@@ -196,6 +206,28 @@ class EmployeeCreationForm(UserCreationForm):
                 raise forms.ValidationError('Ya existe un usuario con este nombre de usuario.')
             return username
         return username
+
+    def clean_first_name(self):
+        """Valida que el first_name no contenga números"""
+        first_name = self.cleaned_data.get('first_name', '').strip()
+        if not first_name:
+            raise forms.ValidationError('El nombre es requerido.')
+        validar_nombre_sin_numeros(first_name)
+        return first_name
+
+    def clean_last_name(self):
+        """Valida que el last_name no contenga números"""
+        last_name = self.cleaned_data.get('last_name', '').strip()
+        if not last_name:
+            raise forms.ValidationError('El apellido es requerido.')
+        validar_nombre_sin_numeros(last_name)
+        return last_name
+
+    def clean_password1(self):
+        """Valida que la contraseña tenga mínimo 8 caracteres"""
+        password1 = self.cleaned_data.get('password1', '')
+        validar_password_minimo(password1)
+        return password1
 
     def clean_dni(self):
         """Validar que el DNI sea único"""
@@ -245,14 +277,14 @@ class EmployeeCreationForm(UserCreationForm):
             
         return user
 
-# --- Formulario de Login (Sin cambios, estaba bien) ---
+# --- Formulario de Login: acepta Username o Email ---
 class CustomAuthenticationForm(AuthenticationForm):
     username = forms.CharField(
-        label='👤 Usuario',
+        label='Usuario o Email',
         max_length=254,
         widget=forms.TextInput(attrs={
             'class': 'form-input',
-            'placeholder': 'Tu nombre de usuario',
+            'placeholder': 'Tu usuario o email',
             'autofocus': True,
             'required': True,
             'autocomplete': 'username'
@@ -273,6 +305,66 @@ class CustomAuthenticationForm(AuthenticationForm):
         'invalid_login': 'Por favor, ingrese un nombre de usuario y contraseña correctos.',
         'inactive': 'Esta cuenta está inactiva.',
     }
+
+
+# --- Formulario de Cambio de Contraseña Personalizado ---
+class CustomPasswordChangeForm(PasswordChangeForm):
+    """
+    Formulario para cambio de contraseña con validación de longitud mínima.
+    Compatible con usuarios de Google (MAILCREAB).
+    """
+    
+    new_password1 = forms.CharField(
+        label='Nueva contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Mínimo 8 caracteres',
+            'autocomplete': 'new-password',
+            'minlength': '8'
+        }),
+        strip=False,
+        help_text='Mínimo 8 caracteres.'
+    )
+    
+    new_password2 = forms.CharField(
+        label='Confirmar nueva contraseña',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Confirma tu nueva contraseña',
+            'autocomplete': 'new-password',
+            'minlength': '8'
+        }),
+        strip=False,
+    )
+    
+    old_password = forms.CharField(
+        label='Contraseña actual',
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Tu contraseña actual',
+            'autocomplete': 'current-password'
+        }),
+        strip=False,
+    )
+    
+    def clean_new_password1(self):
+        """Valida que la nueva contraseña tenga mínimo 8 caracteres"""
+        password = self.cleaned_data.get('new_password1')
+        if password:
+            validar_password_minimo(password)
+        return password
+    
+    def clean_new_password2(self):
+        """Valida que la confirmación coincida con la nueva contraseña"""
+        password1 = self.cleaned_data.get('new_password1')
+        password2 = self.cleaned_data.get('new_password2')
+        if password1 and password2:
+            if password1 != password2:
+                raise forms.ValidationError(
+                    'Las contraseñas no coinciden.',
+                    code='password_mismatch'
+                )
+        return password2
 
 
 # --- Formulario de Edición de Empleados ---
@@ -346,6 +438,29 @@ class EmployeeUpdateForm(forms.ModelForm):
         self.fields['dni'].max_length = 8
         self.fields['telefono'].validators = [TELEFONO_VALIDATOR]
 
+    def clean_first_name(self):
+        """Valida que el first_name no contenga números"""
+        first_name = self.cleaned_data.get('first_name', '').strip()
+        if not first_name:
+            raise forms.ValidationError('El nombre es requerido.')
+        validar_nombre_sin_numeros(first_name)
+        return first_name
+
+    def clean_last_name(self):
+        """Valida que el last_name no contenga números"""
+        last_name = self.cleaned_data.get('last_name', '').strip()
+        if not last_name:
+            raise forms.ValidationError('El apellido es requerido.')
+        validar_nombre_sin_numeros(last_name)
+        return last_name
+
+    def clean_password1(self):
+        """Valida que la contraseña tenga mínimo 8 caracteres (si se proporciona)"""
+        password1 = self.cleaned_data.get('password1')
+        if password1:  # Solo validar si se proporciona una contraseña
+            validar_password_minimo(password1)
+        return password1
+
     def clean(self):
         cleaned = super().clean()
         p1 = cleaned.get('password1')
@@ -366,6 +481,9 @@ class EmployeeUpdateForm(forms.ModelForm):
 
 # --- Formulario para Politica de Reembolso (Admin) ---
 class PoliticaReembolsoForm(forms.ModelForm):
+    DECISION_MANTENER_ACTUAL = 'mantener_actual'
+    DECISION_ACTIVAR_NUEVA = 'activar_nueva'
+
     
     nombre = forms.CharField(
         label='📝 Nombre de la Política',
@@ -409,141 +527,364 @@ class PoliticaReembolsoForm(forms.ModelForm):
         }),
         help_text='Número máximo de intercambios permitidos por compra (0 = ilimitado).'
     )
-    
-    activo = forms.BooleanField(
-        label='🟢 Política activa',
+
+    ofrecer_promos_vinculo = forms.BooleanField(
+        label='🎯 Ofrecer promociones de vínculo específico',
         required=False,
         widget=forms.CheckboxInput(attrs={
             'class': 'form-check-input'
         }),
-        help_text='Si está activa, esta política permite intercambios. Solo una política puede estar activa a la vez.'
+        help_text='Si está activo, al elegir la nueva función en un intercambio se pueden aplicar promociones de vínculo específico.'
     )
-    
+
+    permitir_reintercambio = forms.BooleanField(
+        label='🔁 Permitir reintercambio',
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Permite volver a intercambiar una compra que ya tuvo un intercambio previo.'
+    )
+
+    permitir_con_cupon_promocion = forms.BooleanField(
+        label='🎟️ Permitir intercambio con cupón/promoción',
+        required=False,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        help_text='Si está activo, las compras hechas con cupón o promociones especiales también pueden intercambiarse.'
+    )
+
+    decision_politica_activa = forms.ChoiceField(
+        label='⚖️ Política activa a mantener',
+        required=False,
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'}),
+        choices=[
+            (DECISION_MANTENER_ACTUAL, 'Mantener activa la política actual y crear esta nueva como inactiva'),
+            (DECISION_ACTIVAR_NUEVA, 'Activar esta nueva política y desactivar la política actual'),
+        ],
+        help_text='Ya existe una política activa. Debes elegir cuál quedará activa.'
+    )
+
     class Meta:
         model = PoliticaReembolso
-        fields = ['nombre', 'activo', 'dias_antes_minimo', 'max_cambios_por_compra']
+        fields = [
+            'nombre',
+            'activo',
+            'dias_antes_minimo',
+            'max_cambios_por_compra',
+            'ofrecer_promos_vinculo',
+            'permitir_reintercambio',
+            'permitir_con_cupon_promocion',
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._es_creacion = not bool(self.instance and self.instance.pk)
+        self._politica_activa_existente = PoliticaReembolso.all_objects.filter(activo=True).exclude(
+            pk=getattr(self.instance, 'pk', None)
+        ).first()
+
+        if self._es_creacion:
+            # El campo "activo" solo se muestra al modificar.
+            self.fields.pop('activo', None)
+            if not self._politica_activa_existente:
+                self.fields.pop('decision_politica_activa', None)
+            else:
+                self.fields['decision_politica_activa'].help_text = (
+                    f'Actualmente está activa: "{self._politica_activa_existente.nombre}". '
+                    'Selecciona cuál política debe mantenerse activa.'
+                )
+        else:
+            self.fields.pop('decision_politica_activa', None)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if self._es_creacion and self._politica_activa_existente:
+            decision = cleaned_data.get('decision_politica_activa')
+            if not decision:
+                raise forms.ValidationError(
+                    'Ya existe una política activa. Debes indicar cuál política quieres mantener activa.'
+                )
+        return cleaned_data
+
+    def save(self, commit=True):
+        instancia = super().save(commit=False)
+
+        with transaction.atomic():
+            if self._es_creacion:
+                if self._politica_activa_existente:
+                    decision = self.cleaned_data.get('decision_politica_activa')
+                    if decision == self.DECISION_MANTENER_ACTUAL:
+                        instancia.activo = False
+                    else:
+                        PoliticaReembolso.all_objects.filter(activo=True).update(activo=False)
+                        instancia.activo = True
+                else:
+                    # Si no hay política previa, la nueva queda activa automáticamente.
+                    instancia.activo = True
+            else:
+                # Si se marca activa en edición, desactivar cualquier otra.
+                if self.cleaned_data.get('activo'):
+                    PoliticaReembolso.all_objects.filter(activo=True).exclude(pk=instancia.pk).update(activo=False)
+
+            if commit:
+                instancia.save()
+                self.save_m2m()
+
+        return instancia
 
 
 # --- Formulario para Editar Perfil de Cliente ---
 class ClienteProfileForm(forms.ModelForm):
-    """Formulario para que clientes editen su perfil"""
+    """
+    Formulario para que clientes editen su perfil.
+    - Si el usuario vino por Google: email, first_name, last_name son read-only.
+    - Si el usuario de Google ya completó el modal (es_perfil_completo), username también es read-only.
+    """
+    username = forms.CharField(
+        label='Nombre de usuario',
+        max_length=150,
+        required=False,
+        validators=[USERNAME_ALPHANUMERIC_VALIDATOR],
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Solo letras y números'
+        }),
+        help_text='Solo letras y números, sin espacios. Ej: juan123'
+    )
     first_name = forms.CharField(
         label='Nombre',
         max_length=150,
         required=True,
-        widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Tu nombre'
-        })
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Tu nombre'})
     )
     last_name = forms.CharField(
         label='Apellido',
         max_length=150,
         required=True,
-        widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'Tu apellido'
-        })
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': 'Tu apellido'})
     )
     email = forms.EmailField(
         label='Email',
         required=True,
-        widget=forms.EmailInput(attrs={
-            'class': 'form-input',
-            'placeholder': 'tu@email.com'
-        })
+        widget=forms.EmailInput(attrs={'class': 'form-input', 'placeholder': 'tu@email.com'})
     )
     telefono = forms.CharField(
         label='Teléfono',
         max_length=20,
         required=False,
         validators=[TELEFONO_VALIDATOR],
-        widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': '+54 9 11 1234-5678'
-        })
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': '+54 9 11 1234-5678'})
     )
     dni = forms.CharField(
         label='DNI',
         max_length=8,
         required=False,
         validators=[DNI_VALIDATOR],
-        widget=forms.TextInput(attrs={
-            'class': 'form-input',
-            'placeholder': '12345678'
-        })
-    )
-    fecha_nacimiento = forms.DateField(
-        label='Fecha de Nacimiento',
-        required=False,
-        widget=forms.DateInput(attrs={
-            'class': 'form-input',
-            'type': 'date',
-            'min': '1900-01-01',
-            'max': date.today().isoformat()
-        }),
-        help_text='Debe ser una fecha entre el 1/1/1900 y hoy'
+        widget=forms.TextInput(attrs={'class': 'form-input', 'placeholder': '12345678'})
     )
     acepta_marketing = forms.BooleanField(
         label='Deseo recibir novedades y promociones',
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
-    
+
     class Meta:
         model = Cliente
-        fields = ['fecha_nacimiento', 'acepta_marketing']
-    
+        fields = ['acepta_marketing']
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Inicializar campos del usuario
         if self.instance and self.instance.usuario:
-            self.fields['first_name'].initial = self.instance.usuario.first_name
-            self.fields['last_name'].initial = self.instance.usuario.last_name
-            self.fields['email'].initial = self.instance.usuario.email
-            self.fields['telefono'].initial = self.instance.usuario.telefono
-            self.fields['dni'].initial = self.instance.usuario.dni
-    
+            usuario = self.instance.usuario
+            self.fields['username'].initial = usuario.username
+            self.fields['first_name'].initial = usuario.first_name
+            self.fields['last_name'].initial = usuario.last_name
+            self.fields['email'].initial = usuario.email
+            self.fields['telefono'].initial = usuario.telefono
+            self.fields['dni'].initial = usuario.dni
+
+            # Bloquear campos para usuarios de Google
+            if usuario.is_google_user:
+                for campo in ('email', 'first_name', 'last_name'):
+                    self.fields[campo].widget.attrs['readonly'] = True
+                    self.fields[campo].widget.attrs['class'] = 'form-input readonly-field'
+                    self.fields[campo].help_text = 'Campo gestionado por Google, no editable.'
+
+                # Username bloqueado si el perfil ya está completo
+                if usuario.es_perfil_completo:
+                    self.fields['username'].widget.attrs['readonly'] = True
+                    self.fields['username'].widget.attrs['class'] = 'form-input readonly-field'
+                    self.fields['username'].help_text = 'Nombre de usuario fijado al completar el perfil.'
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if not username:
+            return self.instance.usuario.username if self.instance else username
+        username_norm = username.strip().lower()
+        if not username_norm.isalnum():
+            raise forms.ValidationError('Solo letras y números, sin espacios.')
+        if Usuario.objects.filter(username=username_norm).exclude(pk=self.instance.usuario.pk).exists():
+            raise forms.ValidationError('Este nombre de usuario ya está en uso.')
+        return username
+
     def clean_email(self):
         email = self.cleaned_data['email']
-        # Verificar que el email no esté en uso por otro usuario
-        if Usuario.objects.filter(email=email).exclude(pk=self.instance.usuario.pk).exists():
+        usuario = self.instance.usuario
+        # Si es Google user, preservar email original (no editable)
+        if usuario.is_google_user:
+            return usuario.email
+        # Validar contra usuarios activos e inactivos (baja lógica)
+        usuario_existente = Usuario.all_objects.filter(email=email).exclude(pk=usuario.pk).first()
+        if usuario_existente:
+            if not usuario_existente.is_active:
+                raise forms.ValidationError(
+                    'Este email fue dado de baja. Por favor contacta al soporte para reactivar tu cuenta o usa otro email.'
+                )
             raise forms.ValidationError('Este email ya está en uso.')
         return email
-    
+
+    def clean_first_name(self):
+        """Valida que el first_name no contenga números, respetando usuarios de Google"""
+        first_name = self.cleaned_data.get('first_name')
+        if self.instance.usuario.is_google_user:
+            return self.instance.usuario.first_name
+        if not first_name:
+            raise forms.ValidationError('El nombre es requerido.')
+        validar_nombre_sin_numeros(first_name)
+        return first_name
+
+    def clean_last_name(self):
+        """Valida que el last_name no contenga números, respetando usuarios de Google"""
+        last_name = self.cleaned_data.get('last_name')
+        if self.instance.usuario.is_google_user:
+            return self.instance.usuario.last_name
+        if not last_name:
+            raise forms.ValidationError('El apellido es requerido.')
+        validar_nombre_sin_numeros(last_name)
+        return last_name
+
     def clean_dni(self):
         dni = self.cleaned_data.get('dni')
-        if dni and Usuario.objects.filter(dni=dni).exclude(pk=self.instance.usuario.pk).exists():
+        if not dni:
+            return dni
+        if Usuario.objects.filter(dni=dni).exclude(pk=self.instance.usuario.pk).exists():
             raise forms.ValidationError('Este DNI ya está en uso.')
         return dni
 
-    def clean_fecha_nacimiento(self):
-        """Validación personalizada para fecha de nacimiento"""
-        fecha_nac = self.cleaned_data.get('fecha_nacimiento')
-        if fecha_nac:
-            if fecha_nac > date.today():
-                raise forms.ValidationError('La fecha de nacimiento no puede ser posterior al día de hoy.')
-            if fecha_nac < date(1900, 1, 1):
-                raise forms.ValidationError('La fecha de nacimiento no puede ser anterior al 1 de enero de 1900.')
-        return fecha_nac
-    
     @transaction.atomic
     def save(self, commit=True):
-        # Actualizar datos del usuario
         usuario = self.instance.usuario
         usuario.first_name = self.cleaned_data['first_name']
         usuario.last_name = self.cleaned_data['last_name']
         usuario.email = self.cleaned_data['email']
-        usuario.telefono = self.cleaned_data.get('telefono', '')
-        usuario.dni = self.cleaned_data.get('dni', '')
+        usuario.telefono = self.cleaned_data.get('telefono') or ''
+        usuario.dni = self.cleaned_data.get('dni') or None
+        # Actualizar username solo si no es Google con perfil completo
+        new_username = self.cleaned_data.get('username')
+        if new_username and not (usuario.is_google_user and usuario.es_perfil_completo):
+            usuario.username = new_username.strip().lower()
         if commit:
             usuario.save()
-        
-        # Actualizar datos del cliente
         cliente = super().save(commit=False)
         if commit:
             cliente.save()
         return cliente
+
+
+# --- Formulario del Modal de Completar Perfil (solo Google users) ---
+class CompletarPerfilGoogleForm(forms.Form):
+    """Formulario del modal obligatorio para usuarios de Google."""
+    username = forms.CharField(
+        label='Nombre de usuario',
+        max_length=150,
+        required=False,
+        validators=[USERNAME_ALPHANUMERIC_VALIDATOR],
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Solo letras y números. Ej: juan123',
+            'id': 'id_modal_username',
+            'autocomplete': 'off'
+        }),
+        help_text='Opcional. Solo letras y números.'
+    )
+    dni = forms.CharField(
+        label='DNI',
+        max_length=8,
+        required=True,
+        validators=[DNI_VALIDATOR],
+        widget=forms.TextInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'Ej: 12345678',
+            'id': 'id_modal_dni'
+        })
+    )
+    email = forms.EmailField(
+        label='Correo de contacto',
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-input',
+            'placeholder': 'tu@email.com',
+            'id': 'id_modal_email',
+            'autocomplete': 'email'
+        }),
+        help_text='Podés corregirlo si querés recibir novedades en otra dirección.'
+    )
+    acepta_marketing = forms.BooleanField(
+        label='Acepto recibir promociones/notificaciones por cupones',
+        required=True,
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+            'id': 'id_modal_marketing'
+        }),
+        error_messages={
+            'required': 'Debes aceptar promociones/notificaciones para recibir cupones.'
+        }
+    )
+
+    def __init__(self, *args, user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._user = user
+        if user:
+            self.fields['username'].initial = user.username
+            self.fields['email'].initial = user.email
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        if not username:
+            # Mantener el existente si no se proporciona uno
+            return self._user.username if self._user else ''
+        username_norm = username.strip().lower()
+        if not username_norm.isalnum():
+            raise forms.ValidationError('Solo letras y números, sin espacios.')
+        qs = Usuario.objects.filter(username=username_norm)
+        if self._user:
+            qs = qs.exclude(pk=self._user.pk)
+        if qs.exists():
+            raise forms.ValidationError('Este nombre de usuario ya está en uso.')
+        return username
+
+    def clean_dni(self):
+        dni = self.cleaned_data.get('dni')
+        if dni:
+            qs = Usuario.objects.filter(dni=dni)
+            if self._user:
+                qs = qs.exclude(pk=self._user.pk)
+            if qs.exists():
+                raise forms.ValidationError('DNI ya registrado.')
+        return dni
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').strip().lower()
+        if not email:
+            return email
+        qs = Usuario.all_objects.filter(email=email)
+        if self._user:
+            qs = qs.exclude(pk=self._user.pk)
+        if qs.exists():
+            raise forms.ValidationError('Este email ya está registrado por otro usuario.')
+        return email
 
 
 # --- Formulario para Editar Perfil de Administrador ---
@@ -599,9 +940,30 @@ class AdminProfileForm(forms.ModelForm):
         model = Usuario
         fields = ['first_name', 'last_name', 'email', 'telefono', 'dni']
     
+    def clean_first_name(self):
+        """Valida que el first_name no contenga números"""
+        first_name = self.cleaned_data.get('first_name', '').strip()
+        if not first_name:
+            raise forms.ValidationError('El nombre es requerido.')
+        validar_nombre_sin_numeros(first_name)
+        return first_name
+
+    def clean_last_name(self):
+        """Valida que el last_name no contenga números"""
+        last_name = self.cleaned_data.get('last_name', '').strip()
+        if not last_name:
+            raise forms.ValidationError('El apellido es requerido.')
+        validar_nombre_sin_numeros(last_name)
+        return last_name
+    
     def clean_email(self):
         email = self.cleaned_data['email']
-        if Usuario.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
+        usuario_existente = Usuario.all_objects.filter(email=email).exclude(pk=self.instance.pk).first()
+        if usuario_existente:
+            if not usuario_existente.is_active:
+                raise forms.ValidationError(
+                    'Este email fue dado de baja. Por favor contacta al soporte para reactivar tu cuenta o usa otro email.'
+                )
             raise forms.ValidationError('Este email ya está en uso.')
         return email
     

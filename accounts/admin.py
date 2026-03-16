@@ -57,9 +57,8 @@ class UsuarioAdmin(SimpleHistoryAdmin, DjangoUserAdmin):
 # Registrar los perfiles también como modelos independientes para visibilidad
 @admin.register(Administrador)
 class AdministradorAdmin(admin.ModelAdmin):
-    list_display = ('get_username', 'get_email', 'nivel_acceso', 'get_fecha_creacion')
+    list_display = ('get_username', 'get_email', 'get_fecha_creacion')
     search_fields = ('usuario__username', 'usuario__email')
-    list_filter = ('nivel_acceso',)
     
     def get_username(self, obj):
         return obj.usuario.username

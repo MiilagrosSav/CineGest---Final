@@ -51,6 +51,18 @@
         </div>
 
         <div class="card" style="display: flex; flex-direction: column;">
+            <h3 class="mb-md">🧾 Ventas del Día</h3>
+            <p class="mb-md">
+                Revisa tu listado diario de ventas para respaldo operativo y cierre manual de caja.
+            </p>
+            <div style="margin-top: auto;">
+                <a href="{% url 'ventas:lista_ventas' %}" class="btn btn-primary">
+                    Ver Lista de Ventas
+                </a>
+            </div>
+        </div>
+
+        <div class="card" style="display: flex; flex-direction: column;">
             <h3 class="mb-md">📲 Canje de Entradas</h3>
             <p class="mb-md">
                 Escanea códigos QR para canjear entradas online compradas por clientes.

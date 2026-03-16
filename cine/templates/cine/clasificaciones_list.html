@@ -1,0 +1,271 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+{% block title %}Clasificaciones - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .clasificaciones-container {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1.5rem;
+    }
+    
+    .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1rem;
+        border-bottom: 2px solid rgba(124, 58, 237, 0.3);
+    }
+    
+    .page-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #a78bfa;
+        margin: 0;
+    }
+    
+    .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.5rem;
+        background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%);
+        color: white;
+        text-decoration: none;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        transition: all 0.2s;
+        box-shadow: 0 4px 10px rgba(124, 58, 237, 0.3);
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 15px rgba(124, 58, 237, 0.4);
+    }
+    
+    .section {
+        background: rgba(30, 30, 50, 0.6);
+        border-radius: 1rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border: 1px solid rgba(124, 58, 237, 0.2);
+    }
+    
+    .section-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #c4b5fd;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .clasificaciones-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 1rem;
+    }
+    
+    .clasificacion-card {
+        background: rgba(50, 50, 70, 0.6);
+        border-radius: 0.75rem;
+        padding: 1.25rem;
+        border: 1px solid rgba(167, 139, 250, 0.2);
+        transition: all 0.2s;
+        position: relative;
+    }
+    
+    .clasificacion-card:hover {
+        transform: translateY(-2px);
+        border-color: rgba(167, 139, 250, 0.4);
+        box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+    }
+    
+    .clasificacion-nombre {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #a78bfa;
+        margin-bottom: 0.5rem;
+    }
+    
+    .clasificacion-descripcion {
+        color: #e5e7eb;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+    }
+    
+    .clasificacion-info {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        font-size: 0.9rem;
+    }
+    
+    .info-badge {
+        background: rgba(124, 58, 237, 0.2);
+        padding: 0.4rem 0.8rem;
+        border-radius: 0.4rem;
+        color: #c4b5fd;
+        font-weight: 600;
+    }
+    
+    .clasificacion-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .btn-edit, .btn-delete, .btn-activate {
+        padding: 0.5rem 1rem;
+        border-radius: 0.4rem;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+    }
+    
+    .btn-edit {
+        background: rgba(59, 130, 246, 0.2);
+        color: #93c5fd;
+        border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    
+    .btn-edit:hover {
+        background: rgba(59, 130, 246, 0.3);
+        border-color: rgba(59, 130, 246, 0.5);
+    }
+    
+    .btn-delete {
+        background: rgba(239, 68, 68, 0.2);
+        color: #fca5a5;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    .btn-delete:hover {
+        background: rgba(239, 68, 68, 0.3);
+        border-color: rgba(239, 68, 68, 0.5);
+    }
+    
+    .btn-activate {
+        background: rgba(34, 197, 94, 0.2);
+        color: #86efac;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    
+    .btn-activate:hover {
+        background: rgba(34, 197, 94, 0.3);
+        border-color: rgba(34, 197, 94, 0.5);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #9ca3af;
+        font-size: 1.1rem;
+    }
+    
+    .badge-inactive {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: rgba(239, 68, 68, 0.2);
+        color: #fca5a5;
+        padding: 0.3rem 0.7rem;
+        border-radius: 0.3rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="clasificaciones-container">
+    <div class="page-header">
+        <h1 class="page-title">🔞 Clasificaciones de Edad</h1>
+        <a href="{% url 'cine:crear_clasificacion' %}" class="btn-primary">
+            ➕ Nueva Clasificación
+        </a>
+    </div>
+    
+    <!-- Clasificaciones Activas -->
+    <div class="section">
+        <h2 class="section-title">✅ Clasificaciones Activas</h2>
+        
+        {% if clasificaciones_activas %}
+            <div class="clasificaciones-grid">
+                {% for item in clasificaciones_activas %}
+                <div class="clasificacion-card">
+                    <div class="clasificacion-nombre">{{ item.clasificacion.nombre }}</div>
+                    <div class="clasificacion-descripcion">{{ item.clasificacion.descripcion }}</div>
+                    
+                    <div class="clasificacion-info">
+                        <span class="info-badge">🔢 Edad mínima: {{ item.clasificacion.edad_minima }} años</span>
+                    </div>
+                    
+                    <div class="clasificacion-actions">
+                        <a href="{% url 'cine:editar_clasificacion' item.clasificacion.pk %}" class="btn-edit">
+                            ✏️ Editar
+                        </a>
+                        <form method="post" action="{% url 'cine:eliminar_clasificacion' item.clasificacion.pk %}" 
+                              style="display: inline;"
+                              {% if item.puede_desactivar %}
+                              onsubmit="return confirm('¿Seguro que deseas desactivar la clasificación {{ item.clasificacion.nombre }}?');"
+                              {% endif %}>
+                            {% csrf_token %}
+                            <button type="submit" 
+                                    class="btn-delete" 
+                                    {% if not item.puede_desactivar %}disabled title="{{ item.razon_bloqueo }}" style="opacity: 0.5; cursor: not-allowed;"{% endif %}>
+                                🗑️ Desactivar
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="empty-state">
+                No hay clasificaciones activas. Crea una nueva clasificación.
+            </div>
+        {% endif %}
+    </div>
+    
+    <!-- Clasificaciones Inactivas -->
+    {% if clasificaciones_inactivas %}
+    <div class="section">
+        <h2 class="section-title">❌ Clasificaciones Inactivas</h2>
+        
+        <div class="clasificaciones-grid">
+            {% for clasificacion in clasificaciones_inactivas %}
+            <div class="clasificacion-card" style="opacity: 0.6;">
+                <span class="badge-inactive">Inactiva</span>
+                <div class="clasificacion-nombre">{{ clasificacion.nombre }}</div>
+                <div class="clasificacion-descripcion">{{ clasificacion.descripcion }}</div>
+                
+                <div class="clasificacion-info">
+                    <span class="info-badge">🔢 Edad mínima: {{ clasificacion.edad_minima }} años</span>
+                </div>
+                
+                <div class="clasificacion-actions">
+                    <a href="{% url 'cine:editar_clasificacion' clasificacion.pk %}" class="btn-edit">
+                        ✏️ Editar
+                    </a>
+                    <form method="post" action="{% url 'cine:activar_clasificacion' clasificacion.pk %}" 
+                          style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn-activate">✅ Reactivar</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

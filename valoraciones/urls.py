@@ -5,6 +5,9 @@ app_name = 'valoraciones'
 
 urlpatterns = [
     path('registrar/', views.registrar_valoracion, name='registrar_valoracion'),
+    path('mis-resenas/', views.mis_resenas, name='mis_resenas'),
+    path('mis-resenas/crear/', views.crear_resena, name='crear_resena'),
+    path('gestion/', views.gestion_resenas, name='gestion_resenas'),
     path('notificaciones/', views.obtener_notificaciones, name='obtener_notificaciones'),
     path('notificaciones/<int:notificacion_id>/leer/', views.marcar_notificacion_leida, name='marcar_leida'),
     path('notificaciones/leer-todas/', views.marcar_todas_leidas, name='marcar_todas_leidas'),

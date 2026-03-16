@@ -12,20 +12,20 @@
         <div class="card-header">
             <h1 class="card-title text-gradient-secondary">🗑️ ¿Estás seguro?</h1>
             <p class="card-subtitle">
-                Estás a punto de eliminar permanentemente la política:
+                Estás a punto de dar de baja esta política:
                 <strong style="display: block; font-size: 1.2rem; margin-top: var(--space-sm);">
                     "{{ object }}"
                 </strong>
             </p>
         </div>
 
-        <p class="text-secondary">Esta acción no se puede deshacer.</p>
+        <p class="text-secondary">La baja es lógica: no se elimina físicamente, pero dejará de estar activa.</p>
 
         <form method="post">
             {% csrf_token %}
             <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-md); justify-content: center; flex-wrap: wrap;">
                 <button type="submit" class="btn btn-secondary">
-                    Sí, Eliminar
+                    Sí, Dar de Baja
                 </button>
                 <a href="{% url 'accounts:lista_politicas' %}" class="btn btn-outline">
                     No, Cancelar

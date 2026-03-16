@@ -1,8 +1,12 @@
+import logging
 import django.db.models as models
 from django.core.exceptions import ValidationError
 from django.apps import apps
+from django.utils import timezone
 from simple_history.models import HistoricalRecords
 from core.mixins import SoftDeleteMixin
+
+logger = logging.getLogger(__name__)
 
 class Promocion(SoftDeleteMixin, models.Model):
     """
@@ -78,21 +82,20 @@ class Promocion(SoftDeleteMixin, models.Model):
     def save(self, *args, **kwargs):
         """
         Override save para garantizar que 2x1 siempre tenga valor_descuento=50.
-        Esto evita errores en cálculos y reportes que esperan un número.
+        La desactivación en cascada de PoliticaPromocion la gestiona la señal
+        post_save definida en promociones/signals.py.
         """
         import re
-        
+
         # Normalizar código a MAYÚSCULAS (evita duplicados case-sensitive)
         if self.codigo:
             self.codigo = self.codigo.strip().upper()
-        
+
         # Normalizar nombre de la promoción
         if self.nombre:
-            # Eliminar espacios innecesarios y aplicar Title Case
             self.nombre = self.nombre.strip().title()
-            # Corregir letras repetidas 3 o más veces
             self.nombre = re.sub(r'(.)\1{2,}', r'\1\1', self.nombre)
-        
+
         if self.tipo_descuento == '2X1':
             self.valor_descuento = 50
         super().save(*args, **kwargs)
@@ -104,6 +107,21 @@ class Promocion(SoftDeleteMixin, models.Model):
         2. ✅ NUEVA VALIDACIÓN: Advierte sobre superposición de fechas en promociones automáticas.
         """
         super().clean()
+        import re
+
+        nombre_limpio = (self.nombre or '').strip()
+        if len(nombre_limpio) < 3:
+            raise ValidationError({'nombre': 'El nombre debe tener al menos 3 caracteres.'})
+        if not re.search(r'[A-Za-zÁÉÍÓÚÑáéíóúñ]', nombre_limpio):
+            raise ValidationError({'nombre': 'El nombre debe contener letras.'})
+
+        codigo_limpio = (self.codigo or '').strip()
+        if len(codigo_limpio) < 3:
+            raise ValidationError({'codigo': 'El código debe tener al menos 3 caracteres.'})
+        if not re.search(r'[A-Za-zÁÉÍÓÚÑáéíóúñ]', codigo_limpio):
+            raise ValidationError({'codigo': 'El código debe contener al menos una letra.'})
+        if not re.search(r'\d', codigo_limpio):
+            raise ValidationError({'codigo': 'El código debe contener al menos un número.'})
         # ========== VALIDACIÓN 1: Proteger código e integridad de fechas ==========
         if self.pk:
             try:

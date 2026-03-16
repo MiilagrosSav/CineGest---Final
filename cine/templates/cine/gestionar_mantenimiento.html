@@ -1,0 +1,362 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Mantenimiento de Butacas - {{ sala.nombre }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mant-page { max-width: 960px; margin: 0 auto; padding: var(--space-md); }
+
+    .mant-header { display: flex; align-items: center; gap: var(--space-md); margin-bottom: var(--space-lg); flex-wrap: wrap; }
+
+    .mant-screen {
+        background: linear-gradient(135deg, #2575fc, #6a11cb);
+        color: #fff;
+        text-align: center;
+        padding: 0.5rem 2rem;
+        border-radius: 6px 6px 0 0;
+        font-weight: 700;
+        letter-spacing: 0.15em;
+        margin-bottom: var(--space-md);
+        font-size: 0.85rem;
+    }
+
+    .mant-legend {
+        display: flex; gap: var(--space-md); flex-wrap: wrap;
+        margin-bottom: var(--space-md); font-size: 0.85rem; align-items: center;
+    }
+    .mant-legend .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot {
+        width: 22px; height: 22px; border-radius: 5px; display: inline-block; flex-shrink: 0;
+    }
+    .legend-dot.disponible  { background: #4caf50; }
+    .legend-dot.mant        { background: #ff9800; }
+    .legend-dot.bloqueada   { background: #546e7a; opacity: 0.6; }
+    .legend-dot.pasillo     { background: transparent; border: 2px dashed rgba(255,255,255,0.2); }
+
+    .fila-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+    .fila-label {
+        width: 28px; text-align: center; font-weight: 700;
+        font-size: 0.85rem; color: var(--text-secondary); flex-shrink: 0;
+    }
+
+    .butaca-btn {
+        width: 36px; height: 36px; border-radius: 6px; border: 2px solid transparent;
+        cursor: pointer; font-size: 0.7rem; font-weight: 700; transition: transform 0.1s, opacity 0.2s;
+        position: relative; display: flex; align-items: center; justify-content: center;
+        color: #fff;
+    }
+    .butaca-btn:hover:not(:disabled) { transform: scale(1.12); }
+    .butaca-btn.disponible  { background: #4caf50; border-color: #388e3c; }
+    .butaca-btn.mantenimiento { background: #ff9800; border-color: #e65100; }
+    .butaca-btn.bloqueada   { background: #546e7a; border-color: #37474f; opacity: 0.55; cursor: not-allowed; }
+    .butaca-btn.pasillo     { background: transparent; border: 2px dashed rgba(255,255,255,0.15); cursor: default; }
+
+    .toast-container {
+        position: fixed; bottom: 1.5rem; right: 1.5rem;
+        display: flex; flex-direction: column; gap: 0.5rem; z-index: 9999;
+    }
+    .toast {
+        padding: 0.75rem 1.25rem; border-radius: 8px; color: #fff;
+        font-size: 0.9rem; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        animation: fadeInUp 0.3s ease;
+    }
+    .toast.success { background: #388e3c; }
+    .toast.error   { background: #c62828; }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(12px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .mant-stats {
+        display: flex; gap: var(--space-sm); flex-wrap: wrap; margin-bottom: var(--space-md);
+    }
+    .stat-chip {
+        padding: 0.3rem 0.8rem; border-radius: 20px; font-size: 0.82rem; font-weight: 600;
+    }
+    .stat-chip.disponibles { background: rgba(76,175,80,0.15); color: #4caf50; }
+    .stat-chip.en-mant     { background: rgba(255,152,0,0.15);  color: #ff9800; }
+    .stat-chip.bloqueadas  { background: rgba(84,110,122,0.15); color: #90a4ae; }
+
+    .butaca-btn.pendiente { outline: 3px solid rgba(255,255,255,0.85); outline-offset: 2px; }
+
+    .guardar-bar {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: rgba(18,18,28,0.97);
+        backdrop-filter: blur(10px);
+        padding: 0.9rem 2rem;
+        display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+        border-top: 2px solid rgba(255,152,0,0.5);
+        z-index: 1000;
+        transform: translateY(100%);
+        transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    .guardar-bar.visible { transform: translateY(0); }
+    .guardar-bar .guardar-info { color: var(--text-secondary); font-size: 0.9rem; margin: 0; }
+    .guardar-bar .guardar-info strong { color: #ff9800; }
+    #btnGuardar:hover:not(:disabled) { opacity: 0.85; }
+    #btnGuardar:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mant-page">
+
+    <div class="mant-header">
+        <a href="{% url 'cine:sala_list' %}" class="btn btn-outline"
+           style="padding:0.5rem 1.2rem; border-radius:50px; text-decoration:none;">
+            ← Volver a Salas
+        </a>
+        <div>
+            <h1 class="card-title text-gradient-primary" style="margin-bottom:0;">
+                🔧 Gestionar Mantenimiento de Butacas
+            </h1>
+            <p class="card-subtitle" style="margin-top:0.25rem;">
+                {{ sala.nombre }} — Sala {{ sala.numero }}
+            </p>
+        </div>
+    </div>
+
+    <div class="card glass-container" style="padding: var(--space-lg);">
+
+        <!-- Contador de estado -->
+        <div class="mant-stats" id="statsContainer">
+            <span class="stat-chip disponibles" id="countDisponibles">
+                ✅ <span id="numDisponibles">0</span> disponibles
+            </span>
+            <span class="stat-chip en-mant" id="countMant">
+                🔧 <span id="numMant">0</span> en mantenimiento
+            </span>
+            <span class="stat-chip bloqueadas" id="countBloq">
+                🔒 <span id="numBloq">0</span> con ventas activas
+            </span>
+        </div>
+
+        <!-- Leyenda -->
+        <div class="mant-legend">
+            <div class="legend-item">
+                <span class="legend-dot disponible"></span><span>Disponible (click para poner en mantenimiento)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot mant"></span><span>En mantenimiento (click para liberar)</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot bloqueada"></span><span>Bloqueada — tiene ventas activas</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot pasillo"></span><span>Pasillo</span>
+            </div>
+        </div>
+
+        <!-- Pantalla -->
+        <div class="mant-screen">📽️ PANTALLA</div>
+
+        <!-- Mapa de butacas -->
+        <div id="mapaButacas">
+            {% for fila, asientos in filas.items %}
+            <div class="fila-row">
+                <span class="fila-label">{{ fila }}</span>
+                {% for item in asientos %}
+                    {% if item.butaca.es_pasillo %}
+                    <button class="butaca-btn pasillo" disabled
+                            title="Pasillo"></button>
+                    {% elif item.bloqueada %}
+                    <button class="butaca-btn bloqueada" disabled
+                            data-butaca-id="{{ item.butaca.id }}"
+                            title="🔒 {{ item.butaca.fila }}{{ item.butaca.numero }} — tiene ventas activas">
+                        {{ item.butaca.numero }}
+                    </button>
+                    {% else %}
+                    <button class="butaca-btn {% if item.butaca.en_mantenimiento %}mantenimiento{% else %}disponible{% endif %}"
+                            data-butaca-id="{{ item.butaca.id }}"
+                            data-api-url="{% url 'cine:api_toggle_mantenimiento_butaca' sala.id item.butaca.id %}"
+                            data-en-mantenimiento="{{ item.butaca.en_mantenimiento|yesno:'true,false' }}"
+                            title="{{ item.butaca.fila }}{{ item.butaca.numero }} — {% if item.butaca.en_mantenimiento %}en mantenimiento{% else %}disponible{% endif %}"
+                            onclick="toggleMantenimiento(this)">
+                        {{ item.butaca.numero }}
+                    </button>
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% empty %}
+            <p style="color: var(--text-secondary); text-align:center; padding: var(--space-lg);">
+                Esta sala no tiene butacas configuradas todavía.
+            </p>
+            {% endfor %}
+        </div>
+
+    </div>
+</div>
+
+<!-- Barra de guardar cambios -->
+<div class="guardar-bar" id="guardarBar"
+     data-batch-url="{% url 'cine:api_batch_mantenimiento_sala' sala.id %}">
+    <p class="guardar-info">
+        <strong><span id="pendingCount">0</span> cambio(s)</strong> sin guardar
+    </p>
+    <div style="display:flex; gap:0.75rem; align-items:center;">
+        <button onclick="descartarCambios()" class="btn btn-outline"
+                style="padding:0.45rem 1.1rem; border-radius:50px; font-size:0.88rem;">
+            ✕ Descartar
+        </button>
+        <button id="btnGuardar" onclick="guardarCambios()"
+                style="padding:0.55rem 1.5rem; border-radius:50px; background:linear-gradient(135deg,#ff9800,#f57c00); color:#fff; font-weight:700; border:none; cursor:pointer; font-size:0.92rem;">
+            💾 Guardar Cambios
+        </button>
+    </div>
+</div>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    // Map: butacaId (string) → original en_mantenimiento (bool)
+    const originalState = new Map();
+    // Map: butacaId (string) → desired en_mantenimiento (bool) — unsaved changes only
+    const pendingChanges = new Map();
+
+    // Initialize original state from rendered HTML
+    document.querySelectorAll('#mapaButacas .butaca-btn[data-butaca-id]:not([disabled])').forEach(btn => {
+        originalState.set(btn.dataset.butacaId, btn.dataset.enMantenimiento === 'true');
+    });
+
+    // ---- Stats ----
+    function recalcStats() {
+        let disponibles = 0, enMant = 0, bloqueadas = 0;
+        document.querySelectorAll('#mapaButacas .butaca-btn[data-butaca-id]').forEach(btn => {
+            if (btn.disabled && btn.classList.contains('bloqueada')) bloqueadas++;
+            else if (btn.classList.contains('mantenimiento')) enMant++;
+            else if (btn.classList.contains('disponible')) disponibles++;
+        });
+        document.getElementById('numDisponibles').textContent = disponibles;
+        document.getElementById('numMant').textContent = enMant;
+        document.getElementById('numBloq').textContent = bloqueadas;
+    }
+
+    recalcStats();
+
+    // ---- Toggle (visual only — changes are NOT saved until Guardar) ----
+    window.toggleMantenimiento = function (btn) {
+        const butacaId = btn.dataset.butacaId;
+        const newEnMant = !btn.classList.contains('mantenimiento');
+
+        btn.classList.toggle('mantenimiento', newEnMant);
+        btn.classList.toggle('disponible', !newEnMant);
+        btn.title = btn.title.replace(/en mantenimiento|disponible/, newEnMant ? 'en mantenimiento' : 'disponible');
+
+        const orig = originalState.get(butacaId) ?? false;
+        if (newEnMant !== orig) {
+            pendingChanges.set(butacaId, newEnMant);
+            btn.classList.add('pendiente');
+        } else {
+            pendingChanges.delete(butacaId);
+            btn.classList.remove('pendiente');
+        }
+
+        recalcStats();
+        updateGuardarBar();
+    };
+
+    // ---- Guardar bar visibility ----
+    function updateGuardarBar() {
+        const bar = document.getElementById('guardarBar');
+        document.getElementById('pendingCount').textContent = pendingChanges.size;
+        bar.classList.toggle('visible', pendingChanges.size > 0);
+    }
+
+    // ---- Guardar (batch save) ----
+    window.guardarCambios = function () {
+        if (pendingChanges.size === 0) return;
+
+        const btnGuardar = document.getElementById('btnGuardar');
+        btnGuardar.disabled = true;
+        btnGuardar.textContent = '⏳ Guardando...';
+
+        const changes = Array.from(pendingChanges.entries()).map(([id, enMant]) => ({
+            butaca_id: parseInt(id, 10),
+            en_mantenimiento: enMant,
+        }));
+
+        const batchUrl = document.getElementById('guardarBar').dataset.batchUrl;
+
+        fetch(batchUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ changes }),
+        })
+        .then(r => r.json())
+        .then(data => {
+            btnGuardar.disabled = false;
+            btnGuardar.textContent = '💾 Guardar Cambios';
+            if (data.status === 'ok') {
+                // Commit: update originalState, clear pending, remove visual indicators
+                pendingChanges.forEach((enMant, butacaId) => {
+                    originalState.set(butacaId, enMant);
+                    const b = document.querySelector(`.butaca-btn[data-butaca-id="${butacaId}"]`);
+                    if (b) {
+                        b.classList.remove('pendiente');
+                        b.dataset.enMantenimiento = enMant ? 'true' : 'false';
+                    }
+                });
+                pendingChanges.clear();
+                updateGuardarBar();
+                showToast(data.mensaje, 'success');
+                if (data.errores && data.errores.length) {
+                    data.errores.forEach(e => showToast(e, 'error'));
+                }
+            } else {
+                showToast(data.message || 'Error al guardar los cambios.', 'error');
+            }
+        })
+        .catch(() => {
+            btnGuardar.disabled = false;
+            btnGuardar.textContent = '💾 Guardar Cambios';
+            showToast('Error de conexión. Intenta de nuevo.', 'error');
+        });
+    };
+
+    // ---- Descartar ----
+    window.descartarCambios = function () {
+        pendingChanges.forEach((_, butacaId) => {
+            const orig = originalState.get(butacaId) ?? false;
+            const btn = document.querySelector(`.butaca-btn[data-butaca-id="${butacaId}"]`);
+            if (btn) {
+                btn.classList.toggle('mantenimiento', orig);
+                btn.classList.toggle('disponible', !orig);
+                btn.classList.remove('pendiente');
+                btn.dataset.enMantenimiento = orig ? 'true' : 'false';
+                btn.title = btn.title.replace(/en mantenimiento|disponible/, orig ? 'en mantenimiento' : 'disponible');
+            }
+        });
+        pendingChanges.clear();
+        recalcStats();
+        updateGuardarBar();
+    };
+
+    // ---- Helpers ----
+    function showToast(msg, type) {
+        const container = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.textContent = msg;
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 3500);
+    }
+
+    function getCookie(name) {
+        let v = null;
+        document.cookie.split(';').forEach(c => {
+            const [k, val] = c.trim().split('=');
+            if (k === name) v = decodeURIComponent(val);
+        });
+        return v;
+    }
+})();
+</script>
+{% endblock %}

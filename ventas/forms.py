@@ -1,7 +1,24 @@
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from cine.models.funcion import Funcion
+from ventas.models import PoliticaReembolso
 from .services import obtener_funciones_candidatas
+
+
+class PoliticaReembolsoAdminForm(forms.ModelForm):
+	"""Formulario admin para la política de intercambio."""
+
+	class Meta:
+		model = PoliticaReembolso
+		fields = '__all__'
+
+	def clean_max_cambios_por_compra(self):
+		valor = self.cleaned_data.get('max_cambios_por_compra')
+		if valor is None:
+			return 0
+		if valor < 0:
+			raise forms.ValidationError('El máximo de cambios por compra no puede ser negativo.')
+		return valor
 
 class IntercambioEntradaForm(forms.Form):
 	nueva_funcion = forms.ModelChoiceField(

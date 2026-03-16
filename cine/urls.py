@@ -34,6 +34,11 @@ urlpatterns = [
     path('salas/<int:sala_id>/disenar/', views.disenar_layout_sala, name='disenar_distribucion_asientos'),
     path('salas/<int:sala_id>/api/guardar_layout/', views.api_guardar_layout_sala, name='api_guardar_distribucion_asientos'),
 
+    # --- URLs de Gestión de Mantenimiento de Butacas ---
+    path('salas/<int:sala_id>/mantenimiento/', views.gestionar_mantenimiento_sala, name='gestionar_mantenimiento_sala'),
+    path('salas/<int:sala_id>/api/mantenimiento/batch/', views.api_batch_mantenimiento_sala, name='api_batch_mantenimiento_sala'),
+    path('salas/<int:sala_id>/api/mantenimiento/<int:butaca_id>/', views.api_toggle_mantenimiento_butaca, name='api_toggle_mantenimiento_butaca'),
+
     # --- URLs de Funciones ---
     # Read: Lista de todas las funciones
     path('funciones/', views.FuncionListView.as_view(), name='funcion_list'),
@@ -49,6 +54,7 @@ urlpatterns = [
 
     # AJAX: Calcular horarios disponibles
     path('funciones/calcular-horarios/', views.calcular_horarios_disponibles, name='calcular_horarios'),
+    path('funciones/precheck-dias/', views.precheck_dias_semana_disponibles, name='precheck_dias_funcion'),
     
     # AJAX: Verificar excepciones de horario para una fecha
     path('funciones/verificar-horario-fecha/', views.verificar_horario_fecha, name='verificar_horario_fecha'),
@@ -77,6 +83,32 @@ urlpatterns = [
     path('configuracion/excepciones/crear/', views.crear_excepcion_view, name='crear_excepcion'),
     path('configuracion/excepciones/<int:excepcion_id>/editar/', views.editar_excepcion_view, name='editar_excepcion'),
     path('configuracion/excepciones/<int:excepcion_id>/eliminar/', views.eliminar_excepcion_view, name='eliminar_excepcion'),
+    
+    # --- Gestión de Clasificaciones de Edad ---
+    path('configuracion/clasificaciones/', views.gestionar_clasificaciones_view, name='gestionar_clasificaciones'),
+    path('configuracion/clasificaciones/crear/', views.crear_clasificacion_view, name='crear_clasificacion'),
+    path('configuracion/clasificaciones/<int:pk>/editar/', views.editar_clasificacion_view, name='editar_clasificacion'),
+    path('configuracion/clasificaciones/<int:pk>/eliminar/', views.eliminar_clasificacion_view, name='eliminar_clasificacion'),
+    path('configuracion/clasificaciones/<int:pk>/activar/', views.activar_clasificacion_view, name='activar_clasificacion'),
+
+    # --- Gestión de Directores ---
+    path('configuracion/directores/', views.DirectorListView.as_view(), name='gestionar_directores'),
+    path('configuracion/directores/crear/', views.DirectorCreateView.as_view(), name='crear_director'),
+    path('configuracion/directores/<int:pk>/editar/', views.DirectorUpdateView.as_view(), name='editar_director'),
+    path('configuracion/directores/<int:pk>/eliminar/', views.DirectorDeleteView.as_view(), name='eliminar_director'),
+
+    # AJAX: Crear director desde modal del formulario de película
+    path('api/directores/crear/', views.DirectorCrearAjaxView.as_view(), name='director_crear_ajax'),
+
+    # --- API TMDB (The Movie Database) ---
+    # AJAX: Buscar películas en TMDB
+    path('api/tmdb/search/', views.tmdb_search_movies, name='tmdb_search'),
+    # AJAX: Obtener detalles de película desde TMDB
+    path('api/tmdb/movie/<int:movie_id>/', views.tmdb_get_movie_details, name='tmdb_movie_details'),
+    # AJAX: Importar película completa desde TMDB
+    path('api/tmdb/import/<int:movie_id>/', views.TMDBImportMovieView.as_view(), name='tmdb_import_movie'),
+    # AJAX: Descargar póster desde TMDB
+    path('api/tmdb/download-poster/<int:movie_id>/', views.tmdb_download_poster, name='tmdb_download_poster'),
 
     # Redirect por defecto a películas
     path('', views.PeliculaListView.as_view(), name='index'),

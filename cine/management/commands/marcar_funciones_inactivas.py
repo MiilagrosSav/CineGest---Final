@@ -3,6 +3,7 @@ Management command para marcar funciones pasadas como inactivas.
 Ejecutar con: python manage.py marcar_funciones_inactivas
 """
 from django.core.management.base import BaseCommand
+from django.db.models import Q
 from django.utils import timezone
 from cine.models.funcion import Funcion
 
@@ -28,6 +29,29 @@ class Command(BaseCommand):
         
         total = funciones_pasadas.count()
         
+        # Funciones en PREVENTA que deben pasar a ACTIVA (llegó fecha_activacion o es el día de la función)
+        hoy = timezone.localtime(ahora).date()
+        preventa_a_activar = Funcion.objects.filter(
+            estado='PREVENTA',
+            fecha_hora__gte=ahora,
+        ).filter(
+            Q(fecha_activacion__lte=ahora) |
+            Q(fecha_activacion__isnull=True, fecha_hora__date__lte=hoy)
+        )
+        total_activar = preventa_a_activar.count()
+
+        if dry_run:
+            if total_activar > 0:
+                self.stdout.write(
+                    self.style.WARNING(f'[DRY RUN] Se activarían {total_activar} funciones de PREVENTA a ACTIVA.')
+                )
+        else:
+            if total_activar > 0:
+                preventa_a_activar.update(estado='ACTIVA')
+                self.stdout.write(
+                    self.style.SUCCESS(f'✓ {total_activar} funciones cambiadas de PREVENTA a ACTIVA.')
+                )
+
         if total == 0:
             self.stdout.write(
                 self.style.SUCCESS('✓ No hay funciones pasadas que necesiten marcarse como inactivas.')

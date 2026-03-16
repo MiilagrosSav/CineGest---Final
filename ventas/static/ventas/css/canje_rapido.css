@@ -31,6 +31,39 @@
     pointer-events: none;
 }
 
+.camera-actions {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-sm);
+}
+
+.camera-scanner {
+    margin-top: var(--space-sm);
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius);
+    padding: var(--space-md);
+}
+
+.qr-video {
+    width: 100%;
+    max-width: 460px;
+    max-height: 320px;
+    border-radius: var(--radius);
+    border: 2px solid rgba(var(--primary-rgb), 0.35);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+    object-fit: cover;
+    background: #000;
+}
+
+.camera-status {
+    margin: 0.75rem 0 0 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
 /* --- Loading --- */
 .loading-container {
     text-align: center;

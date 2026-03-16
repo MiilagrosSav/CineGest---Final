@@ -123,3 +123,48 @@ form .btn {
     border-color: #ff6b6b !important;
     background: rgba(255, 107, 107, 0.1) !important;
 }
+
+/* Dias de semana estilo botones */
+.dias-semana-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.dia-semana-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.dia-semana-btn {
+    border: 1px solid rgba(var(--primary-rgb), 0.65);
+    color: var(--text-light);
+    background: rgba(var(--primary-rgb), 0.08);
+    border-radius: 9999px;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.dia-semana-btn:hover {
+    border-color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.2);
+}
+
+.dia-semana-input:checked + .dia-semana-btn {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
+}
+
+.dia-semana-input:disabled + .dia-semana-btn,
+.dia-semana-btn.dia-semana-btn-disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    background: rgba(120, 120, 120, 0.2);
+    border-color: rgba(120, 120, 120, 0.6);
+    color: rgba(220, 220, 220, 0.7);
+    text-decoration: line-through;
+}

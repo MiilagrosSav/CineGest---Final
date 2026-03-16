@@ -3,10 +3,14 @@ Signals para el módulo accounts
 Gestiona la creación automática de perfiles según el rol del usuario
 """
 
+import logging
+
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.contrib.auth import get_user_model
 from .models import Administrador, Empleado, Cliente
+
+logger = logging.getLogger(__name__)
 
 Usuario = get_user_model()
 
@@ -15,101 +19,74 @@ Usuario = get_user_model()
 def crear_perfil_segun_rol(sender, instance, created, **kwargs):
     """
     Signal que crea automáticamente el perfil correspondiente según el rol del usuario.
-    
-    - Si rol='admin' → Crea perfil Administrador
-    - Si rol='empleado' → Crea perfil Empleado  
-    - Si rol='cliente' → Crea perfil Cliente
-    
-    También sincroniza los perfiles si el rol cambia.
+
+    Usa get_or_create para evitar IntegrityError cuando el formulario
+    ya creó el perfil antes de que se disparara el signal.
     """
-    # Evitar recursión infinita si el usuario es nuevo
-    # y estamos en el proceso de creación inicial
     if hasattr(instance, '_creando_perfil'):
         return
-    
-    # Marcar que estamos creando perfil para evitar recursión
+
     instance._creando_perfil = True
-    
+
     try:
-        # ADMINISTRADOR
         if instance.rol == 'admin':
-            # Crear perfil de Administrador si no existe
-            if not hasattr(instance, 'administrador'):
-                try:
-                    Administrador.objects.create(
-                        usuario=instance,
-                        nivel_acceso='TOTAL'  # Valor por defecto
-                    )
-                    print(f"✅ Perfil Administrador creado para {instance.username}")
-                except Exception as e:
-                    print(f"⚠️ Error al crear perfil Administrador para {instance.username}: {e}")
-            
-            # Intentar eliminar otros perfiles si existen (pero permitir que fallen si hay relaciones protegidas)
+            try:
+                Administrador.objects.get_or_create(usuario=instance)
+            except Exception as e:
+                logger.warning("Error al crear/verificar perfil Administrador para %s: %s", instance.username, e)
+
             if hasattr(instance, 'empleado'):
                 try:
                     instance.empleado.delete()
                 except Exception:
-                    print(f"⚠️ No se pudo eliminar perfil Empleado para {instance.username} (tiene datos relacionados)")
-            
+                    logger.warning("No se pudo eliminar perfil Empleado para %s (tiene datos relacionados)", instance.username)
+
             if hasattr(instance, 'cliente'):
                 try:
                     instance.cliente.delete()
                 except Exception:
-                    print(f"⚠️ No se pudo eliminar perfil Cliente para {instance.username} (tiene datos relacionados - se mantiene)")
-        
-        # EMPLEADO
+                    logger.warning("No se pudo eliminar perfil Cliente para %s (tiene datos relacionados)", instance.username)
+
         elif instance.rol == 'empleado':
-            # Crear perfil de Empleado si no existe
-            if not hasattr(instance, 'empleado'):
-                try:
-                    from datetime import date
-                    Empleado.objects.create(
-                        usuario=instance,
-                        fecha_ingreso=date.today()
-                    )
-                    print(f"✅ Perfil Empleado creado para {instance.username}")
-                except Exception as e:
-                    print(f"⚠️ Error al crear perfil Empleado para {instance.username}: {e}")
-            
-            # Intentar eliminar otros perfiles si existen
+            try:
+                from datetime import date
+                Empleado.objects.get_or_create(
+                    usuario=instance,
+                    defaults={'fecha_ingreso': date.today()}
+                )
+            except Exception as e:
+                logger.warning("Error al crear/verificar perfil Empleado para %s: %s", instance.username, e)
+
             if hasattr(instance, 'administrador'):
                 try:
                     instance.administrador.delete()
                 except Exception:
-                    print(f"⚠️ No se pudo eliminar perfil Administrador para {instance.username}")
-            
+                    logger.warning("No se pudo eliminar perfil Administrador para %s", instance.username)
+
             if hasattr(instance, 'cliente'):
                 try:
                     instance.cliente.delete()
                 except Exception:
-                    print(f"⚠️ No se pudo eliminar perfil Cliente para {instance.username} (tiene datos relacionados - se mantiene)")
-        
-        # CLIENTE
+                    logger.warning("No se pudo eliminar perfil Cliente para %s (tiene datos relacionados)", instance.username)
+
         elif instance.rol == 'cliente':
-            # Crear perfil de Cliente si no existe
-            if not hasattr(instance, 'cliente'):
-                try:
-                    Cliente.objects.create(
-                        usuario=instance
-                    )
-                    print(f"✅ Perfil Cliente creado para {instance.username}")
-                except Exception as e:
-                    print(f"⚠️ Error al crear perfil Cliente para {instance.username}: {e}")
-            
-            # Intentar eliminar otros perfiles si existen
+            try:
+                Cliente.objects.get_or_create(usuario=instance)
+            except Exception as e:
+                logger.warning("Error al crear/verificar perfil Cliente para %s: %s", instance.username, e)
+
             if hasattr(instance, 'administrador'):
                 try:
                     instance.administrador.delete()
                 except Exception:
-                    print(f"⚠️ No se pudo eliminar perfil Administrador para {instance.username}")
-            
+                    logger.warning("No se pudo eliminar perfil Administrador para %s", instance.username)
+
             if hasattr(instance, 'empleado'):
                 try:
                     instance.empleado.delete()
                 except Exception:
-                    print(f"⚠️ No se pudo eliminar perfil Empleado para {instance.username}")
-    
+                    logger.warning("No se pudo eliminar perfil Empleado para %s", instance.username)
+
     finally:
-        # Limpiar la marca
         if hasattr(instance, '_creando_perfil'):
             delattr(instance, '_creando_perfil')

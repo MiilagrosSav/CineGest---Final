@@ -13,8 +13,8 @@ from datetime import datetime
 os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 # Configuración
-INTERVALO_SEGUNDOS = 120  # 2 minutos
-COMANDO = ['python', 'manage.py', 'ejecutar_yield_management', '--test-mode', '-v', '2']
+INTERVALO_SEGUNDOS = 3600  # 60 minutos (1 hora)
+COMANDO = ['python', 'manage.py', 'ejecutar_yield_management', '-v', '2']
 
 def ejecutar_comando():
     """Ejecuta el comando de yield management"""

@@ -26,9 +26,9 @@ document.addEventListener('DOMContentLoaded', function() {
         btnEliminar.disabled = selectedRows.length === 0;
         
         if (selectedRows.length > 0) {
-            btnEliminar.textContent = `🗑️ Eliminar ${selectedRows.length > 1 ? `(${selectedRows.length})` : ''}`;
+            btnEliminar.textContent = `⛔ Desactivar ${selectedRows.length > 1 ? `(${selectedRows.length})` : ''}`;
         } else {
-            btnEliminar.textContent = '🗑️ Eliminar';
+            btnEliminar.textContent = '⛔ Desactivar';
         }
     }
     
@@ -137,8 +137,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (url) window.location.href = url;
             }
         } else {
-            if (confirm(`¿Estás seguro de que deseas eliminar ${selectedRows.length} promociones seleccionadas?`)) {
-                alert('Función de eliminación masiva en desarrollo');
+            if (confirm(`¿Estás seguro de que deseas desactivar ${selectedRows.length} promociones seleccionadas?`)) {
+                alert('Función de desactivación masiva en desarrollo');
             }
         }
     });

@@ -1,7 +1,10 @@
 from django.urls import reverse_lazy
+from django.contrib import messages
+from django.shortcuts import redirect
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.utils import timezone
 from cine.models import Sala
+from ventas.models import Entrada
 from cine.forms import SalaForm
 from cine.mixins import AdminRequiredMixin
 
@@ -108,6 +111,9 @@ class SalaUpdateView(AdminRequiredMixin, UpdateView):
         # Verificar si la sala tiene butacas vendidas
         context['tiene_butacas_vendidas'] = self.object.tiene_butacas_vendidas()
         return context
+
+    def form_valid(self, form):
+        return super().form_valid(form)
 
 # DELETE: Vista para confirmar la eliminación
 class SalaDeleteView(AdminRequiredMixin, DeleteView):

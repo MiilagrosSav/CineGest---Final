@@ -113,17 +113,13 @@ def setup_user_profile(backend, user, response, *args, **kwargs):
         return {'user': user, 'is_new': is_new_user}
     
     if is_new_user:
-        # Si es nuevo, asignarle automáticamente el tipo 'CLIENTE' (usar la constante del modelo)
+        # Si es nuevo, asignarle automáticamente el tipo 'CLIENTE'
         from django.contrib.auth import get_user_model
         User = get_user_model()
-        # El modelo `Usuario` ahora usa el campo `rol` con valores de texto.
-        # Asignamos el rol 'cliente' a usuarios nuevos autenticados por Google.
         user.rol = 'cliente'
         print(f"🆕 Usuario nuevo creado con Google: {user.username}")
         print(f"👤 Rol de usuario asignado: cliente")
     else:
-        # Si es usuario existente, preservar su tipo actual
-        # El campo actual de rol se encuentra en `user.rol`
         print(f"👤 Usuario existente: {user.username}, rol actual: {getattr(user, 'rol', 'N/A')}")
     
     # Actualizar información del perfil con datos que Google nos dio
@@ -133,19 +129,19 @@ def setup_user_profile(backend, user, response, *args, **kwargs):
         user.first_name = response['given_name']
         print(f"📝 Nombre actualizado: {response['given_name']}")
         
-        # ✅ OPCIONAL: También actualizar el username con el nombre de Google
         if is_new_user:
-            # Solo para usuarios nuevos, cambiar el username al nombre de Google
-            new_username = response['given_name'].lower().replace(' ', '')
+            # Generar username alfanumérico a partir del nombre de Google
+            import re
+            base = re.sub(r'[^a-z0-9]', '', response['given_name'].lower())
+            if not base:
+                base = 'usuario'
             
-            # Verificar que no exista ya ese username
             from django.contrib.auth import get_user_model
             User = get_user_model()
             counter = 1
-            original_username = new_username
-            
+            new_username = base
             while User.objects.filter(username=new_username).exclude(id=user.id).exists():
-                new_username = f"{original_username}{counter}"
+                new_username = f"{base}{counter}"
                 counter += 1
             
             user.username = new_username

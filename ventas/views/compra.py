@@ -5,8 +5,11 @@ Vista para procesar la compra de entradas
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.db import transaction
+from django.db import transaction, IntegrityError
+from django.core.exceptions import ValidationError
+from django.http import JsonResponse
 import logging
+import json
 
 from cine.models import Funcion, Butaca
 from ventas.models import Venta, Entrada
@@ -31,10 +34,42 @@ def procesar_compra(request, funcion_id):
     
     funcion = get_object_or_404(Funcion, id=funcion_id)
     
-    # Obtener las butacas seleccionadas del formulario
-    butacas_ids = request.POST.getlist('butacas[]')
+    # Obtener las butacas seleccionadas del formulario o JSON
+    content_type = (request.headers.get('Content-Type') or '').lower()
+    is_json_request = content_type.startswith('application/json')
+    butacas_ids = []
+
+    if is_json_request:
+        raw_body = (request.body or b'').strip()
+        if not raw_body:
+            return JsonResponse(
+                {'error': 'Cuerpo JSON vacío. Envia una lista de butacas.'},
+                status=400
+            )
+
+        try:
+            payload = json.loads(raw_body.decode('utf-8'))
+        except Exception:
+            return JsonResponse(
+                {'error': 'JSON inválido.'},
+                status=400
+            )
+
+        butacas_ids = payload.get('butacas') or payload.get('butacas_ids') or []
+        if not isinstance(butacas_ids, list):
+            return JsonResponse(
+                {'error': 'El campo butacas debe ser una lista.'},
+                status=400
+            )
+    else:
+        butacas_ids = request.POST.getlist('butacas[]')
     
     if not butacas_ids:
+        if is_json_request:
+            return JsonResponse(
+                {'error': 'Debes seleccionar al menos una butaca.'},
+                status=400
+            )
         messages.error(request, '❌ Debes seleccionar al menos una butaca.')
         return redirect('ventas:seleccionar_butacas', funcion_id=funcion_id)
     
@@ -70,7 +105,7 @@ def procesar_compra(request, funcion_id):
                 
                 butacas_validadas.append(butaca)
             
-            # PASO 2: Todas las butacas están disponibles, ahora sí crear la venta
+            # PASO 2: Todas las butacas están disponibles, ahora sí crear/reutilizar la venta
             cliente, created = Cliente.objects.get_or_create(
                 usuario=request.user,
                 defaults={
@@ -103,61 +138,142 @@ def procesar_compra(request, funcion_id):
             # Calcular el total preliminar (se recalculará en la pantalla de pago)
             # Por ahora usamos el precio base de la función multiplicado por la cantidad
             total_preliminar = Decimal(str(funcion.precio_base)) * len(butacas_ids)
+            _, _, detalle_precio = calcular_precio_final(funcion, len(butacas_ids))
+            precio_unitario_entrada = Decimal(str(detalle_precio.get('precio_unitario_final', funcion.precio_base)))
             
-            venta = Venta.objects.create(
-                id_cliente=cliente,
-                tipo_venta='ONLINE',
-                estado='PENDIENTE',
-                id_metodo_pago=metodo_pago,
-                total=total_preliminar
-            )
+            # Vincular cupón de yield/promoción al momento del INSERT (no UPDATE),
+            # ya que la DB tiene un trigger que bloquea cambiar cupon_utilizado_id
+            # en filas existentes (UPDATE dispara "EL CUPON ES INALTERABLE").
+            cupon_yield = None
+            promo_token = request.session.get('promo_token')
+            print(f"\n[YIELD DEBUG] procesar_compra: promo_token en sesión='{promo_token}'")
+            if promo_token:
+                try:
+                    from promociones.models.cuponGenerado import CuponGenerado
+                    cupon_yield = CuponGenerado.objects.filter(token=str(promo_token), usado=True).first()
+                    print(f"[YIELD DEBUG]   cupon_yield encontrado: {cupon_yield is not None}"
+                          f"{'  token=' + str(cupon_yield.token) + '  politica=' + str(cupon_yield.politica_origen_id) if cupon_yield else ''}")
+                except Exception:
+                    logger.exception('Error buscando cupón de yield para la sesión')
+                    print(f"[YIELD DEBUG]   ERROR buscando cupon")
+            else:
+                print(f"[YIELD DEBUG]   Sin promo_token en sesión, cupon_yield=None")
+            
+            provisional_venta_id = request.POST.get('provisional_venta_id')
+            venta_provisional = None
+
+            if provisional_venta_id:
+                venta_provisional = Venta.objects.select_for_update().filter(
+                    id_venta=provisional_venta_id,
+                    id_cliente=cliente,
+                    estado='PENDIENTE',
+                    activo=True,
+                ).first()
+
+            # Reusar la venta provisional para mantener una unica venta por flujo.
+            # Asi la transicion de estado queda lineal: PENDIENTE -> PENDIENTE_PAGO -> CONFIRMADA.
+            if venta_provisional:
+                venta = venta_provisional
+            else:
+                venta = Venta.objects.create(
+                    id_cliente=cliente,
+                    tipo_venta='ONLINE',
+                    estado='PENDIENTE',
+                    id_metodo_pago=metodo_pago,
+                    total=total_preliminar,
+                    cupon_utilizado=cupon_yield,
+                )
+
+            # Limpiar referencia de sesión de la venta provisional para esta función.
+            request.session.pop(f'reserva_venta_funcion_{funcion.id}', None)
+            request.session.modified = True
             
             # PASO 3: Reutilizar entradas del mismo usuario
             for entrada_ocupada, butaca in entradas_reutilizar:
                 entrada_ocupada.id_venta = venta
                 entrada_ocupada.estado = 'RESERVADA'
+                entrada_ocupada.precio_unitario = precio_unitario_entrada
                 entrada_ocupada.fecha_creacion = timezone.now()  # Resetear timer
                 entrada_ocupada.save()
             
             # PASO 4: Crear nuevas entradas para butacas validadas
             for butaca in butacas_validadas:
-                # Buscar entrada CANCELADA que podamos reutilizar
-                # Buscar entrada CANCELADA que podamos reutilizar
-                entrada_cancelada = Entrada.objects.filter(
+                # Eliminar entradas zombie (CANCELADA/EXPIRADA) que bloquearían la butaca.
+                # NO se reutilizan porque CANCELADA/EXPIRADA son estados terminales con
+                # transición vacía — intentar cambiar su estado lanza ValidationError.
+                Entrada.objects.filter(
                     id_funcion=funcion,
                     id_butaca=butaca,
-                    estado='CANCELADA'
-                ).first()
-                
-                if entrada_cancelada:
-                    # Reutilizar entrada cancelada
-                    entrada_cancelada.id_venta = venta
-                    entrada_cancelada.estado = 'RESERVADA'
-                    entrada_cancelada.reservado_por = request.user
-                    entrada_cancelada.fecha_creacion = timezone.now()
-                    entrada_cancelada.save()
-                else:
-                    # Crear nueva entrada
-                    Entrada.objects.create(
-                        id_venta=venta,
-                        id_funcion=funcion,
-                        id_sala=funcion.sala,
-                        id_butaca=butaca,
-                        id_pelicula=funcion.pelicula,
-                        estado='RESERVADA',
-                        reservado_por=request.user
-                    )
+                    estado__in=['CANCELADA', 'EXPIRADA']
+                ).delete()
+
+                # Crear nueva entrada limpia
+                Entrada.objects.create(
+                    id_venta=venta,
+                    id_funcion=funcion,
+                    id_sala=funcion.sala,
+                    id_butaca=butaca,
+                    id_pelicula=funcion.pelicula,
+                    estado='RESERVADA',
+                    reservado_por=request.user,
+                    precio_unitario=precio_unitario_entrada,
+                )
             
-            messages.success(request, f'✅ Se creó tu reserva con {len(butacas_ids)} entrada(s). ¡Ahora procede al pago!')
-            
+            if not is_json_request:
+                messages.success(request, f' Se creó tu reserva con {len(butacas_ids)} entrada(s). ¡Ahora procede al pago!')
+
             # Redirigir al proceso de pago
+            if is_json_request:
+                return JsonResponse(
+                    {
+                        'ok': True,
+                        'venta_id': venta.id_venta,
+                        'redirect_url': f'/ventas/iniciar-pago/{venta.id_venta}/'
+                    }
+                )
             return redirect('ventas:iniciar_pago', venta_id=venta.id_venta)
             
-    except Exception as e:
-        messages.error(request, f'❌ Error al procesar la compra: {str(e)}')
+    except ValidationError as e:
+        error_texto = str(e)
+
+        # Mensajes amigables para colisiones de concurrencia o reglas de inmutabilidad
+        if 'id_venta' in error_texto and 'inmutable' in error_texto:
+            mensaje = (
+                'La butaca que intentaste reservar cambió de estado mientras procesábamos tu compra. '
+                'Actualiza la página y selecciona nuevamente las butacas disponibles.'
+            )
+        elif 'UQ_entrada_funcion_butaca_activa' in error_texto:
+            mensaje = (
+                'Una o más butacas ya fueron tomadas por otro cliente en este momento. '
+                'Actualiza la página y vuelve a intentar con butacas disponibles.'
+            )
+        else:
+            mensaje = 'No se pudo completar la compra por un cambio concurrente en las butacas seleccionadas. Intenta nuevamente.'
+
+        logger.warning('Error de validación en compra concurrente (funcion=%s, user=%s): %s', funcion_id, request.user.id, error_texto)
+        if is_json_request:
+            return JsonResponse({'error': mensaje}, status=409)
+        messages.error(request, f'❌ {mensaje}')
         return redirect('ventas:seleccionar_butacas', funcion_id=funcion_id)
-            
+
+    except IntegrityError as e:
+        # Colisión de unicidad típica cuando dos usuarios confirman la misma butaca en paralelo
+        logger.warning('IntegrityError en compra concurrente (funcion=%s, user=%s): %s', funcion_id, request.user.id, str(e))
+        mensaje = (
+            'Una o más butacas fueron reservadas por otro cliente al mismo tiempo. '
+            'Actualiza la página y elige otras butacas.'
+        )
+        if is_json_request:
+            return JsonResponse({'error': mensaje}, status=409)
+        messages.error(request, f'❌ {mensaje}')
+        return redirect('ventas:seleccionar_butacas', funcion_id=funcion_id)
+
     except Exception as e:
+        if is_json_request:
+            return JsonResponse(
+                {'error': f'Error al procesar la compra: {str(e)}'},
+                status=400
+            )
         messages.error(request, f'❌ Error al procesar la compra: {str(e)}')
         return redirect('ventas:seleccionar_butacas', funcion_id=funcion_id)
 
@@ -239,7 +355,7 @@ def procesar_intercambio(request, venta_id, funcion_id):
     cantidad_necesaria = venta.entradas.count()
 
     logger.info(
-        f"Usuario {request.user.username} procesando intercambio: "
+        f"Usuario {request.user.username} procesando: "
         f"venta {venta_id}, función {funcion_id}, {len(butacas_ids)} butacas seleccionadas"
     )
 
@@ -302,7 +418,7 @@ def procesar_intercambio(request, venta_id, funcion_id):
         
         # IMPORTANTE: Usar redirect() para implementar el patrón Post/Redirect/Get (PRG)
         # Esto previene que al recargar la página se re-ejecute el POST
-        messages.success(request, f'🔄 ¡Intercambio realizado con éxito! Tus entradas han sido actualizadas.')
+        messages.success(request, f'¡Intercambio realizado con éxito! Tus entradas han sido actualizadas.')
         return redirect('ventas:intercambio_exitoso', intercambio_id=intercambio.id_intercambio)
     else:
         logger.error(f"Intercambio fallido para venta {venta_id}: {mensaje}")

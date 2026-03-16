@@ -119,7 +119,7 @@ def buscar_entrada_api(request):
             })
         
         # --- VALIDACIÓN 1: Estado de la entrada ---
-        if entrada.estado == 'USADA':
+        if entrada.estado == 'USADA' or entrada.utilizado:
             RegistroAcceso.objects.create(
                 entrada=entrada,
                 empleado_validador=request.user,
@@ -129,18 +129,23 @@ def buscar_entrada_api(request):
                 motivo_rechazo='Entrada ya utilizada',
                 ip_origen=obtener_ip_cliente(request)
             )
-            
+
+            fecha_uso_str = ''
+            if entrada.fecha_ingreso:
+                fecha_uso_str = entrada.fecha_ingreso.strftime('%d/%m/%Y %H:%M:%S')
+
             return JsonResponse({
                 'success': False,
                 'resultado': 'RECHAZADO',
                 'motivo': '🚫 Entrada YA UTILIZADA',
-                'detalle': f'Esta entrada fue validada anteriormente.',
+                'detalle': f'Esta entrada fue validada anteriormente.{" Ingreso registrado: " + fecha_uso_str if fecha_uso_str else ""}',
                 'entrada_info': {
                     'id': entrada.id_entrada,
                     'pelicula': entrada.id_pelicula.titulo,
                     'funcion': entrada.id_funcion.fecha_hora.strftime('%d/%m/%Y %H:%M'),
                     'butaca': f"{entrada.id_butaca.fila}{entrada.id_butaca.numero}",
-                    'estado': entrada.estado
+                    'estado': entrada.estado,
+                    'fecha_ingreso': fecha_uso_str,
                 }
             })
         
@@ -239,9 +244,12 @@ def buscar_entrada_api(request):
         
         # Guardar estado anterior para auditoría
         estado_anterior = entrada.estado
-        
+        ahora_ingreso = timezone.now()
+
         entrada.estado = 'USADA'
-        entrada.save()
+        entrada.utilizado = True
+        entrada.fecha_ingreso = ahora_ingreso
+        entrada.save(update_fields=['estado', 'utilizado', 'fecha_ingreso'])
         
         # Registrar acceso exitoso
         RegistroAcceso.objects.create(
@@ -269,7 +277,7 @@ def buscar_entrada_api(request):
                 'estado_anterior': estado_anterior,
                 'estado_actual': 'USADA',
                 'validado_por': request.user.get_full_name() or request.user.username,
-                'hora_validacion': timezone.now().strftime('%H:%M:%S')
+                'hora_validacion': ahora_ingreso.strftime('%H:%M:%S')
             }
         })
         

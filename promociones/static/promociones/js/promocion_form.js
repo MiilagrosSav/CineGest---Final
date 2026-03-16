@@ -207,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
             valorInput.style.cursor = 'not-allowed';
             
             if (helpText) {
-                helpText.textContent = '💡 2x1 equivale a 50% de descuento (se aplica automáticamente el segundo producto a mitad de precio)';
+                helpText.textContent = '💡 2x1 equivale a 50% de descuento (se aplica automáticamente a ambos productos la mitad de precio)';
                 helpText.style.color = '#4ecdc4';
             }
         } else {

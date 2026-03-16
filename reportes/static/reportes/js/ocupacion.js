@@ -228,12 +228,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 const csrftoken = getCookie('csrftoken');
                 
-                // Construir URL con parámetros de estado de tablas
-                const params = new URLSearchParams({
-                    fecha_inicio: window.ocupacionData.fechaInicio,
-                    fecha_fin: window.ocupacionData.fechaFin,
-                    ...tableStates
-                });
+                // Construir URL preservando filtros actuales + estado de tablas
+                const params = new URLSearchParams(window.location.search);
+                params.set('fecha_inicio', window.ocupacionData.fechaInicio);
+                params.set('fecha_fin', window.ocupacionData.fechaFin);
+                Object.entries(tableStates).forEach(([key, value]) => params.set(key, value));
                 
                 const url = `${window.ocupacionData.exportUrl}?${params.toString()}`;
                 console.log('🔗 URL de exportación:', url);

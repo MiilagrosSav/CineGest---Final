@@ -20,6 +20,29 @@ window.addEventListener('DOMContentLoaded', function() {
 
     // --- FUNCIONES ---
 
+    function obtenerDistribucionNormalizadaDesdeDOM() {
+        const mapa = new Map();
+        const filas = areaAsientos.querySelectorAll('.fila-asientos');
+
+        filas.forEach((filaRow) => {
+            const label = filaRow.querySelector('.label-fila');
+            if (!label) return;
+            const fila = label.textContent;
+            const asientos = filaRow.querySelectorAll('.asiento');
+
+            asientos.forEach((asiento) => {
+                const numero = parseInt(asiento.dataset.num, 10);
+                if (!Number.isFinite(numero)) return;
+                const tipo = asiento.dataset.tipo || 'GENERAL';
+                const es_pasillo = tipo === 'vacio';
+                const key = `${fila}-${numero}`;
+                mapa.set(key, { fila, num: numero, tipo, es_pasillo });
+            });
+        });
+
+        return Array.from(mapa.values());
+    }
+
     function crearAsiento(fila, numero, tipo) {
         const b = document.createElement('div');
         b.className = 'asiento';
@@ -67,8 +90,7 @@ window.addEventListener('DOMContentLoaded', function() {
                     distribucionActual.push({ fila, num: numero, tipo: 'vacio', es_pasillo: true });
                 }
                 
-                // Renumerar asientos de esta fila
-                renumerarFila(fila);
+                // Mantener numeración fija por posición de grilla para evitar duplicados.
             } else {
                 // Convertir pasillo a asiento
                 const tipoSel = selectTipo.value;
@@ -89,61 +111,13 @@ window.addEventListener('DOMContentLoaded', function() {
                     distribucionActual.push({ fila, num: numero, tipo: tipoSel, es_pasillo: false });
                 }
                 
-                // Renumerar asientos de esta fila
-                renumerarFila(fila);
+                // Mantener numeración fija por posición de grilla para evitar duplicados.
             }
             actualizarContador();
             actualizarDimensionesInputs();
         });
 
         return b;
-    }
-
-    /**
-     * Renumera los asientos de una fila específica de forma consecutiva.
-     * Los pasillos (vacíos) no tienen número, solo los asientos reales.
-     */
-    function renumerarFila(fila) {
-        // Obtener todos los elementos de asiento de esta fila en el DOM
-        const filaRow = Array.from(areaAsientos.children).find(row => {
-            const label = row.querySelector('.label-fila');
-            return label && label.textContent === fila;
-        });
-
-        if (!filaRow) return;
-
-        // Obtener todos los divs de asientos de esta fila (excluyendo el label)
-        const asientosEnFila = Array.from(filaRow.querySelectorAll('.asiento'));
-        
-        // Contar solo los asientos reales (no vacíos) para renumeración
-        let contadorAsiento = 1;
-        
-        asientosEnFila.forEach((asientoDiv) => {
-            const esVacio = asientoDiv.dataset.tipo === 'vacio';
-            
-            if (!esVacio) {
-                // Es un asiento real: actualizar número
-                const numeroAnterior = parseInt(asientoDiv.dataset.num);
-                const numeroNuevo = contadorAsiento;
-                
-                // Actualizar el DOM
-                asientoDiv.dataset.num = numeroNuevo;
-                asientoDiv.textContent = numeroNuevo;
-                
-                // Actualizar en distribucionActual
-                const idx = distribucionActual.findIndex(
-                    x => x.fila === fila && x.num === numeroAnterior
-                );
-                if (idx !== -1) {
-                    distribucionActual[idx].num = numeroNuevo;
-                }
-                
-                contadorAsiento++;
-            } else {
-                // Es un pasillo: no tiene número visible
-                asientoDiv.textContent = '';
-            }
-        });
     }
 
     /**
@@ -229,13 +203,15 @@ window.addEventListener('DOMContentLoaded', function() {
     }
 
     async function guardarDistribucion() {
-        if (distribucionActual.length === 0) {
+        const payloadDistribucion = obtenerDistribucionNormalizadaDesdeDOM();
+
+        if (payloadDistribucion.length === 0) {
             mostrarMensaje('❌ No hay asientos para guardar. Genera una distribución primero.', 'error');
             return;
         }
 
-        const butacasReales = distribucionActual.filter(b => b.tipo !== 'vacio' && !b.es_pasillo);
-        const pasillos = distribucionActual.filter(b => b.tipo === 'vacio' || b.es_pasillo);
+        const butacasReales = payloadDistribucion.filter(b => b.tipo !== 'vacio' && !b.es_pasillo);
+        const pasillos = payloadDistribucion.filter(b => b.tipo === 'vacio' || b.es_pasillo);
         
         const tiposCount = {
             GENERAL: butacasReales.filter(b => b.tipo === 'GENERAL').length,
@@ -252,11 +228,11 @@ window.addEventListener('DOMContentLoaded', function() {
 
         // Log para debugging
         console.log('📤 Enviando distribución:', {
-            total: distribucionActual.length,
+            total: payloadDistribucion.length,
             butacas: butacasReales.length,
             pasillos: pasillos.length
         });
-        console.log('Datos completos:', distribucionActual);
+        console.log('Datos completos:', payloadDistribucion);
 
         try {
             const res = await fetch(urlGuardar, {
@@ -265,7 +241,7 @@ window.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': getCookie('csrftoken')
                 },
-                body: JSON.stringify(distribucionActual)
+                body: JSON.stringify(payloadDistribucion)
             });
             const data = await res.json();
 
@@ -357,7 +333,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
     function actualizarContador() {
         // Contar solo butacas reales (sin pasillos)
-        const butacasReales = distribucionActual.filter(b => b.tipo !== 'vacio' && !b.es_pasillo).length;
+        const butacasReales = obtenerDistribucionNormalizadaDesdeDOM().filter(b => b.tipo !== 'vacio' && !b.es_pasillo).length;
         contador.textContent = butacasReales;
     }
 

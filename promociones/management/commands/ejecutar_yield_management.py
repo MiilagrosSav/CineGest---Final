@@ -14,6 +14,7 @@ Configuración recomendada de Cron (cada hora):
 import logging
 from datetime import timedelta, time
 from django.core.management.base import BaseCommand
+from django.conf import settings
 from django.utils import timezone
 from django.db.models import Count, Q, Case, When, IntegerField
 from django.db import transaction
@@ -64,13 +65,13 @@ class Command(BaseCommand):
             activar_por_ocupacion=True
         ).select_related('promocion_a_otorgar', 'genero_pelicula').order_by('prioridad')
         
-        # Filtrar solo las que tienen promoción activa (bypass del manager)
+        # Filtrar solo las que tienen promoción activa Y vigente (fecha_fin >= hoy)
         politicas_activas = []
         for pol in politicas_candidatas:
             # Verificar que tenga promoción asignada
             if pol.promocion_a_otorgar:
                 promo = Promocion.all_objects.filter(pk=pol.promocion_a_otorgar.pk).first()
-                if promo and promo.activo:
+                if promo and promo.activo and promo.fecha_fin >= timezone.now().date():
                     politicas_activas.append(pol)
             # Si no tiene promoción asignada, no se puede procesar
 
@@ -85,7 +86,7 @@ class Command(BaseCommand):
             
         if verbosity >= 2:
             for pol in politicas_activas:
-                self.stdout.write(f'  - {pol.nombre} (umbral: {pol.umbral_ocupacion}%, anticipación: {pol.horas_anticipacion}h)')
+                self.stdout.write(f'  - {pol.nombre} (umbral: {pol.umbral_ocupacion}%, ventana: {pol.horas_antes_de_funcion}h)')
 
         # Contadores para el reporte final
         funciones_evaluadas = 0
@@ -103,7 +104,7 @@ class Command(BaseCommand):
                 # En modo test, revisar TODAS las funciones futuras sin límite de tiempo
                 fin_ventana = now + timedelta(days=365)  # 1 año hacia adelante
             else:
-                fin_ventana = now + timedelta(hours=politica.horas_anticipacion)
+                fin_ventana = now + timedelta(hours=politica.horas_antes_de_funcion)
 
             if verbosity >= 2:
                 self.stdout.write(f'\n--- Procesando política: {politica.nombre} ---')
@@ -114,6 +115,8 @@ class Command(BaseCommand):
             funciones_query = Funcion.objects.filter(
                 fecha_hora__gte=inicio_ventana,
                 fecha_hora__lte=fin_ventana
+            ).exclude(
+                estado='INACTIVA'
             )
             
             # En modo test, permitir procesar funciones múltiples veces
@@ -160,6 +163,16 @@ class Command(BaseCommand):
             # 3. Para cada función candidata, evaluar ocupación (ya calculada en annotate)
             for funcion in funciones_filtradas:
                 funciones_evaluadas += 1
+
+                # Defensa adicional ante datos concurrentes: nunca tocar funciones inactivas.
+                if funcion.estado == 'INACTIVA':
+                    if verbosity >= 2:
+                        self.stdout.write(
+                            self.style.WARNING(
+                                f'  [SKIP] Función {funcion.id} inactiva, se omite del procesamiento.'
+                            )
+                        )
+                    continue
 
                 # ✅ OPTIMIZACIÓN: Usar el conteo precalculado en lugar de query adicional
                 total_butacas = funcion.sala.capacidad
@@ -217,7 +230,7 @@ class Command(BaseCommand):
                                 funcion_origen=funcion,
                                 politica_origen=politica,
                                 usado=False,
-                                expira_en=timezone.now() + timedelta(minutes=politica.minutos_validez)
+                                 expira_en=timezone.now() + timedelta(minutes=politica.minutos_validez)
                             )
                             cupones_generados += 1
 
@@ -324,46 +337,28 @@ class Command(BaseCommand):
 
     def _enviar_email_promocional(self, cliente, funcion, promocion, cupon, notificacion_service, verbosity):
         """
-        Envía email promocional al cliente con el cupón generado.
-        
-        Reutiliza la infraestructura existente de notificaciones.
+        Envía email de yield management al cliente.
+        Usa la plantilla promocion_yield (ocupación baja de sala).
         """
         try:
-            usuario = cliente.usuario
-            
-            # Construir URL del cupón - usa endpoint de activación que redirige automáticamente
-            cupon_url = f'https://uncategorized-noncommodiously-floy.ngrok-free.dev/promociones/activar/{cupon.token}/'
-            
-            context = {
-                'usuario': usuario,
-                'cliente': cliente,
-                'funcion': funcion,
-                'promocion': promocion,
-                'cupon': cupon,
-                'cupon_url': cupon_url,
-                'pelicula': funcion.pelicula,
-                'sala': funcion.sala,
-                'descuento_texto': self._get_descuento_texto(promocion),
-                'fecha_funcion': funcion.fecha_hora,
-                'hora_funcion': funcion.fecha_hora,
-            }
-            
-            # Enviar usando el servicio de notificaciones
-            resultado = notificacion_service._enviar_email(
-                asunto=f'🎬 ¡Oferta especial! {funcion.pelicula.titulo}',
-                template_html='core/emails/promocion_yield.html',
-                template_txt='core/emails/promocion_yield.txt',
-                destinatario=usuario.email,
-                context=context
+            base = getattr(settings, 'SITE_URL', getattr(settings, 'SITE_BASE_URL', 'http://localhost:8000')).rstrip('/')
+            cupon_url = f'{base}/promociones/activar/{cupon.token}/'
+
+            resultado = notificacion_service.enviar_yield_promocion(
+                cliente=cliente,
+                funcion=funcion,
+                promocion=promocion,
+                cupon=cupon,
+                cupon_url=cupon_url,
             )
-            
+
             if resultado and verbosity >= 2:
-                self.stdout.write(f'    Email enviado a: {usuario.email}')
-            
+                self.stdout.write(f'    Email yield enviado a: {cliente.usuario.email}')
+
             return resultado
-            
+
         except Exception as e:
-            logger.error(f'Error enviando email promocional a cliente {cliente.pk} ({cliente.usuario.email}): {e}', exc_info=True)
+            logger.error(f'Error enviando email yield a cliente {cliente.pk} ({cliente.usuario.email}): {e}', exc_info=True)
             if verbosity >= 1:
                 self.stdout.write(self.style.ERROR(f'    Error enviando email a {cliente.usuario.email}: {e}'))
             return False

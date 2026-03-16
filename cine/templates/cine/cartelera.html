@@ -4,7 +4,7 @@
 {% block title %}Cartelera - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'cine/css/cartelera.css' %}?v=2.0">
+    <link rel="stylesheet" href="{% static 'cine/css/cartelera.css' %}?v=2.1">
 {% endblock %}
 
 {% block content %}
@@ -72,7 +72,7 @@
     </div>
 
     <!-- Lista de Días de la Semana -->
-    <div style="margin-bottom: var(--space-lg); position: relative; display: flex; align-items: center; gap: var(--space-sm);">
+    <div id="carteleraCarouselContainer" style="margin-bottom: var(--space-lg); position: relative; display: flex; align-items: center; gap: var(--space-sm);">
         <!-- Botón Anterior -->
         <button type="button" 
                 class="carousel-nav-btn" 
@@ -87,7 +87,7 @@
         <div style="overflow-x: auto; padding: var(--space-xs) 0; flex: 1;">
             <div style="display: flex; gap: var(--space-xs); min-width: max-content; justify-content: center;">
                 {% for dia in dias_semana %}
-                    <a href="?dia={{ dia.fecha }}{% if filtro_genero %}&genero={{ filtro_genero }}{% endif %}{% if filtro_formato %}&formato={{ filtro_formato }}{% endif %}{% if filtro_idioma %}&idioma={{ filtro_idioma }}{% endif %}{% if filtro_clasificacion %}&clasificacion={{ filtro_clasificacion }}{% endif %}{% if filtro_search %}&search={{ filtro_search }}{% endif %}{% if intercambio_for %}&intercambio_for={{ intercambio_for }}{% endif %}" 
+                          <a href="?dia={{ dia.fecha }}{% if filtro_genero %}&genero={{ filtro_genero }}{% endif %}{% if filtro_formato %}&formato={{ filtro_formato }}{% endif %}{% if filtro_idioma %}&idioma={{ filtro_idioma }}{% endif %}{% if filtro_clasificacion %}&clasificacion={{ filtro_clasificacion }}{% endif %}{% if filtro_search %}&search={{ filtro_search }}{% endif %}{% if intercambio_for %}&intercambio_for={{ intercambio_for }}{% endif %}"
                        class="glass-container dia-item{% if dia_seleccionado == dia.fecha %} activo{% endif %}">
                         <div class="dia-nombre">
                             {{ dia.dia_nombre }}
@@ -245,42 +245,10 @@
         </div>
         {% endif %}
         
-        <!-- PELÍCULAS MÁS VISTAS -->
-        {% if peliculas_destacadas %}
-        <div class="peliculas-destacadas">
-            <h2 class="text-gradient-primary" style="font-size: 1.6rem; margin: 0 0 var(--space-md) 0;">
-                🔥 Las Más Vistas
-            </h2>
-            
-            <div class="destacadas-grid">
-                {% for item in peliculas_destacadas %}
-                <div class="destacada-card">
-                    <div class="destacada-poster-wrapper">
-                        <img src="{{ item.pelicula.get_poster_url }}" 
-                             alt="{{ item.pelicula.titulo }}"
-                             class="destacada-poster">
-                        <div class="destacada-overlay">
-                            <a href="{% url 'ventas:seleccionar_butacas' item.funcion.pk %}" 
-                               class="btn-comprar-destacado">
-                                🎫 Comprar
-                            </a>
-                        </div>
-                    </div>
-                    <div class="destacada-info">
-                        <h4 class="destacada-titulo">{{ item.pelicula.titulo|truncatewords:3 }}</h4>
-                        <p class="destacada-stats">
-                            <span style="color: #fbbf24;">👁️</span> 
-                            {{ item.total_entradas }} espectadores
-                        </p>
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-        {% endif %}
     </div>
     {% endif %}
 
+    <div id="carteleraResultadosContainer">
     {% if peliculas_con_funciones %}
         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-lg);">
             
@@ -349,10 +317,8 @@
                                 <div style="min-width: 90px;">
                                     <div class="info-label" style="font-size: 0.7rem;">Clasificación</div>
                                     <div class="info-value" style="font-size: 0.85rem;">
-                                        {% if item.pelicula.edad_minima %}
-                                            +{{ item.pelicula.edad_minima }}
-                                        {% elif item.pelicula.clasificacion %}
-                                            {{ item.pelicula.clasificacion }}
+                                        {% if item.pelicula.clasificacion %}
+                                            {{ item.pelicula.clasificacion.nombre }}
                                         {% else %}
                                             —
                                         {% endif %}
@@ -363,7 +329,9 @@
                                 <div style="min-width: 80px;">
                                     <div class="info-label" style="font-size: 0.7rem;">Formato</div>
                                     <div class="info-value" style="font-size: 0.85rem;">
-                                        {% if filtro_search and item.fechas %}
+                                        {% if item.formato_grupo %}
+                                            {{ item.formato_grupo }}
+                                        {% elif filtro_search and item.fechas %}
                                             {% for fecha_str, datos_fecha in item.fechas.items %}
                                                 {% if forloop.first %}
                                                     {{ datos_fecha.funciones.0.get_formatos_destacados }}
@@ -397,6 +365,34 @@
                                 {% endif %}
                             </div>
 
+                            <!-- PROMOCIONES ESPECÍFICAS: Vínculo película o función -->
+                            {% if item.promociones_especificas %}
+                            <div style="margin-bottom: var(--space-sm);">
+                                {% for pe in item.promociones_especificas %}
+                                <div style="display:flex; align-items:center; gap:0.6rem; background:linear-gradient(135deg, rgba(139,92,246,0.18), rgba(167,139,250,0.10)); border:1px solid rgba(139,92,246,0.55); border-radius:8px; padding:0.5rem 0.75rem; margin-bottom:0.4rem;">
+                                    <span style="font-size:1.1rem; flex-shrink:0;">{% if pe.promo.tipo_descuento == '2X1' %}🎟️{% elif pe.promo.tipo_descuento == 'PORCENTAJE' %}💰{% else %}✨{% endif %}</span>
+                                    <div style="flex:1; min-width:0;">
+                                        <div style="color:#c4b5fd; font-size:0.7rem; font-weight:700; letter-spacing:0.4px; text-transform:uppercase;">
+                                            {{ pe.etiqueta }}
+                                        </div>
+                                        <div style="color:#fff; font-size:0.85rem; font-weight:600;">
+                                            {{ pe.promo.nombre }}
+                                        </div>
+                                    </div>
+                                    <div style="background:linear-gradient(135deg,#667eea,#764ba2); padding:0.28rem 0.65rem; border-radius:6px; white-space:nowrap; flex-shrink:0;">
+                                        {% if pe.promo.tipo_descuento == '2X1' %}
+                                            <span style="color:#fff; font-weight:800; font-size:0.88rem;">2×1 ✨</span>
+                                        {% elif pe.promo.tipo_descuento == 'PORCENTAJE' %}
+                                            <span style="color:#fff; font-weight:800; font-size:0.88rem;">{{ pe.promo.valor_descuento|floatformat:0 }}% 🔥</span>
+                                        {% else %}
+                                            <span style="color:#fff; font-weight:800; font-size:0.88rem;">${{ pe.promo.valor_descuento|floatformat:0 }} 💫</span>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+
                             <!-- HORARIOS -->
                             {% if filtro_search and item.fechas %}
                                 <!-- MODO BÚSQUEDA: Mostrar todas las fechas con sus funciones -->
@@ -412,43 +408,114 @@
                                     <div class="horarios-grid" style="margin-bottom: var(--space-sm);">
                                         {% for funcion in datos_fecha.funciones %}
                                             <button type="button" 
-                                                    class="horario-btn{% if funcion.estado == 'PREVENTA' %} horario-preventa{% endif %}"
-                                                    data-pelicula="{{ item.pelicula.titulo|escapejs }}"
+                                                    class="horario-btn{% if funcion.estado == 'PREVENTA' %} horario-preventa{% elif funcion.estado == 'AGOTADA' or funcion.esta_agotada %} horario-agotada{% endif %}"
+                                                    data-pelicula="{{ item.pelicula.titulo|escape }}"
                                                     data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
                                                     data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
                                                     data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
                                                     data-funcion-id="{{ funcion.id }}"
-                                                    data-clasificacion="{{ item.pelicula.get_clasificacion_display|escapejs }}"
-                                                    data-estado="{{ funcion.estado }}">
+                                                    data-clasificacion="{{ item.pelicula.clasificacion.nombre|escapejs }}"
+                                                    data-estado="{% if funcion.estado == 'AGOTADA' or funcion.esta_agotada %}AGOTADA{% else %}{{ funcion.estado }}{% endif %}">
                                                 <span class="horario-hora">{{ funcion.fecha_hora|date:"H:i" }}</span>
                                                 {% if funcion.estado == 'PREVENTA' %}
                                                 <span class="preventa-indicator" title="Venta Anticipada">⭐</span>
                                                 {% endif %}
+                                                {% if funcion.estado == 'AGOTADA' or funcion.esta_agotada %}
+                                                <span class="agotada-indicator">AGOTADA</span>
+                                                {% endif %}
                                             </button>
+                                        {% endfor %}
+                                    </div>
+                                    <div style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-bottom: var(--space-sm);">
+                                        {% for funcion in datos_fecha.funciones %}
+                                            <span style="font-size:0.72rem; padding:0.2rem 0.45rem; border-radius:6px; background:rgba(255,255,255,0.08); color:#d1d5db;">
+                                                {% if datos_fecha.funciones|length > 1 %}
+                                                    {{ funcion.fecha_hora|date:"H:i" }} · {{ funcion.asientos_disponibles }} disponibles
+                                                {% else %}
+                                                    {{ funcion.asientos_disponibles }} disponibles
+                                                {% endif %}
+                                            </span>
                                         {% endfor %}
                                     </div>
                                 {% endfor %}
                             {% else %}
                                 <!-- MODO NORMAL: Mostrar funciones de la fecha seleccionada -->
                                 <div class="info-label" style="margin-bottom: var(--space-sm);">Horarios</div>
-                                <div class="horarios-grid">
-                                    {% for funcion in item.funciones %}
-                                        <button type="button" 
-                                                class="horario-btn{% if funcion.estado == 'PREVENTA' %} horario-preventa{% endif %}"
-                                                data-pelicula="{{ item.pelicula.titulo|escapejs }}"
-                                                data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
-                                                data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
-                                                data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
-                                                data-funcion-id="{{ funcion.id }}"
-                                                data-clasificacion="{{ item.pelicula.get_clasificacion_display|escapejs }}"
-                                                data-estado="{{ funcion.estado }}">
-                                            <span class="horario-hora">{{ funcion.fecha_hora|date:"H:i" }}</span>
-                                            {% if funcion.estado == 'PREVENTA' %}
-                                            <span class="preventa-indicator" title="Venta Anticipada">⭐</span>
-                                            {% endif %}
-                                        </button>
+                                {% if item.funciones_por_sala|length > 1 %}
+                                    <!-- Múltiples salas: mostrar cada sala en bloque separado -->
+                                    {% for sala_id, sala_data in item.funciones_por_sala.items %}
+                                        <div style="background: rgba(var(--primary-rgb, 99,102,241),0.12); border-left: 3px solid var(--primary); border-radius: 6px; padding: 0.4rem 0.7rem; margin-bottom: 0.35rem; display:flex; align-items:center; gap:0.4rem;">
+                                            <span style="font-size:0.75rem; color: var(--text-muted);">🎬</span>
+                                            <span style="font-size:0.8rem; font-weight:600; color: var(--text-secondary);">Sala {{ sala_data.sala.numero }} — {{ sala_data.sala.nombre }}</span>
+                                        </div>
+                                        <div class="horarios-grid" style="margin-bottom: var(--space-sm);">
+                                            {% for funcion in sala_data.funciones %}
+                                                <button type="button"
+                                                        class="horario-btn{% if funcion.estado == 'PREVENTA' %} horario-preventa{% elif funcion.estado == 'AGOTADA' or funcion.esta_agotada %} horario-agotada{% endif %}"
+                                                        data-pelicula="{{ item.pelicula.titulo|escape }}"
+                                                        data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
+                                                        data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
+                                                        data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
+                                                        data-funcion-id="{{ funcion.id }}"
+                                                        data-clasificacion="{{ item.pelicula.get_clasificacion_display|escapejs }}"
+                                                        data-estado="{% if funcion.estado == 'AGOTADA' or funcion.esta_agotada %}AGOTADA{% else %}{{ funcion.estado }}{% endif %}">
+                                                    <span class="horario-hora">{{ funcion.fecha_hora|date:"H:i" }}</span>
+                                                    {% if funcion.estado == 'PREVENTA' %}
+                                                    <span class="preventa-indicator" title="Venta Anticipada">⭐</span>
+                                                    {% endif %}
+                                                    {% if funcion.estado == 'AGOTADA' or funcion.esta_agotada %}
+                                                    <span class="agotada-indicator">AGOTADA</span>
+                                                    {% endif %}
+                                                </button>
+                                            {% endfor %}
+                                        </div>
+                                        <div style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-bottom: var(--space-sm);">
+                                            {% for funcion in sala_data.funciones %}
+                                                <span style="font-size:0.72rem; padding:0.2rem 0.45rem; border-radius:6px; background:rgba(255,255,255,0.08); color:#d1d5db;">
+                                                    {% if sala_data.funciones|length > 1 %}
+                                                        {{ funcion.fecha_hora|date:"H:i" }} · {{ funcion.asientos_disponibles }} disponibles
+                                                    {% else %}
+                                                        {{ funcion.asientos_disponibles }} disponibles
+                                                    {% endif %}
+                                                </span>
+                                            {% endfor %}
+                                        </div>
                                     {% endfor %}
-                                </div>
+                                {% else %}
+                                    <!-- Una sola sala: listado plano como antes -->
+                                    <div class="horarios-grid">
+                                        {% for funcion in item.funciones %}
+                                            <button type="button" 
+                                                    class="horario-btn{% if funcion.estado == 'PREVENTA' %} horario-preventa{% elif funcion.estado == 'AGOTADA' or funcion.esta_agotada %} horario-agotada{% endif %}"
+                                                    data-pelicula="{{ item.pelicula.titulo|escape }}"
+                                                    data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
+                                                    data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
+                                                    data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
+                                                    data-funcion-id="{{ funcion.id }}"
+                                                    data-clasificacion="{{ item.pelicula.get_clasificacion_display|escapejs }}"
+                                                    data-estado="{% if funcion.estado == 'AGOTADA' or funcion.esta_agotada %}AGOTADA{% else %}{{ funcion.estado }}{% endif %}">
+                                                <span class="horario-hora">{{ funcion.fecha_hora|date:"H:i" }}</span>
+                                                {% if funcion.estado == 'PREVENTA' %}
+                                                <span class="preventa-indicator" title="Venta Anticipada">⭐</span>
+                                                {% endif %}
+                                                {% if funcion.estado == 'AGOTADA' or funcion.esta_agotada %}
+                                                <span class="agotada-indicator">AGOTADA</span>
+                                                {% endif %}
+                                            </button>
+                                        {% endfor %}
+                                    </div>
+                                    <div style="display:flex; flex-wrap:wrap; gap:0.35rem; margin-top: var(--space-xs);">
+                                        {% for funcion in item.funciones %}
+                                            <span style="font-size:0.72rem; padding:0.2rem 0.45rem; border-radius:6px; background:rgba(255,255,255,0.08); color:#d1d5db;">
+                                                {% if item.funciones|length > 1 %}
+                                                    {{ funcion.fecha_hora|date:"H:i" }} · {{ funcion.asientos_disponibles }} disponibles
+                                                {% else %}
+                                                    {{ funcion.asientos_disponibles }} disponibles
+                                                {% endif %}
+                                            </span>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                             {% endif %}
 
                         </div>
@@ -474,6 +541,7 @@
             {% endif %}
         </div>
     {% endif %}
+    </div>
 </div>
 
 
@@ -541,20 +609,68 @@
 
 <!-- Script con datos del backend para transferir a cartelera.js -->
 <script type="text/plain" id="intercambioVentaIdScript">{{ intercambio_for|default:"" }}</script>
+{% if intercambio_for and intercambio_debug %}
+{{ intercambio_debug|json_script:"intercambioDebugScript" }}
+<script>
+    (function() {
+        var raw = document.getElementById('intercambioDebugScript');
+        if (!raw) {
+            return;
+        }
 
+        var data = {};
+        try {
+            data = JSON.parse(raw.textContent || '{}');
+        } catch (e) {
+            console.error('[INTERCAMBIO][F12] No se pudo parsear intercambioDebugScript', e);
+            return;
+        }
+
+        window.INTERCAMBIO_DEBUG = data;
+
+        console.groupCollapsed('[INTERCAMBIO][F12] Diagnostico de cartelera');
+        console.log('Venta:', data.venta_id);
+        console.log('Funcion origen:', data.funcion_origen);
+        console.log('Cantidad necesaria:', data.cantidad_necesaria);
+        console.log('Pre politica count:', data.pre_politica_count, 'IDs:', data.pre_politica_ids);
+        console.log('Post politica count:', data.post_politica_count, 'IDs:', data.post_politica_ids);
+        console.log('Final servicio count:', data.final_count, 'IDs:', data.final_ids);
+        console.log('Final cartelera count:', data.cartelera_final_count, 'IDs:', data.cartelera_final_ids);
+
+        if (Array.isArray(data.descartadas_politica) && data.descartadas_politica.length) {
+            console.warn('Funciones descartadas por politica:', data.descartadas_politica_count);
+            console.table(data.descartadas_politica);
+        }
+
+        if (Array.isArray(data.descartadas_vinculo) && data.descartadas_vinculo.length) {
+            console.warn('Funciones descartadas por vinculo promocional:', data.descartadas_vinculo_count);
+            console.table(data.descartadas_vinculo.map(function(item) { return { detalle: item }; }));
+        }
+
+        if (data.error || data.error_politica) {
+            console.error('Error de diagnostico intercambio:', data);
+        }
+
+        console.groupEnd();
+    })();
+</script>
+{% endif %}
+
+<div id="peliculasDataContainer">
 <script type="application/json" id="peliculasDataJson">
 {
     {% for item in peliculas_con_funciones %}
     "{{ item.pelicula.id }}": {
         "titulo": "{{ item.pelicula.titulo|escapejs }}",
         "genero": "{{ item.pelicula.get_genero_display|escapejs }}",
-        "clasificacion": "{{ item.pelicula.get_clasificacion_display|escapejs }}",
+        "clasificacion": "{{ item.pelicula.clasificacion.nombre|escapejs }}",
         "duracion": "{{ item.pelicula.duracion }}",
         "fecha_estreno": "{{ item.pelicula.fecha_estreno|date:'d/m/Y'|default:'' }}",
         "sinopsis": "{{ item.pelicula.sinopsis|escapejs }}",
         "director": "{{ item.pelicula.director|default:''|escapejs }}",
         "imagen": "{{ item.pelicula.get_poster_url }}",
-        "formato": "{{ item.pelicula.get_formato_display|escapejs }}",
+        "formato": "{% if filtro_search and item.fechas %}{% for fecha_str, datos_fecha in item.fechas.items %}{% if forloop.first %}{{ datos_fecha.funciones.0.get_formatos_destacados|escapejs }}{% endif %}{% endfor %}{% elif item.funciones %}{{ item.funciones.0.get_formatos_destacados|escapejs }}{% else %}N/A{% endif %}",
+        "youtube_trailer_key": "{{ item.pelicula.youtube_trailer_key|default:''|escapejs }}",
         "comentarios": [
             {% for comentario in item.comentarios|slice:":3" %}
             {
@@ -569,6 +685,7 @@
     {% endfor %}
 }
 </script>
+</div>
 
-<script src="{% static 'cine/js/cartelera.js' %}?v=2.0"></script>
+<script src="{% static 'cine/js/cartelera.js' %}?v=2.6"></script>
 {% endblock %}

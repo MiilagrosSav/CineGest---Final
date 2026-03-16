@@ -229,7 +229,8 @@
                 <div style="font-size: 9pt; color: #333333;">
                     <strong>Período:</strong> {{ fecha_inicio|date:"d/m/Y" }} al {{ fecha_fin|date:"d/m/Y" }}<br/>
                     {% if requested_by %}<strong>Solicitado por:</strong> {{ requested_by }}<br/>{% endif %}
-                    <strong>Generado:</strong> {% now "d/m/Y H:i" %}
+                    <strong>Generado:</strong> {% now "d/m/Y H:i" %}<br/>
+                    <strong>Filtros:</strong> {{ filtros_resumen }}
                     {% if tiene_filtros_personalizados %}<br/><strong style="color: #77135c;">📊 Reporte generado con filtros personalizados de ordenamiento</strong>{% endif %}
                 </div>
             </td>
@@ -239,42 +240,35 @@
 
     <!-- SECCIÓN 1: RANKING DE PELÍCULAS -->
     {% if ranking_peliculas %}
-    <h2>1. Ranking de Películas por Performance</h2>
+    <h2>1. Ranking de Desempeño de Ocupación</h2>
     <p style="margin-bottom:10px; font-size:10pt; color:#333333;">
-        Ranking de películas ordenado por índice de performance combinado: Ocupación (60%) + Ingreso (40%).
+        Comparativa de volumen, éxito real y eficiencia de ocupación por película.
     </p>
 
     <table>
         <thead>
             <tr>
                 <th style="width:7%;" class="text-center">Pos.</th>
-                <th style="width:33%;">Película</th>
-                <th style="width:12%;" class="text-center">Ocupación</th>
-                <th style="width:15%;" class="text-center">Ingreso Total</th>
-                <th style="width:13%;" class="text-center">Índice Perf.</th>
-                <th style="width:10%;" class="text-center">Rating</th>
-                <th style="width:10%;" class="text-center">Entradas</th>
+                <th style="width:35%;">Película</th>
+                <th style="width:16%;" class="text-center">Cant. Funciones</th>
+                <th style="width:18%;" class="text-center">Entradas Vendidas</th>
+                <th style="width:24%;" class="text-center">Ocupación %</th>
             </tr>
         </thead>
         <tbody>
-            {% for pelicula in ranking_peliculas %}
+            {% for pelicula in ranking_peliculas|slice:":10" %}
             <tr>
                 <td class="text-center"><strong>{{ pelicula.posicion_ranking }}</strong></td>
                 <td>{{ pelicula.titulo_pelicula|truncatechars:40 }}</td>
-                <td class="text-center">{{ pelicula.ocupacion_promedio|floatformat:1 }}%</td>
-                <td class="text-center">${{ pelicula.revenue_total|floatformat:0 }}</td>
-                <td class="text-center"><strong>{{ pelicula.indice_performance }}</strong></td>
-                <td class="text-center">{{ pelicula.rating }}</td>
+                <td class="text-center">{{ pelicula.total_funciones }}</td>
                 <td class="text-center">{{ pelicula.total_entradas }}</td>
+                <td class="text-center">{{ pelicula.ocupacion_promedio|floatformat:1 }}%</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
 
-    <div class="nota">
-        El Índice de Performance es un indicador combinado que pondera: 60% la ocupación promedio y 40% el ingreso normalizado.
-        Esta métrica permite identificar tanto las películas populares (alta ocupación) como las más rentables (alto ingreso).
-    </div>
+   
 
     <div class="recomendacion">
         <div class="recomendacion-titulo">Recomendaciones basadas en el ranking de películas</div>
@@ -323,7 +317,7 @@
                 <th style="width:13%;" class="text-center">Peor Horario</th>
                 <th style="width:12%;" class="text-center">Ocupación (%)</th>
                 <th style="width:14%;" class="text-center">Asientos Libres (%)</th>
-                <th style="width:36%;">Recomendación</th>
+                <th style="width:36%;">OBSERVACION</th>
             </tr>
         </thead>
         <tbody>
@@ -349,24 +343,6 @@
     </div>
     {% endif %}
 
-    <div class="recomendacion">
-        <div class="recomendacion-titulo">Recomendaciones basadas en ocupación diaria</div>
-        <ul>
-            {% for d in ranking_horarios %}
-                {% if d.ocupacion_real >= 70 %}
-                    <li>El día <strong>{{ d.dia_nombre }}</strong> muestra alta demanda con {{ d.ocupacion_real|floatformat:1 }}% de ocupación. Se recomienda programar estrenos y películas de alta convocatoria en este día.</li>
-                {% endif %}
-            {% endfor %}
-            
-            {% for d in ranking_horarios %}
-                {% if d.asientos_libres > 70 %}
-                    <li><strong>ALERTA CRÍTICA:</strong> El día <strong>{{ d.dia_nombre }}</strong> tiene {{ d.asientos_libres|floatformat:1 }}% de asientos libres (solo {{ d.ocupacion_real|floatformat:1 }}% ocupación). Se recomienda evaluar la suspensión de funciones o implementar promociones agresivas.</li>
-                {% endif %}
-            {% endfor %}
-            
-            <li>Revise los días con mayor porcentaje de asientos libres (columna "Asientos Libres") para identificar oportunidades de redistribución de funciones hacia días de mayor demanda.</li>
-        </ul>
-    </div>
     {% else %}
     <div class="page-break"></div>
     <h2>2. Ranking de Mejores Horarios por Día de la Semana</h2>
@@ -388,13 +364,12 @@
         <thead>
             <tr>
                 <th style="width:6%;" class="text-center">Pos.</th>
-                <th style="width:18%;">Sala</th>
+                <th style="width:21%;">Sala</th>
                 <th style="width:11%;" class="text-center">Capacidad</th>
                 <th style="width:11%;" class="text-center">Funciones</th>
                 <th style="width:13%;" class="text-center">Butacas Ofrecidas</th>
                 <th style="width:13%;" class="text-center">Butacas Ocupadas</th>
-                <th style="width:11%;" class="text-center">% Ocupación</th>
-                <th style="width:17%;">Evaluación</th>
+                <th style="width:25%;" class="text-center">% Ocupación</th>
             </tr>
         </thead>
         <tbody>
@@ -407,15 +382,10 @@
                 <td class="text-center">{{ sala.butacas_ofrecidas }}</td>
                 <td class="text-center">{{ sala.butacas_ocupadas }}</td>
                 <td class="text-center"><strong>{{ sala.ocupacion_promedio|floatformat:1 }}%</strong></td>
-                <td>{{ sala.evaluacion }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-
-    <div class="nota">
-        Evaluación: "Bien aprovechada" (≥40%), "Aprovechamiento moderado" (15-39%), "Subutilizada" (&lt;15%).
-    </div>
 
     <div class="recomendacion">
         <div class="recomendacion-titulo">Recomendaciones basadas en el ranking de salas</div>
@@ -484,31 +454,6 @@
         {% endif %}
     </div>
 
-    <div class="recomendacion">
-        <div class="recomendacion-titulo">Recomendaciones basadas en asistencia semanal</div>
-        <ul>
-            {% if ocupacion|length > 0 %}
-            {% with primer_dia=ocupacion|first ultimo_dia=ocupacion|last %}
-            {% if ocupacion|length > 1 %}
-            <li>Al inicio de la semana ({{ primer_dia.dia }}), la ocupación fue {{ primer_dia.porcentaje|floatformat:1 }}% con {{ primer_dia.tickets }} entradas vendidas.</li>
-            <li>Hacia el final ({{ ultimo_dia.dia }}), la ocupación alcanzó {{ ultimo_dia.porcentaje|floatformat:1 }}% con {{ ultimo_dia.tickets }} entradas vendidas.</li>
-            {% endif %}
-            
-            {% for dia in ocupacion %}
-                {% if dia.porcentaje < 10 %}
-                <li>{{ dia.dia }} registra ocupación crítica ({{ dia.porcentaje|floatformat:1 }}% - {{ dia.tickets }} entradas). Se recomienda suspender funciones este día o aplicar promociones agresivas.</li>
-                {% elif dia.porcentaje >= 50 %}
-                <li>{{ dia.dia }} muestra excelente rendimiento ({{ dia.porcentaje|floatformat:1 }}% - {{ dia.tickets }} entradas). Considere aumentar funciones en este día.</li>
-                {% endif %}
-            {% endfor %}
-            
-            <li>Considere aplicar estrategias de precios dinámicos según el comportamiento observado de cada día.</li>
-            {% endwith %}
-            {% else %}
-            <li>No hay datos suficientes de asistencia semanal para generar recomendaciones específicas.</li>
-            {% endif %}
-        </ul>
-    </div>
     {% else %}
     <div class="page-break"></div>
     <h2>4. Detalle de Asistencia por Día de la Semana</h2>

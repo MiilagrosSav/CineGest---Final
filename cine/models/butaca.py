@@ -47,7 +47,37 @@ class Butaca(models.Model):
         help_text="Marca si esta posición es un pasillo (no seleccionable)"
     )
 
+    en_mantenimiento = models.BooleanField(
+        default=False,
+        verbose_name="En mantenimiento",
+        help_text="Indica que la butaca está fuera de servicio temporalmente y no puede ser vendida ni seleccionada."
+    )
+
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        from django.utils import timezone
+
+        # Si se está marcando como en_mantenimiento en un registro existente
+        if self.pk and self.en_mantenimiento:
+            try:
+                original = Butaca.objects.get(pk=self.pk)
+                if not original.en_mantenimiento:
+                    # Cambio de disponible → mantenimiento: verificar ventas futuras de ESTA butaca
+                    from ventas.models import Entrada
+                    tiene_venta_futura = Entrada.objects.filter(
+                        id_butaca=self,
+                        estado__in=['PENDIENTE', 'RESERVADA', 'VENDIDA'],
+                        id_funcion__fecha_hora__gt=timezone.now()
+                    ).exists()
+                    if tiene_venta_futura:
+                        raise ValidationError(
+                            'No se puede poner en mantenimiento: esta butaca tiene entradas '
+                            'vendidas o reservadas para funciones próximas.'
+                        )
+            except Butaca.DoesNotExist:
+                pass
 
     def save(self, *args, **kwargs):
         """Normalizar fila a MAYÚSCULAS para consistencia (A=a)"""

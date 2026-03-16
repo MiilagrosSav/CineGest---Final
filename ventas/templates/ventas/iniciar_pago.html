@@ -108,19 +108,29 @@
         </div> 
         
         <div class="card-footer" style="padding: var(--space-lg); border-top: 1px solid var(--glass-border); text-align: center;">
-            <div id="wallet_container">
-                </div>
-            <p style="margin-top: var(--space-md); font-size: 0.9rem; opacity: 0.7; margin-bottom: 0;">
+            <div id="wallet_container"></div>
+            <p id="mp-info-text" style="margin-top: var(--space-md); font-size: 0.9rem; opacity: 0.7; margin-bottom: 0;">
                 🔒 Pago seguro procesado por Mercado Pago
+            </p>
+            <p id="expiry-countdown" style="margin-top: var(--space-sm); font-size: 0.85rem; color: #f59e0b; margin-bottom: 0; display: none;">
+                ⏱️ Reserva expira en: <strong id="expiry-timer">--:--</strong>
             </p>
         </div>
     </div>
 </div>
 
+
 <script>
     window.MERCADOPAGO_PUBLIC_KEY = '{{ mercadopago_public_key }}';
     window.PREFERENCE_ID = '{{ preference_id }}';
     window.INIT_POINT = '{{ init_point }}';
+    window.VENTA_ID = {{ venta.id_venta }};
+    window.VENTA_EXPIRACION_ISO = '{{ venta_expiracion_iso }}';
+    window.MARCAR_PAGO_URL = '{{ marcar_pago_url }}';
+    window.IR_A_MP_URL = '{{ ir_a_mp_url }}';
+    window.CARTELERA_URL = '{% url "cine:cartelera" %}';
+    window.MIS_VENTAS_URL = '{% url "ventas:mis_ventas" %}';
+    window.CSRF_TOKEN = '{{ csrf_token }}';
 </script>
-<script src="{% static 'ventas/js/iniciar_pago.js' %}?v=1.0"></script>
+<script src="{% static 'ventas/js/iniciar_pago.js' %}?v=3.1"></script>
 {% endblock %}

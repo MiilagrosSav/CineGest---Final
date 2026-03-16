@@ -6,3 +6,6 @@ from .butacas import *
 from .configuracion import *
 from .compra import *
 from .horarios_atencion import *
+from .clasificaciones import *
+from .directores import *
+from .tmdb_views import *

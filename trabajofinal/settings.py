@@ -73,7 +73,7 @@ INSTALLED_APPS = [
     'cine', #agregado por mi maneja el cine
     'ventas', #agregado por mi maneja las ventas
     'core', # App core para notificaciones y servicios compartidos
-    'promociones',
+    'promociones.apps.PromocionesConfig',
     'social_django', #  esta línea para la autenticación social
     'widget_tweaks', #  esta línea para personalizar widgets en templates
     'cloudinary_storage',  # Sistema híbrido de almacenamiento de imágenes
@@ -97,6 +97,9 @@ MIDDLEWARE = [
     
     # ✅ AÑADIR ESTA LÍNEA PARA OAUTH
     'social_django.middleware.SocialAuthExceptionMiddleware',
+
+    # Modal de completar perfil para usuarios de Google
+    'accounts.middleware.GoogleProfileCompletionMiddleware',
 ]
 
 ROOT_URLCONF = 'trabajofinal.urls'
@@ -224,8 +227,8 @@ cloudinary.config(
 
 # Backends de autenticación
 AUTHENTICATION_BACKENDS = (
-    'social_core.backends.google.GoogleOAuth2',  # Backend para Google OAuth2
-    'django.contrib.auth.backends.ModelBackend',  # Backend tradicional de Django
+    'social_core.backends.google.GoogleOAuth2',        # Backend para Google OAuth2
+    'accounts.backends.EmailOrUsernameBackend',        # Backend híbrido email/username
 )
 
 # Google OAuth2 Configuration (from .env file)
@@ -245,8 +248,8 @@ SOCIAL_AUTH_LOGOUT_REDIRECT_URL = '/accounts/login/'  # Después del logout
 
 # Configuración adicional de Google OAuth2
 SOCIAL_AUTH_GOOGLE_OAUTH2_AUTH_EXTRA_ARGUMENTS = {
-    'access_type': 'offline',  # Obtener refresh tokens
-    'approval_prompt': 'auto'  # Solo pedir permisos la primera vez
+    'access_type': 'offline',      # Obtener refresh tokens
+    'prompt': 'select_account',    # Siempre mostrar selector de cuentas Google
 }
 
 # ✅ CONFIGURACIÓN PARA MANEJAR USUARIOS EXISTENTES
@@ -342,4 +345,20 @@ else:
 # Para producción, configura las variables de entorno
 MERCADOPAGO_ACCESS_TOKEN = os.getenv('MERCADOPAGO_ACCESS_TOKEN')
 MERCADOPAGO_PUBLIC_KEY = os.getenv('MERCADOPAGO_PUBLIC_KEY')
+
+# ============================================
+# TMDB (The Movie Database) API CONFIGURATION
+# ============================================
+# Para obtener tu API Key, regístrate en: https://www.themoviedb.org/settings/api
+TMDB_API_KEY = os.getenv('TMDB_API_KEY', '')
+TMDB_BASE_URL = 'https://api.themoviedb.org/3'
+TMDB_IMAGE_BASE_URL = 'https://image.tmdb.org/t/p'
+TMDB_POSTER_SIZE = 'w500'  # Tamaños disponibles: w92, w154, w185, w342, w500, w780, original
+
+# ============================================
+# URL PÚBLICA DEL SITIO (usada en links de emails: cupones, promociones, etc.)
+# ============================================
+# Leer desde .env o usar la URL de ngrok por defecto.
+# En producción, configura SITE_BASE_URL en el archivo .env con tu dominio real.
+SITE_BASE_URL = os.getenv('SITE_BASE_URL', 'https://uncategorized-noncommodiously-floy.ngrok-free.dev')
 

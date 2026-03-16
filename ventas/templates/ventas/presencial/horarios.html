@@ -53,9 +53,19 @@
                         </div>
 
                         <div class="funcion-footer">
+                            {% if f.agotada %}
+                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;">
+                                <span class="badge-agotada">AGOTADA</span>
+                                <span class="btn btn-disabled btn-sm" aria-disabled="true">⛔ No disponible</span>
+                            </div>
+                            {% else %}
+                            <div style="margin-bottom: 0.5rem;">
+                                <span class="badge-disponibles">{{ f.asientos_disponibles }} butacas disponibles</span>
+                            </div>
                             <a href="{% url 'ventas:seleccionar_butacas_presencial' f.id %}" class="btn btn-primary btn-sm btn-block">
                                 🛒 Vender
                             </a>
+                            {% endif %}
                         </div>
                     </div>
                     {% endfor %}
@@ -157,6 +167,27 @@
         font-size: 1rem;
     }
 
+    .badge-disponibles {
+        background: rgba(78, 205, 196, 0.18);
+        color: #4ecdc4;
+        font-size: 0.72rem;
+        padding: 3px 8px;
+        border-radius: 9999px;
+        border: 1px solid rgba(78, 205, 196, 0.35);
+        font-weight: 700;
+    }
+
+    .badge-agotada {
+        background: rgba(255, 107, 107, 0.2);
+        color: #ff8a80;
+        font-size: 0.72rem;
+        padding: 3px 8px;
+        border-radius: 9999px;
+        border: 1px solid rgba(255, 107, 107, 0.45);
+        font-weight: 700;
+        text-transform: uppercase;
+    }
+
     /* Footer de la tarjeta (Botón) */
     .funcion-footer {
         padding: 1rem;
@@ -199,6 +230,15 @@
         border-color: rgb(77, 19, 92);
         transform: translateY(-1px);
         box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.3);
+    }
+
+    .btn-disabled {
+        background: rgba(255, 255, 255, 0.08);
+        color: rgba(255, 255, 255, 0.55);
+        border: 2px solid rgba(255, 255, 255, 0.15);
+        cursor: not-allowed;
+        pointer-events: none;
+        text-transform: uppercase;
     }
 
     .btn-outline {

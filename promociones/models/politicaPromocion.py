@@ -1,10 +1,12 @@
 import django.db.models as models
+from core.mixins import SoftDeleteMixin
 from .promocion import Promocion
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 from simple_history.models import HistoricalRecords
 
 
-class PoliticaPromocion(models.Model):
+class PoliticaPromocion(SoftDeleteMixin, models.Model):
     """
     Política que define cuándo disparar correos automáticos al liberarse butacas.
     
@@ -41,7 +43,7 @@ class PoliticaPromocion(models.Model):
 
     # Prioridad: 1 = máxima prioridad, números más altos = menor prioridad
     prioridad = models.PositiveIntegerField(
-        default=100,
+        default=1,
         help_text='Prioridad de la política: 1 = máxima prioridad, números más altos = menor prioridad. Valor por defecto=100 (baja prioridad)'
     )
 
@@ -52,10 +54,11 @@ class PoliticaPromocion(models.Model):
     )
     
     # Ventana de urgencia: horas antes de la función para disparar envío
+    # Se usa también para análisis automático de ocupación (ventana de búsqueda)
     horas_antes_de_funcion = models.PositiveIntegerField(
         default=24,
         null=False,
-        help_text='Mínimo de horas antes de la función para disparar el envío de cupones'
+        help_text='Horas antes de la función para disparar envío. También se usa como ventana de búsqueda para análisis de ocupación automática (ej: 24 = enviar/analizar si faltan <= 24 horas)'
     )
         
     # Análisis Automático: activación por ocupación baja
@@ -67,15 +70,74 @@ class PoliticaPromocion(models.Model):
         default=30,
         help_text='Activar promoción si ocupación < X%. Ejemplo: 30 = activar cuando ocupación sea menor a 30%'
     )
-    horas_anticipacion = models.PositiveIntegerField(
-        default=24,
-        help_text='Ventana de tiempo: analizar funciones que ocurran en las próximas X horas desde ahora'
-    )
 
     class Meta:
         db_table = 'promociones_politicapromocion'
         verbose_name = 'Política de Promoción'
         verbose_name_plural = 'Políticas de Promoción'
+
+    # Campos que definen condiciones financieras/operativas y no pueden
+    # modificarse si la política ya fue usada en ventas y está vencida.
+    CAMPOS_CRITICOS = [
+        'promocion_a_otorgar_id', 'hora_inicio_rango', 'hora_fin_rango',
+        'genero_pelicula_id', 'dias_semana', 'umbral_ocupacion',
+        'horas_antes_de_funcion', 'prioridad',
+        'minutos_validez', 'activar_por_ocupacion',
+    ]
+
+    # ------------------------------------------------------------------ #
+    # Properties de estado                                                 #
+    # ------------------------------------------------------------------ #
+
+    @property
+    def esta_vigente(self):
+        """
+        True si la política está activa Y la promoción asociada también está
+        activa y dentro de su rango de fechas.
+        """
+        if not self.activa:
+            return False
+        promo = self.promocion_a_otorgar
+        if not promo.activo:
+            return False
+        if promo.fecha_fin < timezone.now().date():
+            return False
+        return True
+
+    @property
+    def esta_bloqueada(self):
+        """
+        True si la política está vencida/inactiva Y ya fue usada en al menos
+        una venta real (cupón marcado como usado). En ese caso, sus campos
+        críticos no pueden modificarse por integridad contable.
+        """
+        if self.esta_vigente:
+            return False
+        if not self.pk:
+            return False  # objeto nuevo, sin historial
+        from promociones.models.cuponGenerado import CuponGenerado
+        return CuponGenerado.objects.filter(
+            politica_origen_id=self.pk, usado=True
+        ).exists()
+
+    # ------------------------------------------------------------------ #
+    # Validación de formulario                                            #
+    # ------------------------------------------------------------------ #
+
+    def clean(self):
+        super().clean()
+        import re
+
+        nombre_limpio = (self.nombre or '').strip()
+        if len(nombre_limpio) < 3:
+            raise ValidationError({'nombre': 'El nombre debe tener al menos 3 caracteres.'})
+        if not re.search(r'[A-Za-zÁÉÍÓÚÑáéíóúñ]', nombre_limpio):
+            raise ValidationError({'nombre': 'El nombre debe contener letras.'})
+        if self.pk and self.esta_bloqueada:
+            raise ValidationError(
+                'Esta política ya cuenta con ventas registradas y ha vencido. '
+                'No puede ser modificada por razones de integridad contable.'
+            )
 
     def __str__(self):
         return self.nombre
@@ -94,23 +156,37 @@ class PoliticaPromocion(models.Model):
     def get_dias_display(self):
         l = self.get_dias_list()
         nombres = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
-        if not l:
-            return 'Todos'
-        return ','.join([nombres[d] for d in l if 0 <= d <= 6])
+        # Sin selección O los 7 días seleccionados → sin restricción
+        if not l or set(l) >= {0, 1, 2, 3, 4, 5, 6}:
+            return 'TODOS'
+        return ', '.join([nombres[d] for d in sorted(l) if 0 <= d <= 6])
     
     def save(self, *args, **kwargs):
         """
-        Normalización de datos antes de guardar.
+        1. Normalización de datos antes de guardar.
+        2. Bloqueo de inmutabilidad: si la política está bloqueada (vencida +
+           ventas reales), impide cambiar campos críticos.
         """
         import re
-        
-        # Normalizar nombre de la política
+
+        # ------ Bloqueo de inmutabilidad (solo en edición) ------
+        if self.pk and self.esta_bloqueada:
+            try:
+                original = PoliticaPromocion.objects.get(pk=self.pk)
+                for campo in self.CAMPOS_CRITICOS:
+                    if getattr(self, campo) != getattr(original, campo):
+                        raise ValidationError(
+                            'Esta política ya cuenta con ventas registradas y ha vencido. '
+                            'No puede ser modificada por razones de integridad contable.'
+                        )
+            except PoliticaPromocion.DoesNotExist:
+                pass  # objeto recién creado en esta transacción
+
+        # ------ Normalización de nombre ------
         if self.nombre:
-            # Eliminar espacios innecesarios y aplicar Title Case
             self.nombre = self.nombre.strip().title()
-            # Corregir letras repetidas 3 o más veces
             self.nombre = re.sub(r'(.)\1{2,}', r'\1\1', self.nombre)
-        
+
         super().save(*args, **kwargs)
     
     # historial de cambios

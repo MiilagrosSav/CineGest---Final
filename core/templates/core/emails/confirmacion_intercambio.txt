@@ -47,5 +47,4 @@ Precio:       ${{ funcion_destino.precio_base }}
 
 --------------------------------------------------
 {{ configuracion_cine.nombre|default:"CineGest" }} - Tu experiencia cinematográfica
-Si tienes alguna pregunta, contáctanos respondiendo a este email.
 Este es un email automático, por favor no respondas directamente.
