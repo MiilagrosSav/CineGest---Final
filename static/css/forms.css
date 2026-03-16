@@ -995,3 +995,141 @@ label:has(input[type="radio"]:checked) span {
 .notif-item-icon {
   font-size: 1.2rem;
 }
+/* Estilos para el Navbar Responsive */
+.mobile-menu-toggle {
+    display: none; /* Escondido en escritorio */
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 10px;
+    z-index: 1001;
+}
+
+.mobile-menu-toggle .bar {
+    width: 25px;
+    height: 3px;
+    background-color: white;
+    border-radius: 2px;
+    transition: 0.3s;
+}
+
+/* Link de preventa con estilo premium */
+.preventa-link {
+    background: linear-gradient(135deg, #a855f7 0%, #d946ef 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700 !important;
+}
+
+/* Media Query para Móviles */
+@media (max-width: 992px) {
+    .mobile-menu-toggle {
+        display: flex;
+    }
+
+    .nav-container {
+        position: fixed;
+        top: 0;
+        right: -100%; /* Escondido a la derecha */
+        width: 280px;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.95); /* Azul noche oscuro */
+        backdrop-filter: blur(15px);
+        padding: 80px 20px 20px;
+        transition: 0.4s ease-in-out;
+        z-index: 1000;
+        box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+    }
+
+    .nav-container.active {
+        right: 0;
+    }
+
+    .nav-links {
+        flex-direction: column;
+        align-items: flex-start;
+        width: 100%;
+        gap: 10px;
+    }
+
+    .nav-link {
+        width: 100%;
+        padding: 15px;
+        font-size: 1.1rem;
+        border-radius: 10px;
+    }
+
+    .user-menu-dropdown {
+        position: static;
+        width: 100%;
+        background: rgba(255,255,255,0.05);
+        box-shadow: none;
+        margin-top: 5px;
+        display: none; /* Se abre al tocar el botón */
+    }
+
+    .user-menu-dropdown.active {
+        display: block;
+    }
+
+    /* Logo más chico en móvil si es necesario */
+    .logo-text {
+        font-size: 1.2rem;
+    }
+    @media (max-width: 992px) {
+    /* Navbar móvil - Flexbox para separar Logo de Hamburguesa */
+    .navbar-content {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        flex-direction: row !important; /* Mantiene logo e icono en la misma linea */
+    }
+
+    /* Empuja el logo a la izquierda y el botón a la derecha */
+    .logo {
+        margin-right: auto;
+    }
+
+    .mobile-menu-toggle {
+        display: flex !important; /* Muestra las barras */
+        margin-left: auto;
+    }
+
+    .nav-container {
+        position: fixed;
+        top: 0;
+        right: -100%; /* Escondido */
+        width: 280px;
+        height: 100vh;
+        background: rgba(15, 23, 42, 0.98);
+        backdrop-filter: blur(15px);
+        padding: 80px 20px;
+        transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1000;
+        display: block !important; /* Sobreescribe el flex si lo tenías */
+    }
+
+    .nav-container.active {
+        right: 0; /* Aparece */
+    }
+
+    /* Submenús en móvil */
+    .user-menu-dropdown {
+        position: static !important;
+        width: 100% !important;
+        background: rgba(255,255,255,0.05) !important;
+        display: none;
+        box-shadow: none !important;
+        transform: none !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+    }
+
+    .user-menu-dropdown.show {
+        display: block !important;
+    }
+}
+}

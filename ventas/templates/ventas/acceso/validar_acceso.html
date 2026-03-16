@@ -472,12 +472,36 @@ document.addEventListener('DOMContentLoaded', function() {
                         <strong>${info.funcion}</strong>
                     </div>
                     ` : ''}
+                    ${info.butaca ? `
+                    <div class="info-item">
+                        <small>BUTACA</small>
+                        <strong>${info.butaca}</strong>
+                    </div>
+                    ` : ''}
+                    ${info.fecha_ingreso ? `
+                    <div class="info-item" style="grid-column: 1/-1; background: rgba(235,77,75,.25); border: 1px solid rgba(235,77,75,.6);">
+                        <small>⚠️ INGRESO PREVIO REGISTRADO</small>
+                        <strong>${info.fecha_ingreso}</strong>
+                    </div>
+                    ` : ''}
                 </div>
             `;
         }
 
+        // Estilo extra de alerta para entradas ya usadas
+        const esYaUsada = data.motivo && data.motivo.includes('YA UTILIZADA');
+        const estiloAlerta = esYaUsada
+            ? 'border: 3px solid #eb4d4b; box-shadow: 0 0 32px rgba(235,77,75,.5); animation: parpadeo 0.5s steps(2) 3;'
+            : '';
+
         const html = `
-            <div class="resultado-card rechazado">
+            <style>
+                @keyframes parpadeo {
+                    0%,100% { opacity: 1; }
+                    50%      { opacity: .4; }
+                }
+            </style>
+            <div class="resultado-card rechazado" style="${estiloAlerta}">
                 <h2 class="resultado-titulo rechazado">${data.motivo}</h2>
                 <p class="resultado-detalle">${data.detalle || ''}</p>
                 

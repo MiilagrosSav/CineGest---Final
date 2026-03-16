@@ -9,6 +9,33 @@ protegen la integridad de los datos contra manipulaciones externas.
 
 from django.core.exceptions import ValidationError
 from datetime import date, timedelta
+from cine.models import Clasificacion
+
+
+def _get_clasificacion_atp():
+    """Helper para obtener clasificación ATP"""
+    clasificacion, _ = Clasificacion.objects.get_or_create(
+        nombre='ATP',
+        defaults={
+            'descripcion': 'Apta para todo público',
+            'edad_minima': 0,
+            'orden': 1
+        }
+    )
+    return clasificacion
+
+
+def _get_clasificacion_13():
+    """Helper para obtener clasificación +13"""
+    clasificacion, _ = Clasificacion.objects.get_or_create(
+        nombre='+13',
+        defaults={
+            'descripcion': 'Apta para mayores de 13 años',
+            'edad_minima': 13,
+            'orden': 2
+        }
+    )
+    return clasificacion
 
 
 def test_validacion_titulo_numero():
@@ -30,7 +57,7 @@ def test_validacion_titulo_numero():
             director='Christopher Nolan',
             duracion=120,
             fecha_estreno=date.today() + timedelta(days=30),
-            clasificacion='ATP'
+            clasificacion=_get_clasificacion_atp()
         )
         pelicula.save()
 
@@ -62,7 +89,7 @@ def test_validacion_titulo_numero_negativo():
             director='Martin Scorsese',
             duracion=150,
             fecha_estreno=date.today() + timedelta(days=60),
-            clasificacion='+13'
+            clasificacion=_get_clasificacion_13()
         )
         pelicula.save()
 
@@ -94,7 +121,7 @@ def test_validacion_director_numero():
             director='789',  # ❌ Director numérico
             duracion=148,
             fecha_estreno=date.today() + timedelta(days=15),
-            clasificacion='+13'
+            clasificacion=_get_clasificacion_13()
         )
         pelicula.save()
 
@@ -126,7 +153,7 @@ def test_validacion_director_numero_negativo():
             director='-999',  # ❌ Número negativo
             duracion=152,
             fecha_estreno=date.today() + timedelta(days=20),
-            clasificacion='+13'
+            clasificacion=_get_clasificacion_13()
         )
         pelicula.save()
 
@@ -160,7 +187,7 @@ def test_validacion_fecha_pasado():
             director='Anthony Russo',
             duracion=181,
             fecha_estreno=fecha_pasada,  # ❌ Fecha en el pasado
-            clasificacion='+13'
+            clasificacion=_get_clasificacion_13()
         )
         pelicula.save()
 
@@ -194,7 +221,7 @@ def test_validacion_fecha_ayer():
             director='Jon Watts',
             duracion=148,
             fecha_estreno=fecha_ayer,  # ❌ Fecha de ayer
-            clasificacion='+13'
+            clasificacion=_get_clasificacion_13()
         )
         pelicula.save()
 
@@ -226,7 +253,7 @@ def test_limpieza_espacios():
             director='  Christopher Nolan  ',  # Con espacios
             duracion=169,
             fecha_estreno=date.today() + timedelta(days=45),
-            clasificacion='+13'
+            clasificacion=_get_clasificacion_13()
         )
         pelicula.save()
 
@@ -268,7 +295,7 @@ def test_pelicula_valida():
             director='Lana Wachowski',
             duracion=136,
             fecha_estreno=date.today() + timedelta(days=90),
-            clasificacion='+13'
+            clasificacion=_get_clasificacion_13()
         )
         pelicula.save()
 

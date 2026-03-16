@@ -103,6 +103,14 @@
                                 </td>
                             </tr>
 
+                            {% if cupon.expira_en %}
+                            <tr>
+                                <td align="center" style="padding-top: 18px; color: #f7c948; font-family: sans-serif; font-size: 14px; line-height: 22px;">
+                                    <strong>⏰ Este cupón expira el {{ cupon.expira_en|date:"d/m/Y" }} a las {{ cupon.expira_en|time:"H:i" }}.</strong>
+                                </td>
+                            </tr>
+                            {% endif %}
+
                         </table>
                     </td>
                 </tr>

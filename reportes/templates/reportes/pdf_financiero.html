@@ -64,6 +64,13 @@
             margin-top: 6px;
         }
 
+        .filters-summary {
+            display: block;
+            margin-top: 2px;
+            line-height: 1.35;
+            word-wrap: break-word;
+        }
+
         /* ============================================
            TÍTULOS DE SECCIONES
            ============================================ */
@@ -303,7 +310,9 @@
                 <div style="font-size: 9pt; color: #333333;">
                     <strong>Período:</strong> {{ fecha_inicio }} al {{ fecha_fin }}<br/>
                     {% if requested_by %}<strong>Solicitado por:</strong> {{ requested_by }}<br/>{% endif %}
-                    <strong>Generado:</strong> {% now "d/m/Y H:i" %}
+                    <strong>Generado:</strong> {% now "d/m/Y H:i" %}<br/>
+                    <strong>Filtros:</strong>
+                    <span class="filters-summary">{{ filtros_resumen }}</span>
                 </div>
             </td>
         </tr>
@@ -336,24 +345,28 @@
     </table>
 
     <!-- SECCIÓN: DETALLE POR PELÍCULA -->
-    <h2>1. Detalle de Recaudación por Película</h2>
+    <h2>1. Detalle por Película</h2>
     <table class="ranking-table">
         <thead>
             <tr>
-                <th style="width: 28%;">Película</th>
-                <th class="text-right" style="width: 9%;">Tickets</th>
-                <th class="text-right" style="width: 11%;">Ticket Prom.</th>
-                <th class="text-right" style="width: 13%;">Recaudación</th>
-                <th class="text-right" style="width: 12%;">Precio Completo</th>
-                <th class="text-right" style="width: 12%;">Descuentos</th>
-                <th class="text-right" style="width: 13%;">Ing. por Butaca</th>
+                <th style="width: 24%;">Película</th>
+                <th class="text-right" style="width: 8%;">Tickets</th>
+                <th class="text-right" style="width: 9%;">Func. c/Vta</th>
+                <th class="text-right" style="width: 11%;">Ing. x Func.</th>
+                <th class="text-right" style="width: 10%;">Ticket Prom.</th>
+                <th class="text-right" style="width: 10%;">Total</th>
+                <th class="text-right" style="width: 10%;">Precio Comp.</th>
+                <th class="text-right" style="width: 9%;">Descuentos</th>
+                <th class="text-right" style="width: 9%;">Ing. Butaca</th>
             </tr>
         </thead>
         <tbody>
-            {% for pelicula in peliculas %}
+            {% for pelicula in peliculas|slice:":10" %}
             <tr>
-                <td>{{ pelicula.titulo }}</td>
+                <td>{{ pelicula.titulo|truncatechars:28 }}</td>
                 <td class="text-right" style="font-weight: 700;">{{ pelicula.tickets }}</td>
+                <td class="text-right" style="font-weight: 700;">{{ pelicula.funciones_con_ventas }}</td>
+                <td class="text-right">${{ pelicula.ingreso_por_funcion|floatformat:2 }}</td>
                 <td class="text-right" style="font-weight: 600;">${{ pelicula.ticket_promedio|floatformat:2 }}</td>
                 <td class="text-right">${{ pelicula.total|floatformat:2 }}</td>
                 <td class="text-right">${{ pelicula.full|floatformat:2 }}</td>
@@ -365,6 +378,8 @@
             <tr class="total-row">
                 <td><strong>TOTAL</strong></td>
                 <td class="text-right"><strong>{{ kpis.total_tickets }}</strong></td>
+                <td class="text-center">-</td>
+                <td class="text-center">-</td>
                 <td class="text-right"><strong>${{ kpis.ticket_promedio|floatformat:2 }}</strong></td>
                 <td class="text-right"><strong>${{ kpis.total_recaudacion|floatformat:2 }}</strong></td>
                 <td colspan="3" class="text-center" style="font-size: 8pt; color: #000000;">
@@ -385,16 +400,15 @@
         <thead>
             <tr>
                 <th class="text-center" style="width: 7%;">Pos.</th>
-                <th style="width: 35%;">Película</th>
+                <th style="width: 37%;">Película</th>
                 <th class="text-right" style="width: 11%;">Entradas</th>
                 <th class="text-right" style="width: 12%;">Capacidad</th>
                 <th class="text-right" style="width: 13%;">Ingreso</th>
-                <th class="text-right" style="width: 13%;">Ing. por Butaca</th>
-                <th class="text-center" style="width: 10%;">Rating</th>
+                <th class="text-right" style="width: 14%;">Ing. por Butaca</th>
             </tr>
         </thead>
         <tbody>
-            {% for pelicula in ranking_revpas %}
+            {% for pelicula in ranking_revpas|slice:":10" %}
             <tr {% if forloop.counter <= 3 %}class="rank-{{ forloop.counter }}"{% endif %}>
                 <td class="text-center"><strong>{{ forloop.counter }}</strong></td>
                 <td>{{ pelicula.titulo_pelicula|truncatechars:40 }}</td>
@@ -402,7 +416,6 @@
                 <td class="text-right">{{ pelicula.capacidad_total }}</td>
                 <td class="text-right">${{ pelicula.revenue_total|floatformat:2 }}</td>
                 <td class="text-right" style="font-weight: bold;">${{ pelicula.revpas|floatformat:2 }}</td>
-                <td class="text-center rating-{{ pelicula.rating|lower }}">{{ pelicula.rating }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -420,7 +433,7 @@
     <h2>3. Análisis de Ingresos por Día de la Semana</h2>
     <p style="font-size: 10pt; color: #333333; margin-bottom: 15px;">
         Distribución de ingresos por día de la semana durante el período analizado.
-        El índice visual facilita la identificación rápida de los días más rentables.
+        La métrica de eficiencia facilita la identificación rápida de los días más rentables.
     </p>
     <table class="ranking-table">
         <thead>
@@ -430,7 +443,7 @@
                 <th class="text-right" style="width: 17%;">Ingreso</th>
                 <th class="text-right" style="width: 15%;">Precio Prom.</th>
                 <th class="text-right" style="width: 13%;">% del Total</th>
-                <th class="text-right" style="width: 12%;">Índice</th>
+                <th class="text-right" style="width: 12%;">Eficiencia</th>
             </tr>
         </thead>
         <tbody>
@@ -450,12 +463,12 @@
     </table>
 
     <div class="nota">
-        El índice visual representa el porcentaje que cada día aporta al total de ingresos del período.
-        Los días con mayor índice son los de mayor rentabilidad y deberían priorizarse en la programación.
+        La eficiencia representa el porcentaje que cada día aporta al total de ingresos del período.
+        Los días con mayor eficiencia son los de mayor rentabilidad y deberían priorizarse en la programación.
     </div>
     {% endif %}
 
-    {% if peliculas %}
+    {% if promociones_data %}
     <div class="page-break"></div>
     <h2>4. Eficiencia de Promociones</h2>
     <p style="font-size: 10pt; color: #333333; margin-bottom: 15px;">
@@ -473,7 +486,7 @@
             </tr>
         </thead>
         <tbody>
-            {% for pelicula in peliculas %}
+            {% for pelicula in promociones_data %}
             <tr>
                 <td>{{ pelicula.titulo|truncatechars:35 }}</td>
                 <td class="text-right" style="font-weight: 600;">${{ pelicula.full|floatformat:2 }}</td>

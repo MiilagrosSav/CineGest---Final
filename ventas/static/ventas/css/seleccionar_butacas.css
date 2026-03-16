@@ -72,6 +72,22 @@
     opacity: 0.6;
 }
 
+.butaca.mantenimiento {
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(255, 152, 0, 0.25) 0px,
+        rgba(255, 152, 0, 0.25) 4px,
+        rgba(255, 152, 0, 0.05) 4px,
+        rgba(255, 152, 0, 0.05) 8px
+    );
+    border-color: #ff9800;
+    cursor: not-allowed;
+    opacity: 0.75;
+    color: #ff9800;
+    font-size: 0.6rem;
+    pointer-events: none;
+}
+
 .butaca.tipo-4d {
     background: linear-gradient(135deg, rgba(126, 211, 33, 0.3), rgba(106, 191, 13, 0.2));
     border-color: #7ED321;
@@ -83,6 +99,14 @@
     border-color: #7ED321;
     color: white;
     box-shadow: 0 4px 15px rgba(126, 211, 33, 0.6);
+}
+
+.butaca.tipo-4d.ocupada {
+    background: rgba(255, 107, 107, 0.35);
+    border-color: #ff6b6b;
+    cursor: not-allowed;
+    opacity: 0.7;
+    box-shadow: none;
 }
 
 .butaca.deshabilitada {

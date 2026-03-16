@@ -12,9 +12,9 @@
 
     {% if puede_eliminar %}
         <div class="mb-lg">
-            <h1 class="card-title text-gradient-secondary" style="margin-bottom: 0;">🗑️ ¿Estás seguro?</h1>
+            <h1 class="card-title text-gradient-secondary" style="margin-bottom: 0;">⛔ ¿Desactivar promoción?</h1>
             <p class="card-subtitle">
-                Estás a punto de eliminar permanentemente la promoción:
+                Vas a desactivar la promoción seleccionada para mantener el historial:
             </p>
         </div>
 
@@ -30,13 +30,13 @@
                     </p>
                 </div>
 
-                <p class="text-secondary" style="font-weight: 600;">Esta acción no se puede deshacer.</p>
+                <p class="text-secondary" style="font-weight: 600;">La promoción dejará de aplicarse a nuevas compras.</p>
 
                 <form method="post">
                     {% csrf_token %}
                     <div style="display: flex; gap: var(--space-md); margin-top: var(--space-lg); justify-content: center; flex-wrap: wrap;">
                         <button type="submit" class="btn btn-secondary">
-                            Sí, Eliminar
+                            Sí, Desactivar
                         </button>
                         <a href="{% url 'promociones:promocion_list' %}" class="btn btn-outline">
                             No, Cancelar
@@ -47,10 +47,8 @@
         </div>
     {% else %}
         <div class="mb-lg">
-            <h1 class="card-title text-gradient-secondary" style="margin-bottom: 0;">⚠️ No se puede eliminar</h1>
-            <p class="card-subtitle">
-                La promoción está siendo utilizada
-            </p>
+            <h1 class="card-title text-gradient-secondary" style="margin-bottom: 0;">⚠️ No se puede desactivar</h1>
+            <p class="card-subtitle">La promoción tiene restricciones activas</p>
         </div>
 
         <div class="card glass-container">
@@ -65,8 +63,14 @@
                 </div>
 
                 <div style="text-align: left; background: rgba(255, 107, 107, 0.1); border-left: 4px solid #ff6b6b; padding: var(--space-md); border-radius: 8px; margin-bottom: var(--space-lg);">
-                    <p style="font-weight: 600; margin-bottom: var(--space-sm); color: #ff6b6b;">❌ Esta promoción tiene asociaciones:</p>
+                    <p style="font-weight: 600; margin-bottom: var(--space-sm); color: #ff6b6b;">❌ Esta promoción no puede desactivarse aún:</p>
                     <ul style="margin: var(--space-sm) 0; padding-left: var(--space-lg);">
+                        {% if cupones_activos %}
+                        <li><strong>Cupones activos:</strong> {{ cupones_activos }}</li>
+                        {% endif %}
+                        {% if funciones_vinculadas %}
+                        <li><strong>Funciones asociadas:</strong> {{ funciones_vinculadas }}</li>
+                        {% endif %}
                         {% if tiene_politicas %}
                         <li><strong>Políticas de Promoción:</strong> {{ total_politicas }}
                             {% if politicas_activas %}
@@ -83,8 +87,8 @@
                 <div style="text-align: left; background: rgba(99, 102, 241, 0.1); border-left: 4px solid var(--primary); padding: var(--space-md); border-radius: 8px; margin-bottom: var(--space-lg);">
                     <p style="font-weight: 600; margin-bottom: var(--space-sm);">💡 Alternativas recomendadas:</p>
                     <ol style="margin: var(--space-sm) 0; padding-left: var(--space-lg);">
-                        <li>Eliminar o modificar las políticas de promoción que la referencian</li>
-                        <li>Marcar la promoción como inactiva en lugar de eliminarla</li>
+                        <li>Esperar a que los cupones activos venzan para desactivar</li>
+                        <li>Revisar los vínculos a funciones/películas si no deberían existir</li>
                     </ol>
                 </div>
 

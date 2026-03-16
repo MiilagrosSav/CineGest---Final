@@ -4,7 +4,234 @@
 {% block title %}{{ titulo_pagina }} - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'cine/css/pelicula_form.css' %}?v=1.0">
+    <link rel="stylesheet" href="{% static 'cine/css/pelicula_form.css' %}?v=1.2">
+    <style>
+        /* Estilos para TMDB Integration */
+        .tmdb-search-wrapper {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+        
+        .tmdb-search-wrapper .form-input {
+            flex: 1;
+        }
+        
+        .btn-tmdb {
+            background: linear-gradient(135deg, #01d277 0%, #00b4d8 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .btn-tmdb:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(1, 210, 119, 0.4);
+        }
+        
+        .btn-tmdb:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Modal de búsqueda */
+        .tmdb-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 9999;
+            overflow-y: auto;
+        }
+        
+        .tmdb-modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .tmdb-modal-content {
+            background: var(--card-bg, #1e1e2e);
+            border-radius: 16px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 30px;
+            position: relative;
+        }
+        
+        .tmdb-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .tmdb-close {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: var(--text-primary);
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        
+        .tmdb-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .tmdb-results {
+            display: grid;
+            gap: 15px;
+        }
+        
+        .tmdb-movie-item {
+            display: flex;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        
+        .tmdb-movie-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--primary);
+            transform: translateX(5px);
+        }
+        
+        .tmdb-movie-poster {
+            width: 80px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .tmdb-movie-info {
+            flex: 1;
+        }
+        
+        .tmdb-movie-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+            color: var(--primary);
+        }
+        
+        .tmdb-movie-year {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+        }
+        
+        .tmdb-movie-overview {
+            font-size: 0.85rem;
+            line-height: 1.4;
+            opacity: 0.8;
+        }
+        
+        .tmdb-loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .tmdb-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .tmdb-no-results {
+            text-align: center;
+            padding: 40px;
+            opacity: 0.6;
+        }
+        
+        .tmdb-info-banner {
+            background: linear-gradient(135deg, rgba(1, 210, 119, 0.2) 0%, rgba(0, 180, 216, 0.2) 100%);
+            border-left: 4px solid #01d277;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .tmdb-info-banner.active {
+            display: block;
+        }
+        
+        /* Vista previa del póster TMDB */
+        .tmdb-poster-preview {
+            display: none;
+            margin-top: 15px;
+            padding: 15px;
+            background: linear-gradient(135deg, rgba(1, 210, 119, 0.1) 0%, rgba(0, 180, 216, 0.1) 100%);
+            border: 2px dashed #01d277;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .tmdb-poster-preview.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+        
+        .tmdb-poster-preview img {
+            max-width: 200px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            margin-bottom: 10px;
+        }
+        
+        .tmdb-poster-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #01d277 0%, #00b4d8 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+        
+        .image-field-help {
+            background: rgba(1, 210, 119, 0.1);
+            border-left: 3px solid #01d277;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
@@ -15,9 +242,28 @@
         <p class="card-subtitle">Completa la información de la película con todos los datos requeridos</p>
     </div>
 
+    <!-- Banner informativo de TMDB -->
+    <div id="tmdb-info-banner" class="tmdb-info-banner">
+        <strong>✨ Datos importados desde TMDB</strong>
+        <p style="margin: 5px 0 0 0; font-size: 0.9rem;">
+            Se completaron automáticamente los campos incluido el póster. Revisa y ajusta según sea necesario.
+        </p>
+    </div>
+    
+    <!-- Vista previa del póster desde TMDB -->
+    <div id="tmdb-poster-preview" class="tmdb-poster-preview">
+        <img id="tmdb-poster-img" src="" alt="Póster de la película">
+        <div>
+            <div class="tmdb-poster-badge">📥 Póster se descargará automáticamente al guardar</div>
+        </div>
+        <p style="margin: 10px 0 0 0; font-size: 0.85rem; opacity: 0.8;">
+            El póster se optimizará y guardará en tu servidor al crear la película
+        </p>
+    </div>
+
     <div class="card glass-container">
 
-        <form method="post" enctype="multipart/form-data" style="padding: var(--space-lg);">
+        <form method="post" enctype="multipart/form-data" style="padding: var(--space-lg);" id="pelicula-form">
             {% csrf_token %}
             
             {% if form.non_field_errors %}
@@ -30,37 +276,92 @@
             {% endif %}
             
             {% for field in form %}
-                <div class="form-group">
-                    <label for="{{ field.id_for_label }}" class="form-label">
-                        {{ field.label }}
-                        {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
-                    </label>
-                    
-                    {% if field.name == 'generos' %}
-                        <div class="genre-group">
-                            {% for checkbox in field %}
-                                <label class="genre-option">
-                                    {{ checkbox.tag }} <span>{{ checkbox.choice_label }}</span>
-                                </label>
+                {% if field.is_hidden %}
+                    {{ field }}
+                {% else %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}" class="form-label">
+                            {{ field.label }}
+                            {% if field.name == 'titulo' %}
+                                <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">
+                                    💡 Usa el botón "Buscar en TMDB" para autocompletar todos los datos incluyendo el póster
+                                </small>
+                                {% if titulo_ayuda_extra %}
+                                    <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">
+                                        {{ titulo_ayuda_extra }}
+                                    </small>
+                                {% endif %}
+                            {% endif %}
+                            {% if field.field.required %}<span style="color: var(--primary); margin-left: 4px;">*</span>{% endif %}
+                        </label>
+                        
+                        {% if field.name == 'titulo' %}
+                            <div class="tmdb-search-wrapper">
+                                {{ field }}
+                                <button type="button" class="btn-tmdb" id="btn-search-tmdb" title="Buscar película en The Movie Database">
+                                    🔍 Buscar en TMDB
+                                </button>
+                            </div>
+                        {% elif field.name == 'director' %}
+                            <div class="director-select-row">
+                                <div class="combobox-wrapper director-combobox">
+                                    <input
+                                        type="text"
+                                        id="director-search"
+                                        class="form-input combobox-input"
+                                        placeholder="Escribe al menos 3 letras del nombre o apellido..."
+                                        autocomplete="off"
+                                    >
+                                    <div class="combobox-dropdown" id="director-dropdown" style="display: none;">
+                                    </div>
+                                    <div style="display: none;">
+                                        {{ field }}
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-director-mini" id="btn-open-director-modal" title="Crear director manualmente">
+                                    + Nuevo
+                                </button>
+                            </div>
+                            <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.85; display: block; margin-top: var(--space-xs);">
+                                🔎 Busca por nombre o apellido (mínimo 3 letras).
+                            </small>
+                            <small id="director-manual-summary" class="text-secondary" style="font-size: 0.8rem; opacity: 0.9; display: none; margin-top: var(--space-xs);"></small>
+                        {% elif field.name == 'imagen_portada' %}
+                            {{ field }}
+                            <div class="image-field-help">
+                                <strong>💡 Tip:</strong> Si usas "Buscar en TMDB", el póster se descargará automáticamente. 
+                                También puedes subirlo manualmente aquí si lo prefieres.
+                            </div>
+                        {% elif field.name == 'generos' %}
+                            <div class="genre-group">
+                                {% for checkbox in field %}
+                                    <label class="genre-option">
+                                        {{ checkbox.tag }} <span>{{ checkbox.choice_label }}</span>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ field }}
+                        {% endif %}
+                        
+                        {% if field.help_text %}
+                            <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">
+                                💡 {{ field.help_text }}
+                            </small>
+                        {% endif %}
+                        
+                        {% if field.errors %}
+                            {% for error in field.errors %}
+                                <span class="form-error" role="alert">⚠️ {{ error }}</span>
                             {% endfor %}
-                        </div>
-                    {% else %}
-                        {{ field }}
-                    {% endif %}
-                    
-                    {% if field.help_text %}
-                        <small class="text-secondary" style="font-size: 0.8rem; opacity: 0.8; display: block; margin-top: var(--space-xs);">
-                            💡 {{ field.help_text }}
-                        </small>
-                    {% endif %}
-                    
-                    {% if field.errors %}
-                        {% for error in field.errors %}
-                            <span class="form-error" role="alert">⚠️ {{ error }}</span>
-                        {% endfor %}
-                    {% endif %}
-                </div>
+                        {% endif %}
+                    </div>
+                {% endif %}
             {% endfor %}
+
+            <!-- Input oculto para guardar el poster_path de TMDB -->
+            <input type="hidden" id="tmdb-poster-path" name="tmdb_poster_path" value="">
+            <input type="hidden" id="tmdb-movie-id" name="tmdb_movie_id" value="">
 
             <div style="display: flex; gap: var(--space-md); margin-top: var(--space-lg);">
                 <button type="submit" class="btn btn-primary" style="flex: 1;">
@@ -74,5 +375,54 @@
     </div>
 </div>
 
-<script src="{% static 'cine/js/pelicula_form.js' %}?v=1.0"></script>
+<!-- Modal de búsqueda TMDB -->
+<div id="tmdb-modal" class="tmdb-modal">
+    <div class="tmdb-modal-content">
+        <div class="tmdb-modal-header">
+            <h2 style="margin: 0;">🎬 Buscar en TMDB</h2>
+            <button type="button" class="tmdb-close" id="tmdb-close">&times;</button>
+        </div>
+        
+        <div id="tmdb-results-container">
+            <!-- Los resultados se cargarán aquí dinámicamente -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal de alta manual de director -->
+<div id="director-modal" class="tmdb-modal" data-crear-url="{% url 'cine:director_crear_ajax' %}">
+    <div class="tmdb-modal-content" style="max-width: 620px;">
+        <div class="tmdb-modal-header">
+            <h2 style="margin: 0;">➕ Nuevo Director</h2>
+            <button type="button" class="tmdb-close" id="director-close">&times;</button>
+        </div>
+
+        <div style="display: grid; gap: 12px;">
+            <div>
+                <label class="form-label" for="manual-director-nombre">Nombre *</label>
+                <input id="manual-director-nombre" class="form-input" type="text" maxlength="100" placeholder="Ej: Christopher">
+            </div>
+            <div>
+                <label class="form-label" for="manual-director-apellido">Apellido *</label>
+                <input id="manual-director-apellido" class="form-input" type="text" maxlength="100" placeholder="Ej: Nolan">
+            </div>
+            <div>
+                <label class="form-label" for="manual-director-fecha-nacimiento">Fecha de nacimiento</label>
+                <input id="manual-director-fecha-nacimiento" class="form-input" type="date">
+            </div>
+            <div>
+                <label class="form-label" for="manual-director-biografia">Biografia</label>
+                <textarea id="manual-director-biografia" class="form-input" rows="4" placeholder="Breve biografia del director"></textarea>
+            </div>
+        </div>
+
+        <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px;">
+            <button type="button" class="btn btn-outline" id="director-cancel">Cancelar</button>
+            <button type="button" class="btn btn-primary" id="director-save">Guardar</button>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'cine/js/pelicula_form.js' %}?v=2.2"></script>
+<script src="{% static 'cine/js/tmdb_integration.js' %}?v=1.6"></script>
 {% endblock %}

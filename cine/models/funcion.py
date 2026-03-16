@@ -7,6 +7,9 @@ from cine.models.sala import Sala
 from simple_history.models import HistoricalRecords
 from django.core.validators import MinValueValidator
 from core.mixins import SoftDeleteMixin
+import logging
+
+logger = logging.getLogger(__name__)
 #----------------------------------------------------------------------------------------------
 #--------------------------------creamos la clase FUNCION---------------------------------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
@@ -105,6 +108,49 @@ class Funcion(SoftDeleteMixin, models.Model):
     def __str__(self):
         formatos = self.get_formatos_destacados()
         return f"{self.pelicula.titulo} [{formatos}] - Sala {self.sala.numero} - {self.fecha_hora.strftime('%d/%m/%Y %H:%M')}"
+
+    @staticmethod
+    def requiere_4d_en_formatos(formatos):
+        if formatos is None:
+            return None
+
+        formatos_list = [f for f in formatos if f]
+        if not formatos_list:
+            return None
+
+        for item in formatos_list:
+            formato = getattr(item, 'formato', item)
+            if not formato:
+                continue
+            nombre = (formato.nombre or '').upper()
+            if formato.categoria == 'EXPERIENCIA' and ('4D' in nombre or 'D-BOX' in nombre):
+                return True
+
+        return False
+
+    @staticmethod
+    def sala_tiene_butacas_para(sala):
+        if not sala:
+            return False, False
+        tiene_4d = sala.butacas.filter(tipo='4D').exists()
+        tiene_estandar = sala.butacas.filter(tipo__in=['GENERAL', 'DISCAPACITADO']).exists()
+        return tiene_4d, tiene_estandar
+
+    @staticmethod
+    def permite_solape_bisala(requiere_4d_nueva, requiere_4d_otra, tiene_4d, tiene_estandar):
+        if requiere_4d_nueva is None or requiere_4d_otra is None:
+            return False
+        if requiere_4d_nueva == requiere_4d_otra:
+            return False
+        return tiene_4d and tiene_estandar
+
+    def _formatos_para_validacion(self):
+        if hasattr(self, '_formatos_seleccionados') and self._formatos_seleccionados:
+            return self._formatos_seleccionados
+        return self.formatos_funcion.select_related('formato').all()
+
+    def requiere_butacas_4d(self):
+        return self.requiere_4d_en_formatos(self._formatos_para_validacion())
     
     def clean(self):
         """
@@ -198,13 +244,27 @@ class Funcion(SoftDeleteMixin, models.Model):
             duracion_total = timedelta(minutes=self.pelicula.duracion + config.minutos_limpieza)
             fin_funcion = self.fecha_hora + duracion_total
 
+            requiere_4d = self.requiere_butacas_4d()
+            if requiere_4d is not None:
+                tiene_4d, tiene_estandar = self.sala_tiene_butacas_para(self.sala)
+                if requiere_4d and not tiene_4d:
+                    raise ValidationError({
+                        'sala': 'La sala no tiene butacas 4D para una funcion con formato 4D o D-BOX.'
+                    })
+                if requiere_4d is False and not tiene_estandar:
+                    raise ValidationError({
+                        'sala': 'La sala no tiene butacas estandar para funciones sin 4D.'
+                    })
+            else:
+                tiene_4d, tiene_estandar = self.sala_tiene_butacas_para(self.sala)
+
             # ✅ CORRECCIÓN CRÍTICA: Filtrar SOLO funciones del mismo día y futuras
             # El bug anterior buscaba en TODAS las fechas del pasado causando falsos conflictos
             funciones_solapadas = Funcion.objects.filter(
                 sala=self.sala,
                 fecha_hora__date=self.fecha_hora.date(),  # ✅ Solo funciones del mismo día
                 fecha_hora__gte=timezone.now()  # ✅ Solo funciones futuras (excluir inactivas del pasado)
-            ).exclude(pk=self.pk if self.pk else None)
+            ).exclude(pk=self.pk if self.pk else None).prefetch_related('formatos_funcion__formato')
 
             for f in funciones_solapadas:
                 duracion_otra = timedelta(minutes=f.pelicula.duracion + config.minutos_limpieza)
@@ -213,15 +273,44 @@ class Funcion(SoftDeleteMixin, models.Model):
                 # Verificar solapamiento real: la nueva función empieza antes de que termine la existente
                 # Y la existente empieza antes de que termine la nueva
                 if f.fecha_hora < fin_funcion and self.fecha_hora < fin_otra:
+                    requiere_4d_otra = self.requiere_4d_en_formatos(f.formatos_funcion.all())
+                    if f.fecha_hora != self.fecha_hora:
+                        raise ValidationError({
+                            'fecha_hora': (
+                                f'Conflicto de horario: La sala ya está ocupada por "{f.pelicula.titulo}" '
+                                f'({f.fecha_hora.strftime("%H:%M")}).'
+                            )
+                        })
+
+                    if f.pelicula_id != self.pelicula_id:
+                        raise ValidationError({
+                            'fecha_hora': (
+                                f'Conflicto de Proyección: La sala {self.sala.nombre} ya tiene '
+                                f'programada la película "{f.pelicula.titulo}" en este horario.'
+                            )
+                        })
+                    if self.permite_solape_bisala(requiere_4d, requiere_4d_otra, tiene_4d, tiene_estandar):
+                        continue
+                    if requiere_4d is None or requiere_4d_otra is None:
+                        detalle_bisala = 'No se puede solapar sin definir formato de experiencia (4D o estandar).'
+                    elif requiere_4d and requiere_4d_otra:
+                        detalle_bisala = 'Ambas funciones requieren butacas 4D. El solape solo se permite cuando una es 4D y la otra estandar.'
+                    else:
+                        detalle_bisala = 'Ambas funciones son estandar. El solape solo se permite cuando una es 4D y la otra estandar.'
                     raise ValidationError({
-                        'fecha_hora': f'Conflicto de horario: La sala ya está ocupada por "{f.pelicula.titulo}" ({f.fecha_hora.strftime("%H:%M")}).'
+                        'fecha_hora': (
+                            f'Conflicto de horario: La sala ya está ocupada por "{f.pelicula.titulo}" '
+                            f'({f.fecha_hora.strftime("%H:%M")}). {detalle_bisala}'
+                        )
                     })
     
     def save(self, *args, **kwargs):
         """
         Ejecutar validaciones antes de guardar
         """
-        self.clean()
+        skip_clean = kwargs.pop('skip_clean', False)
+        if not skip_clean:
+            self.clean()
         super().save(*args, **kwargs)
     
     def get_hora_fin(self):
@@ -234,25 +323,33 @@ class Funcion(SoftDeleteMixin, models.Model):
     def get_valoraciones_stats(self):
         """
         Devuelve estadísticas de valoraciones específicas para ESTA función.
+        Usa agregación a nivel de DB (Avg + Count) para evitar cargar objetos en memoria.
         Returns: dict con 'promedio', 'total', 'estrellas_llenas', 'estrellas_vacias'
         """
         from django.db.models import Avg, Count
         try:
             from valoraciones.models import Valoracion
-            
+
             stats = Valoracion.objects.filter(funcion=self).aggregate(
                 promedio=Avg('puntuacion'),
                 total=Count('id')
             )
-            
+
             promedio = stats['promedio'] or 0
             total = stats['total'] or 0
-            
-            # Calcular estrellas para display (truncar al entero, no redondear)
-            # Usar int() en lugar de round() para evitar 6 estrellas totales
+
+            # DEBUG: descomentar para diagnosticar valoraciones faltantes
+            # logger.debug(
+            #     "[get_valoraciones_stats] funcion_id=%s pelicula='%s' total=%s promedio=%s",
+            #     self.pk, self.pelicula.titulo, total, promedio
+            # )
+            # print(f"[DEBUG get_valoraciones_stats] funcion_id={self.pk} "
+            #       f"pelicula='{self.pelicula.titulo}' total={total} promedio={promedio}")
+
+            # Truncar al entero (int), no redondear (round), para no superar 5 estrellas
             estrellas_llenas = int(promedio) if promedio > 0 else 0
             estrellas_vacias = 5 - estrellas_llenas
-            
+
             return {
                 'promedio': round(promedio, 1),
                 'total': total,
@@ -260,6 +357,7 @@ class Funcion(SoftDeleteMixin, models.Model):
                 'estrellas_vacias': estrellas_vacias,
             }
         except Exception:
+            logger.exception("[get_valoraciones_stats] Error calculando stats para funcion_id=%s", self.pk)
             return {
                 'promedio': 0,
                 'total': 0,
@@ -272,6 +370,48 @@ class Funcion(SoftDeleteMixin, models.Model):
         # Por ahora retorna la capacidad total de la sala
         # En el futuro, aquí se restaría el número de entradas vendidas
         return self.sala.capacidad
+
+    def get_asientos_disponibles_reales(self):
+        """Retorna asientos disponibles considerando ocupadas y mantenimiento."""
+        from ventas.constants import EstadoEntrada
+        from ventas.models import Entrada
+
+        butacas_qs = self.sala.butacas.filter(es_pasillo=False, en_mantenimiento=False)
+        requiere_4d = self.requiere_butacas_4d()
+        if requiere_4d is True:
+            butacas_qs = butacas_qs.filter(tipo='4D')
+        elif requiere_4d is False:
+            butacas_qs = butacas_qs.filter(tipo__in=['GENERAL', 'DISCAPACITADO'])
+
+        total = butacas_qs.count()
+        ocupadas = Entrada.objects.filter(
+            id_funcion=self,
+            estado__in=EstadoEntrada.ESTADOS_OCUPADOS,
+            id_butaca__in=butacas_qs,
+        ).count()
+
+        disponibles = total - ocupadas
+        return disponibles if disponibles > 0 else 0
+
+    def actualizar_estado_por_disponibilidad(self):
+        """Actualiza estado a AGOTADA/ACTIVA según disponibilidad real."""
+        if self.estado == 'INACTIVA':
+            return
+
+        disponibles = self.get_asientos_disponibles_reales()
+        if disponibles <= 0:
+            if self.estado != 'AGOTADA':
+                self.estado = 'AGOTADA'
+                self.save(update_fields=['estado'])
+            return
+
+        if self.estado == 'AGOTADA':
+            ahora = timezone.now()
+            if self.fecha_activacion and ahora < self.fecha_activacion:
+                self.estado = 'PREVENTA'
+            else:
+                self.estado = 'ACTIVA'
+            self.save(update_fields=['estado'])
     
     def get_formatos_display(self):
         """Retorna los formatos de la función como string"""
@@ -303,29 +443,62 @@ class Funcion(SoftDeleteMixin, models.Model):
                 if 'STANDARD' not in ff.formato.nombre.upper():
                     formatos_destacados.append(ff.formato.nombre)
         
-        return ' + '.join(formatos_destacados) if formatos_destacados else '—'
+        return ' + '.join(formatos_destacados) if formatos_destacados else 'Estándar'
 
-    def get_valoraciones_stats(self):
-        """Retorna estadísticas de valoraciones de esta función"""
-        from valoraciones.models import Valoracion
-        valoraciones = Valoracion.objects.filter(funcion=self)
-        
-        total = valoraciones.count()
-        if total > 0:
-            promedio = sum(v.puntuacion for v in valoraciones) / total
-            estrellas_llenas = int(promedio)  # Truncar, no redondear
-            estrellas_vacias = 5 - estrellas_llenas
-        else:
-            promedio = 0
-            estrellas_llenas = 0
-            estrellas_vacias = 5
-        
-        return {
-            'promedio': round(promedio, 1),
-            'total': total,
-            'estrellas_llenas': estrellas_llenas,
-            'estrellas_vacias': estrellas_vacias,
-        }
+    def obtener_promociones_activas(self):
+        """
+        Retorna todas las promociones automáticas activas para esta función,
+        combinando con prioridad:
+          1. Promos vinculadas específicamente a esta función  (origen='funcion')
+          2. Promos vinculadas a la película de esta función   (origen='pelicula')
+          3. Promos globales automáticas sin vínculo específico (origen='global')
+        Sin duplicados por pk.
+        Returns: list of dicts {'promo': Promocion, 'origen': str, 'etiqueta': str}
+        """
+        from django.utils import timezone as _tz
+        from promociones.models.promocion import Promocion
+        hoy = _tz.now().date()
+        filtro_base = dict(
+            activo=True,
+            es_automatica=True,
+            fecha_inicio__lte=hoy,
+            fecha_fin__gte=hoy,
+            fecha_baja__isnull=True,
+        )
+        resultado = []
+        seen_pks = set()
+
+        # 1. Vinculadas a esta función específica
+        for promo in Promocion.objects.filter(**filtro_base, vinculos__funcion=self):
+            if promo.pk not in seen_pks:
+                seen_pks.add(promo.pk)
+                resultado.append({
+                    'promo': promo,
+                    'origen': 'funcion',
+                    'etiqueta': '¡Promoción exclusiva para esta función!',
+                })
+
+        # 2. Vinculadas a la película de esta función
+        for promo in Promocion.objects.filter(**filtro_base, vinculos__pelicula=self.pelicula):
+            if promo.pk not in seen_pks:
+                seen_pks.add(promo.pk)
+                resultado.append({
+                    'promo': promo,
+                    'origen': 'pelicula',
+                    'etiqueta': f'Descuento especial para {self.pelicula.titulo}',
+                })
+
+        # 3. Globales: activas, automáticas, sin ningún vínculo
+        for promo in Promocion.objects.filter(**filtro_base).exclude(vinculos__isnull=False):
+            if promo.pk not in seen_pks:
+                seen_pks.add(promo.pk)
+                resultado.append({
+                    'promo': promo,
+                    'origen': 'global',
+                    'etiqueta': '',
+                })
+
+        return resultado
 
     # historial de cambios
     history = HistoricalRecords()

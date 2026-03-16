@@ -86,22 +86,79 @@
         .dataTables_wrapper {
             color: var(--text-light);
         }
+        .dataTables_wrapper .dataTables_paginate {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 2rem;
+            padding: 10px 20px;
+            background: rgba(26, 22, 37, 0.4);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 12px;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(5px);
+        }
+        .dataTables_wrapper .dataTables_paginate ul.pagination,
+        .dataTables_wrapper .dataTables_paginate ul {
+            display: flex !important;
+            flex-direction: row;
+            list-style: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            gap: 10px;
+            align-items: center;
+        }
+        .dataTables_wrapper .dataTables_paginate ul.pagination li {
+            display: inline-flex;
+        }
+        .dataTables_wrapper .dataTables_paginate a.paginate_button,
+        .dataTables_wrapper .dataTables_paginate .page-link,
         .dataTables_wrapper .dataTables_paginate .paginate_button {
             color: var(--text-light) !important;
-            background: var(--glass-bg) !important;
-            border: 1px solid var(--glass-border) !important;
-            border-radius: 6px;
-            margin: 0 4px;
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 8px !important;
+            margin: 0 !important;
+            padding: 6px 14px !important;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none !important;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-            background: var(--primary-light) !important;
+        .dataTables_wrapper .dataTables_paginate a.paginate_button:hover,
+        .dataTables_wrapper .dataTables_paginate .page-link:hover,
+        .dataTables_wrapper .dataTables_paginate .paginate_button:not(.disabled):hover {
+            background: rgba(139, 92, 246, 0.25) !important;
             border-color: var(--primary) !important;
             color: #fff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(139, 92, 246, 0.2);
+            text-decoration: none !important;
         }
-        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-            background: var(--primary) !important;
-            border-color: var(--primary) !important;
+        .dataTables_wrapper .dataTables_paginate .active .page-link,
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current, 
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+            background: linear-gradient(135deg, var(--primary), var(--secondary)) !important;
+            border-color: transparent !important;
             color: #fff !important;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+            transform: scale(1.05);
+        }
+        .dataTables_wrapper .dataTables_paginate .disabled .page-link,
+        .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            background: transparent !important;
+            border-color: transparent !important;
+            transform: none !important;
+            box-shadow: none !important;
         }
         .dataTables_wrapper .dataTables_info {
             color: var(--text-secondary);
@@ -243,6 +300,17 @@
         .mb-lg { margin-bottom: 2rem; }
         .mb-md { margin-bottom: 1.5rem; }
 
+        /* Advanced filters */
+        .report-filter-input {
+            background: rgba(17, 14, 26, 0.92) !important;
+            color: var(--text-light) !important;
+            border: 1px solid var(--glass-border) !important;
+        }
+        .report-filter-input option {
+            background: #171327;
+            color: #f2f2f2;
+        }
+
     </style>
 {% endblock %}
 
@@ -281,6 +349,91 @@
                     <a href="{{ rango_30_qs }}" class="filter-chip">30 Días</a>
                     <a href="{{ rango_mes_qs }}" class="filter-chip">Este Mes</a>
                 </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem; width: 100%;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Tipo Venta</label>
+                        <select name="tipo_venta" class="form-input report-filter-input">
+                            <option value="">Todos</option>
+                            <option value="ONLINE" {% if filtros_activos.tipo_venta == 'ONLINE' %}selected{% endif %}>Online</option>
+                            <option value="PRESENCIAL" {% if filtros_activos.tipo_venta == 'PRESENCIAL' %}selected{% endif %}>Presencial</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Empleado</label>
+                        <select name="empleado" class="form-input report-filter-input">
+                            <option value="">Todos</option>
+                            <option value="sin_empleado" {% if filtros_activos.empleado == 'sin_empleado' %}selected{% endif %}>Sin empleado</option>
+                            {% for emp in empleados_filtro %}
+                            <option value="{{ emp.usuario_id }}" {% if filtros_activos.empleado == emp.usuario_id|stringformat:'s' %}selected{% endif %}>
+                                {{ emp.usuario.get_full_name|default:emp.usuario.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Sala</label>
+                        <select name="sala" class="form-input report-filter-input">
+                            <option value="">Todas</option>
+                            {% for sala in salas_filtro %}
+                            <option value="{{ sala.id }}" {% if filtros_activos.sala == sala.id|stringformat:'s' %}selected{% endif %}>{{ sala.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Película</label>
+                        <input
+                            type="text"
+                            name="pelicula_busqueda"
+                            id="peliculaBusquedaInput"
+                            value="{{ filtros_activos.pelicula_busqueda }}"
+                            class="form-input report-filter-input"
+                            placeholder="Escribí título o número"
+                            pattern=".*[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ].*"
+                            title="Ingresá al menos una letra o número para buscar película"
+                            list="peliculaSugerencias"
+                            autocomplete="off"
+                        >
+                        <datalist id="peliculaSugerencias"></datalist>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Método Pago</label>
+                        <select name="metodo_pago" class="form-input report-filter-input">
+                            <option value="">Todos</option>
+                            {% for metodo in metodos_pago_filtro %}
+                            <option value="{{ metodo.id_metodo_pago }}" {% if filtros_activos.metodo_pago == metodo.id_metodo_pago|stringformat:'s' %}selected{% endif %}>{{ metodo.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Estado Venta</label>
+                        <select name="estado_venta" class="form-input report-filter-input">
+                            <option value="">Todos</option>
+                            {% for estado in estados_venta_filtro %}
+                            <option value="{{ estado }}" {% if filtros_activos.estado_venta == estado %}selected{% endif %}>{{ estado }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Estado Pago</label>
+                        <select name="estado_pago" class="form-input report-filter-input">
+                            <option value="">Todos</option>
+                            {% for estado in estados_pago_filtro %}
+                            <option value="{{ estado }}" {% if filtros_activos.estado_pago == estado %}selected{% endif %}>{{ estado }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; width: 100%; margin-top: 0.2rem;">
+                    <a href="?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="filter-chip">Limpiar filtros avanzados</a>
+                </div>
             </form>
         </div>
     </div>
@@ -308,7 +461,10 @@
 
     <div class="card glass-container">
         <div style="padding: var(--space-lg);">
-            <h3 style="margin-bottom: var(--space-md);">📋 Detalle Semanal</h3>
+            <h3 style="margin: 0 0 0.2rem 0;">📋 Detalle Semanal</h3>
+            <p style="margin: 0 0 var(--space-md) 0; font-size: 0.85rem; opacity: 0.6;">
+                <i class="bi bi-calendar-range"></i> Período: <strong>{{ fecha_inicio }}</strong> al <strong>{{ fecha_fin }}</strong>
+            </p>
             
             <div class="table-responsive">
                 <table id="tablaDetalleSemanal" class="table" style="width: 100%; border-collapse: collapse; text-align: left;">
@@ -357,15 +513,18 @@
 
 
     <!-- ============================= -->
-    <!-- RANKING PELÍCULAS PERFORMANCE -->
+    <!-- RANKING DESEMPENO DE OCUPACION -->
     <!-- ============================= -->
     <div class="card glass-container" style="margin-top: 2rem;">
         <div style="padding: var(--space-lg);">
             <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.5rem;">
                 <i class="bi bi-trophy-fill" style="font-size: 1.8rem; color: #FFD700;"></i>
                 <div>
-                    <h3 style="margin: 0;">🏆 Ranking de Películas por Rentabilidad</h3>
-                    <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Índice combinado: Ocupación (60%) + ingreso (40%)</p>
+                    <h3 style="margin: 0;">🏆 Ranking de Desempeño de Ocupación</h3>
+                    <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Comparativa de volumen, éxito real y eficiencia de ocupación por película</p>
+                    <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; opacity: 0.6;">
+                        <i class="bi bi-calendar-range"></i> Período: <strong>{{ fecha_inicio }}</strong> al <strong>{{ fecha_fin }}</strong>
+                    </p>
                 </div>
             </div>
 
@@ -375,12 +534,15 @@
                 <table id="tablaPeliculas" class="table table-striped" style="width: 100%;">
                     <thead>
                         <tr>
-                            <th>Posición</th>
+                            <th>Pos.</th>
                             <th>Película</th>
-                            <th>Ocupación</th>
-                            <th>Ingreso Total</th>
-                            <th>Índice Rentabilidad</th>
-                            <th>Rating</th>
+                            <th>Cant. Funciones</th>
+                            <th>Entradas Vendidas</th>
+                            <th>Ocupación %</th>
+                            <th>
+                                Desempeño (0-100)
+                                <i class="bi bi-question-circle-fill" style="margin-left: 4px; opacity: 0.75;" title="Combina ocupación y volumen de ingresos relativos. 100 representa el mejor desempeño del período."></i>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -388,22 +550,17 @@
                         <tr>
                             <td style="font-weight: 700; font-size: 1.2rem; color: #77135c;">{{ forloop.counter }}</td>
                             <td style="font-weight: 600;">{{ peli.titulo_pelicula }}</td>
-                            <td>{{ peli.ocupacion_promedio|floatformat:1 }}%</td>
-                            <td>${{ peli.revenue_total|floatformat:0 }}</td>
-                            <td>
-                                <span style="font-weight: 700;">{{ peli.indice_performance|floatformat:1 }}</span>
-                                <div class="progress-bar-container">
-                                    <div class="progress-bar-fill {{ peli.rating|lower }}" style="width: {{ peli.indice_performance }}%;"></div>
-                                </div>
-                            </td>
-                            <td>
-                                <span class="badge bg-{{ peli.rating|lower }}">{{ peli.rating }}</span>
-                            </td>
+                            <td class="text-center">{{ peli.total_funciones }}</td>
+                            <td class="text-center">{{ peli.total_entradas }}</td>
+                            <td class="text-center">{{ peli.ocupacion_promedio|floatformat:1 }}%</td>
+                            <td class="text-center" style="font-weight: 700; color: #20c997;">{{ peli.indice_performance }}/100</td>
                         </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+
+        
 
             <!-- RECOMENDACIONES DE PELÍCULAS (desde el PDF) -->
             <div style="margin-top: 1.5rem;">
@@ -424,7 +581,7 @@
                         {% endif %}
 
                         {% if ranking_peliculas|length > 3 %}
-                        <li>📊 Con {{ ranking_peliculas|length }} películas en cartelera, concéntrese en las 3-4 con mejor desempeño.</li>
+                        <li>📊 Con {{ ranking_peliculas|length }} películas en cartelera, concéntrese en las 3-4 con mejor desempeño de ocupación.</li>
                         {% endif %}
                         {% endwith %}
                     </ul>
@@ -450,6 +607,9 @@
                 <div>
                     <h3 style="margin: 0;">⏰ Análisis de Horarios por Día de la Semana</h3>
                     <p style="margin: 0; font-size: 0.9rem; opacity: 0.7;">Mejores y peores horarios de ocupación</p>
+                    <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; opacity: 0.6;">
+                        <i class="bi bi-calendar-range"></i> Período: <strong>{{ fecha_inicio }}</strong> al <strong>{{ fecha_fin }}</strong>
+                    </p>
                 </div>
             </div>
 
@@ -517,6 +677,9 @@
                 <div>
                     <h3>🎦 Ranking de Salas por Aprovechamiento</h3>
                     <p>Evaluación del uso de cada sala en el período</p>
+                    <p style="margin: 0.3rem 0 0 0; font-size: 0.85rem; opacity: 0.6;">
+                        <i class="bi bi-calendar-range"></i> Período: <strong>{{ fecha_inicio }}</strong> al <strong>{{ fecha_fin }}</strong>
+                    </p>
                 </div>
             </div>
 
@@ -533,7 +696,6 @@
                             <th>Butacas Ofrecidas</th>
                             <th>Butacas Ocupadas</th>
                             <th>% Ocupación</th>
-                            <th>Evaluación</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -551,14 +713,6 @@
                                     {% elif sala.ocupacion_promedio >= 15 %}color: #ffc107;
                                     {% else %}color: #dc3545;{% endif %}">
                                     {{ sala.ocupacion_promedio|floatformat:1 }}%
-                                </span>
-                            </td>
-                            <td>
-                                <span class="badge 
-                                    {% if sala.ocupacion_promedio >= 40 %}sala-bien
-                                    {% elif sala.ocupacion_promedio >= 15 %}sala-moderada
-                                    {% else %}sala-subutilizada{% endif %}">
-                                    {{ sala.evaluacion }}
                                 </span>
                             </td>
                         </tr>
@@ -716,7 +870,8 @@
     marketing: '{{ marketing_json|default:"{}"|escapejs }}',
     fechaInicio: '{{ fecha_inicio }}',
     fechaFin: '{{ fecha_fin }}',
-    exportUrl: '{% url "reportes:exportar_operativo_pdf" %}'
+        exportUrl: '{% url "reportes:exportar_operativo_pdf" %}',
+        peliculaSuggestUrl: '{% url "reportes:ajax_peliculas" %}'
   };
 </script>
 <script src="{% static 'reportes/js/ocupacion.js' %}?v=1.1"></script>
@@ -727,7 +882,24 @@
     $(document).ready(function() {
         // Configuración en español para DataTables
         const spanishConfig = {
-            url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/es-ES.json'
+            "processing": "Procesando...",
+            "lengthMenu": "Mostrar _MENU_ registros",
+            "zeroRecords": "No se encontraron resultados",
+            "emptyTable": "No hay datos disponibles en la tabla",
+            "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
+            "infoFiltered": "(filtrado de un total de _MAX_ registros)",
+            "search": "BUSCAR:",
+            "loadingRecords": "Cargando...",
+            "paginate": {
+                "first": "Primero",
+                "last": "Último",
+                "next": "Siguiente",
+                "previous": "Anterior"
+            },
+            "aria": {
+                "sortAscending": ": Activar para ordenar la columna de manera ascendente",
+                "sortDescending": ": Activar para ordenar la columna de manera descendente"
+            }
         };
 
         // Tabla de Películas
@@ -800,6 +972,51 @@
                 paging: numRowsDetalle > 7,
                 info: false,
                 dom: 'frtip'
+            });
+        }
+
+        // Autocomplete AJAX para búsqueda de película
+        const peliculaInput = document.getElementById('peliculaBusquedaInput');
+        const peliculaList = document.getElementById('peliculaSugerencias');
+        let movieSearchTimeout = null;
+
+        if (peliculaInput && peliculaList) {
+            peliculaInput.addEventListener('input', function() {
+                const q = (this.value || '').trim();
+                const hasAlphaNum = /[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ]/.test(q);
+
+                peliculaList.innerHTML = '';
+                if (!hasAlphaNum || q.length < 1) {
+                    return;
+                }
+
+                clearTimeout(movieSearchTimeout);
+                movieSearchTimeout = setTimeout(async function() {
+                    try {
+                        const url = `${window.ocupacionData.peliculaSuggestUrl}?q=${encodeURIComponent(q)}`;
+                        const response = await fetch(url, {
+                            credentials: 'same-origin',
+                            headers: {
+                                'Accept': 'application/json',
+                                'ngrok-skip-browser-warning': 'true'
+                            }
+                        });
+                        if (!response.ok) {
+                            return;
+                        }
+                        const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                        if (!contentType.includes('application/json')) {
+                            return;
+                        }
+                        const data = await response.json();
+                        const items = (data && data.results) || [];
+                        peliculaList.innerHTML = items.map(function(title) {
+                            return `<option value="${String(title).replace(/"/g, '&quot;')}"></option>`;
+                        }).join('');
+                    } catch (error) {
+                        console.warn('No se pudieron cargar sugerencias de películas', error);
+                    }
+                }, 220);
             });
         }
     });

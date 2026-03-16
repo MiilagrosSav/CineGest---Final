@@ -1,0 +1,31 @@
+﻿<div id="directorTableInner">
+    <div style="overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('nombre')" title="Ordenar por nombre">Nombre</th>
+                    <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('apellido')" title="Ordenar por apellido">Apellido</th>
+                    <th style="padding: var(--space-sm); cursor: pointer;" onclick="ordenarPor('fecha_nacimiento')" title="Ordenar por fecha de nacimiento">Nacimiento</th>
+                    <th style="padding: var(--space-sm); cursor: pointer; text-align: center;" onclick="ordenarPor('total_peliculas')" title="Ordenar por cantidad de películas">Películas</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for director in directores %}
+                <tr class="director-row pelicula-row" data-id="{{ director.pk }}" style="border-bottom: 1px solid var(--glass-border); cursor: pointer;">
+                    <td style="padding: var(--space-sm); font-weight: 600;">{{ director.nombre }}</td>
+                    <td style="padding: var(--space-sm);">{{ director.apellido|default:'-' }}</td>
+                    <td style="padding: var(--space-sm);">{{ director.fecha_nacimiento|date:"d/m/Y"|default:'-' }}</td>
+                    <td style="padding: var(--space-sm); text-align: center;">{{ director.total_peliculas }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-secondary" style="padding: var(--space-lg);">No hay directores registrados todavía.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% include "cine/pagination.html" %}
+
+    </div>
+</div>

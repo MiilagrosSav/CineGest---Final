@@ -11,11 +11,13 @@ from django.contrib import messages
 from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
+from decimal import Decimal
 import json
 
 from ventas.models import Venta, Pago, MetodoPago
 from ventas.mercadopago_service import MercadoPagoService
 from core.services import notificacion_service
+from cine.models.configuracion_cine import ConfiguracionCine
 
 from promociones.services import calcular_precio_final
 
@@ -44,14 +46,14 @@ def iniciar_pago(request, venta_id):
     # 1. Obtener la venta
     venta = get_object_or_404(Venta, id_venta=venta_id, id_cliente__usuario=request.user)
     
-    # ✅ VALIDACIÓN DE EXPIRACIÓN: Verificar si la venta ha expirado (>10 minutos)
+    # ✅ VALIDACIÓN DE EXPIRACIÓN: Verificar si la venta ha expirado
     from datetime import timedelta
     from django.utils import timezone
     
-    tiempo_expiracion_minutos = 10  # Política de reserva
+    tiempo_expiracion_minutos = ConfiguracionCine.load().reserva_tiempo_espera
     tiempo_corte = timezone.now() - timedelta(minutes=tiempo_expiracion_minutos)
     
-    if venta.estado == 'PENDIENTE' and venta.fecha_compra < tiempo_corte:
+    if venta.estado in ['PENDIENTE', 'PENDIENTE_PAGO'] and venta.fecha_compra < tiempo_corte:
         # La venta ha expirado - expirarla automáticamente
         venta.estado = 'EXPIRADA'
         venta.activo = False
@@ -70,8 +72,8 @@ def iniciar_pago(request, venta_id):
         )
         return redirect('cine:cartelera')
     
-    # Verificar estado
-    if venta.estado != 'PENDIENTE':
+    # Verificar estado — aceptamos PENDIENTE_PAGO para permitir reintentos tras fallo
+    if venta.estado not in ['PENDIENTE', 'PENDIENTE_PAGO']:
         messages.error(request, '❌ Esta venta ya no está disponible para pago.')
         return redirect('ventas:mis_ventas')
     
@@ -87,17 +89,37 @@ def iniciar_pago(request, venta_id):
 
     # 3. Recuperar la PROMOCIÓN (Prioridad: guardada en venta > guardada en sesión)
     promo_obj = None
-    
-    # A) ¿Ya está guardada en la venta? (Idealmente sí, por el paso anterior)
+
+    print(f"\n[YIELD DEBUG] iniciar_pago venta={venta.id_venta}")
+    print(f"[YIELD DEBUG]   cupon_utilizado_id={venta.cupon_utilizado_id}")
+    print(f"[YIELD DEBUG]   session promo_activa_id={request.session.get('promo_activa_id')}")
+    print(f"[YIELD DEBUG]   session promo_token='{request.session.get('promo_token')}'")
+
+    # A) ¿Ya está guardada en la venta vía cupón? (aplica en reintento de pago)
     if getattr(venta, 'cupon_utilizado', None):
-        promo_obj = venta.cupon_utilizado.promocion
-        
-    # B) Fallback: ¿Está en la sesión?
-    elif request.session.get('promo_activa_id'):
         try:
-            promo_obj = Promocion.objects.get(pk=request.session['promo_activa_id'])
-        except Promocion.DoesNotExist:
-            pass
+            promo_obj = venta.cupon_utilizado.politica_origen.promocion_a_otorgar
+            print(f"[YIELD DEBUG]   Path A OK: promo='{promo_obj.codigo if promo_obj else None}'")
+        except Exception as e:
+            print(f"[YIELD DEBUG]   Path A ERROR: {e}")
+            promo_obj = None
+    else:
+        print(f"[YIELD DEBUG]   Path A: venta sin cupon_utilizado")
+
+    # B) Fallback: ¿Está en la sesión? (primera visita con cupón de yield o código)
+    if promo_obj is None:
+        promo_id_sess = request.session.get('promo_activa_id')
+        if promo_id_sess:
+            try:
+                promo_obj = Promocion.objects.filter(pk=promo_id_sess).first()
+                print(f"[YIELD DEBUG]   Path B OK: promo='{promo_obj.codigo if promo_obj else None}'")
+            except Exception as e:
+                print(f"[YIELD DEBUG]   Path B ERROR: {e}")
+                promo_obj = None
+        else:
+            print(f"[YIELD DEBUG]   Path B: sin promo_activa_id en sesión")
+
+    print(f"[YIELD DEBUG]   => promo_obj final: '{promo_obj.codigo if promo_obj else 'NINGUNA'}'")
 
     # 4. RE-CALCULAR PRECIOS (Usando el servicio corregido que sabe hacer 2x1)
     # Le pasamos 'promocion_especifica' para forzar que use el cupón si existe.
@@ -115,10 +137,9 @@ def iniciar_pago(request, venta_id):
     # 5. Crear el servicio de Mercado Pago y la Preferencia
     try:
         mp_service = MercadoPagoService()
-        # IMPORTANTE: Si tu mp_service usa venta.calcular_total() internamente,
-        # asegúrate de que venta.calcular_total() también use la lógica nueva.
-        # O mejor, pasa el total explícito si tu servicio lo permite.
-        preference_response = mp_service.crear_preferencia_pago(venta, request)
+        # Pasar el total ya calculado (con descuento) para que MP cobre exactamente
+        # lo mismo que se muestra en pantalla, sin re-calcular internamente.
+        preference_response = mp_service.crear_preferencia_pago(venta, request, total_override=total_calculado)
         
         if preference_response.get('status') == 201:
             preference_id = preference_response['response']['id']
@@ -136,6 +157,14 @@ def iniciar_pago(request, venta_id):
             unidades_pagadas_2x1 = None
             if tipo_promo_str == '2X1':
                 unidades_pagadas_2x1 = int((cantidad // 2) + (cantidad % 2))
+
+            from django.urls import reverse
+            venta_expiracion = venta.fecha_compra + timedelta(minutes=tiempo_expiracion_minutos)
+
+            # Guardar init_point en sesión para usarla desde el redirect view
+            # Evita que el navegador navegue directamente al CDN de MP (causa 403 de CloudFront)
+            request.session[f'mp_init_point_{venta.id_venta}'] = init_point
+            request.session.modified = True
 
             context = {
                 'venta': venta,
@@ -158,6 +187,12 @@ def iniciar_pago(request, venta_id):
                 'applied_promo_nombre': promo_aplicada.nombre if promo_aplicada else None,
                 'applied_promo_tipo': tipo_promo_str,
                 'unidades_pagadas_2x1': unidades_pagadas_2x1,
+
+                # Para el countdown y bloqueo JS
+                'venta_expiracion_iso': venta_expiracion.isoformat(),
+                'tiempo_reserva_segundos': tiempo_expiracion_minutos * 60,
+                'marcar_pago_url': reverse('ventas:marcar_pago_iniciado', args=[venta.id_venta]),
+                'ir_a_mp_url': reverse('ventas:ir_a_mercadopago', args=[venta.id_venta]),
             }
             
             return render(request, 'ventas/iniciar_pago.html', context)
@@ -216,7 +251,7 @@ def pago_exitoso(request):
             
             # ✅ VALIDACIÓN DE EXPIRACIÓN: Verificar si la venta ha expirado antes de procesar
             from datetime import timedelta
-            tiempo_expiracion_minutos = 10  # Política de reserva
+            tiempo_expiracion_minutos = ConfiguracionCine.load().reserva_tiempo_espera
             tiempo_corte = timezone.now() - timedelta(minutes=tiempo_expiracion_minutos)
             
             if venta.estado == 'PENDIENTE' and venta.fecha_compra < tiempo_corte:
@@ -252,7 +287,7 @@ def pago_exitoso(request):
                     'ya_confirmada': True  # Flag para el template
                 }
                 
-                messages.success(request, '✅ ¡Tu compra ya fue confirmada exitosamente!')
+                messages.success(request, '¡Tu compra ya fue confirmada exitosamente!')
                 return render(request, 'ventas/pago_exitoso_simple.html', context)
             
             # VERIFICAR SI LA VENTA YA FUE CONFIRMADA POR INTERCAMBIO
@@ -284,6 +319,11 @@ def pago_exitoso(request):
                 messages.info(request, f'Tu venta está en estado: {venta.get_estado_display()}')
                 return render(request, 'ventas/pago_exitoso_simple.html', context)
             
+            # Calcular el total con descuentos ANTES de cambiar el estado a CONFIRMADA.
+            # calcular_total() tiene una optimización que retorna venta.total si el estado
+            # ya es CONFIRMADA, lo que devolvería el total preliminar sin descuento.
+            total_real = venta.calcular_total()
+
             # Actualizar el estado de la venta
             venta.estado = 'CONFIRMADA'
             
@@ -307,26 +347,21 @@ def pago_exitoso(request):
                         descripcion='Pago procesado por Mercado Pago'
                     )
                 
-                # ✅ Actualizar solo estado y método de pago usando QuerySet.update()
-                # para evitar disparar validaciones del método save()
-                Venta.objects.filter(pk=venta.pk).update(
-                    estado='CONFIRMADA',
-                    id_metodo_pago=metodo_pago
-                )
-                # Refrescar instancia local
-                venta.refresh_from_db()
+                venta.estado = 'CONFIRMADA'
+                venta.id_metodo_pago = metodo_pago
+                venta.save(update_fields=['estado', 'id_metodo_pago'])
             else:
                 # Ya tiene método de pago asignado, solo actualizar estado
                 metodo_pago = venta.id_metodo_pago
-                Venta.objects.filter(pk=venta.pk).update(estado='CONFIRMADA')
-                venta.refresh_from_db()
+                venta.estado = 'CONFIRMADA'
+                venta.save(update_fields=['estado'])
             
             print(f"✅ Venta actualizada a CONFIRMADA con método de pago: {venta.id_metodo_pago.nombre}")
             
             pago, created = Pago.objects.get_or_create(
                 id_venta=venta,
                 defaults={
-                    'monto': venta.calcular_total(),
+                    'monto': total_real,
                     'estado': 'COMPLETADO',
                     'nro_transaccion': payment_id or f'MP-{venta.id_venta}',
                     'id_metodo_pago': metodo_pago
@@ -343,14 +378,21 @@ def pago_exitoso(request):
             
             # Actualizar el estado de las entradas (usando .save() para disparar validaciones)
             entradas = venta.entradas.all()
+            precio_unitario_final = Decimal(str(total_real))
+            if entradas.count() > 0:
+                precio_unitario_final = (Decimal(str(total_real)) / entradas.count()).quantize(Decimal('0.01'))
             entradas_actualizadas = 0
             for entrada in entradas:
                 entrada.estado = 'VENDIDA'
-                entrada.save()
+                if not entrada.precio_unitario or Decimal(str(entrada.precio_unitario)) <= 0:
+                    entrada.precio_unitario = precio_unitario_final
+                    entrada.save(update_fields=['estado', 'precio_unitario'])
+                else:
+                    entrada.save(update_fields=['estado'])
                 entradas_actualizadas += 1
             print(f"🎟️ {entradas_actualizadas} entradas actualizadas a VENDIDA")
             
-            messages.success(request, '✅ ¡Pago procesado exitosamente! Tu compra ha sido confirmada.')
+            messages.success(request, ' ¡Pago procesado exitosamente! Tu compra ha sido confirmada.')
             
             # Enviar email de confirmación (incluir QR por entrada)
             # Si falla el email, no se rompe el flujo de pago
@@ -407,6 +449,58 @@ def pago_exitoso(request):
     
     print("⚠️ Redirigiendo a mis_ventas (no se procesó el pago)")
     return redirect('ventas:mis_ventas')
+
+
+@login_required
+@require_POST
+def marcar_pago_iniciado(request, venta_id):
+    """
+    AJAX endpoint: transiciona la venta de PENDIENTE → PENDIENTE_PAGO
+    cuando el usuario hace click en el botón de Mercado Pago.
+    Esto impide que otra sesión inicie un segundo pago para la misma reserva.
+    """
+    venta = get_object_or_404(Venta, id_venta=venta_id, id_cliente__usuario=request.user)
+    if venta.estado == 'PENDIENTE':
+        # Update atómico: solo cambia si sigue siendo PENDIENTE
+        updated = Venta.objects.filter(pk=venta.pk, estado='PENDIENTE').update(estado='PENDIENTE_PAGO')
+        if updated:
+            return JsonResponse({'status': 'ok'})
+        # Otra request ganó la carrera — probablemente ya es PENDIENTE_PAGO
+        return JsonResponse({'status': 'ok', 'ya_marcada': True})
+    if venta.estado == 'PENDIENTE_PAGO':
+        return JsonResponse({'status': 'ok', 'ya_marcada': True})
+    return JsonResponse({'status': 'error', 'message': 'Venta no disponible para pago.'}, status=400)
+
+
+@login_required
+def ir_a_mercadopago(request, venta_id):
+    """
+    Redirect intermediario server-side hacia Mercado Pago.
+    Evita el 403 de CloudFront que ocurre cuando el navegador navega directamente
+    a init_point (headers Referer/Sec-Fetch-Site bloqueados por el WAF de MP).
+    Usa el init_point guardado en sesión por iniciar_pago.
+    """
+    from django.http import HttpResponseRedirect
+
+    venta = get_object_or_404(Venta, id_venta=venta_id, id_cliente__usuario=request.user)
+
+    if venta.estado not in ['PENDIENTE', 'PENDIENTE_PAGO']:
+        messages.error(request, '❌ Esta venta ya no está disponible para pago.')
+        return redirect('ventas:mis_ventas')
+
+    session_key = f'mp_init_point_{venta_id}'
+    init_point = request.session.get(session_key)
+
+    if not init_point:
+        # Sesión expirada o acceso directo sin haber pasado por iniciar_pago
+        messages.warning(request, '⚠️ Tu sesión de pago expiró. Por favor intentá nuevamente.')
+        return redirect('ventas:iniciar_pago', venta_id=venta_id)
+
+    # Un solo uso: eliminar de sesión para evitar reutilizar el mismo link
+    del request.session[session_key]
+    request.session.modified = True
+
+    return HttpResponseRedirect(init_point)
 
 
 @login_required
@@ -511,12 +605,13 @@ def webhook_mercadopago(request):
                             descripcion='Pago procesado por Mercado Pago'
                         )
                     
-                    # ✅ Actualizar usando QuerySet.update() para evitar validaciones del save()
-                    Venta.objects.filter(pk=venta.pk).update(
-                        estado='CONFIRMADA',
-                        id_metodo_pago=metodo_pago
-                    )
-                    venta.refresh_from_db()
+                    # Calcular el total con descuentos ANTES de confirmar (misma razón
+                    # que en pago_exitoso: calcular_total() short-circuits para CONFIRMADA).
+                    total_real = venta.calcular_total()
+
+                    venta.estado = 'CONFIRMADA'
+                    venta.id_metodo_pago = metodo_pago
+                    venta.save(update_fields=['estado', 'id_metodo_pago'])
 
                     # Si la venta tiene un cupón referenciado, marcarlo como usado.
                     try:
@@ -533,7 +628,7 @@ def webhook_mercadopago(request):
                     pago, created = Pago.objects.get_or_create(
                         id_venta=venta,
                         defaults={
-                            'monto': venta.calcular_total(),
+                            'monto': total_real,
                             'estado': 'COMPLETADO',
                             'nro_transaccion': str(payment_id),
                             'id_metodo_pago': metodo_pago
@@ -547,9 +642,17 @@ def webhook_mercadopago(request):
                         pago.save()
                     
                     # Actualizar entradas (usando .save() para disparar validaciones)
-                    for entrada in venta.entradas.all():
+                    entradas = venta.entradas.all()
+                    precio_unitario_final = Decimal(str(total_real))
+                    if entradas.count() > 0:
+                        precio_unitario_final = (Decimal(str(total_real)) / entradas.count()).quantize(Decimal('0.01'))
+                    for entrada in entradas:
                         entrada.estado = 'VENDIDA'
-                        entrada.save()
+                        if not entrada.precio_unitario or Decimal(str(entrada.precio_unitario)) <= 0:
+                            entrada.precio_unitario = precio_unitario_final
+                            entrada.save(update_fields=['estado', 'precio_unitario'])
+                        else:
+                            entrada.save(update_fields=['estado'])
                     
                     # Enviar email de confirmación desde webhook (no hay request)
                     # Si falla el email, no se rompe el webhook
@@ -561,10 +664,12 @@ def webhook_mercadopago(request):
                         # No lanzar excepción para no romper el webhook
                     
                 elif payment_status == 'pending':
-                    Venta.objects.filter(pk=venta.pk).update(estado='PENDIENTE_PAGO')
+                    venta.estado = 'PENDIENTE_PAGO'
+                    venta.save(update_fields=['estado'])
                     
                 elif payment_status in ['rejected', 'cancelled']:
-                    Venta.objects.filter(pk=venta.pk).update(estado='CANCELADA')
+                    venta.estado = 'CANCELADA'
+                    venta.save(update_fields=['estado'])
         
         return HttpResponse(status=200)
         

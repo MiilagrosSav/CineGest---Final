@@ -27,6 +27,14 @@
             >
             <span class="scanner-icon">📷</span>
         </div>
+        <div class="camera-actions">
+            <button id="startCameraBtn" type="button" class="btn btn-success">Activar camara QR</button>
+            <button id="stopCameraBtn" type="button" class="btn btn-danger" style="display:none;">Detener camara</button>
+        </div>
+        <div id="cameraScanner" class="camera-scanner" style="display:none;">
+            <video id="qrVideo" class="qr-video" autoplay playsinline muted></video>
+            <p id="cameraStatus" class="camera-status">Inicializando camara...</p>
+        </div>
         <p class="text-secondary" style="font-size: 0.9rem; margin-top: 1rem;">
             Presiona <strong>Enter</strong> tras ingresar el código manual.
         </p>
@@ -62,5 +70,6 @@
     window.BUSCAR_VENTA_URL = '{% url "ventas:buscar_venta_canje" %}';
     window.IMPRIMIR_TICKET_URL = '{% url "ventas:ticket_canje" 0 %}';
 </script>
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 <script src="{% static 'ventas/js/canje_rapido.js' %}?v=1.0"></script>
 {% endblock %}

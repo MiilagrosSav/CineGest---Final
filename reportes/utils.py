@@ -4,6 +4,7 @@ Utilidades compartidas para el módulo de reportes.
 from django.utils import timezone
 from datetime import datetime, time, timedelta
 import calendar
+from urllib.parse import urlencode
 
 
 def parse_date_range_from_request(request):
@@ -69,7 +70,57 @@ def parse_date_range_from_request(request):
     return start_dt, end_dt, fecha_inicio_final, fecha_fin_final
 
 
-def get_quick_range_querystrings():
+def parse_report_filters_from_request(request):
+    """
+    Parsea filtros opcionales de reportes desde request.GET.
+
+    Returns:
+        dict: Filtros normalizados listos para aplicar en consultas.
+    """
+    filters = {
+        'empleado': (request.GET.get('empleado') or '').strip(),
+        'tipo_venta': (request.GET.get('tipo_venta') or '').strip(),
+        'sala': (request.GET.get('sala') or '').strip(),
+        'pelicula': (request.GET.get('pelicula') or '').strip(),
+        'pelicula_busqueda': (request.GET.get('pelicula_busqueda') or '').strip(),
+        'metodo_pago': (request.GET.get('metodo_pago') or '').strip(),
+        'estado_venta': (request.GET.get('estado_venta') or '').strip(),
+        'estado_pago': (request.GET.get('estado_pago') or '').strip(),
+    }
+
+    # Normalizar IDs numéricos para evitar valores inválidos en ORM.
+    for numeric_key in ('empleado', 'sala', 'metodo_pago'):
+        value = filters.get(numeric_key)
+        if not value:
+            continue
+        if value == 'sin_empleado' and numeric_key == 'empleado':
+            continue
+        try:
+            filters[numeric_key] = str(int(value))
+        except (TypeError, ValueError):
+            filters[numeric_key] = ''
+
+    # Limpiar tipo_venta a opciones conocidas.
+    if filters['tipo_venta'] not in ('ONLINE', 'PRESENCIAL', ''):
+        filters['tipo_venta'] = ''
+
+    # Soportar filtro antiguo por ID de película solo si es numérico.
+    pelicula_id = filters.get('pelicula')
+    if pelicula_id:
+        try:
+            filters['pelicula'] = str(int(pelicula_id))
+        except (TypeError, ValueError):
+            filters['pelicula'] = ''
+
+    # Validar búsqueda de película: requiere al menos 1 caracter alfanumérico.
+    pelicula_busqueda = filters.get('pelicula_busqueda', '')
+    if pelicula_busqueda and not any(ch.isalnum() for ch in pelicula_busqueda):
+        filters['pelicula_busqueda'] = ''
+
+    return filters
+
+
+def get_quick_range_querystrings(extra_params=None):
     """
     Genera querystrings para botones de rango rápido.
     
@@ -96,11 +147,79 @@ def get_quick_range_querystrings():
     last_day_num = calendar.monthrange(now_date.year, now_date.month)[1]
     last_day_month = now_date.replace(day=last_day_num).isoformat()
     
+    base_params = {}
+    if extra_params:
+        base_params = {
+            k: v for k, v in extra_params.items()
+            if v not in (None, '', []) and k not in ('fecha_inicio', 'fecha_fin')
+        }
+
+    def _build_qs(fecha_inicio, fecha_fin):
+        params = {'fecha_inicio': fecha_inicio, 'fecha_fin': fecha_fin, **base_params}
+        return f"?{urlencode(params)}"
+
     return {
-        'rango_7_qs': f"?fecha_inicio={rango_7_start}&fecha_fin={rango_7_end}",
-        'rango_30_qs': f"?fecha_inicio={rango_30_start}&fecha_fin={rango_30_end}",
-        'rango_mes_qs': f"?fecha_inicio={first_day_month}&fecha_fin={last_day_month}",
+        'rango_7_qs': _build_qs(rango_7_start, rango_7_end),
+        'rango_30_qs': _build_qs(rango_30_start, rango_30_end),
+        'rango_mes_qs': _build_qs(first_day_month, last_day_month),
     }
+
+
+def get_report_filters_summary(filters):
+    """Construye un resumen legible de filtros activos para mostrar en el PDF."""
+    labels = {
+        'empleado': 'Empleado',
+        'tipo_venta': 'Tipo venta',
+        'sala': 'Sala',
+        'pelicula': 'Película',
+        'pelicula_busqueda': 'Película contiene',
+        'metodo_pago': 'Método pago',
+        'estado_venta': 'Estado venta',
+        'estado_pago': 'Estado pago',
+    }
+    def _resolve_value(key, value):
+        if key == 'empleado':
+            if value == 'sin_empleado':
+                return 'Sin empleado'
+            try:
+                from accounts.models import Empleado
+                emp = Empleado.objects.select_related('usuario').filter(usuario_id=int(value)).first()
+                if emp:
+                    return emp.usuario.get_full_name() or emp.usuario.username
+            except Exception:
+                pass
+        if key == 'sala':
+            try:
+                from cine.models import Sala
+                sala = Sala.objects.filter(id=int(value)).first()
+                if sala:
+                    return sala.nombre
+            except Exception:
+                pass
+        if key == 'pelicula':
+            try:
+                from cine.models import Pelicula
+                peli = Pelicula.objects.filter(id=int(value)).first()
+                if peli:
+                    return peli.titulo
+            except Exception:
+                pass
+        if key == 'metodo_pago':
+            try:
+                from ventas.models import MetodoPago
+                metodo = MetodoPago.objects.filter(id_metodo_pago=int(value)).first()
+                if metodo:
+                    return metodo.nombre
+            except Exception:
+                pass
+        return value
+
+    items = []
+    for key, value in (filters or {}).items():
+        if value in (None, ''):
+            continue
+        items.append(f"{labels.get(key, key)}: {_resolve_value(key, value)}")
+    return ' | '.join(items) if items else 'Sin filtros adicionales'
 
 
 def is_system_admin(user):

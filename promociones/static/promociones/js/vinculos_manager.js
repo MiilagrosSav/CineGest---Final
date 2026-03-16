@@ -147,23 +147,42 @@ document.addEventListener('DOMContentLoaded', function() {
         function filterOptions(searchTerm) {
             const term = searchTerm.toLowerCase().trim();
             const disponibles = getOpcionesDisponibles();
-            
-            if (!term) return disponibles;
-            
-            return disponibles.filter(opt => 
+
+            if (term.length < 3) return [];
+
+            return disponibles.filter(opt =>
                 opt.text.toLowerCase().includes(term)
             );
+        }
+
+        function renderMinCharsMessage() {
+            dropdown.innerHTML = '<div class="combobox-empty">Escribe al menos 3 letras para buscar...</div>';
+            dropdown.style.display = 'block';
         }
         
         // Event listeners
         searchInput.addEventListener('focus', function() {
-            const filtered = filterOptions(this.value);
+            const searchTerm = this.value.trim();
+
+            if (searchTerm.length < 3) {
+                renderMinCharsMessage();
+                return;
+            }
+
+            const filtered = filterOptions(searchTerm);
             renderOptions(filtered);
             dropdown.style.display = 'block';
         });
         
         searchInput.addEventListener('input', function() {
-            const filtered = filterOptions(this.value);
+            const searchTerm = this.value.trim();
+
+            if (searchTerm.length < 3) {
+                renderMinCharsMessage();
+                return;
+            }
+
+            const filtered = filterOptions(searchTerm);
             renderOptions(filtered);
             dropdown.style.display = 'block';
             selectedIndex = -1;

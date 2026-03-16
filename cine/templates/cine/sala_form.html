@@ -84,6 +84,9 @@
                             ✨ Configurar Distribución de Asientos
                         </a>
                     {% endif %}
+                    <a href="{% url 'cine:gestionar_mantenimiento_sala' object.pk %}" class="btn btn-secondary" style="flex: 1; text-align: center; text-decoration: none; background: linear-gradient(135deg, #e65100, #ff9800);">
+                        🔧 Gestionar Mantenimiento
+                    </a>
                 {% endif %}
                 
                 <a href="{% url 'cine:sala_list' %}" class="btn btn-outline" style="flex: 1; text-align: center; text-decoration: none;">

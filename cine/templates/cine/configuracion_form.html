@@ -45,6 +45,13 @@
                     {{ form.cuil_cuit }}
                     {% if form.cuil_cuit.errors %}<span class="err">{{ form.cuil_cuit.errors.0 }}</span>{% endif %}
                 </div>
+
+                <div class="form-field">
+                    <label>{{ form.fecha_inicio_actividad.label }} <small>(para comprobantes)</small></label>
+                    {{ form.fecha_inicio_actividad }}
+                    {% if form.fecha_inicio_actividad.errors %}<span class="err">{{ form.fecha_inicio_actividad.errors.0 }}</span>{% endif %}
+                    {% if form.fecha_inicio_actividad.help_text %}<small style="opacity:.7;">{{ form.fecha_inicio_actividad.help_text }}</small>{% endif %}
+                </div>
                 
                 <div class="form-field">
                     <label>Dirección *</label>
@@ -82,6 +89,40 @@
                     onmouseover="this.style.backgroundColor='#6d28d9'; this.style.transform='translateY(-2px)'" 
                     onmouseout="this.style.backgroundColor='#7c3aed'; this.style.transform='translateY(0)'">
                     ⚙️ Gestionar Horarios por Día
+                    </a>
+                </div>
+                
+                <div class="form-field" style="background-color: rgba(239, 68, 68, 0.1); padding: 1.5rem; border-radius: 0.5rem; border-left: 4px solid #ef4444; margin-bottom: 1rem;">
+                    <label style="font-weight: 700; color: #fca5a5; margin-bottom: 0.5rem; display: block; font-size: 1.1rem;">
+                        🔞 Clasificaciones de Edad
+                    </label>
+                    
+                    <p style="margin: 0.5rem 0 1.25rem 0; font-size: 0.95rem; color: #e5e7eb; line-height: 1.5;">
+                        Gestiona las clasificaciones de edad para las películas (ATP, +13, +16, +18, etc.).
+                    </p>
+                    
+                    <a href="{% url 'cine:gestionar_clasificaciones' %}" 
+                    style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background-color: #ef4444; color: white; text-decoration: none; border-radius: 0.5rem; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);"
+                    onmouseover="this.style.backgroundColor='#dc2626'; this.style.transform='translateY(-2px)'" 
+                    onmouseout="this.style.backgroundColor='#ef4444'; this.style.transform='translateY(0)'">
+                    ⚙️ Gestionar Clasificaciones
+                    </a>
+                </div>
+
+                <div class="form-field" style="background-color: rgba(59, 130, 246, 0.1); padding: 1.5rem; border-radius: 0.5rem; border-left: 4px solid #3b82f6; margin-bottom: 1rem;">
+                    <label style="font-weight: 700; color: #93c5fd; margin-bottom: 0.5rem; display: block; font-size: 1.1rem;">
+                        🎬 Directores
+                    </label>
+
+                    <p style="margin: 0.5rem 0 1.25rem 0; font-size: 0.95rem; color: #e5e7eb; line-height: 1.5;">
+                        Edita datos de directores y fusiona registros duplicados para mantener una base limpia.
+                    </p>
+
+                    <a href="{% url 'cine:gestionar_directores' %}"
+                    style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.75rem 1.5rem; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 0.5rem; font-size: 0.9rem; font-weight: 600; transition: all 0.2s; box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);"
+                    onmouseover="this.style.backgroundColor='#2563eb'; this.style.transform='translateY(-2px)'"
+                    onmouseout="this.style.backgroundColor='#3b82f6'; this.style.transform='translateY(0)'">
+                    ⚙️ Gestionar Directores
                     </a>
                 </div>
 

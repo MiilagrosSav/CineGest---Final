@@ -1,0 +1,398 @@
+{% load static %}
+{% if request.session.mostrar_modal_completar_perfil %}
+<style>
+  /* Variables de color estilo CineGest */
+  :root {
+    --cg-primary: #f59e0b; /* Dorado/Ámbar principal */
+    --cg-primary-hover: #d97706;
+    --cg-bg-modal: #111827; /* Gris muy oscuro */
+    --cg-bg-card: #1f2937; /* Gris oscuro para la tarjeta */
+    --cg-text-main: #f3f4f6; /* Gris muy claro/blanco */
+    --cg-text-sec: #9ca3af; /* Gris medio */
+    --cg-border: #374151; /* Gris de borde */
+    --cg-error: #ef4444; /* Rojo CineGest */
+  }
+
+  #modalCompletarPerfil {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(17, 24, 39, 0.75); /* Backdrop oscuro */
+    backdrop-filter: blur(5px);
+    padding: 16px;
+    animation: modalBackdropIn 0.3s ease-out;
+  }
+
+  #modalCompletarPerfil .google-modal-card {
+    width: 100%;
+    max-width: 480px;
+    background: var(--cg-bg-card);
+    color: var(--cg-text-main);
+    border-radius: 12px; /* Bordes menos redondeados */
+    border: 1px solid var(--cg-border);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    animation: modalCardIn 0.3s ease-out;
+    font-family: system-ui, -apple-system, sans-serif; /* Tipografía limpia */
+  }
+
+  #modalCompletarPerfil .google-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 8px;
+    background: rgba(0,0,0,0.15); /* Ligero contraste en header */
+    border-bottom: 1px solid var(--cg-border);
+  }
+
+  #modalCompletarPerfil .google-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(245, 158, 11, 0.1); /* Fondo dorado suave */
+    color: var(--cg-primary);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+  }
+
+  #modalCompletarPerfil .google-close {
+    border: none;
+    background: transparent;
+    color: var(--cg-text-sec);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  #modalCompletarPerfil .google-close:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--cg-text-main);
+  }
+
+  #modalCompletarPerfil .google-modal-body {
+    padding: 24px 24px 8px;
+  }
+
+  #modalCompletarPerfil .google-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--cg-text-main);
+  }
+
+  #modalCompletarPerfil .google-subtitle {
+    margin: 10px 0 24px;
+    color: var(--cg-text-sec);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  #modalCompletarPerfil .google-field {
+    margin-bottom: 18px;
+  }
+
+  #modalCompletarPerfil .google-label {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--cg-text-main);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  #modalCompletarPerfil .google-required {
+    color: var(--cg-error);
+  }
+
+  #modalCompletarPerfil .google-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--cg-border);
+    border-radius: 8px;
+    background: rgba(0,0,0,0.2); /* Input oscuro */
+    color: var(--cg-text-main);
+    padding: 12px 14px;
+    font-size: 15px;
+    transition: all 0.2s;
+  }
+
+  #modalCompletarPerfil .google-input:focus {
+    border-color: var(--cg-primary);
+    box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+    outline: none;
+  }
+
+  #modalCompletarPerfil .field-status {
+    min-height: 20px;
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 400;
+    display: flex;
+    align-items: center;
+  }
+
+  #modalCompletarPerfil .marketing-row {
+    background: rgba(0,0,0,0.15);
+    padding: 14px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--cg-border);
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin: 20px 0 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  #modalCompletarPerfil .marketing-row:hover {
+    background: rgba(255,255,255,0.02);
+  }
+
+  #modalCompletarPerfil .marketing-row input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--cg-primary); /* Color dorado para el check */
+    cursor: pointer;
+  }
+
+  #modalCompletarPerfil .marketing-row label {
+    color: var(--cg-text-sec);
+    font-size: 13px;
+    line-height: 1.5;
+    cursor: pointer;
+  }
+
+  #modalCompletarPerfil .google-modal-footer {
+    padding: 16px 24px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    border-top: 1px solid var(--cg-border);
+    background: rgba(0,0,0,0.1);
+  }
+
+  #modalCompletarPerfil .btn-google-secondary,
+  #modalCompletarPerfil .btn-google-primary {
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+  }
+
+  #modalCompletarPerfil .btn-google-secondary {
+    color: var(--cg-text-sec);
+    background: transparent;
+    border-color: var(--cg-border);
+  }
+
+  #modalCompletarPerfil .btn-google-secondary:hover {
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--cg-text-main);
+    border-color: rgba(255,255,255,0.1);
+  }
+
+  #modalCompletarPerfil .btn-google-primary {
+    color: #111827; /* Texto oscuro sobre botón dorado */
+    background: var(--cg-primary);
+  }
+
+  #modalCompletarPerfil .btn-google-primary:hover {
+    background: var(--cg-primary-hover);
+    transform: translateY(-1px);
+  }
+
+  #modalCompletarPerfil .btn-google-primary:disabled {
+    background: #4b5563;
+    color: #9ca3af;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  /* Animaciones */
+  @keyframes modalBackdropIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes modalCardIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+</style>
+
+<div id="modalCompletarPerfil" role="dialog" aria-modal="true" aria-labelledby="googleModalTitle">
+  <div class="google-modal-card">
+    <div class="google-modal-header">
+      <div class="google-badge">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.96 1.7L10.6 8.3a2 2 0 0 0 1.96 1.7h2.88a2 2 0 0 0 1.96-1.7l.74-3.6A2 2 0 0 1 20.1 3H24a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-3.9a2 2 0 0 1-1.96-1.7L17.4 5.7a2 2 0 0 0-1.96-1.7h-2.88a2 2 0 0 0-1.96 1.7l-.74 3.6A2 2 0 0 1 7.9 11H4a2 2 0 0 1-2-2z"/><path d="M2 15v4a2 2 0 0 0 2 2h3.9a2 2 0 0 0 1.96-1.7l.74-3.6a2 2 0 0 1 1.96-1.7h2.88a2 2 0 0 1 1.96 1.7l.74 3.6a2 2 0 0 0 1.96 1.7H20a2 2 0 0 0 2-2v-4a2 2 0 0 0-2-2h-3.9a2 2 0 0 0-1.96 1.7L17.4 19.3a2 2 0 0 1-1.96 1.7h-2.88a2 2 0 0 1-1.96-1.7l-.74-3.6A2 2 0 0 0 7.9 13H4a2 2 0 0 0-2 2z"/></svg>
+      </div>
+      <button type="button" class="google-close" id="btnCerrarModalPerfil">&times;</button>
+    </div>
+
+    <div class="google-modal-body">
+      <h2 class="google-title" id="googleModalTitle">Finaliza tu registro</h2>
+      <p class="google-subtitle">
+        Asocia tu DNI para recibir cupones de descuento y beneficios exclusivos en CineGest.
+      </p>
+
+      <div id="modalErrorGlobal"></div>
+
+      <div class="google-field">
+        <label class="google-label" for="modal_username">Nombre de usuario <span style="color:var(--cg-text-sec); font-weight:400;">(opcional)</span></label>
+        <input class="google-input" type="text" id="modal_username" name="username" value="{{ request.user.username }}" placeholder="Ej: fanatico_cine" maxlength="150">
+        <div id="usernameStatus" class="field-status"></div>
+      </div>
+
+      <div class="google-field">
+        <label class="google-label" for="modal_email">Correo de contacto <span class="google-required">*</span></label>
+        <input class="google-input" type="email" id="modal_email" name="email" value="{{ request.user.email }}" placeholder="tu@email.com">
+        <div id="emailStatus" class="field-status"></div>
+      </div>
+
+      <div class="google-field">
+        <label class="google-label" for="modal_dni">DNI <span class="google-required">*</span></label>
+        <input class="google-input" type="text" id="modal_dni" name="dni" placeholder="Solo números" maxlength="8" inputmode="numeric">
+        <div id="dniStatus" class="field-status"></div>
+      </div>
+
+      <div class="marketing-row" onclick="document.getElementById('modal_marketing').click()">
+        <input type="checkbox" id="modal_marketing" name="acepta_marketing" {% if request.user.cliente.acepta_marketing %}checked{% endif %} onclick="event.stopPropagation()">
+        <label for="modal_marketing">Acepto recibir novedades y promociones de CineGest.</label>
+      </div>
+      <div id="marketingStatus" class="field-status"></div>
+    </div>
+
+    <div class="google-modal-footer">
+      <button type="button" id="btnCerrarModalPerfilSecundario" class="btn-google-secondary">Omitir</button>
+      <button type="button" id="btnGuardarPerfil" class="btn-google-primary">Actualizar datos</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Mantengo tu lógica exacta de Script intacta, solo actualizo los colores de los mensajes en tiempo real
+(function () {
+  const checkUrl = "{% url 'accounts:check_username' %}";
+  const checkEmailUrl = "{% url 'accounts:check_email' %}";
+  const saveUrl = "{% url 'accounts:completar_perfil_google' %}";
+  const dismissUrl = "{% url 'accounts:dismiss_completar_perfil_prompt' %}";
+  const csrfToken = "{{ csrf_token }}";
+
+  const modalRoot = document.getElementById('modalCompletarPerfil');
+  const usernameInput = document.getElementById('modal_username');
+  const emailInput = document.getElementById('modal_email');
+  const dniInput = document.getElementById('modal_dni');
+  const usernameStatus = document.getElementById('usernameStatus');
+  const emailStatus = document.getElementById('emailStatus');
+  const dniStatus = document.getElementById('dniStatus');
+  const marketingStatus = document.getElementById('marketingStatus');
+  const errorGlobal = document.getElementById('modalErrorGlobal');
+  const btnGuardar = document.getElementById('btnGuardarPerfil');
+  const marketingInput = document.getElementById('modal_marketing');
+  const btnCerrar = document.getElementById('btnCerrarModalPerfil');
+  const btnCerrarSec = document.getElementById('btnCerrarModalPerfilSecundario');
+
+  function hideModalOnly() { if (modalRoot) modalRoot.remove(); }
+
+  function dismissModalSesion() {
+    const data = new FormData();
+    data.append('csrfmiddlewaretoken', csrfToken);
+    fetch(dismissUrl, { method: 'POST', body: data }).finally(() => hideModalOnly());
+  }
+
+  [btnCerrar, btnCerrarSec].forEach(btn => btn?.addEventListener('click', dismissModalSesion));
+
+  modalRoot?.addEventListener('click', (e) => { if (e.target === modalRoot) dismissModalSesion(); });
+
+  // Validaciones en tiempo real (mantengo tu lógica de timers)
+  let ut, et;
+  usernameInput.addEventListener('input', function () {
+    clearTimeout(ut);
+    const val = this.value.trim();
+    if (!val) { usernameStatus.textContent = ''; return; }
+    ut = setTimeout(() => {
+      fetch(checkUrl + '?username=' + encodeURIComponent(val)).then(r => r.json()).then(data => {
+        usernameStatus.textContent = data.mensaje;
+        // Color dorado para éxito, rojo para error estilo CineGest
+        usernameStatus.style.color = data.disponible ? '#10b981' : '#ef4444';
+      });
+    }, 400);
+  });
+
+  emailInput.addEventListener('input', function () {
+    clearTimeout(et);
+    const val = this.value.trim();
+    if (!val) { emailStatus.textContent = ''; return; }
+    et = setTimeout(() => {
+      fetch(checkEmailUrl + '?email=' + encodeURIComponent(val)).then(r => r.json()).then(data => {
+        emailStatus.textContent = data.mensaje;
+        emailStatus.style.color = data.disponible ? '#10b981' : '#ef4444';
+      });
+    }, 400);
+  });
+
+  dniInput.addEventListener('input', function () {
+    const val = this.value.trim();
+    if (val && !/^\d{7,8}$/.test(val)) {
+      dniStatus.textContent = 'DNI no válido (7-8 números)';
+      dniStatus.style.color = '#ef4444';
+    } else { dniStatus.textContent = ''; }
+  });
+
+  btnGuardar.addEventListener('click', function () {
+    const dni = dniInput.value.trim();
+    const email = emailInput.value.trim();
+
+    if (!dni || !email) {
+        if (!dni) dniStatus.textContent = 'El DNI es necesario';
+        if (!email) emailStatus.textContent = 'El correo es necesario';
+        return;
+    }
+
+    btnGuardar.disabled = true;
+    btnGuardar.textContent = 'Actualizando...';
+
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', csrfToken);
+    formData.append('username', usernameInput.value.trim());
+    formData.append('email', email);
+    formData.append('dni', dni);
+    if (marketingInput.checked) {
+      formData.append('acepta_marketing', 'on');
+    }
+
+    fetch(saveUrl, { method: 'POST', body: formData })
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok) hideModalOnly();
+        else {
+          btnGuardar.disabled = false;
+          btnGuardar.textContent = 'Actualizar datos';
+          // Manejo de errores dinámico
+          if (data.errores) {
+             Object.keys(data.errores).forEach(k => {
+                const el = document.getElementById(k+'Status') || errorGlobal;
+                el.textContent = data.errores[k];
+                el.style.display = 'block';
+                el.style.color = '#ef4444';
+             });
+          }
+        }
+      });
+  });
+})();
+</script>
+{% endif %}

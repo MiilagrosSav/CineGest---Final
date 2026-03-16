@@ -1,0 +1,66 @@
+================================================================================
+{% if configuracion_cine %}{{ configuracion_cine.nombre|upper }}{% else %}CINEGEST{% endif %}
+COMPROBANTE DE PAGO - RECIBO FINANCIERO
+================================================================================
+
+{% if configuracion_cine %}Razón Social: {{ configuracion_cine.nombre }}
+Dirección:    {{ configuracion_cine.direccion|default:"Av. Principal 123, Ciudad" }}
+Teléfono:     {{ configuracion_cine.telefono|default:"(011) 4444-5555" }}
+Email:        {{ configuracion_cine.email|default:"info@cinegest.com" }}
+{% endif %}
+================================================================================
+
+COMPROBANTE Nº: {{ venta.id_venta|stringformat:"08d" }}
+
+================================================================================
+DATOS DEL CLIENTE
+================================================================================
+
+Nombre:             {{ usuario.get_full_name|default:usuario.username }}
+Email:              {{ usuario.email }}
+Fecha de Emisión:   {{ fecha_emision|date:"d/m/Y H:i" }}
+Código de Compra:   {{ venta.codigo_compra }}
+
+================================================================================
+DETALLE DE LA OPERACIÓN
+================================================================================
+
+CONCEPTO                           CANT.  PRECIO UNIT.    SUBTOTAL
+--------------------------------------------------------------------------------
+{% for concepto in conceptos %}{{ concepto.descripcion|ljust:35 }}{{ concepto.cantidad|stringformat:"2d"|ljust:7 }}${{ concepto.precio_unitario|floatformat:2|rjust:12 }}  ${{ concepto.subtotal|floatformat:2|rjust:10 }}
+{% endfor %}
+{% if descuento_aplicado %}--------------------------------------------------------------------------------
+DESCUENTO: {{ descuento_aplicado.nombre }}{% if descuento_aplicado.tipo == '2X1' %} (2x1){% elif descuento_aplicado.tipo == 'PORCENTAJE' and descuento_aplicado.porcentaje %} (-{{ descuento_aplicado.porcentaje }}%){% elif descuento_aplicado.tipo == 'MONTO_FIJO' and descuento_aplicado.porcentaje %} (-${{ descuento_aplicado.porcentaje }}){% endif %}
+{% endif %}
+================================================================================
+
+TOTAL PAGADO: ${{ pago.monto|floatformat:2 }}
+
+================================================================================
+INFORMACIÓN DE PAGO
+================================================================================
+
+✓ PAGO APROBADO Y PROCESADO
+
+Método de Pago:      {{ metodo_pago }}
+Nº de Transacción:   {{ pago.nro_transaccion }}
+ID de Pago:          #{{ pago.id_pago }}
+Estado:              {{ pago.get_estado_display }}
+
+================================================================================
+OBSERVACIONES
+================================================================================
+
+Este comprobante es un respaldo de la transacción monetaria realizada.
+Para acceder al cine, deberá presentar las entradas/tickets que fueron
+enviados en un correo electrónico separado.
+
+================================================================================
+
+Este es un documento electrónico generado automáticamente.
+No requiere firma autógrafa según normativa vigente.
+Conserve este comprobante como respaldo de su transacción.
+
+© {{ fecha_emision|date:"Y" }} {% if configuracion_cine %}{{ configuracion_cine.nombre }}{% else %}CineGest{% endif %} - Todos los derechos reservados
+
+================================================================================

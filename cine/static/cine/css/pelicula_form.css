@@ -128,6 +128,100 @@ form .btn-outline:hover {
     transform: translateY(-1px);
 }
 
+.director-select-row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+}
+
+.director-combobox {
+    position: relative;
+    flex: 1;
+}
+
+.btn-director-mini {
+    border: 1px solid rgba(var(--primary-rgb), 0.45);
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-light);
+    border-radius: 8px;
+    padding: 0.4rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+    min-height: 38px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-director-mini:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(var(--primary-rgb), 0.15);
+}
+
+.btn-director-mini:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.combobox-wrapper {
+    position: relative;
+}
+
+.combobox-input {
+    width: 100%;
+}
+
+.combobox-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 280px;
+    overflow-y: auto;
+    background: rgba(30, 30, 50, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 8px;
+    margin-top: 4px;
+    z-index: 1000;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.combobox-option {
+    padding: 0.7rem 0.9rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    color: var(--text-light);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.combobox-option:last-child {
+    border-bottom: none;
+}
+
+.combobox-option:hover {
+    background: rgba(var(--primary-rgb), 0.2);
+    color: var(--primary);
+}
+
+.combobox-option.active {
+    background: rgba(var(--primary-rgb), 0.3);
+    color: #fff;
+}
+
+.combobox-empty {
+    padding: 0.85rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.55);
+    font-style: italic;
+}
+
+.combobox-input.invalid-input {
+    border-color: #ff6b6b !important;
+    background: rgba(255, 107, 107, 0.1) !important;
+}
+
 .form-error {
     display: block;
     color: #ff6b6b;

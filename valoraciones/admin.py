@@ -1,5 +1,21 @@
 from django.contrib import admin
-from .models import Valoracion, NotificacionValoracion
+from .models import Valoracion, NotificacionValoracion, Resena
+
+
+@admin.register(Resena)
+class ResenaAdmin(admin.ModelAdmin):
+    list_display = ('usuario', 'pelicula', 'calificacion', 'comentario_preview', 'fecha_creacion')
+    list_filter = ('calificacion', 'fecha_creacion', 'pelicula')
+    search_fields = ('usuario__username', 'usuario__first_name', 'usuario__last_name', 'pelicula__titulo', 'comentario')
+    readonly_fields = ('fecha_creacion',)
+    ordering = ('-fecha_creacion',)
+    list_per_page = 20
+
+    def comentario_preview(self, obj):
+        if obj.comentario:
+            return obj.comentario[:80] + '…' if len(obj.comentario) > 80 else obj.comentario
+        return '(Sin comentario)'
+    comentario_preview.short_description = 'Comentario'
 
 
 @admin.register(Valoracion)

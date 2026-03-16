@@ -38,18 +38,19 @@
                 
                 <div style="display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap;">
                     <div class="select-wrapper">
-                        <select name="estado" class="form-select">
-                            <option value="">Estado: Todos</option>
-                            <option value="activa" {% if filtro_estado == 'activa' %}selected{% endif %}>✓ Activas</option>
-                            <option value="inactiva" {% if filtro_estado == 'inactiva' %}selected{% endif %}>✗ Inactivas</option>
+                        <select name="ver" class="form-select">
+                            <option value="activas" {% if filtro_ver == 'activas' or not filtro_ver %}selected{% endif %}>✓ Solo activas ({{ total_activas }})</option>
+                            <option value="inactivas" {% if filtro_ver == 'inactivas' %}selected{% endif %}>✗ Solo inactivas ({{ total_inactivas }})</option>
+                            <option value="vencidas" {% if filtro_ver == 'vencidas' %}selected{% endif %}>⏰ Solo vencidas ({{ total_vencidas }})</option>
+                            <option value="todas" {% if filtro_ver == 'todas' %}selected{% endif %}>☰ Todas</option>
                         </select>
                     </div>
-                    
+
                     <button type="submit" id="btn-filter" class="btn btn-primary" style="padding: 0.6rem 1.5rem;">
                         Filtrar
                     </button>
-                    
-                    {% if filtro_search or filtro_estado %}
+
+                    {% if filtro_search %}
                     <a href="{% url 'promociones:politica_list' %}" class="btn btn-outline" style="padding: 0.6rem 0.9rem;" title="Limpiar filtros">
                         ✕
                     </a>
@@ -86,7 +87,9 @@
                             </td>
                             
                             <td style="text-align: center;">
-                                {% if politica.activa %}
+                                {% if politica.promocion_a_otorgar.fecha_fin < hoy %}
+                                    <span class="badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);">Vencida</span>
+                                {% elif politica.activa %}
                                     <span class="badge badge-active">Activa</span>
                                 {% else %}
                                     <span class="badge badge-inactive">Inactiva</span>
@@ -100,7 +103,7 @@
                             <td>
                                 {% if politica.genero_pelicula %}
                                     <span class="badge badge-genre">
-                                        {{ politica.get_genero_pelicula_display }}
+                                        {{ politica.genero_pelicula.nombre }}
                                     </span>
                                 {% else %}
                                     <span style="opacity: 0.4;">Todos</span>

@@ -1,9 +1,30 @@
 from django import forms
+import re
 from django.forms import inlineformset_factory
 from .models.politicaPromocion import PoliticaPromocion
 from .models.promocion import Promocion
 from .models.vinculo_promocional import VinculoPromocional
 from cine.models.formato import Formato
+
+
+def _validar_nombre_promocional(nombre):
+    nombre_limpio = (nombre or '').strip()
+    if len(nombre_limpio) < 3:
+        raise forms.ValidationError('El nombre debe tener al menos 3 caracteres.')
+    if not re.search(r'[A-Za-zÁÉÍÓÚÑáéíóúñ]', nombre_limpio):
+        raise forms.ValidationError('El nombre debe contener letras.')
+    return nombre_limpio
+
+
+def _validar_codigo_promocional(codigo):
+    codigo_limpio = (codigo or '').strip()
+    if len(codigo_limpio) < 3:
+        raise forms.ValidationError('El código debe tener al menos 3 caracteres.')
+    if not re.search(r'[A-Za-zÁÉÍÓÚÑáéíóúñ]', codigo_limpio):
+        raise forms.ValidationError('El código debe contener al menos una letra.')
+    if not re.search(r'\d', codigo_limpio):
+        raise forms.ValidationError('El código debe contener al menos un número.')
+    return codigo_limpio
 
 
 class PromocionForm(forms.ModelForm):
@@ -127,6 +148,12 @@ class PromocionForm(forms.ModelForm):
         if not val:
             return ''  # Vacío = todos los días
         return ','.join(sorted(val))
+
+    def clean_codigo(self):
+        return _validar_codigo_promocional(self.cleaned_data.get('codigo'))
+
+    def clean_nombre(self):
+        return _validar_nombre_promocional(self.cleaned_data.get('nombre'))
     
     def clean_formatos_aplicables(self):
         """Limpia formatos aplicables. Si no es automática, devuelve lista vacía."""
@@ -169,7 +196,8 @@ class PoliticaPromocionForm(forms.ModelForm):
         choices=WEEKDAY_CHOICES,
         widget=forms.CheckboxSelectMultiple,
         required=False,
-        label='Días de la semana'
+        label='Días de la semana',
+        help_text='Sin selección = TODOS los días. Selecciona días específicos solo si querés restringir la política.',
     )
 
     class Meta:
@@ -178,7 +206,7 @@ class PoliticaPromocionForm(forms.ModelForm):
             'nombre', 'activa', 'promocion_a_otorgar', 'genero_pelicula', 
             'hora_inicio_rango', 'hora_fin_rango', 'dias_semana', 
             'prioridad', 'minutos_validez', 'horas_antes_de_funcion',
-            'activar_por_ocupacion', 'umbral_ocupacion', 'horas_anticipacion'
+            'activar_por_ocupacion', 'umbral_ocupacion'
         ]
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
@@ -191,9 +219,8 @@ class PoliticaPromocionForm(forms.ModelForm):
             'minutos_validez': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
             'horas_antes_de_funcion': forms.NumberInput(attrs={'class': 'form-control', 'min': 0}),
             'dias_semana': forms.CheckboxSelectMultiple(),
-            'activar_por_ocupacion': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
-            'umbral_ocupacion': forms.NumberInput(attrs={'class': 'form-control', 'min': 0, 'max': 100}),
-            'horas_anticipacion': forms.NumberInput(attrs={'class': 'form-control', 'min': 1}),
+            'activar_por_ocupacion': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_activar_por_ocupacion'}),
+            'umbral_ocupacion': forms.NumberInput(attrs={'class': 'form-control input-umbral', 'min': 1, 'max': 100}),
         }
         labels = {
             'nombre': 'Nombre de la Política',
@@ -207,21 +234,25 @@ class PoliticaPromocionForm(forms.ModelForm):
             'horas_antes_de_funcion': 'Horas antes de función',
             'activar_por_ocupacion': 'Ocupación Inteligente',
             'umbral_ocupacion': 'Umbral de ocupación (%)',
-            'horas_anticipacion': 'Ventana de anticipación (horas)',
         }
         help_texts = {
-            'horas_antes_de_funcion': 'Opcional: Solo enviar promoción si faltan menos de X horas para la función. Dejar vacío para enviar siempre.',
+            'horas_antes_de_funcion': 'Horas antes de la función para disparar envío/análisis. Se usa tanto para envío directo como para análisis de ocupación automática (ej: 24 = enviar o analizar si faltan <= 24 horas).',
             'activar_por_ocupacion': 'Activar para que el sistema escanee automáticamente funciones con baja ocupación y dispare promociones.',
             'umbral_ocupacion': 'Disparar promoción si la ocupación es menor a este porcentaje (ej: 30 = disparar si < 30%).',
-            'horas_anticipacion': 'Escanear funciones que ocurran dentro de X horas desde ahora (ej: 24 = verificar funciones en las próximas 24 horas).',
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Filtrar promociones para mostrar solo las NO automáticas (cupones)
+        # Filtrar promociones: solo no automáticas, activas y vigentes
+        from django.utils import timezone as tz
         from .models.promocion import Promocion
-        self.fields['promocion_a_otorgar'].queryset = Promocion.objects.filter(es_automatica=False).order_by('nombre')
+        today = tz.now().date()
+        self.fields['promocion_a_otorgar'].queryset = Promocion.objects.filter(
+            es_automatica=False,
+            activo=True,
+            fecha_fin__gte=today,
+        ).order_by('nombre')
         
         # Ocultar campo 'activa' al crear nueva política (solo mostrar al editar)
         if not self.instance.pk:
@@ -246,6 +277,21 @@ class PoliticaPromocionForm(forms.ModelForm):
             return ''
         vals = [str(int(x)) for x in val]
         return ','.join(vals)
+
+    def clean_nombre(self):
+        return _validar_nombre_promocional(self.cleaned_data.get('nombre'))
+
+    def clean(self):
+        cleaned_data = super().clean()
+        activar_por_ocupacion = cleaned_data.get('activar_por_ocupacion')
+        umbral_ocupacion = cleaned_data.get('umbral_ocupacion')
+        
+        # Si activar_por_ocupacion está marcado, umbral_ocupacion debe estar entre 1-100
+        if activar_por_ocupacion:
+            if umbral_ocupacion is None or umbral_ocupacion < 1 or umbral_ocupacion > 100:
+                self.add_error('umbral_ocupacion', 'El umbral de ocupación debe estar entre 1 y 100 cuando la Ocupación Automática está habilitada.')
+        
+        return cleaned_data
 
 
 # ============================================

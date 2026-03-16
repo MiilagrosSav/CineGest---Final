@@ -4,8 +4,9 @@ Configuración del admin para los modelos de ventas
 
 from django.contrib import admin
 from ventas.models import Venta, Entrada, MetodoPago, Pago, Intercambio, RegistroAcceso
-from ventas.models import PoliticaReembolso
+from ventas.models import PoliticaReembolso, CajaSesion
 from simple_history.admin import SimpleHistoryAdmin
+from ventas.forms import PoliticaReembolsoAdminForm
 
 
 @admin.register(MetodoPago)
@@ -44,10 +45,36 @@ class VentaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
         }),
     )
 class PoliticaReembolsoAdmin(admin.ModelAdmin):
-    list_display = ['id', 'nombre', 'activo', 'dias_antes_minimo', 'max_cambios_por_compra']
+    form = PoliticaReembolsoAdminForm
+    list_display = [
+        'id',
+        'nombre',
+        'activo',
+        'dias_antes_minimo',
+        'max_cambios_por_compra',
+        'ofrecer_promos_vinculo',
+        'permitir_reintercambio',
+        'permitir_con_cupon_promocion',
+    ]
     list_filter = ['activo']
     search_fields = ['nombre']
     readonly_fields = ['created_at', 'updated_at']
+    fieldsets = (
+        ('Reglas Base de Intercambio', {
+            'fields': ('nombre', 'activo', 'dias_antes_minimo', 'max_cambios_por_compra')
+        }),
+        ('Reglas de Promociones y Retorno', {
+            'fields': (
+                'ofrecer_promos_vinculo',
+                'permitir_reintercambio',
+                'permitir_con_cupon_promocion',
+            )
+        }),
+        ('Auditoría', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 # Registrar el admin sólo si no está ya registrado (evita errores en autoreload)
@@ -234,3 +261,46 @@ class RegistroAccesoAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
 
 # Reembolso model and admin registration removed as refund functionality
 # was deprecated and replaced by the 'Intercambio de Entradas' flow.
+
+
+@admin.register(CajaSesion)
+class CajaSesionAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
+    """Admin para trazabilidad de sesiones de caja (Apertura / Cierre / Arqueo)."""
+    list_display = [
+        'id', 'empleado', 'estado', 'fecha_apertura', 'fecha_cierre',
+        'fondo_inicial', 'total_efectivo_cerrado', 'total_qr_cerrado',
+        'monto_esperado', 'monto_real_declarado', 'diferencia',
+    ]
+    list_filter = ['estado', 'fecha_apertura', 'empleado']
+    search_fields = ['empleado__username', 'empleado__first_name', 'empleado__last_name']
+    readonly_fields = [
+        'fecha_apertura', 'fecha_cierre',
+        'total_efectivo_cerrado', 'total_qr_cerrado', 'total_ventas_cerrado',
+        'monto_esperado', 'monto_real_declarado', 'diferencia',
+    ]
+    ordering = ['-fecha_apertura']
+
+    fieldsets = (
+        ('Sesión', {
+            'fields': ('empleado', 'estado', 'fecha_apertura', 'fecha_cierre'),
+        }),
+        ('Fondo', {
+            'fields': ('fondo_inicial',),
+        }),
+        ('Arqueo de Cierre', {
+            'fields': (
+                'total_efectivo_cerrado', 'total_qr_cerrado', 'total_ventas_cerrado',
+                'monto_esperado', 'monto_real_declarado', 'diferencia',
+            ),
+        }),
+        ('Observaciones', {
+            'fields': ('observaciones',),
+            'classes': ('collapse',),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return False  # Solo se crea desde la boletería
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser  # Solo superadmin puede eliminar

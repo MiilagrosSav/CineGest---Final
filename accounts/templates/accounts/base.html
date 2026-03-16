@@ -17,97 +17,91 @@
 <body class="{% block body_class %}{% endblock %}">
     <div class="page-wrapper">
         {% if user.is_authenticated %}
-        <nav class="navbar">
-            <div class="container">
-                <div class="navbar-content">
-                    
-                    <a href="{% url 'accounts:dashboard' %}" class="logo">
-                        {% if configuracion_cine %}
-                            <img src="{{ configuracion_cine.get_logo_url }}" alt="Logo" class="logo-img">
-                            <span>{{ configuracion_cine.nombre }}</span>
-                        {% else %}
-                            <img src="{% static 'img/logo-placeholder.png' %}" alt="Logo" class="logo-img">
-                            <span>Sistema</span>
-                        {% endif %}
-                    </a>
-                    
-                    <ul class="nav-links">
-                        
-                        {% if user.is_superuser or user.rol == 'admin' %}
-                            <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
-                            <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">Películas</a></li>
-                            <li><a href="{% url 'cine:sala_list' %}" class="nav-link">Salas</a></li>
-                            <li><a href="{% url 'cine:funcion_list' %}" class="nav-link">Funciones</a></li>
-                            <li><a href="{% url 'promociones:dashboard' %}" class="nav-link">Promociones</a></li>
-                            <li><a href="{% url 'accounts:employee_list' %}" class="nav-link">Empleados</a></li>
-                            <li><a href="{% url 'auditoria:list' %}" class="nav-link">Auditoría</a></li>
-                            <li class="user-menu">
-                                <button class="user-menu-button nav-link" id="reportsMenuButton">Reportes</button>
-                                <div class="user-menu-dropdown" id="reportsMenuDropdown">
-                                    <a href="{% url 'reportes:financiero' %}" class="dropdown-item">📈 Reporte Financiero</a>
-                                    <a href="{% url 'reportes:ocupacion' %}" class="dropdown-item">📊 Reporte de Ocupación</a>
-                                </div>
-                            </li>
-                        
-                        {% elif user.rol == 'empleado' %}
-                            <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
-                            <li><a href="{% url 'ventas:dashboard_presencial' %}" class="nav-link">🎫 Venta de Tickets</a></li>
-                            <li><a href="{% url 'ventas:canje_rapido' %}" class="nav-link">📲 Canje de Entradas</a></li>
-                        
-                        {% elif user.rol == 'cliente' %}
-                            <li><a href="{% url 'ventas:mis_ventas' %}" class="nav-link">🎫 Mis Compras</a></li>
-                            <li><a href="{% url 'cine:cartelera' %}" class="nav-link">🍿 Cartelera</a></li>
-                            <li><a href="{% url 'cine:preventa' %}" class="nav-link" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 700;">⭐ ¡Preventa!</a></li>
-                            
-                            <!-- Campana de Notificaciones -->
-                            <li class="notificaciones-menu">
-                                <button class="notif-bell-btn nav-link" id="notifBellBtn" aria-label="Notificaciones">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="bi bi-bell" viewBox="0 0 16 16">
-                                        <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2M8 1.918l-.797.161A4.002 4.002 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4.002 4.002 0 0 0-3.203-3.92L8 1.917zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5.002 5.002 0 0 1 13 6c0 .88.32 4.2 1.22 6"/>
-                                    </svg>
-                                    {% if notificaciones_count > 0 %}
-                                        <span class="notif-badge">{{ notificaciones_count }}</span>
-                                    {% endif %}
-                                </button>
-                                <div class="notif-dropdown glass-container" id="notifDropdown">
-                                    <div class="notif-header">
-                                        <h4>Notificaciones</h4>
-                                        <button class="btn-mark-all" id="markAllReadBtn">Marcar todas como leídas</button>
-                                    </div>
-                                    <div class="notif-list" id="notifList">
-                                        <div class="notif-loading">Cargando...</div>
-                                    </div>
-                                </div>
-                            </li>
-                        
-                        {% endif %}
-                        
-                        <!-- Menú desplegable del usuario -->
-                        <li class="user-menu">
-                            <button class="user-menu-button nav-link" id="userMenuButton">
-                                👤 {{ user.first_name|default:user.username|title }}
-                                <span class="dropdown-arrow">▼</span>
-                            </button>
-                            <div class="user-menu-dropdown" id="userMenuDropdown">
-                                <a href="{% url 'accounts:profile_edit' %}" class="dropdown-item">
-                                    <span>👤</span> Mi Perfil
-                                </a>
+            <nav class="navbar">
+                <div class="container">
+                    <div class="navbar-content">
+                        <a href="{% url 'accounts:dashboard' %}" class="logo">
+                            {% if configuracion_cine %}
+                                <img src="{{ configuracion_cine.get_logo_url }}" alt="Logo" class="logo-img">
+                                <span class="logo-text">{{ configuracion_cine.nombre }}</span>
+                            {% else %}
+                                <img src="{% static 'img/logo-placeholder.png' %}" alt="Logo" class="logo-img">
+                                <span class="logo-text">CineGest</span>
+                            {% endif %}
+                        </a>
+
+                        <button class="mobile-menu-toggle" id="mobileMenuToggle" aria-label="Abrir menú">
+                            <span class="bar"></span>
+                            <span class="bar"></span>
+                            <span class="bar"></span>
+                        </button>
+
+                        <div class="nav-container" id="navContainer">
+                            <ul class="nav-links">
                                 {% if user.is_superuser or user.rol == 'admin' %}
-                                <a href="{% url 'cine:configuracion' %}" class="dropdown-item">
-                                    <span>⚙️</span> Configuración del Cine
-                                </a>
+                                    <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
+                                    <li><a href="{% url 'cine:pelicula_list' %}" class="nav-link">Películas</a></li>
+                                    <li><a href="{% url 'cine:sala_list' %}" class="nav-link">Salas</a></li>
+                                    <li><a href="{% url 'cine:funcion_list' %}" class="nav-link">Funciones</a></li>
+                                    <li><a href="{% url 'promociones:dashboard' %}" class="nav-link">Promociones</a></li>
+                                    <li><a href="{% url 'accounts:employee_list' %}" class="nav-link">Empleados</a></li>
+                                    <li><a href="{% url 'auditoria:list' %}" class="nav-link">Auditoría</a></li>
+                                    <li class="user-menu">
+                                        <button class="user-menu-button nav-link" id="reportsMenuButton">Reportes ▼</button>
+                                        <div class="user-menu-dropdown" id="reportsMenuDropdown">
+                                            <a href="{% url 'reportes:financiero' %}" class="dropdown-item">📈 Financiero</a>
+                                            <a href="{% url 'reportes:ocupacion' %}" class="dropdown-item">📊 Ocupación</a>
+                                        </div>
+                                    </li>
                                 
+                                {% elif user.rol == 'empleado' %}
+                                    <li><a href="{% url 'accounts:dashboard' %}" class="nav-link">🎬 Inicio</a></li>
+                                    <li><a href="{% url 'ventas:dashboard_presencial' %}" class="nav-link">🎫 Venta</a></li>
+                                    <li><a href="{% url 'ventas:canje_rapido' %}" class="nav-link">📲 Canje</a></li>
+                                
+                                {% elif user.rol == 'cliente' %}
+                                    <li><a href="{% url 'cine:cartelera' %}" class="nav-link">🍿 Cartelera</a></li>
+                                    <li><a href="{% url 'ventas:mis_ventas' %}" class="nav-link">🎫 Compras</a></li>
+                                    <li><a href="{% url 'valoraciones:mis_resenas' %}" class="nav-link">⭐ Reseñas</a></li>
+                                    <li><a href="{% url 'cine:preventa' %}" class="nav-link preventa-link">⭐ Preventa</a></li>
+                                    
+                                    <li class="notificaciones-menu">
+                                        <button class="notif-bell-btn nav-link" id="notifBellBtn">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                                <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2M8 1.918l-.797.161A4.002 4.002 0 0 0 4 6c0 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134 8.197 12 6.628 12 6a4.002 4.002 0 0 0-3.203-3.92L8 1.917zM14.22 12c.223.447.481.801.78 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1 1 0 1 1 1.99 0A5.002 5.002 0 0 1 13 6c0 .88.32 4.2 1.22 6"/>
+                                            </svg>
+                                            {% if notificaciones_count > 0 %}<span class="notif-badge">{{ notificaciones_count }}</span>{% endif %}
+                                        </button>
+                                        <div class="notif-dropdown" id="notifDropdown">
+                                            <div class="notif-header d-flex justify-content-between align-items-center">
+                                                <span class="notif-title fw-bold">Notificaciones</span>
+                                                <button id="markAllReadBtn" class="notif-mark-read btn btn-sm btn-link text-decoration-none" style="font-size: 0.8rem; color: #bb86fc;">Marcar todas leídas</button>
+                                            </div>
+                                            <div class="notif-list" id="notifList">
+                                                <!-- Las notificaciones se inyectan por JS aquí -->
+                                            </div>
+                                        </div>
+                                    </li>
                                 {% endif %}
-                                <div class="dropdown-divider"></div>
-                                <a href="{% url 'accounts:logout' %}" class="dropdown-item logout-item">
-                                    <span>🚪</span> Cerrar Sesión
-                                </a>
-                            </div>
-                        </li>
-                    </ul>
+
+                                <li class="user-menu">
+                                    <button class="user-menu-button nav-link" id="userMenuButton">
+                                        👤 {{ user.first_name|default:user.username|title }} ▼
+                                    </button>
+                                    <div class="user-menu-dropdown" id="userMenuDropdown">
+                                        <a href="{% url 'accounts:profile_edit' %}" class="dropdown-item">👤 Mi Perfil</a>
+                                        {% if user.is_superuser or user.rol == 'admin' %}
+                                            <a href="{% url 'cine:configuracion' %}" class="dropdown-item">⚙️ Configuración</a>
+                                            <a href="{% url 'ventas:lista_ventas' %}" class="dropdown-item">🧾 Lista de Ventas</a>
+                                        {% endif %}
+                                        <a href="{% url 'accounts:logout' %}" class="dropdown-item logout-item">🚪 Cerrar Sesión</a>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </nav>
+            </nav>
         {% endif %}
 
         <main class="page-content">
@@ -140,7 +134,11 @@
 
     </div>
 
-    <script src="{% static 'accounts/js/base.js' %}"></script>
+    <script src="{% static 'accounts/js/base.js' %}?v=1.1"></script>
     {% block extra_js %}{% endblock %}
+
+    {% if user.is_authenticated and user.rol == 'cliente' %}
+        {% include "accounts/completar_perfil_modal.html" %}
+    {% endif %}
 </body>
 </html>

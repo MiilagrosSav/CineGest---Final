@@ -42,6 +42,10 @@ def seleccionar_butacas(request, funcion_id):
         pass
     funcion = get_object_or_404(Funcion, id=funcion_id)
     sala = funcion.sala
+
+    if funcion.get_asientos_disponibles_reales() <= 0:
+        messages.error(request, 'La función está agotada. No hay butacas disponibles.')
+        return redirect('cine:cartelera')
     
     # Obtener todas las butacas de la sala ordenadas por fila y número
     butacas = Butaca.objects.filter(sala=sala).order_by('fila', 'numero')
@@ -62,7 +66,8 @@ def seleccionar_butacas(request, funcion_id):
             'numero': butaca.numero,
             'tipo': butaca.tipo,
             'es_pasillo': butaca.es_pasillo,
-            'ocupada': butaca.id in butacas_ocupadas
+            'ocupada': butaca.id in butacas_ocupadas,
+            'en_mantenimiento': butaca.en_mantenimiento,
         })
     
     # Ordenar las filas alfabéticamente
@@ -73,26 +78,68 @@ def seleccionar_butacas(request, funcion_id):
     except Exception:
         tiempo_limite = 10
 
-    # Calcular fecha/hora de expiración absoluta según reservas del usuario para esta función
+    # Timer persistente en BD: reutilizar/crear venta provisional para esta función.
+    # De esta forma, al hacer F5 no se reinicia el contador.
+    venta_provisional = None
+    session_key_reserva = f'reserva_venta_funcion_{funcion.id}'
     try:
-        now = timezone.now()
-        usuario = request.user
-        reservas_usuario = Entrada.objects.filter(
-            id_funcion=funcion,
-            reservado_por=usuario,
-            estado__in=['PENDIENTE', 'RESERVADA']
-        ).order_by('fecha_creacion')
+        from ventas.models import Venta, MetodoPago
 
-        if reservas_usuario.exists():
-            primera = reservas_usuario.first()
-            expiracion = primera.fecha_creacion + timedelta(minutes=int(tiempo_limite))
-            # si ya expiró, dejar expiracion en now para que el frontend muestre 00:00
-            if expiracion <= now:
-                expiracion = now
-        else:
-            expiracion = now + timedelta(minutes=int(tiempo_limite))
+        now = timezone.now()
+        venta_id_session = request.session.get(session_key_reserva)
+        if venta_id_session:
+            venta_provisional = Venta.objects.filter(
+                id_venta=venta_id_session,
+                id_cliente__usuario=request.user,
+                estado='PENDIENTE',
+                activo=True,
+            ).first()
+
+        if venta_provisional is None:
+            from accounts.models import Cliente
+            cliente, _ = Cliente.objects.get_or_create(
+                usuario=request.user,
+                defaults={'fecha_nacimiento': None}
+            )
+
+            metodo_pago = MetodoPago.objects.filter(
+                nombre__icontains='Mercado Pago'
+            ).first() or MetodoPago.objects.filter(
+                nombre__icontains='Online'
+            ).first()
+
+            if not metodo_pago:
+                metodo_pago = MetodoPago.objects.create(
+                    nombre='Mercado Pago',
+                    descripcion='Pago procesado por Mercado Pago'
+                )
+
+            cupon_yield = None
+            promo_token = request.session.get('promo_token')
+            if promo_token:
+                try:
+                    from promociones.models.cuponGenerado import CuponGenerado
+                    cupon_yield = CuponGenerado.objects.filter(token=str(promo_token), usado=True).first()
+                except Exception:
+                    cupon_yield = None
+
+            venta_provisional = Venta.objects.create(
+                id_cliente=cliente,
+                tipo_venta='ONLINE',
+                estado='PENDIENTE',
+                id_metodo_pago=metodo_pago,
+                total=0,
+                cupon_utilizado=cupon_yield,
+            )
+            request.session[session_key_reserva] = venta_provisional.id_venta
+            request.session.modified = True
+
+        expiracion = venta_provisional.fecha_compra + timedelta(minutes=int(tiempo_limite))
+        if expiracion <= now:
+            expiracion = now
         expiracion_iso = expiracion.isoformat()
     except Exception:
+        venta_provisional = None
         expiracion_iso = (timezone.now() + timedelta(minutes=int(tiempo_limite))).isoformat()
 
     # Calcular precio con descuento SOLO si hay promoción activa desde link (con token válido)
@@ -104,148 +151,147 @@ def seleccionar_butacas(request, funcion_id):
     
     import logging
     logger = logging.getLogger(__name__)
-    
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # JERARQUÍA DE PROMOCIONES
+    # ──────────────────────────────────────────────────────────────────────────
+    # Paso 1: Verificar si hay una promo automática de vínculo específico.
+    #         Si existe, tiene prioridad máxima y hace que cualquier cupón de
+    #         sesión sea incompatible (Regla de Exclusión de Cupones).
+    # Paso 2: Si NO hay promo específica, aplicar cupón de sesión si es válido.
+    # Paso 3: Si tampoco hay cupón, aplicar la mejor promo global (si existe).
+    # ──────────────────────────────────────────────────────────────────────────
+    from promociones.services import obtener_mejor_promocion, tiene_vinculo_especifico
+    from decimal import Decimal, ROUND_HALF_UP
+
+    def _aplicar_promo_en_contexto(p):
+        """Rellena precio_mostrar / info_descuento / promo_2x1 / promo_codigo a partir de 'p'."""
+        nonlocal precio_mostrar, info_descuento, promo_2x1, promo_codigo
+        tipo = str(p.tipo_descuento).upper().strip()
+        promo_codigo = p.codigo
+        if tipo == '2X1':
+            promo_2x1 = True
+            info_descuento = {
+                'tipo': '2X1',
+                'descripcion': f'🎉 {p.nombre}: Pagás 1 y llevás 2',
+                'precio_con_descuento': funcion.precio_base,
+            }
+        elif tipo == 'PORCENTAJE':
+            pct = Decimal(p.valor_descuento or 0) / Decimal(100)
+            precio_con_desc = (funcion.precio_base * (Decimal(1) - pct)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            precio_mostrar = precio_con_desc
+            info_descuento = {
+                'tipo': 'PORCENTAJE',
+                'descripcion': f'🔥 {p.nombre}: {int(p.valor_descuento)}% OFF (ahorrás ${funcion.precio_base - precio_con_desc})',
+                'precio_con_descuento': precio_con_desc,
+            }
+        elif tipo == 'MONTO_FIJO':
+            monto = Decimal(p.valor_descuento or 0)
+            precio_con_desc = max(funcion.precio_base - monto, Decimal('0.00')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            precio_mostrar = precio_con_desc
+            info_descuento = {
+                'tipo': 'MONTO_FIJO',
+                'descripcion': f'💰 {p.nombre}: ${monto} OFF',
+                'precio_con_descuento': precio_con_desc,
+            }
+
     try:
-        promo_id = request.session.get('promo_activa_id')
-        promo_token = request.session.get('promo_token')
-        
-        logger.info(f'[SELECCIONAR_BUTACAS] promo_id en sesión: {promo_id}, promo_token: {promo_token}')
-        
-        # Solo aplicar si hay tanto ID como token (viene de link activado)
-        if promo_id and promo_token:
-            # Verificar que el token todavía exista y esté marcado como usado (ya fue activado)
-            from promociones.models.cuponGenerado import CuponGenerado
-            cupon = CuponGenerado.objects.filter(token=str(promo_token), usado=True).first()
-            
-            logger.info(f'[SELECCIONAR_BUTACAS] Cupón encontrado: {cupon is not None}')
-            
-            if cupon:
-                promo = Promocion.objects.filter(pk=promo_id).first()
-                if promo:
-                    logger.info(f'[SELECCIONAR_BUTACAS] Aplicando promoción: {promo.codigo} tipo: {promo.tipo_descuento}')
-                    promocion_aplicada = promo
-                    promo_codigo = promo.codigo  # ✅ Guardar código de la promo
-                    
-                    if promo.tipo_descuento == '2X1':
-                        promo_2x1 = True  # ✅ Marcar como 2x1
-                        # Para 2x1: mostrar precio base, el descuento se aplica al total
-                        precio_mostrar = funcion.precio_base
-                        info_descuento = {
-                            'tipo': '2X1',
-                            'descripcion': f'🎉 {promo.nombre}: Pagás 1 y llevás 2 entradas',
-                            'precio_con_descuento': funcion.precio_base  # Se cobra 1 sola
-                        }
-                    elif promo.tipo_descuento == 'PORCENTAJE':
-                        # Aplicar porcentaje
-                        from decimal import Decimal, ROUND_HALF_UP
-                        porcentaje = Decimal(promo.valor_descuento or 0) / Decimal(100)
-                        precio_con_desc = (funcion.precio_base * (Decimal(1) - porcentaje)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                        precio_mostrar = precio_con_desc
-                        ahorro = funcion.precio_base - precio_con_desc
-                        info_descuento = {
-                            'tipo': 'PORCENTAJE',
-                            'descripcion': f'💰 {promo.nombre}: {promo.valor_descuento}% OFF (ahorrás ${ahorro})',
-                            'precio_con_descuento': precio_con_desc
-                        }
-                    elif promo.tipo_descuento == 'MONTO_FIJO':
-                        # Aplicar monto fijo
-                        from decimal import Decimal, ROUND_HALF_UP
-                        monto = Decimal(promo.valor_descuento or 0)
-                        precio_con_desc = (funcion.precio_base - monto).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                        if precio_con_desc < Decimal('0'):
-                            precio_con_desc = Decimal('0')
-                        precio_mostrar = precio_con_desc
-                        info_descuento = {
-                            'tipo': 'MONTO_FIJO',
-                            'descripcion': f'💰 {promo.nombre}: ${monto} OFF',
-                            'precio_con_descuento': precio_con_desc
-                        }
-            else:
-                # Token no válido o ya no existe, limpiar sesión
-                logger.info(f'[SELECCIONAR_BUTACAS] Cupón no válido, limpiando sesión')
-                request.session.pop('promo_activa_id', None)
-                request.session.pop('promo_token', None)
-                request.session.modified = True
+        # ── Paso 1: buscar mejor promo automática con jerarquía de especificidad ──
+        promo_auto, es_auto_especifica = obtener_mejor_promocion(funcion)
+
+        if es_auto_especifica:
+            # Promo de VÍNCULO ESPECÍFICO → máxima prioridad, cupones incompatibles
+            logger.info(f'[SELECCIONAR_BUTACAS] Promo específica activa: {promo_auto.codigo}. '
+                        f'Cupones de sesión descartados.')
+            # Limpiar cualquier cupón de sesión (son incompatibles)
+            request.session.pop('promo_activa_id', None)
+            request.session.pop('promo_token', None)
+            request.session.modified = True
+            promocion_aplicada = promo_auto
+            _aplicar_promo_en_contexto(promo_auto)
+
         else:
-            # Si no hay ambos valores, limpiar lo que haya
-            if promo_id or promo_token:
-                logger.info(f'[SELECCIONAR_BUTACAS] Sesión incompleta, limpiando')
+            # ── Paso 2: intentar cupón de sesión (solo si NO hay promo específica) ──
+            promo_id = request.session.get('promo_activa_id')
+            promo_token = request.session.get('promo_token')
+            logger.info(f'[SELECCIONAR_BUTACAS] promo_id sesión: {promo_id}, token: {promo_token}')
+
+            cupon_aplicado = False
+            if promo_id and promo_token:
+                if not getattr(request.user, 'es_perfil_completo', True):
+                    logger.info('[SELECCIONAR_BUTACAS] Cupón bloqueado: perfil incompleto')
+                    request.session.pop('promo_activa_id', None)
+                    request.session.pop('promo_token', None)
+                    request.session.modified = True
+                else:
+                    from promociones.models.cuponGenerado import CuponGenerado
+                    cupon = CuponGenerado.objects.filter(token=str(promo_token), usado=True).first()
+                    logger.info(f'[SELECCIONAR_BUTACAS] Cupón encontrado: {cupon is not None}')
+                    if cupon:
+                        promo = Promocion.objects.filter(pk=promo_id).first()
+                        if promo:
+                            logger.info(f'[SELECCIONAR_BUTACAS] Aplicando cupón: {promo.codigo}')
+                            promocion_aplicada = promo
+                            cupon_aplicado = True
+                            tipo = str(promo.tipo_descuento).upper().strip()
+                            promo_codigo = promo.codigo
+                            if tipo == '2X1':
+                                promo_2x1 = True
+                                info_descuento = {
+                                    'tipo': '2X1',
+                                    'descripcion': f'🎉 {promo.nombre}: Pagás 1 y llevás 2 entradas',
+                                    'precio_con_descuento': funcion.precio_base,
+                                }
+                            elif tipo == 'PORCENTAJE':
+                                pct = Decimal(promo.valor_descuento or 0) / Decimal(100)
+                                precio_con_desc = (funcion.precio_base * (Decimal(1) - pct)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                                precio_mostrar = precio_con_desc
+                                info_descuento = {
+                                    'tipo': 'PORCENTAJE',
+                                    'descripcion': f'💰 {promo.nombre}: {promo.valor_descuento}% OFF (ahorrás ${funcion.precio_base - precio_con_desc})',
+                                    'precio_con_descuento': precio_con_desc,
+                                }
+                            elif tipo == 'MONTO_FIJO':
+                                monto = Decimal(promo.valor_descuento or 0)
+                                precio_con_desc = max(funcion.precio_base - monto, Decimal('0.00')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                                precio_mostrar = precio_con_desc
+                                info_descuento = {
+                                    'tipo': 'MONTO_FIJO',
+                                    'descripcion': f'💰 {promo.nombre}: ${monto} OFF',
+                                    'precio_con_descuento': precio_con_desc,
+                                }
+                    else:
+                        logger.info('[SELECCIONAR_BUTACAS] Cupón no válido, limpiando sesión')
+                        request.session.pop('promo_activa_id', None)
+                        request.session.pop('promo_token', None)
+                        request.session.modified = True
+            elif promo_id or promo_token:
+                logger.info('[SELECCIONAR_BUTACAS] Sesión incompleta, limpiando')
                 request.session.pop('promo_activa_id', None)
                 request.session.pop('promo_token', None)
                 request.session.modified = True
-    except Exception as e:
-        # No romper la vista por error al calcular descuento
-        logger.exception('Error calculando descuento en seleccionar_butacas')
-        # Limpiar sesión en caso de error
+
+            # ── Paso 3: si no hubo cupón, usar la mejor promo global ──
+            if not cupon_aplicado and promo_auto:
+                logger.info(f'[SELECCIONAR_BUTACAS] Aplicando promo global: {promo_auto.codigo}')
+                promocion_aplicada = promo_auto
+                _aplicar_promo_en_contexto(promo_auto)
+
+    except Exception:
+        logger.exception('Error calculando promoción en seleccionar_butacas')
         request.session.pop('promo_activa_id', None)
         request.session.pop('promo_token', None)
         request.session.modified = True
-    
-    logger.info(f'[SELECCIONAR_BUTACAS] Resultado: precio={precio_mostrar}, tiene_descuento={info_descuento is not None}')
-    # ==============================================================================
-    # BLOQUE NUEVO: BUSCAR PROMOCIONES AUTOMÁTICAS (Si no hay cupón)
-    # ==============================================================================
-    if not promocion_aplicada:
-        # ✅ CORRECCIÓN CRÍTICA: Filtrar por fecha de HOY (día de compra), no fecha de función
-        # Esto previene que promociones futuras se apliquen en preventas
-        fecha_hoy = timezone.now().date()
-        
-        # Buscamos promos automáticas vigentes HOY
-        candidatas = Promocion.objects.filter(
-            es_automatica=True,
-            fecha_inicio__lte=fecha_hoy,
-            fecha_fin__gte=fecha_hoy
-        )
-        
-        from promociones.services import es_promocion_valida_para_funcion
-        
-        for p in candidatas:
-            if es_promocion_valida_para_funcion(p, funcion):
-                promocion_aplicada = p
-                
-                # Configurar visualización según tipo
-                tipo = str(p.tipo_descuento).upper().strip()
-                promo_codigo = p.codigo
-                
-                if tipo == '2X1':
-                    promo_2x1 = True
-                    info_descuento = {
-                        'tipo': '2X1',
-                        'descripcion': f'🎉 {p.nombre}: Pagás 1 y llevás 2',
-                        'precio_con_descuento': funcion.precio_base
-                    }
-                elif tipo == 'PORCENTAJE':
-                    from decimal import Decimal, ROUND_HALF_UP
-                    porcentaje = Decimal(p.valor_descuento or 0) / Decimal(100)
-                    precio_con_desc = (funcion.precio_base * (Decimal(1) - porcentaje)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                    precio_mostrar = precio_con_desc
-                    ahorro = funcion.precio_base - precio_con_desc
-                    info_descuento = {
-                        'tipo': 'PORCENTAJE',
-                        'descripcion': f'🔥 {p.nombre}: {int(p.valor_descuento)}% OFF (ahorrás ${ahorro})',
-                        'precio_con_descuento': precio_con_desc
-                    }
-                elif tipo == 'MONTO_FIJO':
-                     from decimal import Decimal, ROUND_HALF_UP
-                     monto = Decimal(p.valor_descuento or 0)
-                     precio_con_desc = (funcion.precio_base - monto).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                     if precio_con_desc < 0: precio_con_desc = 0
-                     precio_mostrar = precio_con_desc
-                     info_descuento = {
-                        'tipo': 'MONTO_FIJO',
-                        'descripcion': f'💰 {p.nombre}: ${monto} OFF',
-                        'precio_con_descuento': precio_con_desc
-                     }
-                
-                break # Encontramos una, nos quedamos con esa y salimos del bucle
-    
-    # Verificar si la función requiere butacas 4D (tiene formato 4DX o 4D en experiencia)
+
+    logger.info(f'[SELECCIONAR_BUTACAS] Resultado: precio={precio_mostrar}, promo={getattr(promocion_aplicada, "codigo", None)}')
+
+    # Verificar si la función requiere butacas 4D (tiene formato 4D o 4D en experiencia)
     requiere_4d = False
     try:
         from cine.models.funcion_formato import FuncionFormato
         formatos_funcion = FuncionFormato.objects.filter(funcion=funcion).select_related('formato')
         for ff in formatos_funcion:
-            # Verificar si el formato es 4DX, 4D o D-BOX en la categoría EXPERIENCIA
+            # Verificar si el formato es 4D, 4D o D-BOX en la categoría EXPERIENCIA
             formato_nombre_upper = ff.formato.nombre.upper()
             if ff.formato.categoria == 'EXPERIENCIA' and ('4D' in formato_nombre_upper or 'D-BOX' in formato_nombre_upper):
                 requiere_4d = True
@@ -264,6 +310,7 @@ def seleccionar_butacas(request, funcion_id):
         'mercadopago_public_key': settings.MERCADOPAGO_PUBLIC_KEY,
         'form_action_name': 'ventas:procesar_compra',
         'venta_id': None,
+        'provisional_venta_id': venta_provisional.id_venta if venta_provisional else None,
         'cantidad_requerida': None,
         'promo_2x1': promo_2x1,  # ✅ Usar el valor detectado (automática o por cupón)
         'promo_codigo': promo_codigo,  # ✅ Usar el valor detectado
@@ -297,6 +344,10 @@ def seleccionar_butacas_intercambio(request, venta_id, funcion_id):
     funcion = get_object_or_404(Funcion, id=funcion_id)
     sala = funcion.sala
 
+    if funcion.get_asientos_disponibles_reales() <= 0:
+        messages.error(request, 'La función está agotada. No hay butacas disponibles.')
+        return redirect('cine:cartelera')
+
     # Liberar reservas expiradas antes de calcular disponibilidad (check-on-access)
     try:
         liberar_reservas_expiradas()
@@ -322,7 +373,8 @@ def seleccionar_butacas_intercambio(request, venta_id, funcion_id):
             'numero': butaca.numero,
             'tipo': butaca.tipo,
             'es_pasillo': butaca.es_pasillo,
-            'ocupada': butaca.id in butacas_ocupadas
+            'ocupada': butaca.id in butacas_ocupadas,
+            'en_mantenimiento': butaca.en_mantenimiento,
         })
 
     filas_ordenadas = sorted(butacas_por_fila.items())
@@ -353,82 +405,88 @@ def seleccionar_butacas_intercambio(request, venta_id, funcion_id):
     except Exception:
         expiracion_iso = (timezone.now() + timedelta(minutes=int(tiempo_limite))).isoformat()
 
-    # Calcular precio con descuento SOLO si hay promoción activa desde link (con token válido)
+    # Calcular precio con descuento respetando la jerarquía de especificidad
     precio_mostrar = funcion.precio_base
     promocion_aplicada = None
     info_descuento = None
     promo_2x1 = False
     promo_codigo = None
-    
+
     try:
-        promo_id = request.session.get('promo_activa_id')
-        promo_token = request.session.get('promo_token')
-        
-        # Solo aplicar si hay tanto ID como token (viene de link activado)
-        if promo_id and promo_token:
-            from promociones.models.cuponGenerado import CuponGenerado
-            cupon = CuponGenerado.objects.filter(token=str(promo_token), usado=True).first()
-            
-            if cupon:
-                promo = Promocion.objects.filter(pk=promo_id).first()
-                if promo:
-                    promocion_aplicada = promo
-                    cantidad_venta = venta.entradas.count()
-                    
-                    if promo.tipo_descuento == '2X1':
-                        precio_mostrar = funcion.precio_base
-                        promo_2x1 = True
-                        promo_codigo = promo.codigo
-                        entradas_pagar = (cantidad_venta // 2) + (cantidad_venta % 2)
-                        total_con_desc = funcion.precio_base * entradas_pagar
-                        info_descuento = {
-                            'tipo': '2X1',
-                            'descripcion': f'🎉 {promo.nombre}: Pagás {entradas_pagar} y llevás {cantidad_venta} entradas',
-                            'precio_con_descuento': total_con_desc
-                        }
-                    elif promo.tipo_descuento == 'PORCENTAJE':
-                        from decimal import Decimal, ROUND_HALF_UP
-                        porcentaje = Decimal(promo.valor_descuento or 0) / Decimal(100)
-                        precio_con_desc = (funcion.precio_base * (Decimal(1) - porcentaje)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                        precio_mostrar = precio_con_desc
-                        ahorro = funcion.precio_base - precio_con_desc
-                        info_descuento = {
-                            'tipo': 'PORCENTAJE',
-                            'descripcion': f'💰 {promo.nombre}: {promo.valor_descuento}% OFF (ahorrás ${ahorro} por entrada)',
-                            'precio_con_descuento': precio_con_desc
-                        }
-                    elif promo.tipo_descuento == 'MONTO_FIJO':
-                        from decimal import Decimal, ROUND_HALF_UP
-                        monto = Decimal(promo.valor_descuento or 0)
-                        precio_con_desc = (funcion.precio_base - monto).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                        if precio_con_desc < Decimal('0'):
-                            precio_con_desc = Decimal('0')
-                        precio_mostrar = precio_con_desc
-                        info_descuento = {
-                            'tipo': 'MONTO_FIJO',
-                            'descripcion': f'💰 {promo.nombre}: ${monto} OFF por entrada',
-                            'precio_con_descuento': precio_con_desc
-                        }
-            else:
-                # Token no válido, limpiar sesión
-                request.session.pop('promo_activa_id', None)
-                request.session.pop('promo_token', None)
-                request.session.modified = True
-    except Exception as e:
+        from promociones.services import obtener_mejor_promocion
+        from decimal import Decimal, ROUND_HALF_UP
+
+        promo_auto, es_auto_especifica = obtener_mejor_promocion(funcion)
+
+        if es_auto_especifica:
+            # Promo de vínculo específico → descarta cupón de sesión
+            request.session.pop('promo_activa_id', None)
+            request.session.pop('promo_token', None)
+            request.session.modified = True
+            promocion_aplicada = promo_auto
+        else:
+            # Sin promo específica → aplicar cupón de sesión si existe
+            promo_id = request.session.get('promo_activa_id')
+            promo_token = request.session.get('promo_token')
+            if promo_id and promo_token:
+                from promociones.models.cuponGenerado import CuponGenerado
+                cupon = CuponGenerado.objects.filter(token=str(promo_token), usado=True).first()
+                if cupon:
+                    promo = Promocion.objects.filter(pk=promo_id).first()
+                    if promo:
+                        promocion_aplicada = promo
+                else:
+                    request.session.pop('promo_activa_id', None)
+                    request.session.pop('promo_token', None)
+                    request.session.modified = True
+            # Fallback: promo global si no hay cupón
+            if not promocion_aplicada and promo_auto:
+                promocion_aplicada = promo_auto
+
+        if promocion_aplicada:
+            cantidad_venta = venta.entradas.count()
+            tipo = str(promocion_aplicada.tipo_descuento).upper().strip()
+            promo_codigo = promocion_aplicada.codigo
+            if tipo == '2X1':
+                promo_2x1 = True
+                entradas_pagar = (cantidad_venta // 2) + (cantidad_venta % 2)
+                info_descuento = {
+                    'tipo': '2X1',
+                    'descripcion': f'🎉 {promocion_aplicada.nombre}: Pagás {entradas_pagar} y llevás {cantidad_venta} entradas',
+                    'precio_con_descuento': funcion.precio_base * entradas_pagar,
+                }
+            elif tipo == 'PORCENTAJE':
+                pct = Decimal(promocion_aplicada.valor_descuento or 0) / Decimal(100)
+                precio_con_desc = (funcion.precio_base * (Decimal(1) - pct)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                precio_mostrar = precio_con_desc
+                info_descuento = {
+                    'tipo': 'PORCENTAJE',
+                    'descripcion': f'💰 {promocion_aplicada.nombre}: {promocion_aplicada.valor_descuento}% OFF (ahorrás ${funcion.precio_base - precio_con_desc} por entrada)',
+                    'precio_con_descuento': precio_con_desc,
+                }
+            elif tipo == 'MONTO_FIJO':
+                monto = Decimal(promocion_aplicada.valor_descuento or 0)
+                precio_con_desc = max(funcion.precio_base - monto, Decimal('0.00')).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                precio_mostrar = precio_con_desc
+                info_descuento = {
+                    'tipo': 'MONTO_FIJO',
+                    'descripcion': f'💰 {promocion_aplicada.nombre}: ${monto} OFF por entrada',
+                    'precio_con_descuento': precio_con_desc,
+                }
+    except Exception:
         import logging
         logging.getLogger(__name__).exception('Error calculando descuento en seleccionar_butacas_intercambio')
-        # Limpiar sesión en caso de error
         request.session.pop('promo_activa_id', None)
         request.session.pop('promo_token', None)
         request.session.modified = True
 
-    # Verificar si la función requiere butacas 4D (tiene formato 4DX o 4D en experiencia)
+    # Verificar si la función requiere butacas 4D (tiene formato 4D o 4D en experiencia)
     requiere_4d = False
     try:
         from cine.models.funcion_formato import FuncionFormato
         formatos_funcion = FuncionFormato.objects.filter(funcion=funcion).select_related('formato')
         for ff in formatos_funcion:
-            # Verificar si el formato es 4DX, 4D o D-BOX en la categoría EXPERIENCIA
+            # Verificar si el formato es 4D, 4D o D-BOX en la categoría EXPERIENCIA
             formato_nombre_upper = ff.formato.nombre.upper()
             if ff.formato.categoria == 'EXPERIENCIA' and ('4D' in formato_nombre_upper or 'D-BOX' in formato_nombre_upper):
                 requiere_4d = True
@@ -479,10 +537,17 @@ def verificar_butacas_ocupadas(request, funcion_id):
                 estado__in=EstadoEntrada.ESTADOS_OCUPADOS
             ).values_list('id_butaca_id', flat=True)
         )
-        
+
+        # Obtener butacas en mantenimiento de esta sala
+        butacas_en_mantenimiento = list(
+            Butaca.objects.filter(sala=funcion.sala, en_mantenimiento=True)
+            .values_list('id', flat=True)
+        )
+
         return JsonResponse({
             'success': True,
-            'butacas_ocupadas': butacas_ocupadas
+            'butacas_ocupadas': butacas_ocupadas,
+            'butacas_en_mantenimiento': butacas_en_mantenimiento,
         })
     except Exception as e:
         import logging

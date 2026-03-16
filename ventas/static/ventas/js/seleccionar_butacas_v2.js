@@ -208,6 +208,7 @@ function actualizarResumen() {
             .then(function(data) {
                 if (data.success) {
                     const butacasOcupadasServidor = new Set(data.butacas_ocupadas);
+                    const butacasEnMantServidor = new Set(data.butacas_en_mantenimiento || []);
                     
                     const todosLosElementos = document.querySelectorAll('.butaca[data-butaca-id]');
                     todosLosElementos.forEach(function(butacaEl) {
@@ -240,6 +241,27 @@ function actualizarResumen() {
                         }
                         else if (!estaOcupadaServidor && estaOcupadaLocal) {
                             butacaEl.classList.remove('ocupada');
+                        }
+
+                        // Sincronizar estado de mantenimiento dinámicamente
+                        const enMantServidor = butacasEnMantServidor.has(butacaId);
+                        const enMantLocal = butacaEl.classList.contains('mantenimiento');
+                        if (enMantServidor && !enMantLocal) {
+                            butacaEl.classList.add('mantenimiento');
+                            butacaEl.removeAttribute('onclick');
+                            if (butacaEl.classList.contains('seleccionada')) {
+                                butacaEl.classList.remove('seleccionada');
+                                const fila = butacaEl.getAttribute('data-fila');
+                                const numero = butacaEl.getAttribute('data-numero');
+                                butacasSeleccionadas = butacasSeleccionadas.filter(function(b) {
+                                    return !(b.fila === fila && b.numero === numero);
+                                });
+                                const inp = document.querySelector('input[value="' + butacaId + '"]');
+                                if (inp) inp.remove();
+                                actualizarResumen();
+                            }
+                        } else if (!enMantServidor && enMantLocal) {
+                            butacaEl.classList.remove('mantenimiento');
                         }
                     });
                 }
@@ -283,7 +305,7 @@ function actualizarResumen() {
             animation: fadeIn 0.2s ease-out;
         `;
         
-        const tituloTexto = cantidadNecesaria ? '🔄 Procesando intercambio' : '💳 Procesando compra';
+        const tituloTexto = cantidadNecesaria ? '🔄 Procesando' : '💳 Procesando compra';
         
         overlay.innerHTML = `
             <div style="background: rgba(18, 18, 23, 0.95); padding: 30px 40px; border-radius: 16px; text-align: center; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4); border: 1px solid rgba(78, 205, 196, 0.3);">

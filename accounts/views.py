@@ -6,11 +6,10 @@ from django.views.generic import UpdateView, DeleteView, ListView, CreateView
 from django.urls import reverse_lazy, reverse
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.views.decorators.http import require_POST
-from .forms import CustomUserCreationForm, CustomAuthenticationForm, EmployeeCreationForm, EmployeeUpdateForm, ClienteProfileForm, AdminProfileForm
+from .forms import CustomUserCreationForm, CustomAuthenticationForm, EmployeeCreationForm, EmployeeUpdateForm, ClienteProfileForm, AdminProfileForm, CompletarPerfilGoogleForm, CustomPasswordChangeForm
 from core.services import notificacion_service
 from .models import Empleado # Importamos Empleado para la lista
 from django.http import JsonResponse, HttpResponseForbidden
-from django.views.generic.edit import UpdateView
 from django.contrib.auth.views import PasswordChangeView, PasswordChangeDoneView
 from django.utils import timezone
 from .models import Cliente
@@ -68,15 +67,26 @@ def login_view(request):
         form = CustomAuthenticationForm(request, data=request.POST)
         if form.is_valid():
             user = form.get_user()
+            is_first_login = user.last_login is None
             login(request, user)
             # Si es cliente y no aceptó marketing, activar prompt en sesión (no intrusivo)
             try:
                 if getattr(user, 'rol', None) == 'cliente':
                     cliente = getattr(user, 'cliente', None)
-                    if cliente and not getattr(cliente, 'acepta_marketing', False):
+                    acepta_marketing = bool(getattr(cliente, 'acepta_marketing', False))
+                    tiene_dni = bool(getattr(user, 'dni', None))
+
+                    if cliente and not acepta_marketing:
                         # Solo mostrar una vez por sesión
                         if not request.session.get('marketing_prompt_dismissed'):
                             request.session['show_marketing_optin'] = True
+
+                    # Primer inicio de sesión post-registro: mostrar modal de completar perfil
+                    # si falta DNI o consentimiento para cupones.
+                    if is_first_login and (not tiene_dni or not acepta_marketing):
+                        request.session.pop('dismiss_modal_completar_perfil', None)
+                        request.session['mostrar_modal_completar_perfil'] = True
+                        request.session['forzar_modal_completar_perfil_primera_sesion'] = True
             except Exception:
                 pass
 
@@ -141,6 +151,18 @@ def dismiss_marketing_prompt(request):
     return JsonResponse({'ok': True})
 
 
+@login_required
+@require_POST
+def dismiss_completar_perfil_prompt(request):
+    """Cierra el modal de completar perfil solo por la sesión actual."""
+    if getattr(request.user, 'rol', None) != 'cliente':
+        return HttpResponseForbidden()
+
+    request.session['dismiss_modal_completar_perfil'] = True
+    request.session.pop('mostrar_modal_completar_perfil', None)
+    return JsonResponse({'ok': True})
+
+
 class ProfileUpdateView(LoginRequiredMixin, UpdateView):
     """Vista para editar perfil - detecta automáticamente si es cliente o admin"""
     template_name = 'accounts/profile_form.html'
@@ -163,6 +185,8 @@ class ProfileUpdateView(LoginRequiredMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['titulo'] = 'Editar Perfil'
+        context['is_google_user'] = self.request.user.is_google_user
+        context['es_perfil_completo'] = self.request.user.es_perfil_completo
         return context
     
     def form_valid(self, form):
@@ -204,6 +228,20 @@ class EmployeeProfileUpdateView(LoginRequiredMixin, UpdateView):
 class MyPasswordChangeView(PasswordChangeView):
     template_name = 'accounts/password_change_form.html'
     success_url = reverse_lazy('accounts:password_change_done')
+    form_class = CustomPasswordChangeForm
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Agregar información sobre usuarios de Google
+        user = self.request.user
+        context['is_google_user'] = user.is_google_user if hasattr(user, 'is_google_user') else False
+        return context
+    
+    def form_valid(self, form):
+        """Superpone para agregar mensaje de éxito personalizado"""
+        response = super().form_valid(form)
+        messages.success(self.request, '✓ Tu contraseña ha sido cambiada exitosamente.')
+        return response
 
 
 class MyPasswordChangeDoneView(PasswordChangeDoneView):
@@ -241,11 +279,25 @@ class EmployeeCreateView(AdminRequiredMixin, CreateView):
         try:
             if not employee.has_usable_password():
                 import secrets
+                from django.core.mail import send_mail
+                from django.conf import settings as django_settings
                 pwd = secrets.token_urlsafe(8)
                 employee.set_password(pwd)
                 employee.save()
-                messages.info(self.request, f'Contraseña temporal generada para {employee.username}: {pwd}')
-
+                send_mail(
+                    subject='Acceso al sistema CineGest',
+                    message=(
+                        f'Hola {employee.get_full_name() or employee.username},\n\n'
+                        f'Tu cuenta de empleado ha sido creada.\n'
+                        f'Usuario: {employee.username}\n'
+                        f'Contraseña temporal: {pwd}\n\n'
+                        f'Por seguridad, cambia tu contraseña en el primer inicio de sesión.'
+                    ),
+                    from_email=getattr(django_settings, 'DEFAULT_FROM_EMAIL', None),
+                    recipient_list=[employee.email],
+                    fail_silently=True,
+                )
+                messages.info(self.request, f'Se envió la contraseña temporal al email de {employee.username}.')
         except Exception:
             # No bloquear creación por errores en generación de contraseña
             pass
@@ -299,9 +351,9 @@ class EmployeeDeleteView(AdminRequiredMixin, DeleteView):
     
     def delete(self, request, *args, **kwargs):
         employee = self.get_object()
-        messages.success(request, f'Empleado {employee.username} eliminado correctamente.')
-        # Al borrar el Usuario, el perfil Empleado se borra por 'on_delete=CASCADE'
-        return super().delete(request, *args, **kwargs)
+        employee.soft_delete(user=request.user)
+        messages.success(request, f'Empleado {employee.username} dado de baja correctamente.')
+        return redirect(self.success_url)
 
 # --- Vistas de Google (Sin cambios) ---
 def privacy_policy_view(request):
@@ -326,23 +378,17 @@ def dar_de_baja_cliente(request):
         messages.error(request, '❌ Esta acción solo está disponible para clientes.')
         return redirect('accounts:dashboard')
     
-    # Realizar baja lógica usando is_active (campo estándar de Django)
-    usuario.is_active = False
-    usuario.save()
-    
-    # Nota: Si el modelo Cliente tiene un campo fecha_baja, descomentar estas líneas:
-    # if hasattr(usuario, 'cliente'):
-    #     usuario.cliente.fecha_baja = timezone.now()
-    #     usuario.cliente.save()
-    
+    # Baja lógica usando el método centralizado del modelo
+    usuario.soft_delete(user=usuario)
+
     # Registrar en auditoría como ELIMINACIÓN (baja lógica = eliminación)
     try:
-        fecha_baja = timezone.now()
+        fecha_baja = usuario.fecha_baja or timezone.now()
         snapshot = {
             'username': usuario.username,
             'email': usuario.email,
-            'nombre': usuario.nombre,
-            'apellido': usuario.apellido,
+            'nombre': usuario.first_name,
+            'apellido': usuario.last_name,
             'rol': usuario.rol,
             'is_active': False,
             'fecha_baja': fecha_baja.isoformat(),
@@ -372,3 +418,108 @@ def dar_de_baja_cliente(request):
     )
     
     return redirect('cine:index')  # Redirigir a la página principal del cine
+
+
+# --- AJAX: Verificar disponibilidad de email en tiempo real ---
+def check_email_disponible(request):
+    """
+    Devuelve JSON indicando si el email está disponible.
+    GET /accounts/check-email/?email=tu@email.com
+    """
+    email = request.GET.get('email', '').strip().lower()
+    if not email:
+        return JsonResponse({'disponible': False, 'mensaje': 'Ingresa un email.'})
+
+    from django.core.validators import validate_email as django_validate_email
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    try:
+        django_validate_email(email)
+    except DjangoValidationError:
+        return JsonResponse({'disponible': False, 'mensaje': 'Formato de email no válido.'})
+
+    exclude_pk = request.user.pk if request.user.is_authenticated else None
+    qs = Usuario.all_objects.filter(email=email)
+    if exclude_pk:
+        qs = qs.exclude(pk=exclude_pk)
+
+    if qs.exists():
+        return JsonResponse({'disponible': False, 'mensaje': 'Email ya registrado por otro usuario.'})
+
+    return JsonResponse({'disponible': True, 'mensaje': 'Email disponible.'})
+
+
+# --- AJAX: Verificar disponibilidad de username en tiempo real ---
+def check_username_disponible(request):
+    """
+    Devuelve JSON indicando si el username está disponible.
+    GET /accounts/check-username/?username=juan123
+    """
+    username = request.GET.get('username', '').strip().lower()
+    if not username:
+        return JsonResponse({'disponible': False, 'mensaje': 'Ingresa un nombre de usuario.'})
+
+    if not username.isalnum():
+        return JsonResponse({'disponible': False, 'mensaje': 'Solo letras y números, sin espacios.'})
+
+    exclude_pk = request.user.pk if request.user.is_authenticated else None
+    qs = Usuario.all_objects.filter(username=username)
+    if exclude_pk:
+        qs = qs.exclude(pk=exclude_pk)
+
+    if qs.exists():
+        return JsonResponse({'disponible': False, 'mensaje': 'Nombre de usuario no disponible.'})
+
+    return JsonResponse({'disponible': True, 'mensaje': 'Nombre de usuario disponible.'})
+
+
+# --- Vista: Guardar datos del modal de completar perfil (clientes) ---
+@login_required
+@require_POST
+def completar_perfil_google(request):
+    """
+    Procesa el formulario del modal de completar perfil para clientes.
+    Guarda DNI, username (opcional), email y aceptación de marketing.
+    Requisito para promociones por cupones: DNI + acepta_marketing=True.
+    """
+    if getattr(request.user, 'rol', None) != 'cliente':
+        return JsonResponse({'ok': False, 'error': 'Solo disponible para clientes.'}, status=403)
+
+    form = CompletarPerfilGoogleForm(request.POST, user=request.user)
+    if form.is_valid():
+        if not form.cleaned_data.get('acepta_marketing', False):
+            return JsonResponse(
+                {
+                    'ok': False,
+                    'errores': {
+                        'acepta_marketing': 'Debes aceptar promociones/notificaciones para recibir cupones.'
+                    }
+                },
+                status=400,
+            )
+        from django.db import transaction as db_transaction
+        try:
+            with db_transaction.atomic():
+                usuario = request.user
+                usuario.dni = form.cleaned_data['dni']
+                new_username = form.cleaned_data.get('username')
+                if new_username:
+                    usuario.username = new_username.strip().lower()
+                new_email = form.cleaned_data.get('email')
+                if new_email:
+                    usuario.email = new_email
+                usuario.save(update_fields=['dni', 'username', 'email'])
+
+                # Actualizar acepta_marketing en el perfil de cliente
+                if hasattr(usuario, 'cliente'):
+                    usuario.cliente.acepta_marketing = form.cleaned_data.get('acepta_marketing', False)
+                    usuario.cliente.save(update_fields=['acepta_marketing'])
+
+            request.session.pop('mostrar_modal_completar_perfil', None)
+            request.session.pop('forzar_modal_completar_perfil_primera_sesion', None)
+            return JsonResponse({'ok': True})
+        except Exception as e:
+            return JsonResponse({'ok': False, 'error': 'Error al guardar. Intenta de nuevo.'}, status=500)
+    else:
+        # Retornar errores del formulario como JSON
+        errores = {field: errs[0] for field, errs in form.errors.items()}
+        return JsonResponse({'ok': False, 'errores': errores}, status=400)

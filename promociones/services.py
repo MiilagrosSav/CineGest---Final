@@ -66,16 +66,25 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
         # Fallback: sin descuento
         return total_original
 
-    # 1) Si viene promoción específica (cupón/session), validar vigencia antes de aplicar
+    # 1) Si viene promoción específica (cupón/session), aplicar directamente.
+    # El llamador (yield management, intercambio, sesión activada) ya validó la
+    # elegibilidad del cliente/función al generar el cupón. Re-validar aquí con
+    # es_promocion_valida_para_funcion puede producir falsos negativos (sin vínculos,
+    # días de semana, géneros, etc.) que no corresponden al flujo de cupón personalizado.
+    # Solo se verifica que la promo no fue globalmente desactivada por un admin.
     if promocion_especifica:
+        print(f"[YIELD DEBUG] calcular_precio_final: promo_especifica='{promocion_especifica.codigo}' "
+              f"tipo={promocion_especifica.tipo_descuento} es_automatica={promocion_especifica.es_automatica} "
+              f"activo={promocion_especifica.activo} "
+              f"vigencia={promocion_especifica.fecha_inicio}→{promocion_especifica.fecha_fin}")
         logger.info(f'[PROMO] Aplicando promoción específica: {promocion_especifica.codigo}')
-        
-        # Validar que la promoción sigue siendo válida
-        if not es_promocion_valida_para_funcion(promocion_especifica, funcion):
-            logger.warning(f'[PROMO] Promoción específica {promocion_especifica.codigo} NO es válida para función {funcion.pk} (expirada o no aplica). Aplicando precio normal.')
-            detalle['aviso'] = f'La promoción "{promocion_especifica.nombre}" no es válida para esta función.'
+
+        if not getattr(promocion_especifica, 'activo', True):
+            print(f"[YIELD DEBUG] Promo '{promocion_especifica.codigo}' está INACTIVA. Precio normal.")
+            logger.warning(f'[PROMO] Promo específica {promocion_especifica.codigo} está inactiva. Precio normal.')
+            detalle['aviso'] = f'La promoción "{promocion_especifica.nombre}" fue desactivada.'
             return total_original, None, detalle
-        
+
         promo_aplicada = promocion_especifica
         total_final = _total_con_promocion(promo_aplicada)
         detalle['ahorro'] = total_original - total_final
@@ -84,67 +93,27 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
         detalle['precio_unitario_final'] = (total_final / cantidad).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) if cantidad > 0 else precio_base
         if detalle['tipo_aplicado'] == '2X1' and (cantidad % 2 != 0):
             detalle['aviso'] = 'Tenés 2x1: agregá una entrada más para aprovecharla al máximo.'
+        print(f"[YIELD DEBUG] calcular_precio_final resultado: total={total_final} ahorro={detalle['ahorro']}")
         logger.info(f'[PROMO] Total: ${total_final}, Ahorro: ${detalle["ahorro"]}')
         return total_final, promo_aplicada, detalle
 
-    # 2) Buscar promociones automáticas válidas para la función
-    # ✅ CORRECCIÓN: Filtrar por activo=True y fecha_baja__isnull=True explícitamente
-    # Aunque objects usa ActiveManager que filtra activo=True, agregamos fecha_baja por seguridad
-    candidatos = list(Promocion.objects.filter(
-        es_automatica=True,
-        activo=True,
-        fecha_baja__isnull=True
-    ))
-    logger.info(f'[PROMO] Evaluando {len(candidatos)} promociones automáticas activas')
-    
-    candidatos_validos = []
-    for p in candidatos:
-        logger.warning(f'🔍 [PROMO] ===== EVALUANDO PROMOCIÓN: {p.codigo} (ID={p.pk}) =====')
-        logger.warning(f'🔍 [PROMO] Nombre: {p.nombre}')
-        logger.warning(f'🔍 [PROMO] Tipo: {p.tipo_descuento} | Valor: {p.valor_descuento}')
-        logger.warning(f'🔍 [PROMO] Vigencia: {p.fecha_inicio} a {p.fecha_fin}')
-        logger.warning(f'🔍 [PROMO] Días semana: "{p.dias_semana}"')
-        logger.warning(f'🔍 [PROMO] Es automática: {p.es_automatica}')
-        logger.warning(f'🔍 [PROMO] Activo: {p.activo} | Fecha baja: {p.fecha_baja}')
-        
-        # ✅ Validar todas las reglas (fechas, días, género, formatos, vínculos, etc.)
-        # La función es_promocion_valida_para_funcion() ya incluye TODAS las validaciones
-        if not es_promocion_valida_para_funcion(p, funcion):
-            logger.warning(f'❌ [PROMO] {p.codigo} NO válida según reglas de validación')
-            continue
+    # 2) Buscar mejor promoción automática con jerarquía de especificidad
+    # Prioridad 1: promos con VinculoPromocional → Prioridad 2: globales.
+    # Si existen promos específicas, las globales son ignoradas (Regla de Oro).
+    logger.info(f'[PROMO] Buscando mejor promoción automática con prioridad...')
+    promo_aplicada, es_especifica = obtener_mejor_promocion(funcion)
 
-        candidatos_validos.append(p)
-        logger.warning(f'✅ [PROMO] {p.codigo} es candidata VÁLIDA')
-        logger.warning(f'🔍 [PROMO] =================================================')
-
-    if not candidatos_validos:
-        # No hay promociones automáticas aplicables
+    if not promo_aplicada:
         logger.warning(f'❌ [PROMO] No hay promociones válidas. Precio regular: ${total_original}')
         logger.warning(f'🔍 [PROMO] ====== FIN DEBUG PROMOCIONES ======')
         detalle['descripcion'] = 'Precio regular'
         detalle['precio_unitario_final'] = precio_base
         return total_original, None, detalle
 
-    # 3) Elegir la promoción que deje el total más bajo (mayor beneficio)
-    logger.warning(f'🔍 [PROMO] Eligiendo mejor promoción entre {len(candidatos_validos)} candidatas...')
-    mejores = []
-    for p in candidatos_validos:
-        try:
-            total_p = _total_con_promocion(p)
-            mejores.append((total_p, p))
-            logger.warning(f'   - {p.codigo}: ${total_p} (ahorro: ${total_original - total_p})')
-        except Exception:
-            logger.exception('Error calculando total para promoción %s', getattr(p, 'pk', None))
+    logger.warning(f'✅ [PROMO] APLICANDO: {promo_aplicada.codigo} ({promo_aplicada.nombre})'
+                   f' | específica={es_especifica}')
 
-    if not mejores:
-        logger.warning(f'❌ [PROMO] Error calculando promociones. Precio regular.')
-        logger.warning(f'🔍 [PROMO] ====== FIN DEBUG PROMOCIONES ======')
-        detalle['descripcion'] = 'Precio regular'
-        detalle['precio_unitario_final'] = precio_base
-        return total_original, None, detalle
-
-    mejores.sort(key=lambda x: x[0])
-    total_final, promo_aplicada = mejores[0]
+    total_final = _total_con_promocion(promo_aplicada)
 
     detalle['ahorro'] = total_original - total_final
     detalle['tipo_aplicado'] = (promo_aplicada.tipo_descuento or '').upper()
@@ -159,6 +128,106 @@ def calcular_precio_final(funcion, cantidad_entradas, promocion_especifica=None)
     return total_final, promo_aplicada, detalle
 
     # Fin de calcular_precio_final
+
+
+def tiene_vinculo_especifico(promocion) -> bool:
+    """
+    Devuelve True si la promoción tiene al menos un VinculoPromocional
+    (está ligada a una película o función concreta).
+    Las promos sin vínculos se consideran 'globales'.
+    """
+    from promociones.models.vinculo_promocional import VinculoPromocional
+    return VinculoPromocional.objects.filter(promocion=promocion).exists()
+
+
+def obtener_mejor_promocion(funcion):
+    """
+    Busca la MEJOR promoción automática para una función siguiendo la jerarquía
+    de especificidad:
+
+    Prioridad 1 (Alta): Promociones con Vínculo Específico (vinculadas a esta
+                        función o película).
+    Prioridad 2 (Baja): Promociones Globales (sin VinculoPromocional).
+
+    Regla de Oro: si existen promos específicas, las globales son ignoradas
+    completamente — no se suman ni se usan como fallback.
+
+    Dentro de cada nivel se elige la que produce el mayor ahorro (menor costo
+    unitario al cliente).
+
+    Retorna: (Promocion | None, es_especifica: bool)
+    """
+    from promociones.models.promocion import Promocion
+    from decimal import Decimal
+
+    candidatos = list(Promocion.objects.filter(
+        es_automatica=True,
+        activo=True,
+        fecha_baja__isnull=True,
+    ))
+
+    validas = [p for p in candidatos if es_promocion_valida_para_funcion(p, funcion)]
+    if not validas:
+        return None, False
+
+    precio_base = Decimal(funcion.precio_base)
+
+    def _unit_cost(promo):
+        tipo = (promo.tipo_descuento or '').upper().strip()
+        if tipo == '2X1':
+            return precio_base / Decimal(2)
+        if tipo == 'PORCENTAJE':
+            pct = Decimal(promo.valor_descuento or 0) / Decimal(100)
+            return precio_base * (Decimal(1) - pct)
+        if tipo == 'MONTO_FIJO':
+            unit = precio_base - Decimal(promo.valor_descuento or 0)
+            return max(unit, Decimal('0.00'))
+        return precio_base
+
+    # Separar por especificidad
+    especificas = [p for p in validas if tiene_vinculo_especifico(p)]
+    globales    = [p for p in validas if not tiene_vinculo_especifico(p)]
+
+    # Regla de Oro: si hay específicas, las globales no compiten
+    pool = especificas if especificas else globales
+    if not pool:
+        return None, False
+
+    best = min(pool, key=_unit_cost)
+    return best, bool(especificas)
+
+
+def obtener_mejor_promocion_global(funcion):
+    """Retorna la mejor promoción automática GLOBAL (sin vínculo específico) para una función."""
+    from promociones.models.promocion import Promocion
+    from decimal import Decimal
+
+    candidatos = list(Promocion.objects.filter(
+        es_automatica=True,
+        activo=True,
+        fecha_baja__isnull=True,
+    ))
+
+    validas = [p for p in candidatos if es_promocion_valida_para_funcion(p, funcion)]
+    globales = [p for p in validas if not tiene_vinculo_especifico(p)]
+    if not globales:
+        return None
+
+    precio_base = Decimal(funcion.precio_base)
+
+    def _unit_cost(promo):
+        tipo = (promo.tipo_descuento or '').upper().strip()
+        if tipo == '2X1':
+            return precio_base / Decimal(2)
+        if tipo == 'PORCENTAJE':
+            pct = Decimal(promo.valor_descuento or 0) / Decimal(100)
+            return precio_base * (Decimal(1) - pct)
+        if tipo == 'MONTO_FIJO':
+            unit = precio_base - Decimal(promo.valor_descuento or 0)
+            return max(unit, Decimal('0.00'))
+        return precio_base
+
+    return min(globales, key=_unit_cost)
 
 
 def es_promocion_valida_para_funcion(promocion, funcion) -> bool:
@@ -185,15 +254,21 @@ def es_promocion_valida_para_funcion(promocion, funcion) -> bool:
         fecha_funcion = funcion.fecha_hora.date()
         
         if promocion.fecha_inicio and promocion.fecha_fin:
-            # Verificar vigencia HOY (día de la compra)
-            vigente_hoy = promocion.fecha_inicio <= fecha_hoy <= promocion.fecha_fin
-            logger.warning(f'🔍 [VALIDACION] Vigencia HOY: {promocion.fecha_inicio} <= {fecha_hoy} (hoy) <= {promocion.fecha_fin} = {vigente_hoy}')
-            
-            if not vigente_hoy:
-                logger.warning(f'❌ [VALIDACION] {promocion.codigo} NO vigente hoy ({fecha_hoy}). Inicia: {promocion.fecha_inicio}')
+            # Verificar vigencia en la FECHA DE LA FUNCIÓN (no en la fecha de compra):
+            # una promo puede estar configurada para el día de la función aunque se compre antes.
+            vigente_en_funcion = promocion.fecha_inicio <= fecha_funcion <= promocion.fecha_fin
+            logger.warning(
+                f'🔍 [VALIDACION] Vigencia en función: {promocion.fecha_inicio} <= {fecha_funcion} (func) <= {promocion.fecha_fin} = {vigente_en_funcion}'
+            )
+
+            if not vigente_en_funcion:
+                logger.warning(
+                    f'❌ [VALIDACION] {promocion.codigo} NO vigente en fecha de función ({fecha_funcion}). '
+                    f'Rango: {promocion.fecha_inicio} – {promocion.fecha_fin}'
+                )
                 return False
-            
-            logger.warning(f'✅ [VALIDACION] Promoción vigente hoy')
+
+            logger.warning(f'✅ [VALIDACION] Promoción vigente en fecha de función')
         else:
             logger.warning(f'🔍 [VALIDACION] Sin restricción de fechas')
 
@@ -264,27 +339,38 @@ def es_promocion_valida_para_funcion(promocion, funcion) -> bool:
         # Si la promoción tiene formatos específicos configurados, la función debe tener al menos uno de ellos
         formatos_promo = promocion.formatos_aplicables.all()
         if formatos_promo.exists():
-            # Obtener formatos de la función
+            # Regla de negocio:
+            # - STANDARD es neutro (no bloquea ni habilita por si solo).
+            # - Todos los formatos relevantes de la función deben estar cubiertos por la promo.
+            #   funcion_relevantes ⊆ formatos_promo.
             from cine.models.funcion_formato import FuncionFormato
-            formatos_funcion = FuncionFormato.objects.filter(funcion=funcion).values_list('formato_id', flat=True)
-            formatos_funcion_ids = set(formatos_funcion)
+            formatos_funcion = FuncionFormato.objects.filter(funcion=funcion).select_related('formato')
             formatos_promo_ids = set(formatos_promo.values_list('id', flat=True))
-            
+
+            formatos_funcion_relevantes_ids = set()
+            formatos_funcion_relevantes_nombres = []
+            for ff in formatos_funcion:
+                nombre_formato = (ff.formato.nombre or '').strip().upper()
+                if 'STANDARD' in nombre_formato:
+                    continue
+                formatos_funcion_relevantes_ids.add(ff.formato_id)
+                formatos_funcion_relevantes_nombres.append(ff.formato.nombre)
+
             logger.warning(f'🔍 [VALIDACION] Formatos de promoción: {[f.nombre for f in formatos_promo]}')
-            logger.warning(f'🔍 [VALIDACION] Formatos de función #{funcion.pk}: {list(FuncionFormato.objects.filter(funcion=funcion).values_list("formato__nombre", flat=True))}')
-            
-            # Verificar si hay al menos un formato en común
-            tiene_formato_comun = bool(formatos_funcion_ids & formatos_promo_ids)
-            
-            if not tiene_formato_comun:
-                logger.warning(f'❌ [VALIDACION] {promocion.codigo} requiere formatos {[f.nombre for f in formatos_promo]} pero la función no los tiene')
-                logger.warning(f'❌ [VALIDACION] RECHAZADA por formatos incompatibles')
-                logger.warning(f'🔍 [VALIDACION] ================================================')
+            logger.warning(f'🔍 [VALIDACION] Formatos relevantes de función #{funcion.pk}: {formatos_funcion_relevantes_nombres}')
+
+            if not formatos_funcion_relevantes_ids.issubset(formatos_promo_ids):
+                logger.warning(
+                    f'❌ [VALIDACION] {promocion.codigo} no cubre todos los formatos relevantes de la función '
+                    f'(STANDARD se ignora).'
+                )
+                logger.warning('❌ [VALIDACION] RECHAZADA por formatos incompatibles')
+                logger.warning('🔍 [VALIDACION] ================================================')
                 return False
-            
-            logger.warning(f'✅ [VALIDACION] {promocion.codigo} tiene formato compatible')
+
+            logger.warning(f'✅ [VALIDACION] {promocion.codigo} cubre todos los formatos relevantes de la función')
         else:
-            logger.warning(f'🔍 [VALIDACION] Sin restricción de formatos (aplica a todos)')
+            logger.warning('🔍 [VALIDACION] Sin restricción de formatos (aplica a todos)')
 
         # ✅ VALIDACIÓN DE VÍNCULOS ESPECÍFICOS (CRÍTICO)
         # Si la promoción tiene vínculos específicos, debe estar vinculada a esta función o película
@@ -334,6 +420,7 @@ def es_promocion_valida_para_funcion(promocion, funcion) -> bool:
 from datetime import time
 from datetime import timedelta
 from typing import Optional
+from django.db import transaction
 from django.db.models import Q
 from django.conf import settings
 from core.services import notificacion_service
@@ -355,7 +442,7 @@ def _hora_en_rango(hora_obj: time, inicio: time, fin: time) -> bool:
     return hora_obj >= inicio or hora_obj <= fin
 
 
-def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente] = None):
+def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente] = None, ignorar_ventana: bool = False):
     """
     Flujo exacto solicitado:
 
@@ -377,13 +464,28 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
     hora_funcion = funcion_objeto.fecha_hora.time()
 
     # Excluir políticas con activar_por_ocupacion=True (esas son solo para el cron)
-    politicas = PoliticaPromocion.objects.filter(activa=True, activar_por_ocupacion=False)
+    # Además filtrar por promoción vigente: activo=True Y fecha_fin >= hoy,
+    # para que promociones vencidas naturalmente no disparen políticas aunque
+    # la política aún figure como activa=True en BD.
+    _hoy = timezone.now().date()
+    politicas = PoliticaPromocion.objects.filter(
+        activa=True,
+        activar_por_ocupacion=False,
+        promocion_a_otorgar__activo=True,
+        promocion_a_otorgar__fecha_fin__gte=_hoy,
+    )
     # Filtrar por género: si la película tiene géneros, permitir políticas cuyo genero_pelicula
     # esté en esa lista o políticas sin género especificado.
     if pelicula_generos:
         politicas = politicas.filter(models.Q(genero_pelicula__in=pelicula_generos) | models.Q(genero_pelicula__isnull=True))
 
     respuestas = []
+
+    total_politicas_activas = politicas.count()
+    logger.info('[INTERCAMBIO-PROMO] Función %s | Película: "%s" | Géneros: %s | Hora: %s',
+                funcion_objeto.pk, pelicula.titulo,
+                [g.nombre for g in pelicula_generos], hora_funcion)
+    logger.info('[INTERCAMBIO-PROMO] Políticas activas encontradas (sin filtro horario): %d', total_politicas_activas)
 
     # Recolectar políticas que además cumplan rango horario y día
     weekday = funcion_objeto.fecha_hora.weekday()  # 0=Monday .. 6=Sunday
@@ -408,8 +510,15 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
         # Si llega aquí, la política coincide en género, horario y día
         politicas_match.append(politica)
 
+    logger.info('[INTERCAMBIO-PROMO] Políticas que coinciden en horario+día+género: %d', len(politicas_match))
+    for pm in politicas_match:
+        logger.info('  -> Política "%s" (ID=%s, prioridad=%s)', pm.nombre, pm.pk, pm.prioridad)
+
     # Si no hay políticas coincidentes, devolvemos vacío
     if not politicas_match:
+        logger.warning('[INTERCAMBIO-PROMO] Sin políticas coincidentes para función %s. '
+                       'Verificar rangos horarios (%s), días de semana (weekday=%d) y géneros.',
+                       funcion_objeto.pk, hora_funcion, weekday)
         return respuestas
 
     # Para el envío de emails sólo consideramos políticas cuya promoción asociada
@@ -418,16 +527,57 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
     politicas_para_envio = []
     for p in politicas_match:
         try:
-            if not getattr(getattr(p, 'promocion_a_otorgar', None), 'es_automatica', True):
+            promo = getattr(p, 'promocion_a_otorgar', None)
+            if promo is None:
+                logger.warning('[INTERCAMBIO-PROMO] Política "%s" (ID=%s) sin promoción asignada, omitiendo.', p.nombre, p.pk)
+                continue
+
+            # Validación lazy de vigencia: si la promoción expiró o fue desactivada
+            # sin que nadie guardara el modelo, la detectamos aquí y desactivamos la política.
+            promo_vencida = (
+                not promo.activo
+                or (promo.fecha_fin is not None and promo.fecha_fin < timezone.now().date())
+            )
+            if promo_vencida:
+                logger.warning(
+                    '[INTERCAMBIO-PROMO] Política "%s" (ID=%s): su promoción "%s" está inactiva/vencida '
+                    '(activo=%s, fecha_fin=%s). Auto-desactivando política.',
+                    p.nombre, p.pk, promo.codigo, promo.activo, promo.fecha_fin,
+                )
+                PoliticaPromocion.objects.filter(pk=p.pk).update(activa=False)
+                continue
+
+            if not promo.es_automatica:
                 politicas_para_envio.append(p)
         except Exception:
             # En caso de error leyendo la promoción, omitir esta política para envío
             logger.exception('Error leyendo promocion_a_otorgar para PoliticaPromocion %s', getattr(p, 'pk', None))
 
+    logger.info('[INTERCAMBIO-PROMO] Políticas con promociones tipo cupón (es_automatica=False): %d', len(politicas_para_envio))
     if not politicas_para_envio:
         # No hay políticas con promociones tipo cupón aplicables -> no enviamos
-        logger.info('No hay PoliticaPromocion con promociones no automáticas aplicables para la función %s', getattr(funcion_objeto, 'pk', None))
+        logger.warning('[INTERCAMBIO-PROMO] NINGUNA política tiene una promoción tipo cupón (es_automatica=False). '
+                       'Verificar que la promoción asignada en PoliticaPromocion tenga es_automatica=False. '
+                       'Políticas evaluadas: %s',
+                       [(p.nombre, getattr(p.promocion_a_otorgar, 'codigo', 'N/A'),
+                         getattr(p.promocion_a_otorgar, 'es_automatica', 'N/A')) for p in politicas_match])
         return respuestas
+
+    # ─── Regla de Exclusión de Cupones ───────────────────────────────────────
+    # Si la función ya tiene una promoción automática de Vínculo Específico activa,
+    # los cupones (de intercambio/ocupación) son incompatibles: no se envían.
+    try:
+        promo_auto, es_auto_especifica = obtener_mejor_promocion(funcion_objeto)
+        if es_auto_especifica:
+            logger.info(
+                '[INTERCAMBIO-PROMO] Función %s tiene promo de vínculo específico activa (%s). '
+                'Cupones omitidos por incompatibilidad.',
+                funcion_objeto.pk, getattr(promo_auto, 'codigo', ''))
+            respuestas.append({'politica': None, 'status': 'bloqueado_por_vinculo_especifico'})
+            return respuestas
+    except Exception:
+        logger.exception('[INTERCAMBIO-PROMO] Error verificando promo específica para función %s', funcion_objeto.pk)
+    # ─────────────────────────────────────────────────────────────────────────
 
     # Ordenar por prioridad: 1 = máxima prioridad (primero), números altos = menor prioridad (último)
     # En caso de empate, se usa -p.id (IDs más recientes primero)
@@ -443,8 +593,10 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
     # Tomamos la ganadora (la primera de la lista)
     politica = politicas_ordenadas[0]
     # YIELD MANAGEMENT: Filtro de tiempo
-    # Si la política define horas_antes_de_funcion, verificar que estemos dentro de la ventana de urgencia
-    if politica.horas_antes_de_funcion:
+    # Si la política define horas_antes_de_funcion, verificar que estemos dentro de la ventana de urgencia.
+    # Se omite este chequeo cuando la llamada viene de un intercambio (ignorar_ventana=True),
+    # ya que cuando una butaca se libera hay que notificar de inmediato sin importar la antelación.
+    if politica.horas_antes_de_funcion and not ignorar_ventana:
         ahora = timezone.now()
         horas_restantes = (funcion_objeto.fecha_hora - ahora).total_seconds() / 3600
         
@@ -459,32 +611,52 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
     logger.debug('procesar_butaca_liberada: politica_elegida=%s, promocion=%s, promocion_es_automatica=%s', getattr(politica, 'pk', None), getattr(promocion, 'pk', None), getattr(promocion, 'es_automatica', None))
 
     # Verificar existencia en VinculoPromocional
-    aplica = VinculoPromocional.objects.filter(promocion=promocion).filter(
-        Q(funcion=funcion_objeto) | Q(pelicula=pelicula)
-    ).exists()
-
-    if not aplica:
-        # Fallback: permitir la promoción si no está vinculada explícitamente pero
-        # la promoción no especifica un género o su genero_requerido coincide con la película.
-        try:
-            genero_req = getattr(promocion, 'genero_requerido', None)
-            if genero_req is None:
-                aplica = True
-                logger.debug('Fallback: promocion %s no vinculada pero sin genero_requerido -> aplicar', promocion.pk)
-            else:
-                if pelicula.generos.filter(pk=genero_req.pk).exists():
+    # Para promociones tipo cupón (es_automatica=False): el vínculo no es obligatorio;
+    # se verifica solo el genero_requerido si fue configurado.
+    # Para promociones automáticas (es_automatica=True): debe tener vínculo explícito.
+    es_automatica = getattr(promocion, 'es_automatica', False)
+    if es_automatica:
+        aplica = VinculoPromocional.objects.filter(promocion=promocion).filter(
+            Q(funcion=funcion_objeto) | Q(pelicula=pelicula)
+        ).exists()
+        if not aplica:
+            # Fallback: si no hay vínculo explícito, intentar por genero_requerido
+            try:
+                genero_req = getattr(promocion, 'genero_requerido', None)
+                if genero_req is None:
                     aplica = True
-                    logger.debug('Fallback: promocion %s no vinculada pero genero_requerido coincide -> aplicar', promocion.pk)
-        except Exception:
-            logger.exception('Error evaluando fallback para promocion %s en funcion %s', getattr(promocion, 'pk', None), getattr(funcion_objeto, 'pk', None))
+                    logger.debug('Fallback: promocion %s no vinculada pero sin genero_requerido -> aplicar', promocion.pk)
+                else:
+                    if pelicula.generos.filter(pk=genero_req.pk).exists():
+                        aplica = True
+                        logger.debug('Fallback: promocion %s no vinculada pero genero_requerido coincide -> aplicar', promocion.pk)
+            except Exception:
+                logger.exception('Error evaluando fallback para promocion %s en funcion %s', getattr(promocion, 'pk', None), getattr(funcion_objeto, 'pk', None))
+    else:
+        # Cupón no-automático: verificar solo genero_requerido si está configurado
+        genero_req = getattr(promocion, 'genero_requerido', None)
+        if genero_req is None:
+            aplica = True
+        else:
+            aplica = pelicula.generos.filter(pk=genero_req.pk).exists()
+            if not aplica:
+                logger.info('Promo cupón %s: genero_requerido=%s no coincide con géneros de la película', promocion.pk, genero_req)
+
+    logger.info('procesar_butaca_liberada: aplica=%s (es_automatica=%s) para promocion %s', aplica, es_automatica, getattr(promocion, 'pk', None))
 
     if not aplica:
         respuestas.append({'politica': politica, 'status': 'promo_no_valida'})
         logger.info('promocion %s no aplicable a funcion %s; abortando envio', getattr(promocion, 'pk', None), getattr(funcion_objeto, 'pk', None))
         return respuestas
 
-    # Targeting: buscar clientes que hayan visto el mismo género O hayan asistido en el mismo rango horario
-    candidatos = Cliente.objects.filter(ventas__entradas__isnull=False)
+    # Targeting: buscar clientes con historial y elegibles para cupones.
+    # Reglas de elegibilidad de cupones: DNI cargado + consentimiento de marketing/notificaciones.
+    candidatos = Cliente.objects.filter(
+        ventas__entradas__isnull=False,
+        acepta_marketing=True,
+        usuario__is_active=True,
+        usuario__dni__isnull=False,
+    ).exclude(usuario__dni__exact='')
     if pelicula_generos:
         candidatos = candidatos.filter(
             Q(ventas__entradas__id_pelicula__generos__in=pelicula_generos) |
@@ -504,7 +676,20 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
 
     enviados = 0
     total_candidatos = candidatos.count()
-    logger.info('procesar_butaca_liberada: politica=%s promocion=%s candidatos=%d (excluido=%s) politicas_match=%s', getattr(politica, 'pk', None), getattr(promocion, 'pk', None), total_candidatos, getattr(cliente_excluido, 'pk', None) if cliente_excluido else None, [p.pk for p in politicas_match])
+    logger.info('[INTERCAMBIO-PROMO] === RESUMEN PRE-ENVÍO ===')
+    logger.info('[INTERCAMBIO-PROMO] Política elegida: "%s" (ID=%s, prioridad=%d)',
+                politica.nombre, politica.pk, politica.prioridad)
+    logger.info('[INTERCAMBIO-PROMO] Promoción a otorgar: "%s" (código=%s, es_automatica=%s)',
+                getattr(promocion, 'nombre', 'N/A'), getattr(promocion, 'codigo', 'N/A'),
+                getattr(promocion, 'es_automatica', 'N/A'))
+    logger.info('[INTERCAMBIO-PROMO] Token UUID: se generará con uuid.uuid4 por defecto del modelo')
+    logger.info('[INTERCAMBIO-PROMO] Candidatos encontrados: %d (cliente excluido: %s)',
+                total_candidatos, getattr(cliente_excluido, 'pk', None) if cliente_excluido else 'ninguno')
+    logger.info('[INTERCAMBIO-PROMO] politicas_match=%s', [p.pk for p in politicas_match])
+    if total_candidatos == 0:
+        logger.warning('[INTERCAMBIO-PROMO] Sin candidatos. Verificar que existan Clientes con Ventas+Entradas '
+                       'que coincidan con género=%s o rango horario [%s - %s].',
+                       [g.nombre for g in pelicula_generos], politica.hora_inicio_rango, politica.hora_fin_rango)
 
     for cliente in candidatos:
         # TODO: DESCOMENTAR EN PRODUCCIÓN - Verificar límite de cupones activos por cliente (max 3)
@@ -520,11 +705,18 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
         #     continue
         
         try:
-            # ✅ CORRECCIÓN: Usar transaction.atomic() para garantizar integridad
-            with models.transaction.atomic():
-                # calcular expiración
+            # Sólo enviar si la promoción asociada no es automática (es_automatica == False).
+            # (Chequeo defensivo: politicas_para_envio ya filtró esto, pero por seguridad)
+            if getattr(promocion, 'es_automatica', False):
+                logger.info('Promocion %s es automática; no se envía email de oferta.', getattr(promocion, 'pk', None))
+                continue
+
+            # Usar transaction.atomic() para garantizar que el cupón solo persista
+            # si el email se envía correctamente.
+            with transaction.atomic():
+                # Calcular expiración usando el valor configurado en la política (NO hardcodeado)
                 ahora = timezone.now()
-                expira = ahora + timedelta(minutes=getattr(politica, 'minutos_validez', 60))
+                expira = ahora + timedelta(minutes=politica.minutos_validez)
 
                 cupon = CuponGenerado.objects.create(
                     cliente=cliente,
@@ -532,36 +724,45 @@ def procesar_butaca_liberada(funcion_objeto, cliente_excluido: Optional[Cliente]
                     expira_en=expira,
                     funcion_origen=funcion_objeto
                 )
+                logger.info('[INTERCAMBIO-PROMO] Cupón creado: token=%s, cliente=%s, expira=%s',
+                            cupon.token, getattr(cliente, 'pk', None), expira)
 
-                # Construir link absoluto: priorizamos `settings.SITE_BASE_URL` si está definido,
-                # sino usamos el dominio pedido en requerimiento.
-                base = getattr(settings, 'SITE_BASE_URL', 'https://uncategorized-noncommodiously-floy.ngrok-free.dev')
+                # Construir link usando SITE_URL de settings o fallback a localhost
+                base = getattr(settings, 'SITE_URL', getattr(settings, 'SITE_BASE_URL', 'https://uncategorized-noncommodiously-floy.ngrok-free.dev')).rstrip('/')
                 link = f"{base}/promociones/activar/{cupon.token}"
 
-                # Envío usando NotificacionService y plantillas HTML/texto
-                # Sólo enviar si la promoción asociada no es automática (es_automatica == False).
-                if getattr(promocion, 'es_automatica', False):
-                    logger.info('Promocion %s es automática; no se envía email de oferta (solo cupones se envían).', getattr(promocion, 'pk', None))
-                    continue
+                logger.info('[INTERCAMBIO-PROMO] Enviando email a cliente=%s (%s) | link=%s',
+                            getattr(cliente, 'pk', None),
+                            getattr(getattr(cliente, 'usuario', None), 'email', 'sin-email'),
+                            link)
+                try:
+                    sent = notificacion_service.enviar_oferta_promocion(
+                        cliente=cliente,
+                        promocion=promocion,
+                        cupon=cupon,
+                        link=link,
+                        funcion=funcion_objeto
+                    )
+                except Exception as email_exc:
+                    logger.error('[INTERCAMBIO-PROMO] Excepción al enviar email a cliente=%s: %s',
+                                 getattr(cliente, 'pk', None), email_exc, exc_info=True)
+                    raise  # propagar para que transaction.atomic() haga rollback del cupón
 
-                logger.debug('Llamando notificacion_service.enviar_oferta_promocion: cliente=%s promocion=%s cupon=%s link=%s', getattr(cliente, 'pk', None), getattr(promocion, 'pk', None), getattr(cupon, 'token', None), link)
-                sent = notificacion_service.enviar_oferta_promocion(
-                    cliente=cliente,
-                    promocion=promocion,
-                    cupon=cupon,
-                    link=link,
-                    funcion=funcion_objeto
-                )
                 if sent:
                     enviados += 1
+                    logger.info('[INTERCAMBIO-PROMO] ✅ Email enviado a cliente=%s (cupón=%s)',
+                                getattr(cliente, 'pk', None), cupon.token)
                 else:
                     # Si falla envío, hacer rollback del cupón creado
-                    raise Exception(f"Error enviando email a cliente {getattr(cliente, 'pk', None)}")
+                    logger.error('[INTERCAMBIO-PROMO] ❌ notificacion_service retornó False para cliente=%s. '
+                                 'Revisar logs de SMTP/template. Haciendo rollback del cupón.',
+                                 getattr(cliente, 'pk', None))
+                    raise Exception(f"enviar_oferta_promocion retornó False para cliente {getattr(cliente, 'pk', None)}")
         except Exception as e:
-            # No hacemos rollback general; transaction.atomic() ya hizo rollback del cupón
-            # Solo registramos intento fallido y continuamos con siguiente cliente
-            logger.exception('Error enviando oferta promocion %s al cliente %s: %s', 
-                           getattr(promocion, 'pk', None), getattr(cliente, 'pk', None), str(e))
+            # transaction.atomic() ya hizo rollback del cupón si fue creado.
+            # Solo registramos el fallo y continuamos con el siguiente cliente.
+            logger.error('[INTERCAMBIO-PROMO] ❌ Fallo procesando cliente=%s: %s',
+                         getattr(cliente, 'pk', None), str(e), exc_info=True)
 
     logger.info('procesar_butaca_liberada resultado: politica=%s promocion=%s candidatos=%d enviados=%d', getattr(politica, 'pk', None), getattr(promocion, 'pk', None), total_candidatos, enviados)
     respuestas.append({'politica': politica, 'status': 'procesada', 'candidatos': total_candidatos, 'enviados': enviados})

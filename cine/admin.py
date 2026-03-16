@@ -1,7 +1,12 @@
-from django.contrib import admin
-from .models import Pelicula, Sala, Butaca, Formato, FuncionFormato, ConfiguracionCine, HorarioAtencion
+from django.contrib import admin, messages
+from .models import Pelicula, Sala, Butaca, Formato, FuncionFormato, ConfiguracionCine, HorarioAtencion, Clasificacion, Director
 from .forms import PeliculaForm
 from simple_history.admin import SimpleHistoryAdmin
+
+
+# Nota: Clasificacion se gestiona desde la interfaz web de configuración del cine
+# No se registra en el admin de Django para evitar duplicación
+
 
 @admin.register(Pelicula)
 class PeliculaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
@@ -11,7 +16,7 @@ class PeliculaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
     form = PeliculaForm  # Usar formulario personalizado con protección de campos
     list_display = ('titulo', 'get_generos_display', 'director', 'fecha_estreno', 'duracion', 'estado_badge')
     list_filter = ('activo', 'fecha_estreno',)
-    search_fields = ('titulo', 'director', 'sinopsis')
+    search_fields = ('titulo', 'director__nombre', 'director__apellido', 'sinopsis')
     ordering = ('-fecha_estreno',)
     filter_horizontal = ('generos',)  # widget mejorado para M2M
     readonly_fields = ('fecha_baja',)
@@ -45,6 +50,13 @@ class PeliculaAdmin(SimpleHistoryAdmin, admin.ModelAdmin):
         fecha = obj.fecha_baja.strftime('%d/%m/%Y') if obj.fecha_baja else 'N/A'
         return f'🔴 Inactiva (desde {fecha})'
     estado_badge.short_description = 'Estado'
+
+
+@admin.register(Director)
+class DirectorAdmin(admin.ModelAdmin):
+    list_display = ('apellido', 'nombre', 'fecha_nacimiento', 'tmdb_id')
+    search_fields = ('nombre', 'apellido', 'tmdb_id')
+    ordering = ('apellido', 'nombre')
 
 
 @admin.register(Sala)
@@ -110,12 +122,58 @@ class FuncionFormatoAdmin(admin.ModelAdmin):
 @admin.register(Butaca)
 class ButacaAdmin(admin.ModelAdmin):
     """
-    Administración básica para el modelo Butaca
+    Administración para el modelo Butaca con soporte de mantenimiento.
     """
-    list_display = ('__str__', 'sala', 'fila', 'numero', 'tipo')
-    list_filter = ('tipo', 'sala')
+    list_display = ('__str__', 'sala', 'fila', 'numero', 'tipo', 'estado_mantenimiento_badge')
+    list_filter = ('tipo', 'sala', 'en_mantenimiento')
     search_fields = ('fila', 'numero', 'sala__nombre')
     ordering = ('sala', 'fila', 'numero')
+    actions = ['poner_en_mantenimiento', 'quitar_mantenimiento']
+
+    def estado_mantenimiento_badge(self, obj):
+        from django.utils.html import format_html
+        if obj.en_mantenimiento:
+            return format_html(
+                '<span style="background:#ff9800;color:#fff;padding:3px 10px;border-radius:12px;font-weight:bold;">🔧 En mantenimiento</span>'
+            )
+        return format_html(
+            '<span style="background:#4caf50;color:#fff;padding:3px 10px;border-radius:12px;">✅ Disponible</span>'
+        )
+    estado_mantenimiento_badge.short_description = 'Estado'
+
+    def poner_en_mantenimiento(self, request, queryset):
+        from django.contrib import messages as msg
+        from ventas.models import Entrada
+        from django.utils import timezone
+        bloqueadas = []
+        puestas = 0
+        for butaca in queryset:
+            # Solo bloquear si ESTA butaca tiene reservas activas en funciones FUTURAS
+            tiene_reserva_futura = Entrada.objects.filter(
+                id_butaca=butaca,
+                estado__in=['VENDIDA', 'RESERVADA', 'PENDIENTE'],
+                id_funcion__fecha_hora__gt=timezone.now()
+            ).exists()
+            if tiene_reserva_futura:
+                bloqueadas.append(str(butaca))
+            else:
+                butaca.en_mantenimiento = True
+                butaca.save(update_fields=['en_mantenimiento'])
+                puestas += 1
+        if puestas:
+            self.message_user(request, f'{puestas} butaca(s) puestas en mantenimiento.', messages.SUCCESS)
+        if bloqueadas:
+            self.message_user(
+                request,
+                f'No se pudo poner en mantenimiento: {", ".join(bloqueadas)} (tienen reservas activas para funciones futuras).',
+                messages.WARNING
+            )
+    poner_en_mantenimiento.short_description = '🔧 Poner en mantenimiento'
+
+    def quitar_mantenimiento(self, request, queryset):
+        actualizadas = queryset.filter(en_mantenimiento=True).update(en_mantenimiento=False)
+        self.message_user(request, f'{actualizadas} butaca(s) volvieron a estar disponibles.', messages.SUCCESS)
+    quitar_mantenimiento.short_description = '✅ Quitar mantenimiento'
 
 
 @admin.register(ConfiguracionCine)
@@ -127,7 +185,7 @@ class ConfiguracionCineAdmin(admin.ModelAdmin):
     
     fieldsets = (
         ('Información Básica', {
-            'fields': ('nombre', 'logo', 'razon_social', 'cuil_cuit', 'descripcion')
+            'fields': ('nombre', 'logo', 'razon_social', 'cuil_cuit', 'fecha_inicio_actividad', 'descripcion')
         }),
         ('Información de Contacto', {
             'fields': ('direccion', 'telefono', 'email')

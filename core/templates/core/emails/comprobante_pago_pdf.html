@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Comprobante de Pago</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11pt;
+            line-height: 1.4;
+            color: #2c3e50;
+        }
+        .comprobante-container {
+            border: 2px solid #34495e;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding-bottom: 15px;
+            border-bottom: 3px double #34495e;
+            margin-bottom: 20px;
+        }
+        .logo {
+            font-size: 24pt;
+            font-weight: bold;
+            color: #e74c3c;
+            margin: 0;
+            letter-spacing: 2px;
+        }
+        .document-type {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #34495e;
+            margin: 10px 0;
+            text-transform: uppercase;
+        }
+        .fiscal-data {
+            background-color: #f8f9fa;
+            padding: 10px;
+            margin: 15px 0;
+            border-left: 4px solid #3498db;
+        }
+        .fiscal-row {
+            margin: 5px 0;
+            font-size: 10pt;
+        }
+        .fiscal-label {
+            font-weight: bold;
+            display: inline-block;
+            min-width: 150px;
+        }
+        .comprobante-numero {
+            font-size: 18pt;
+            font-weight: bold;
+            text-align: center;
+            margin: 15px 0;
+            padding: 10px;
+            background-color: #fff3cd;
+            border: 2px dashed #856404;
+        }
+        .section-title {
+            font-weight: bold;
+            font-size: 12pt;
+            text-transform: uppercase;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+            margin: 20px 0 10px 0;
+        }
+        .detalle-tabla {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        .detalle-tabla th,
+        .detalle-tabla td {
+            padding: 8px;
+            text-align: left;
+            border: 1px solid #34495e;
+            font-size: 10pt;
+        }
+        .detalle-tabla th {
+            background-color: #34495e;
+            color: white;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .text-right {
+            text-align: right;
+        }
+        .text-center {
+            text-align: center;
+        }
+        .totales-section {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #2c3e50;
+            color: white;
+        }
+        .total-final {
+            font-size: 16pt;
+            font-weight: bold;
+            text-align: right;
+        }
+        .pago-info {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            padding: 12px;
+            margin: 15px 0;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px double #34495e;
+            text-align: center;
+            font-size: 9pt;
+            color: #7f8c8d;
+        }
+        .firma {
+            margin-top: 40px;
+            text-align: center;
+        }
+        .firma-linea {
+            width: 200px;
+            margin: 30px auto 10px;
+            border-top: 2px solid #34495e;
+        }
+    </style>
+</head>
+<body>
+    <div class="comprobante-container">
+        <div class="header">
+            <h1 class="logo">{% if configuracion_cine %}{{ configuracion_cine.nombre }}{% else %}CineGest{% endif %}</h1>
+            <p class="document-type">Comprobante de Pago - Recibo Financiero</p>
+        </div>
+
+        {% if configuracion_cine %}
+        <div class="fiscal-data">
+            <div class="fiscal-row">
+                <span class="fiscal-label">Razón Social:</span>
+                <span>{{ configuracion_cine.nombre }}</span>
+            </div>
+            <div class="fiscal-row">
+                <span class="fiscal-label">Dirección:</span>
+                <span>{{ configuracion_cine.direccion|default:"Av. Principal 123, Ciudad" }}</span>
+            </div>
+            <div class="fiscal-row">
+                <span class="fiscal-label">Teléfono:</span>
+                <span>{{ configuracion_cine.telefono|default:"(011) 4444-5555" }}</span>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="comprobante-numero">
+            COMPROBANTE Nº {{ venta.id_venta|stringformat:"08d" }}
+        </div>
+
+        <div class="section-title">Datos del Cliente</div>
+        <div class="fiscal-row">
+            <span class="fiscal-label">Nombre:</span>
+            <span>{{ usuario.get_full_name|default:usuario.username }}</span>
+        </div>
+        <div class="fiscal-row">
+            <span class="fiscal-label">Email:</span>
+            <span>{{ usuario.email }}</span>
+        </div>
+        <div class="fiscal-row">
+            <span class="fiscal-label">Fecha de Emisión:</span>
+            <span>{{ fecha_emision|date:"d/m/Y H:i" }}</span>
+        </div>
+        <div class="fiscal-row">
+            <span class="fiscal-label">Código de Compra:</span>
+            <span>{{ venta.codigo_compra }}</span>
+        </div>
+
+        <div class="section-title">Detalle de la Operación</div>
+        <table class="detalle-tabla">
+            <thead>
+                <tr>
+                    <th>Concepto</th>
+                    <th class="text-center">Cantidad</th>
+                    <th class="text-right">Precio Unit.</th>
+                    <th class="text-right">Subtotal</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for concepto in conceptos %}
+                <tr>
+                    <td>{{ concepto.descripcion }}</td>
+                    <td class="text-center">{{ concepto.cantidad }}</td>
+                    <td class="text-right">${{ concepto.precio_unitario|floatformat:2 }}</td>
+                    <td class="text-right">${{ concepto.subtotal|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="totales-section">
+            <div class="total-final">
+                TOTAL PAGADO: ${{ pago.monto|floatformat:2 }}
+            </div>
+        </div>
+
+        <div class="pago-info">
+            <strong>✓ Pago Aprobado y Procesado</strong>
+            <div class="fiscal-row">
+                <span class="fiscal-label">Método de Pago:</span>
+                <span>{{ metodo_pago }}</span>
+            </div>
+            <div class="fiscal-row">
+                <span class="fiscal-label">Nº de Transacción:</span>
+                <span>{{ pago.nro_transaccion }}</span>
+            </div>
+            <div class="fiscal-row">
+                <span class="fiscal-label">Estado:</span>
+                <span><strong>{{ pago.get_estado_display }}</strong></span>
+            </div>
+        </div>
+
+        <div class="firma">
+            <div class="firma-linea"></div>
+            <p><strong>Firma Autorizada</strong></p>
+        </div>
+
+        <div class="footer">
+            <p><strong>Documento electrónico generado automáticamente.</strong></p>
+            <p>Conserve este comprobante como respaldo de su transacción.</p>            {% if configuracion_cine %}
+            {% if configuracion_cine.razon_social %}<p>Razón Social: {{ configuracion_cine.razon_social }}</p>{% endif %}
+            {% if configuracion_cine.cuil_cuit %}<p>CUIT: {{ configuracion_cine.cuil_cuit }}</p>{% endif %}
+            {% if configuracion_cine.fecha_inicio_actividad %}<p>Inicio de Actividades: {{ configuracion_cine.fecha_inicio_actividad|date:"d/m/Y" }}</p>{% endif %}
+            {% endif %}            <p>© {{ fecha_emision|date:"Y" }} {% if configuracion_cine %}{{ configuracion_cine.nombre }}{% else %}CineGest{% endif %}</p>
+        </div>
+    </div>
+</body>
+</html>

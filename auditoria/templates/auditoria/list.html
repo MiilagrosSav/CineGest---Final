@@ -102,23 +102,48 @@
         </div>
         
         {% if page_obj.has_other_pages %}
-        <div class="pagination">
-            {% if page_obj.has_previous %}
-                <a class="page-item page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}">« Anterior</a>
-            {% else %}
-                <span class="page-item disabled page-link">« Anterior</span>
-            {% endif %}
-            
-            <span class="page-item active page-link" style="border-color: var(--primary); color: white; background: var(--primary);">
+        <nav class="audit-pagination-wrap" aria-label="Paginación de auditoría">
+            <div class="pagination-meta">
                 Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
-            </span>
-            
-            {% if page_obj.has_next %}
-                <a class="page-item page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}">Siguiente »</a>
-            {% else %}
-                 <span class="page-item disabled page-link">Siguiente »</span>
-            {% endif %}
-        </div>
+            </div>
+            <ul class="audit-pagination">
+                <li class="page-item {% if not page_obj.has_previous %}disabled{% endif %}">
+                    {% if page_obj.has_previous %}
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if q %}&q={{ q }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" aria-label="Página anterior">
+                        « Anterior
+                    </a>
+                    {% else %}
+                    <span class="page-link" aria-disabled="true">« Anterior</span>
+                    {% endif %}
+                </li>
+
+                {% for num in page_obj.paginator.page_range %}
+                    {% if num == 1 or num == page_obj.paginator.num_pages or num >= page_obj.number|add:'-1' and num <= page_obj.number|add:'1' %}
+                        <li class="page-item {% if page_obj.number == num %}active{% endif %}">
+                            {% if page_obj.number == num %}
+                            <span class="page-link" aria-current="page">{{ num }}</span>
+                            {% else %}
+                            <a class="page-link" href="?page={{ num }}{% if q %}&q={{ q }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}">{{ num }}</a>
+                            {% endif %}
+                        </li>
+                    {% elif num == page_obj.number|add:'-2' and page_obj.number > 3 %}
+                        <li class="page-item ellipsis"><span class="page-link">…</span></li>
+                    {% elif num == page_obj.number|add:'2' and page_obj.number < page_obj.paginator.num_pages|add:'-2' %}
+                        <li class="page-item ellipsis"><span class="page-link">…</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                <li class="page-item {% if not page_obj.has_next %}disabled{% endif %}">
+                    {% if page_obj.has_next %}
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if q %}&q={{ q }}{% endif %}{% if type_filter %}&type={{ type_filter }}{% endif %}" aria-label="Página siguiente">
+                        Siguiente »
+                    </a>
+                    {% else %}
+                    <span class="page-link" aria-disabled="true">Siguiente »</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </nav>
         {% endif %}
     </div>
 </div>
@@ -235,11 +260,88 @@
     #audit-refresh { padding: 0.3rem 0.8rem; font-size: 0.8rem; border-radius: 9999px; margin-left: 1rem; font-weight: 600; background: var(--primary); color: white; border: none; cursor: pointer; }
     .alert-info { background: rgba(var(--primary-rgb), 0.15); border: 1px solid var(--primary); padding: var(--space-md); border-radius: var(--radius); color: var(--text-light); display: flex; align-items: center; justify-content: space-between; }
 
-    .pagination { display: flex; justify-content: center; align-items: center; gap: 0.5rem; padding: var(--space-md); list-style: none; margin-top: 0; border-top: 1px solid var(--glass-border); }
-    .page-item .page-link { display: inline-flex; align-items: center; justify-content: center; padding: 0.4rem 0.8rem; border-radius: 8px; border: 1px solid var(--glass-border); background: transparent; color: var(--text-secondary); font-weight: 600; text-decoration: none; font-size: 0.9rem; transition: all 0.2s ease; }
-    .page-item:not(.active) .page-link:hover { border-color: var(--primary); color: var(--primary); background: rgba(var(--primary-rgb), 0.1); }
-    .page-item.active .page-link { background: var(--primary); border-color: var(--primary); color: #FFF; font-weight: 700; }
-    .page-item.disabled .page-link { opacity: 0.4; cursor: not-allowed; background: transparent; border-color: var(--glass-border); }
+    .audit-pagination-wrap {
+        border-top: 1px solid var(--glass-border);
+        padding: var(--space-md);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .pagination-meta {
+        color: var(--text-secondary);
+        font-size: 0.86rem;
+        letter-spacing: 0.2px;
+        font-weight: 600;
+    }
+    .audit-pagination {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 0.4rem;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        flex-wrap: wrap;
+    }
+    .page-item .page-link {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.2rem;
+        height: 2.2rem;
+        padding: 0 0.85rem;
+        border-radius: 999px;
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        background: rgba(255, 255, 255, 0.03);
+        color: #d6deff;
+        font-weight: 700;
+        text-decoration: none;
+        font-size: 0.84rem;
+        line-height: 1;
+        transition: all 0.22s ease;
+        backdrop-filter: blur(6px);
+    }
+    .page-item:not(.active):not(.disabled):not(.ellipsis) .page-link:hover {
+        border-color: rgba(var(--primary-rgb), 0.65);
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(var(--primary-rgb), 0.25);
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.35), rgba(var(--primary-rgb), 0.18));
+    }
+    .page-item.active .page-link {
+        background: linear-gradient(135deg, rgba(var(--primary-rgb), 0.95), rgba(var(--primary-rgb), 0.72));
+        border-color: rgba(var(--primary-rgb), 1);
+        color: #ffffff;
+        box-shadow: 0 10px 24px rgba(var(--primary-rgb), 0.35);
+    }
+    .page-item.disabled .page-link {
+        opacity: 0.42;
+        cursor: not-allowed;
+    }
+    .page-item.ellipsis .page-link {
+        border-style: dashed;
+        opacity: 0.7;
+        cursor: default;
+        min-width: 2rem;
+    }
+
+    @media (max-width: 768px) {
+        .audit-pagination-wrap {
+            justify-content: center;
+        }
+        .pagination-meta {
+            width: 100%;
+            text-align: center;
+        }
+        .page-item .page-link {
+            min-width: 2rem;
+            height: 2rem;
+            padding: 0 0.65rem;
+            font-size: 0.8rem;
+        }
+    }
     
     tbody tr:hover { background-color: rgba(255,255,255,0.03); }
     
@@ -291,6 +393,8 @@
         }
     }
 
+    let pollTimer = null;
+
     function checkUpdates(){
         const updatesUrl = '{% url "auditoria:updates" %}'; 
         const url = new URL(updatesUrl, window.location.origin);
@@ -298,6 +402,11 @@
         
         fetch(url.toString(), {credentials: 'same-origin'})
             .then(resp => {
+                if(resp.status === 403 || resp.status === 401) {
+                    // Session expired or insufficient permissions — stop polling silently
+                    if(pollTimer) clearInterval(pollTimer);
+                    return null;
+                }
                 if(!resp.ok) throw new Error('Network response was not ok');
                 return resp.json();
             })
@@ -312,7 +421,7 @@
             });
     }
 
-    setInterval(checkUpdates, pollInterval);
+    pollTimer = setInterval(checkUpdates, pollInterval);
     setTimeout(checkUpdates, 3000);
 })();
 </script>

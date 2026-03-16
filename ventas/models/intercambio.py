@@ -183,9 +183,13 @@ class Intercambio(models.Model):
         """
         if not politica or not politica.activo:
             return (False, 'No hay una política de intercambio activa en este momento.')
+
+        count = Intercambio.contar_intercambios_venta(venta)
+
+        if not getattr(politica, 'permitir_reintercambio', False) and count > 0:
+            return (False, 'Esta compra ya tuvo un intercambio y la política no permite reintercambio.')
         
         if politica.max_cambios_por_compra > 0:
-            count = Intercambio.contar_intercambios_venta(venta)
             if count >= politica.max_cambios_por_compra:
                 return (False, f'Has alcanzado el límite máximo de {politica.max_cambios_por_compra} intercambio(s) para esta compra.')
         

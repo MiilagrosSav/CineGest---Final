@@ -312,5 +312,12 @@
         <button onclick="window.print()" class="btn btn-print">🖨️ Imprimir {{ cantidad_entradas }} ticket(s)</button>
     </div>
 
+<script>
+    // Auto-imprimir al cargar (cobro presencial rápido)
+    window.addEventListener('load', function() {
+        setTimeout(function() { window.print(); }, 400);
+    });
+</script>
+
 </body>
 </html>

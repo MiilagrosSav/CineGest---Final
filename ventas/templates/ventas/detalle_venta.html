@@ -1,7 +1,13 @@
 {% extends "accounts/base.html" %}
 {% load static %}
 
-{% block title %}Detalle de Compra - {{ configuracion_cine.nombre|default:"CineGest" }}{% endblock %}
+{% block title %}
+{% if es_admin or es_empleado %}
+Detalle de Venta - {{ configuracion_cine.nombre|default:"CineGest" }}
+{% else %}
+Detalle de Compra - {{ configuracion_cine.nombre|default:"CineGest" }}
+{% endif %}
+{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'ventas/css/detalle_venta.css' %}?v=1.0">
@@ -11,7 +17,15 @@
 <div class="container" style="max-width: 900px;">
 
     <div class="mb-lg">
-        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">🎫 Detalle de Compra #{{ venta.id_venta }}</h1>
+        <h1 class="card-title text-gradient-primary" style="margin-bottom: 0;">
+            🎫
+            {% if es_admin or es_empleado %}
+                Detalle de Venta
+            {% else %}
+                Detalle de Compra
+            {% endif %}
+            #{{ venta.id_venta }}
+        </h1>
     </div>
 
     <div class="card glass-container">
@@ -32,15 +46,21 @@
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: var(--space-xl);">
             
                 <div>
-                    <h3 style="margin-bottom: var(--space-md);">📋 Información de la Venta</h3>
+                    <h3 style="margin-bottom: var(--space-md);">
+                        📋 Información de la {% if es_admin or es_empleado %}Venta{% else %}Compra{% endif %}
+                    </h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
                         <div>
-                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">📅 Fecha de compra</p>
+                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">
+                                📅 Fecha de {% if es_admin or es_empleado %}venta{% else %}compra{% endif %}
+                            </p>
                             <p style="margin: 4px 0 0 0; font-weight: 600;">{{ venta.fecha_compra|date:"d/m/Y H:i" }}</p>
                         </div>
                         {% if venta.codigo_compra and venta.tipo_venta == 'ONLINE' %}
                         <div>
-                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">🔖 Código de Compra</p>
+                            <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">
+                                🔖 Código de {% if es_admin or es_empleado %}Venta{% else %}Compra{% endif %}
+                            </p>
                             <p style="margin: 4px 0 0 0; font-weight: 600; font-family: monospace; font-size: 1.1rem; color: var(--primary);">{{ venta.codigo_compra }}</p>
                         </div>
                         {% endif %}
@@ -58,16 +78,106 @@
                         </div>
                         <div>
                             <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">💰 Total</p>
-                            <p style="margin: 4px 0 0 0; font-weight: 600; color: var(--primary); font-size: 1.2rem;">${{ venta.calcular_total }}</p>
+                            <p style="margin: 4px 0 0 0; font-weight: 600; color: var(--primary); font-size: 1.2rem;">${{ total_pagado|floatformat:2 }}</p>
+                            {% if promo_compra.aplicada %}
+                                <p style="margin: 6px 0 0 0; font-size: 0.8rem; color: #4ecdc4; font-weight: 600;">
+                                    🎉 {{ promo_compra.nombre }}
+                                </p>
+                                {% if promo_compra.ahorro and promo_compra.ahorro > 0 %}
+                                    <p style="margin: 2px 0 0 0; font-size: 0.78rem; opacity: 0.9;">
+                                        Precio sin promo: <span style="text-decoration: line-through;">${{ total_sin_descuento|floatformat:2 }}</span>
+                                        · Ahorro: ${{ promo_compra.ahorro|floatformat:2 }}
+                                    </p>
+                                {% endif %}
+                            {% endif %}
                         </div>
                     </div>
+                    {% if venta.estado == 'CONFIRMADA' %}
+                        <div style="margin-bottom: var(--space-lg);">
+                            {% if venta.tipo_venta == 'ONLINE' %}
+                            {% if es_empleado or es_admin %}
+                            <a href="{% url 'ventas:ticket_canje' venta.id_venta %}?reimprimir=1"
+                            class="btn btn-primary"
+                            style="background: linear-gradient(135deg,#27ae60,#2ecc71);
+                            border: none;
+                            padding: 10px 25px;
+                            font-size: 0.85rem;
+                            border-radius: 50px;
+                            display: inline-flex;
+                            align-items: center;
+                            font-weight: 700;
+                            color: white;
+                            text-decoration: none;
+                            white-space: nowrap;
+                            text-transform: uppercase;">
+                            <span style="margin-right: 8px;">🎫</span> VER / IMPRIMIR TICKET
+                            </a>
+                            {% else %}
+                            <a href="{% url 'ventas:comprobante_compra' venta.id_venta %}"
+                            class="btn btn-primary"
+                            style="background: linear-gradient(135deg,#27ae60,#2ecc71);
+                            border: none;
+                            padding: 10px 25px;
+                            font-size: 0.85rem;
+                            border-radius: 50px;
+                            display: inline-flex;
+                            align-items: center;
+                            font-weight: 700;
+                            color: white;
+                            text-decoration: none;
+                            white-space: nowrap;
+                            text-transform: uppercase;">
+                            <span style="margin-right: 8px;">🎫</span> VER COMPROBANTE DE COMPRA
+                            </a>
+                            {% endif %}
+                            {% else %}
+                            <a href="{% url 'ventas:comprobante_compra' venta.id_venta %}"
+                            class="btn btn-primary"
+                            style="background: linear-gradient(135deg,#27ae60,#2ecc71);
+                            border: none;
+                            padding: 10px 25px;
+                            font-size: 0.85rem;
+                            border-radius: 50px;
+                            display: inline-flex;
+                            align-items: center;
+                            font-weight: 700;
+                            color: white;
+                            text-decoration: none;
+                            white-space: nowrap;
+                            text-transform: uppercase;">
+                            <span style="margin-right: 8px;">🎫</span> VER COMPROBANTE DE COMPRA
+                            </a>
+                            {% endif %}
+                            {% if venta.tipo_venta == 'PRESENCIAL' %}
+                            {% if es_empleado or es_admin %}
+                            <a href="{% url 'ventas:ticket_exitoso' venta.id_venta %}"
+                            class="btn btn-primary"
+                            style="background: linear-gradient(135deg,#ff7e5f,#f39c12);
+                            border: none;
+                            padding: 10px 25px;
+                            font-size: 0.85rem;
+                            border-radius: 50px;
+                            display: inline-flex;
+                            align-items: center;
+                            font-weight: 700;
+                            color: white;
+                            text-decoration: none;
+                            white-space: nowrap;
+                            text-transform: uppercase;
+                            margin-left: 8px;">
+                            <span style="margin-right: 8px;">🖨️</span> VER / REIMPRIMIR TICKET
+                            </a>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    {% endif %}
 
                     {% if venta.pago %}
                     <h3 style="margin-top: var(--space-lg); margin-bottom: var(--space-md);">💳 Información de Pago</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--space-md); margin-bottom: var(--space-lg);">
                         <div>
                             <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">💰 Monto</p>
-                            <p style="margin: 4px 0 0 0; font-weight: 600;">${{ venta.pago.monto }}</p>
+                            <p style="margin: 4px 0 0 0; font-weight: 600;">${{ venta.pago.monto|floatformat:2 }}</p>
                         </div>
                         <div>
                             <p style="margin: 0; opacity: 0.7; font-size: 0.85rem;">📅 Fecha de pago</p>
@@ -82,6 +192,15 @@
                             <p style="margin: 4px 0 0 0; font-weight: 600;">{{ venta.pago.nro_transaccion|default:"—" }}</p>
                         </div>
                     </div>
+                    {% if venta.estado == 'CONFIRMADA' %}
+                        <div style="display:flex; gap: var(--space-sm); flex-wrap: wrap;">
+                            <a href="{% url 'ventas:comprobante_pago' venta.id_venta %}"
+                            class="btn btn-primary"
+                            style="background: linear-gradient(135deg,#6a11cb,#2575fc); border:none;
+                                padding: 10px 20px; font-size: 0.9rem;"> 🖨️ Ver Comprobante de Pago
+                            </a>
+                        </div>
+                        {% endif %}
                     {% endif %}
                 </div>
 
@@ -190,7 +309,7 @@
                     
                 {% else %}
                     {# Botón de intercambio y mensaje de error mejorado #}
-                    {% if puede_intercambiar %}
+                    {% if puede_intercambiar and not es_admin %}
                         <div style="text-align: center;">
                             <a href="{% url 'cine:cartelera' %}?intercambio_for={{ venta.id_venta }}" 
                                class="btn btn-secondary" 
@@ -296,7 +415,11 @@
             
             {# Botones de navegación #}
             <div style="display: flex; justify-content: center; gap: var(--space-md); flex-wrap: wrap; padding-top: var(--space-md); border-top: 1px solid rgba(255,255,255,0.1);">
-                {% if user.rol == 'empleado' %}
+                {% if return_url %}
+                    <a href="{{ return_url }}" class="btn btn-outline">
+                        Volver
+                    </a>
+                {% elif user.rol == 'empleado' %}
                     {% if venta.tipo_venta == 'PRESENCIAL' %}
                         <a href="{% url 'ventas:dashboard_presencial' %}" class="btn btn-outline">
                             ← Volver a Boletería
@@ -306,6 +429,10 @@
                             ← Volver a Búsqueda
                         </a>
                     {% endif %}
+                {% elif es_admin %}
+                    <a href="{% url 'ventas:lista_ventas' %}" class="btn btn-outline">
+                        Volver
+                    </a>
                 {% else %}
                     <a href="{% url 'ventas:mis_ventas' %}" class="btn btn-outline">
                         Volver

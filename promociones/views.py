@@ -74,31 +74,63 @@ class PoliticaPromocionListView(AdminRequiredMixin, ListView):
     
     def get_queryset(self):
         qs = super().get_queryset()
-        
+        qs = qs.select_related('promocion_a_otorgar')
+
         # Filtro por búsqueda (nombre de política o nombre de promoción vinculada)
         search = self.request.GET.get('search', '').strip()
         if search:
             qs = qs.filter(
-                models.Q(nombre__icontains=search) | 
+                models.Q(nombre__icontains=search) |
                 models.Q(promocion_a_otorgar__nombre__icontains=search) |
                 models.Q(promocion_a_otorgar__codigo__icontains=search)
             )
+
+        # Filtro ?ver=  (default: activas)
+        ver = self.request.GET.get('ver', 'activas').strip()
+        hoy = timezone.now().date()
         
-        # Filtro por estado (activa/inactiva)
-        estado = self.request.GET.get('estado', '').strip()
-        if estado == 'activa':
-            qs = qs.filter(activa=True)
-        elif estado == 'inactiva':
-            qs = qs.filter(activa=False)
-        
+        if ver == 'inactivas':
+            qs = qs.filter(
+                models.Q(activa=False) | models.Q(promocion_a_otorgar__activo=False),
+                promocion_a_otorgar__fecha_fin__gte=hoy
+            )
+        elif ver == 'vencidas':
+            qs = qs.filter(promocion_a_otorgar__fecha_fin__lt=hoy)
+        elif ver == 'todas':
+            pass  # sin restricción
+        else:  # 'activas' o cualquier valor desconocido
+            qs = qs.filter(
+                activa=True,
+                promocion_a_otorgar__activo=True,
+                promocion_a_otorgar__fecha_fin__gte=hoy
+            )
+
         return qs.order_by('-activa', 'nombre')
-    
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
+        hoy = timezone.now().date()
+        ctx['hoy'] = hoy
+        
         ctx['filtro_search'] = self.request.GET.get('search', '')
-        ctx['filtro_estado'] = self.request.GET.get('estado', '')
+        ctx['filtro_ver'] = self.request.GET.get('ver', 'activas')
+        
+        ctx['total_activas'] = PoliticaPromocion.objects.filter(
+            activa=True, 
+            promocion_a_otorgar__activo=True, 
+            promocion_a_otorgar__fecha_fin__gte=hoy
+        ).count()
+        ctx['total_inactivas'] = PoliticaPromocion.objects.filter(
+            models.Q(activa=False) | models.Q(promocion_a_otorgar__activo=False),
+            promocion_a_otorgar__fecha_fin__gte=hoy
+        ).count()
+        ctx['total_vencidas'] = PoliticaPromocion.objects.filter(
+            promocion_a_otorgar__fecha_fin__lt=hoy
+        ).count()
+        ctx['total_todas'] = PoliticaPromocion.objects.count()
+        
         return ctx
-    
+
     def render_to_response(self, context, **response_kwargs):
         # Si es una petición AJAX, devolver solo la tabla parcial
         if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -149,6 +181,12 @@ class PoliticaPromocionDeleteView(ProtectedDeleteMixin, AdminRequiredMixin, Dele
         from .models.cuponGenerado import CuponGenerado
         return CuponGenerado
 
+    def get_queryset(self):
+        """
+        Usar all_objects para permitir acceso a politicas ya eliminadas (soft delete).
+        """
+        return PoliticaPromocion.all_objects.all()
+
     def get_context_data(self, **kwargs):
         from .models.cuponGenerado import CuponGenerado
         context = super().get_context_data(**kwargs)
@@ -190,6 +228,21 @@ class PoliticaPromocionDeleteView(ProtectedDeleteMixin, AdminRequiredMixin, Dele
             '1. Los cupones están vinculados a esta política y no pueden eliminarse',
             '2. Marcar la política como inactiva en lugar de eliminarla'
         ]
+
+    def delete(self, request, *args, **kwargs):
+        """Desactivar la politica (sin baja fisica)."""
+        self.object = self.get_object()
+        success_url = self.get_success_url()
+        if hasattr(self.object, 'activa'):
+            self.object.activa = False
+        if hasattr(self.object, 'activo'):
+            self.object.activo = False
+        self.object.save(update_fields=['activa', 'activo'] if hasattr(self.object, 'activa') else ['activo'])
+        messages.success(
+            request,
+            f'✓ La politica "{self.object.nombre}" fue desactivada correctamente.'
+        )
+        return redirect(success_url)
 
 
 # Vistas CRUD para Promociones
@@ -521,6 +574,9 @@ class PromocionDeleteView(ProtectedDeleteMixin, AdminRequiredMixin, DeleteView):
 
     def get_context_data(self, **kwargs):
         from .models.politicaPromocion import PoliticaPromocion
+        from .models.cuponGenerado import CuponGenerado
+        from django.utils import timezone as _tz
+        from cine.models.funcion import Funcion
         context = super().get_context_data(**kwargs)
         promocion = self.get_object()
         
@@ -536,26 +592,61 @@ class PromocionDeleteView(ProtectedDeleteMixin, AdminRequiredMixin, DeleteView):
         if politicas.exists():
             context['politicas_activas'] = politicas.filter(activa=True).count()
             context['politicas_inactivas'] = politicas.filter(activa=False).count()
+
+        # Vinculos con funciones/peliculas
+        vinculos = promocion.vinculos.select_related('funcion', 'pelicula')
+        funciones_directas = vinculos.filter(funcion__isnull=False).count()
+        peliculas_vinculadas = list(vinculos.filter(pelicula__isnull=False).values_list('pelicula_id', flat=True))
+        funciones_por_pelicula = 0
+        if peliculas_vinculadas:
+            funciones_por_pelicula = Funcion.all_objects.filter(pelicula_id__in=peliculas_vinculadas).count()
+
+        context['funciones_vinculadas'] = funciones_directas + funciones_por_pelicula
+
+        ahora = _tz.now()
+        cupones_activos = CuponGenerado.objects.filter(
+            politica_origen__promocion_a_otorgar=promocion,
+            usado=False,
+        ).filter(
+            models.Q(expira_en__isnull=True) | models.Q(expira_en__gte=ahora)
+        )
+        context['cupones_activos'] = cupones_activos.count()
+        context['puede_eliminar'] = context['cupones_activos'] == 0
         
         return context
     
     def delete(self, request, *args, **kwargs):
-        """Pasar usuario al soft delete para auditoría"""
+        """Desactivar la promocion (sin baja fisica)."""
         from django.shortcuts import redirect
         from django.contrib import messages
+        from .models.cuponGenerado import CuponGenerado
+        from django.utils import timezone as _tz
         
         self.object = self.get_object()
         success_url = self.get_success_url()
+
+        ahora = _tz.now()
+        cupones_activos = CuponGenerado.objects.filter(
+            politica_origen__promocion_a_otorgar=self.object,
+            usado=False,
+        ).filter(
+            models.Q(expira_en__isnull=True) | models.Q(expira_en__gte=ahora)
+        )
+
+        if cupones_activos.exists():
+            messages.error(
+                request,
+                'No se puede desactivar esta promoción porque tiene cupones activos. Intenta nuevamente cuando venzan.'
+            )
+            return redirect(success_url)
         
-        # Llamar a soft_delete con el usuario para registro de auditoría
-        if hasattr(self.object, 'soft_delete'):
-            self.object.soft_delete(user=request.user)
-        else:
-            self.object.delete()
+        if hasattr(self.object, 'activo'):
+            self.object.activo = False
+            self.object.save(update_fields=['activo'])
         
         messages.success(
             request,
-            f'✓ La promoción "{self.object.nombre}" ha sido eliminada exitosamente.'
+            f'✓ La promoción "{self.object.nombre}" fue desactivada correctamente.'
         )
         return redirect(success_url)
     
@@ -705,7 +796,7 @@ def activar_promocion_por_link(request, token):
         except Exception:
             logger.exception('Error al loggear marcado como usado')
 
-    messages.success(request, '¡Promoción activada! Elige tu película')
+    messages.success(request, '¡Promoción activada! Elige tu butaca')
     # Si el cupón tiene función origen, dirigir directamente a selección de butacas (yield management)
     try:
         if getattr(cupon, 'funcion_origen', None):
@@ -728,6 +819,13 @@ def verificar_ocupacion_salas(request):
     user = request.user
     if not (user.is_superuser or getattr(user, 'rol', None) == 'admin'):
         return JsonResponse({'error': 'Acceso denegado'}, status=403)
+
+    import json as _json
+    try:
+        body = _json.loads(request.body or '{}')
+        test_mode = bool(body.get('test_mode', False))
+    except Exception:
+        test_mode = False
 
     try:
         from cine.models import Funcion
@@ -789,7 +887,7 @@ def verificar_ocupacion_salas(request):
         
         if contexto['tiene_politicas']:
             # Calcular ventana de tiempo máxima
-            contexto['ventana_maxima'] = max([p.horas_anticipacion for p in politicas_con_promo_activa])
+            contexto['ventana_maxima'] = max([p.horas_antes_de_funcion for p in politicas_con_promo_activa])
             
             # Contar funciones que ya tienen oferta activa
             fin_ventana = ahora + timedelta(hours=contexto['ventana_maxima'])
@@ -807,13 +905,17 @@ def verificar_ocupacion_salas(request):
         
         # ✅ OPTIMIZACIÓN: Usar verbosity=1 en lugar de 2 para menor overhead
         out = StringIO()
-        call_command('ejecutar_yield_management', verbosity=1, stdout=out)
+        if test_mode:
+            call_command('ejecutar_yield_management', verbosity=1, stdout=out, test_mode=True)
+        else:
+            call_command('ejecutar_yield_management', verbosity=1, stdout=out)
         output = out.getvalue()
         
         # Parsear información relevante del output
         lines = output.split('\n')
         resultado = {
             'success': True,
+            'test_mode': test_mode,
             'politicas_activas': 0,
             'funciones_evaluadas': 0,
             'ofertas_activadas': 0,
@@ -901,8 +1003,13 @@ def verificar_ocupacion_salas(request):
             
         else:
             # Hay políticas pero no hay funciones en la ventana
-            resultado['mensaje'] = f"📅 Sin funciones para analizar en este momento."
-            resultado['detalles'] = f"Las {contexto['num_politicas']} política(s) activa(s) revisan funciones en las próximas {contexto['ventana_maxima']} horas. "
+            if test_mode:
+                resultado['mensaje'] = f"✅ Modo test: todas las funciones futuras ya tienen ocupación satisfactoria o ya tienen OFERTA_ACTIVA."
+                resultado['detalles'] = f"En modo test se revisaron TODAS las funciones futuras sin límite de tiempo. No quedó ninguna nueva por activar."
+            else:
+                resultado['mensaje'] = f"📅 Sin funciones para analizar en este momento."
+                resultado['detalles'] = f"Las {contexto['num_politicas']} política(s) activa(s) revisan funciones en las próximas {contexto['ventana_maxima']} horas. "
+                resultado['detalles'] += "💡 Para forzar el análisis sobre funciones más lejanas en el tiempo, activá el checkbox 'Modo test'."
             if contexto['funciones_con_oferta'] > 0:
                 resultado['detalles'] += f"Hay {contexto['funciones_con_oferta']} función(es) con ofertas ya activas (no se repiten envíos). "
             if contexto['cupones_recientes'] > 0:

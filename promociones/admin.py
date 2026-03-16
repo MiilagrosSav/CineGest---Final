@@ -1,8 +1,76 @@
 from django.contrib import admin
+from django.utils.html import format_html
 from .models.promocion import Promocion
 from .models.vinculo_promocional import VinculoPromocional
 from .models.politicaPromocion import PoliticaPromocion
 from .models.cuponGenerado import CuponGenerado
+
+
+# ------------------------------------------------------------------ #
+# Filtros con selección predeterminada "Solo activas"                  #
+# ------------------------------------------------------------------ #
+
+class ActivePoliticaFilter(admin.SimpleListFilter):
+    title = 'Estado'
+    parameter_name = 'estado_politica'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('activas', 'Solo activas'),
+            ('inactivas', 'Solo inactivas'),
+            ('todas', 'Todas'),
+        ]
+
+    def choices(self, changelist):
+        for lookup, title in self.lookup_choices:
+            yield {
+                'selected': self.value() == lookup or (
+                    lookup == 'activas' and self.value() is None
+                ),
+                'query_string': changelist.get_query_string(
+                    {self.parameter_name: lookup}
+                ),
+                'display': title,
+            }
+
+    def queryset(self, request, queryset):
+        if self.value() == 'inactivas':
+            return queryset.filter(activa=False)
+        if self.value() == 'todas':
+            return queryset.all()
+        # Default (None) y 'activas' → solo activa=True
+        return queryset.filter(activa=True)
+
+
+class ActivePromocionFilter(admin.SimpleListFilter):
+    title = 'Estado'
+    parameter_name = 'estado_promo'
+
+    def lookups(self, request, model_admin):
+        return [
+            ('activas', 'Solo activas'),
+            ('inactivas', 'Solo inactivas'),
+            ('todas', 'Todas'),
+        ]
+
+    def choices(self, changelist):
+        for lookup, title in self.lookup_choices:
+            yield {
+                'selected': self.value() == lookup or (
+                    lookup == 'activas' and self.value() is None
+                ),
+                'query_string': changelist.get_query_string(
+                    {self.parameter_name: lookup}
+                ),
+                'display': title,
+            }
+
+    def queryset(self, request, queryset):
+        if self.value() == 'inactivas':
+            return queryset.filter(activo=False)
+        if self.value() == 'todas':
+            return queryset.all()
+        return queryset.filter(activo=True)
 
 
 class VinculoPromocionalInline(admin.TabularInline):
@@ -34,7 +102,7 @@ class VinculoPromocionalInline(admin.TabularInline):
 class PromocionAdmin(admin.ModelAdmin):
     list_display = ('codigo', 'nombre', 'tipo_descuento', 'valor_descuento', 'fecha_inicio', 'fecha_fin')
     search_fields = ('codigo', 'nombre', 'descripcion')
-    list_filter = ('tipo_descuento', 'fecha_inicio', 'fecha_fin')
+    list_filter = (ActivePromocionFilter, 'tipo_descuento', 'fecha_inicio', 'fecha_fin')
     inlines = [VinculoPromocionalInline]  # ✅ AGREGADO: Gestión inline
     
     def get_fieldsets(self, request, obj=None):
@@ -106,10 +174,36 @@ class VinculoPromocionalAdmin(admin.ModelAdmin):
 
 @admin.register(PoliticaPromocion)
 class PoliticaPromocionAdmin(admin.ModelAdmin):
-    list_display = ('nombre', 'activa', 'promocion_a_otorgar', 'genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango', 'horas_antes_de_funcion')
+    list_display = (
+        'nombre', 'activa', 'estado_vigencia', 'bloqueada_icon',
+        'promocion_a_otorgar', 'prioridad', 'genero_pelicula',
+        'hora_inicio_rango', 'hora_fin_rango', 'horas_antes_de_funcion',
+    )
     search_fields = ('nombre',)
-    list_filter = ('activa', 'genero_pelicula')
+    list_filter = (ActivePoliticaFilter, 'genero_pelicula')
     readonly_fields = ()
+
+    @admin.display(description='Vigencia', boolean=False)
+    def estado_vigencia(self, obj):
+        if obj.esta_vigente:
+            return format_html('<span style="color:green;font-weight:bold;">✔ Vigente</span>')
+        return format_html('<span style="color:red;">✘ Inactiva/Vencida</span>')
+
+    @admin.display(description='Bloqueada', boolean=True)
+    def bloqueada_icon(self, obj):
+        return obj.esta_bloqueada
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == 'promocion_a_otorgar':
+            from django.utils import timezone as tz
+            from .models.promocion import Promocion
+            today = tz.now().date()
+            kwargs['queryset'] = Promocion.objects.filter(
+                activo=True,
+                fecha_fin__gte=today,
+            )
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
     
     def get_fieldsets(self, request, obj=None):
         """
@@ -121,15 +215,20 @@ class PoliticaPromocionAdmin(admin.ModelAdmin):
                 'fields': ('nombre', 'promocion_a_otorgar')
             }),
             ('Condiciones de Activación', {
-                'fields': ('genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango')
+                'fields': ('genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango', 'dias_semana')
             }),
             ('⏰ Ventana de Urgencia', {
                 'fields': ('horas_antes_de_funcion',),
                 'description': 'Solo enviar promociones si faltan menos de X horas para la función.'
             }),
             ('⚡ Análisis Automático de Ocupación', {
-                'fields': ('activar_por_ocupacion', 'umbral_ocupacion', 'horas_anticipacion'),
+                'fields': ('activar_por_ocupacion', 'umbral_ocupacion'),
                 'description': 'Configuración para activar automáticamente promociones cuando la ocupación de las salas sea baja.'
+            }),
+            ('🏆 Prioridad y validez', {
+                'fields': ('prioridad', 'minutos_validez'),
+                'description': 'Prioridad: 1 = máxima prioridad (primer lugar), valores más altos = menor prioridad. '
+                               'Cuando varias políticas compiten por la misma función, gana la de menor número.'
             }),
         )
         
@@ -140,15 +239,20 @@ class PoliticaPromocionAdmin(admin.ModelAdmin):
                     'fields': ('nombre', 'activa', 'promocion_a_otorgar')
                 }),
                 ('Condiciones de Activación', {
-                    'fields': ('genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango')
+                    'fields': ('genero_pelicula', 'hora_inicio_rango', 'hora_fin_rango', 'dias_semana')
                 }),
                 ('⏰ Ventana de Urgencia', {
                     'fields': ('horas_antes_de_funcion',),
                     'description': 'Solo enviar promociones si faltan menos de X horas para la función.'
                 }),
                 ('⚡ Análisis Automático de Ocupación', {
-                    'fields': ('activar_por_ocupacion', 'umbral_ocupacion', 'horas_anticipacion'),
+                    'fields': ('activar_por_ocupacion', 'umbral_ocupacion'),
                     'description': 'Configuración para activar automáticamente promociones cuando la ocupación de las salas sea baja.'
+                }),
+                ('🏆 Prioridad y validez', {
+                    'fields': ('prioridad', 'minutos_validez'),
+                    'description': 'Prioridad: 1 = máxima prioridad (primer lugar), valores más altos = menor prioridad. '
+                                   'Cuando varias políticas compiten por la misma función, gana la de menor número.'
                 }),
             )
         

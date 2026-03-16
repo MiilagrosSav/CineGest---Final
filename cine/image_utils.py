@@ -59,6 +59,10 @@ def optimizar_imagen(imagen, max_width=None, max_height=None, quality=None):
         quality = IMAGE_OPTIMIZATION_CONFIG['quality']
     
     try:
+        # Asegurar que el puntero esté al inicio del archivo
+        if hasattr(imagen, 'seek'):
+            imagen.seek(0)
+        
         # Abrir la imagen con Pillow
         img = Image.open(imagen)
         
@@ -191,8 +195,12 @@ def procesar_imagen_hibrida(imagen, folder='cinegest', campo_local=None, instanc
         imagen_optimizada = optimizar_imagen(imagen)
         resultado['imagen_local'] = imagen_optimizada
         
-        # 2. Intentar subir a Cloudinary
-        respuesta_cloudinary = subir_a_cloudinary(imagen, folder=folder)
+        # 2. Intentar subir a Cloudinary (usar la imagen optimizada)
+        # Asegurar que el puntero esté al inicio antes de subir
+        if hasattr(imagen_optimizada, 'seek'):
+            imagen_optimizada.seek(0)
+        
+        respuesta_cloudinary = subir_a_cloudinary(imagen_optimizada, folder=folder)
         
         if respuesta_cloudinary:
             resultado['cloudinary_url'] = respuesta_cloudinary.get('secure_url')

@@ -30,6 +30,12 @@ def intercambiar_entrada_view(request, venta_id):
 		if venta.estado != 'CONFIRMADA':
 			messages.error(request, 'Solo se pueden intercambiar ventas confirmadas.')
 			return redirect('ventas:detalle_venta', venta_id=venta.id_venta)
+
+		# Validación de política (cupón/promos, reintercambio, anticipación, límites)
+		permite_según_politica, motivo_politica = politica.permite_intercambio_para_venta(venta)
+		if not permite_según_politica:
+			messages.error(request, motivo_politica)
+			return redirect('ventas:detalle_venta', venta_id=venta.id_venta)
 		
 		# Verificar límite de intercambios usando la política
 		puede, mensaje_error = Intercambio.puede_intercambiar(venta, politica)

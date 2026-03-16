@@ -73,6 +73,19 @@ class Entrada(models.Model):
         default=0.00,
         verbose_name='Precio Unitario Real'
     )
+
+    utilizado = models.BooleanField(
+        default=False,
+        verbose_name='Utilizado',
+        help_text='True cuando la entrada fue escaneada y validada en la puerta de acceso.'
+    )
+
+    fecha_ingreso = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='Fecha de Ingreso',
+        help_text='Fecha y hora en que el espectador ingresó a la sala.'
+    )
     
     class Meta:
         db_table = 'Entrada'
@@ -80,7 +93,11 @@ class Entrada(models.Model):
         verbose_name_plural = 'Entradas'
         ordering = ['id_funcion', 'id_butaca']
         constraints = [
-            models.UniqueConstraint(fields=['id_funcion', 'id_butaca'], name='UQ_entrada_funcion_butaca')
+            models.UniqueConstraint(
+                fields=['id_funcion', 'id_butaca'],
+                condition=models.Q(estado__in=['PENDIENTE', 'RESERVADA', 'VENDIDA', 'ENTREGADA', 'USADA']),
+                name='UQ_entrada_funcion_butaca_activa'
+            )
         ]
         indexes = [
             models.Index(fields=['id_funcion', 'id_butaca', 'estado'], name='idx_lock_butaca'),
@@ -119,7 +136,7 @@ class Entrada(models.Model):
             # PROHIBIDO: USADA → RESERVADA, ENTREGADA → VENDIDA, etc.
             estados_validos = {
                 'PENDIENTE': ['RESERVADA', 'CANCELADA', 'EXPIRADA'],  # PENDIENTE puede expirar
-                'RESERVADA': ['VENDIDA', 'CANCELADA', 'EXPIRADA'],  # RESERVADA puede expirar
+                'RESERVADA': ['VENDIDA', 'CANCELADA', 'EXPIRADA', 'USADA'],  # USADA: cobro QR presencial (reserva → pago confirmado → impresión directa)
                 'VENDIDA': ['ENTREGADA', 'USADA', 'CANCELADA'],  # VENDIDA puede ir directo a USADA (canje/presencial) o CANCELADA (función pasada)
                 'ENTREGADA': ['USADA', 'CANCELADA'],  # ENTREGADA puede cancelarse si la función pasó
                 'USADA': [],  # Estado terminal
@@ -137,6 +154,14 @@ class Entrada(models.Model):
         
         # 3. Guardar en BD
         super().save(*args, **kwargs)
+
+        # Actualizar estado de la funcion si se agotó o liberó cupo
+        try:
+            if self.id_funcion_id:
+                self.id_funcion.actualizar_estado_por_disponibilidad()
+        except Exception:
+            # No romper la venta por falla de actualización de estado
+            pass
 
     def __str__(self):
         return f"Entrada #{self.id_entrada} - {self.id_pelicula.titulo} - Butaca {self.id_butaca.fila}{self.id_butaca.numero}"

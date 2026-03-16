@@ -96,7 +96,10 @@ class SoftDeleteMixin(models.Model):
             
             # Guardar sin crear historial automático
             self.skip_history_when_saving = True
-            self.save(update_fields=['activo', 'fecha_baja'])
+            try:
+                self.save(update_fields=['activo', 'fecha_baja'], skip_clean=True)
+            except TypeError:
+                self.save(update_fields=['activo', 'fecha_baja'])
             del self.skip_history_when_saving
             
             # Crear registro histórico manual con tipo "-" (eliminación)
@@ -125,7 +128,10 @@ class SoftDeleteMixin(models.Model):
             
             # Guardar sin crear historial automático
             self.skip_history_when_saving = True
-            self.save(update_fields=['activo', 'fecha_baja'])
+            try:
+                self.save(update_fields=['activo', 'fecha_baja'], skip_clean=True)
+            except TypeError:
+                self.save(update_fields=['activo', 'fecha_baja'])
             del self.skip_history_when_saving
             
             # Crear registro histórico manual con tipo "+" (creación/restauración)

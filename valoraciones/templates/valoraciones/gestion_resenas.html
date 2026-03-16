@@ -1,0 +1,319 @@
+{% extends "accounts/base.html" %}
+{% load static %}
+
+{% block title %}Gestión de Reseñas{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gestion-container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 2rem 1rem;
+    }
+
+    .page-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1.5rem;
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .page-title {
+        margin: 0;
+        background: linear-gradient(135deg, #8B5FBF, #e94560);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        font-size: 2rem;
+        font-weight: 900;
+    }
+
+    .badge-total {
+        background: rgba(139,95,191,.2);
+        border: 1px solid rgba(139,95,191,.4);
+        color: #c9a0dc;
+        border-radius: 20px;
+        padding: .3rem .9rem;
+        font-size: .85rem;
+        font-weight: 600;
+    }
+
+    /* ── Filtros ─────────────────────────────────────── */
+    .filtros-form {
+        display: flex;
+        gap: .75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1.75rem;
+        align-items: flex-end;
+    }
+
+    .filtro-group {
+        display: flex;
+        flex-direction: column;
+        gap: .3rem;
+        flex: 1;
+        min-width: 180px;
+    }
+
+    .filtro-group label {
+        font-size: .75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+        opacity: .6;
+    }
+
+    .filtro-input {
+        background: rgba(255,255,255,.05);
+        border: 1px solid rgba(139,95,191,.3);
+        border-radius: 8px;
+        padding: .5rem .85rem;
+        color: var(--text-primary, #e6e6f0);
+        font-size: .9rem;
+        transition: border-color .2s;
+    }
+
+    .filtro-input:focus {
+        outline: none;
+        border-color: #8B5FBF;
+    }
+
+    .btn-filtrar {
+        background: linear-gradient(135deg, #8B5FBF, #7444a0);
+        border: none;
+        border-radius: 8px;
+        color: #fff;
+        cursor: pointer;
+        font-size: .9rem;
+        font-weight: 600;
+        padding: .55rem 1.2rem;
+        transition: opacity .2s;
+        white-space: nowrap;
+    }
+
+    .btn-filtrar:hover { opacity: .85; }
+
+    .btn-limpiar {
+        background: rgba(255,255,255,.07);
+        border: 1px solid rgba(255,255,255,.15);
+        border-radius: 8px;
+        color: var(--text-secondary, #aaa);
+        cursor: pointer;
+        font-size: .9rem;
+        padding: .55rem 1rem;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        white-space: nowrap;
+        transition: background .2s;
+    }
+
+    .btn-limpiar:hover { background: rgba(255,255,255,.12); }
+
+    /* ── Tabla ───────────────────────────────────────── */
+    .tabla-wrapper {
+        overflow-x: auto;
+        border-radius: 12px;
+        border: 1px solid rgba(139,95,191,.2);
+    }
+
+    .resenas-tabla {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: .9rem;
+    }
+
+    .resenas-tabla thead {
+        background: rgba(139,95,191,.15);
+    }
+
+    .resenas-tabla th {
+        padding: .85rem 1rem;
+        text-align: left;
+        font-size: .75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .07em;
+        color: #c9a0dc;
+        white-space: nowrap;
+    }
+
+    .resenas-tabla td {
+        padding: .85rem 1rem;
+        vertical-align: middle;
+        border-top: 1px solid rgba(139,95,191,.1);
+        color: var(--text-primary, #e6e6f0);
+    }
+
+    .resenas-tabla tr:hover td {
+        background: rgba(139,95,191,.05);
+    }
+
+    /* Estrellas */
+    .stars {
+        color: #f59e0b;
+        font-size: 1rem;
+        white-space: nowrap;
+    }
+
+    /* Comentario */
+    .comentario-text {
+        max-width: 340px;
+        overflow: hidden;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        opacity: .85;
+        font-style: italic;
+        font-size: .85rem;
+    }
+
+    .sin-comentario {
+        opacity: .35;
+        font-size: .82rem;
+        font-style: italic;
+    }
+
+    /* Botón eliminar */
+    .btn-eliminar {
+        background: rgba(233,69,96,.15);
+        border: 1px solid rgba(233,69,96,.4);
+        border-radius: 7px;
+        color: #e94560;
+        cursor: pointer;
+        font-size: .82rem;
+        font-weight: 600;
+        padding: .4rem .75rem;
+        transition: background .2s, border-color .2s;
+        white-space: nowrap;
+    }
+
+    .btn-eliminar:hover {
+        background: rgba(233,69,96,.3);
+        border-color: #e94560;
+    }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        opacity: .5;
+    }
+
+    .empty-state .icon { font-size: 3rem; margin-bottom: .75rem; }
+    .empty-state p { font-size: 1rem; margin: 0; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="gestion-container">
+
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">⭐ Gestión de Reseñas</h1>
+            <p style="opacity:.6; font-size:.9rem; margin:.25rem 0 0;">
+                Visualizá y moderá todas las reseñas dejadas por los clientes.
+            </p>
+        </div>
+        <span class="badge-total">{{ total }} reseña{{ total|pluralize:"" }}/s en total</span>
+    </div>
+
+    {% if messages %}
+        {% for msg in messages %}
+            <div class="alert alert-{{ msg.tags }}" style="margin-bottom:1rem; padding:.8rem 1.2rem; border-radius:9px;
+                background:{% if 'success' in msg.tags %}rgba(16,185,129,.15){% else %}rgba(233,69,96,.15){% endif %};
+                border:1px solid {% if 'success' in msg.tags %}rgba(16,185,129,.4){% else %}rgba(233,69,96,.4){% endif %};
+                color:{% if 'success' in msg.tags %}#10b981{% else %}#e94560{% endif %};">
+                {{ msg }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Filtros -->
+    <form method="get" class="filtros-form">
+        <div class="filtro-group">
+            <label for="id_pelicula">🎬 Película</label>
+            <input id="id_pelicula" class="filtro-input" type="text" name="pelicula"
+                   value="{{ q_pelicula }}" placeholder="Buscar por título…">
+        </div>
+        <div class="filtro-group">
+            <label for="id_usuario">👤 Usuario</label>
+            <input id="id_usuario" class="filtro-input" type="text" name="usuario"
+                   value="{{ q_usuario }}" placeholder="Buscar por nombre…">
+        </div>
+        <button type="submit" class="btn-filtrar">🔍 Filtrar</button>
+        {% if q_pelicula or q_usuario %}
+            <a href="{% url 'valoraciones:gestion_resenas' %}" class="btn-limpiar">✕ Limpiar</a>
+        {% endif %}
+    </form>
+
+    <!-- Tabla -->
+    {% if resenas %}
+        <div class="tabla-wrapper">
+            <table class="resenas-tabla">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Película</th>
+                        <th>Usuario</th>
+                        <th>Puntuación</th>
+                        <th>Comentario</th>
+                        <th>Fecha</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for resena in resenas %}
+                    <tr>
+                        <td style="opacity:.4; font-size:.82rem;">{{ forloop.counter }}</td>
+                        <td>
+                            <strong>{{ resena.pelicula.titulo }}</strong>
+                        </td>
+                        <td>
+                            <span>{{ resena.cliente.usuario.get_full_name|default:resena.cliente.usuario.username }}</span>
+                            <br><small style="opacity:.45;">{{ resena.cliente.usuario.email }}</small>
+                        </td>
+                        <td>
+                            <span class="stars">
+                                {% for i in "12345" %}
+                                    {% if forloop.counter <= resena.puntuacion %}⭐{% endif %}
+                                {% endfor %}
+                            </span>
+                            <span style="opacity:.5; font-size:.8rem;">({{ resena.puntuacion }}/5)</span>
+                        </td>
+                        <td>
+                            {% if resena.comentario %}
+                                <span class="comentario-text" title="{{ resena.comentario }}">
+                                    "{{ resena.comentario }}"
+                                </span>
+                            {% else %}
+                                <span class="sin-comentario">Sin comentario</span>
+                            {% endif %}
+                        </td>
+                        <td style="white-space:nowrap; font-size:.85rem; opacity:.7;">
+                            {{ resena.fecha_creacion|date:"d/m/Y H:i" }}
+                        </td>
+                        <td>
+                            <form method="post"
+                                  onsubmit="return confirm('¿Eliminás la reseña de {{ resena.cliente.usuario.username }} sobre {{ resena.pelicula.titulo }}?');">
+                                {% csrf_token %}
+                                <input type="hidden" name="eliminar_resena_id" value="{{ resena.pk }}">
+                                <button type="submit" class="btn-eliminar">🗑 Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="icon">⭐</div>
+            <p>No hay reseñas que coincidan con los filtros aplicados.</p>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock %}

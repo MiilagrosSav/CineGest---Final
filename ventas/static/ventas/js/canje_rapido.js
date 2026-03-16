@@ -4,8 +4,32 @@ document.addEventListener('DOMContentLoaded', function() {
     const loading = document.getElementById('loading');
     const ticketPrintArea = document.getElementById('ticket-print-area');
     const historyList = document.getElementById('historyList');
+    const startCameraBtn = document.getElementById('startCameraBtn');
+    const stopCameraBtn = document.getElementById('stopCameraBtn');
+    const cameraScanner = document.getElementById('cameraScanner');
+    const qrVideo = document.getElementById('qrVideo');
+    const cameraStatus = document.getElementById('cameraStatus');
     
     let ventaActual = null;
+    let cameraStream = null;
+    let scannerTimer = null;
+    let scannerBusy = false;
+    let barcodeDetector = null;
+    let lastDetectedCode = null;
+    let lastDetectedAt = 0;
+    const scanCanvas = document.createElement('canvas');
+    const scanContext = scanCanvas.getContext('2d', { willReadFrequently: true });
+
+    if ('BarcodeDetector' in window) {
+        try {
+            barcodeDetector = new BarcodeDetector({ formats: ['qr_code'] });
+        } catch (e) {
+            barcodeDetector = null;
+        }
+    }
+
+    const hasNativeDetector = !!barcodeDetector;
+    const hasJsQrFallback = typeof window.jsQR === 'function';
 
     // Función para obtener el CSRF token de las cookies
     function getCookie(name) {
@@ -42,8 +66,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Función principal
-    async function buscarVenta() {
-        const codigo = codigoInput.value.trim();
+    async function buscarVenta(codigoOverride) {
+        const codigo = (codigoOverride || codigoInput.value).trim();
         if (!codigo) return;
 
         loading.classList.add('show');
@@ -74,6 +98,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
 
                 // Redirigir directamente a la página del ticket
+                stopCameraScanner();
                 window.location.href = data.redirect_url;
             } else {
                 mostrarError(data.error, data.detalles);
@@ -83,6 +108,137 @@ document.addEventListener('DOMContentLoaded', function() {
             loading.classList.remove('show');
             mostrarError('Error de conexión', 'Intente nuevamente.');
             reproducirSonido('error');
+        }
+    }
+
+    async function startCameraScanner() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            cameraStatus.textContent = 'Este navegador no soporta acceso a camara. Usa lector USB o ingreso manual.';
+            cameraScanner.style.display = 'block';
+            return;
+        }
+
+        if (!hasNativeDetector && !hasJsQrFallback) {
+            cameraStatus.textContent = 'No hay motor QR disponible en este navegador. Usa lector USB o ingreso manual.';
+            cameraScanner.style.display = 'block';
+            return;
+        }
+
+        try {
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: { ideal: 'environment' },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            });
+
+            qrVideo.srcObject = cameraStream;
+            cameraScanner.style.display = 'block';
+            startCameraBtn.style.display = 'none';
+            stopCameraBtn.style.display = 'inline-flex';
+            if (hasNativeDetector) {
+                cameraStatus.textContent = 'Camara activa. Enfoca el QR para leer automaticamente.';
+            } else {
+                cameraStatus.textContent = 'Camara activa con modo compatible de escritorio. Enfoca el QR.';
+            }
+
+            scannerTimer = setInterval(scanQrFrame, 250);
+        } catch (error) {
+            cameraStatus.textContent = 'No se pudo acceder a la camara. Revisa permisos del navegador.';
+            cameraScanner.style.display = 'block';
+        }
+    }
+
+    async function scanQrFrame() {
+        if (!qrVideo || scannerBusy) return;
+        if (qrVideo.readyState < 2) return;
+
+        scannerBusy = true;
+        try {
+            let rawCode = null;
+
+            if (hasNativeDetector && barcodeDetector) {
+                const barcodes = await barcodeDetector.detect(qrVideo);
+                if (barcodes && barcodes.length > 0) {
+                    rawCode = (barcodes[0].rawValue || '').trim();
+                }
+            } else if (hasJsQrFallback && scanContext) {
+                rawCode = decodeWithJsQr();
+            }
+
+            if (rawCode) {
+                const now = Date.now();
+                if (lastDetectedCode === rawCode && now - lastDetectedAt < 2000) {
+                    return;
+                }
+                lastDetectedCode = rawCode;
+                lastDetectedAt = now;
+                cameraStatus.textContent = `QR detectado: ${rawCode}. Validando...`;
+                codigoInput.value = rawCode;
+                await buscarVenta(rawCode);
+            }
+        } catch (error) {
+            // Ignorar errores transitorios del detector.
+        } finally {
+            scannerBusy = false;
+        }
+    }
+
+    function decodeWithJsQr() {
+        const width = qrVideo.videoWidth;
+        const height = qrVideo.videoHeight;
+        if (!width || !height || !scanContext) {
+            return null;
+        }
+
+        if (scanCanvas.width !== width || scanCanvas.height !== height) {
+            scanCanvas.width = width;
+            scanCanvas.height = height;
+        }
+
+        scanContext.drawImage(qrVideo, 0, 0, width, height);
+        const imageData = scanContext.getImageData(0, 0, width, height);
+        const result = window.jsQR(imageData.data, width, height, {
+            inversionAttempts: 'attemptBoth'
+        });
+
+        if (result && result.data) {
+            return String(result.data).trim();
+        }
+
+        return null;
+    }
+
+    function stopCameraScanner() {
+        if (scannerTimer) {
+            clearInterval(scannerTimer);
+            scannerTimer = null;
+        }
+
+        if (cameraStream) {
+            cameraStream.getTracks().forEach(track => track.stop());
+            cameraStream = null;
+        }
+
+        if (qrVideo) {
+            qrVideo.srcObject = null;
+        }
+
+        lastDetectedCode = null;
+        lastDetectedAt = 0;
+
+        if (cameraScanner) {
+            cameraScanner.style.display = 'none';
+        }
+
+        if (startCameraBtn) {
+            startCameraBtn.style.display = 'inline-flex';
+        }
+
+        if (stopCameraBtn) {
+            stopCameraBtn.style.display = 'none';
         }
     }
 
@@ -209,6 +365,16 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    if (startCameraBtn) {
+        startCameraBtn.addEventListener('click', startCameraScanner);
+    }
+
+    if (stopCameraBtn) {
+        stopCameraBtn.addEventListener('click', stopCameraScanner);
+    }
+
+    window.addEventListener('beforeunload', stopCameraScanner);
 
     // Cargar historial previo (si existe)
     loadHistoryFromStorage();

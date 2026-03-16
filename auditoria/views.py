@@ -4,7 +4,50 @@ from django.core.paginator import Paginator
 from django.db.models import Q
 from .models import AuditEntry
 from django.http import JsonResponse
+from decimal import Decimal, InvalidOperation
 import json
+
+
+def _parse_decimal(value):
+    if value is None or isinstance(value, bool):
+        return None
+
+    if isinstance(value, Decimal):
+        return value
+
+    if isinstance(value, int):
+        return Decimal(value)
+
+    if isinstance(value, float):
+        return Decimal(str(value))
+
+    if isinstance(value, str):
+        raw = value.strip().replace(',', '.')
+        if not raw:
+            return None
+        try:
+            return Decimal(raw)
+        except (InvalidOperation, ValueError):
+            return None
+
+    return None
+
+
+def _normalize_for_compare(value):
+    if isinstance(value, dict):
+        return tuple(sorted((k, _normalize_for_compare(v)) for k, v in value.items()))
+
+    if isinstance(value, list):
+        return tuple(_normalize_for_compare(v) for v in value)
+
+    decimal_value = _parse_decimal(value)
+    if decimal_value is not None:
+        return decimal_value.quantize(Decimal('0.01'))
+
+    if isinstance(value, str):
+        return value.strip()
+
+    return value
 
 def _check_audit_permission(user):
     """Verifica si el usuario tiene permisos para ver auditoría."""
@@ -67,7 +110,7 @@ def audit_detail(request, pk):
         prev_data = prev_entry.snapshot
         for key, value in current_data.items():
             old_value = prev_data.get(key)
-            if str(value) != str(old_value):
+            if _normalize_for_compare(value) != _normalize_for_compare(old_value):
                 diff[key] = {'antes': old_value, 'despues': value}
     
     # Si es eliminación, guardamos el snapshot final

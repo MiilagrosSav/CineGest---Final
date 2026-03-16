@@ -24,16 +24,26 @@
         {% endif %}
 
         <div class="form-group">
-          <label for="{{ form.username.id_for_label }}" class="form-label">Usuario</label>
-          {% render_field form.username class="form-input" placeholder="tu usuario" %}
+          <label for="{{ form.username.id_for_label }}" class="form-label">Usuario o Email</label>
+          {% render_field form.username class="form-input" placeholder="Tu usuario o email" %}
           {% if form.username.errors %}
             <span class="form-error" role="alert">{{ form.username.errors.0 }}</span>
           {% endif %}
         </div>
 
-        <div class="form-group">
+        <div class="form-group" style="margin-bottom: var(--space-xs);">
           <label for="{{ form.password.id_for_label }}" class="form-label">Contraseña</label>
           {% render_field form.password class="form-input" placeholder="••••••••" %}
+          
+          <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+            <a href="{% url 'accounts:password_reset' %}" 
+              style="color: var(--gray); text-decoration: none; font-size: 0.75rem; transition: color 0.2s;"
+              onmouseover="this.style.color='var(--primary)'" 
+              onmouseout="this.style.color='var(--gray)'">
+              ¿Olvidaste tu contraseña?
+            </a>
+          </div>
+
           {% if form.password.errors %}
             <span class="form-error" role="alert">{{ form.password.errors.0 }}</span>
           {% endif %}
@@ -42,6 +52,7 @@
         <button type="submit" class="btn btn-primary" style="width: 100%;">
           Ingresar
         </button>
+        
       </form>
 
       <div class="separator">o</div>

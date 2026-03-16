@@ -1,0 +1,142 @@
+<div id="deleteModalOverlay" class="delete-modal-overlay" role="presentation">
+<style>
+    .delete-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(3px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        animation: deleteModalFadeIn 0.18s ease-out;
+    }
+
+    .delete-modal-card {
+        width: min(560px, 100%);
+        max-height: calc(100vh - 2rem);
+        overflow-y: auto;
+        padding: 1.5rem;
+        position: relative;
+        background: #1e1e2e !important;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: var(--radius-xl, 1rem);
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+    }
+
+    .delete-modal-close {
+        position: absolute;
+        right: 0.75rem;
+        top: 0.65rem;
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        font-size: 1.35rem;
+        cursor: pointer;
+        line-height: 1;
+    }
+
+    @keyframes deleteModalFadeIn {
+        from { opacity: 0; transform: scale(0.97); }
+        to   { opacity: 1; transform: scale(1); }
+    }
+</style>
+    <div class="delete-modal-card glass-container" role="dialog" aria-modal="true" aria-labelledby="directorDeleteTitle">
+        <button type="button" class="delete-modal-close" data-modal-close aria-label="Cerrar">×</button>
+
+        <div class="card-header" style="text-align: center;">
+            {% if puede_eliminar %}
+                <h2 id="directorDeleteTitle" class="card-title text-gradient-secondary">¿Estás seguro?</h2>
+                <p class="card-subtitle">
+                    Estás a punto de eliminar permanentemente al director:
+                    <strong style="display: block; font-size: 1.1rem; margin-top: var(--space-sm);">"{{ object }}"</strong>
+                </p>
+            {% else %}
+                <h2 id="directorDeleteTitle" class="card-title" style="color: #ff6b6b;">No se puede eliminar</h2>
+                <p class="card-subtitle">
+                    El director <strong>"{{ object }}"</strong> no puede ser eliminado.
+                </p>
+            {% endif %}
+        </div>
+
+        {% if puede_eliminar %}
+            <p class="text-secondary" style="text-align: center;">Esta acción no se puede deshacer.</p>
+
+            <form method="post" action="{% url 'cine:eliminar_director' object.pk %}" data-director-delete-form>
+                {% csrf_token %}
+                <div style="display: flex; gap: var(--space-sm); margin-top: var(--space-lg); justify-content: center; flex-wrap: wrap;">
+                    <button type="submit" class="btn btn-secondary" data-modal-submit>
+                        Sí, Eliminar
+                    </button>
+                    <button type="button" class="btn btn-outline" data-modal-close>
+                        No, Cancelar
+                    </button>
+                </div>
+            </form>
+        {% else %}
+            <!-- Resumen de películas vinculadas -->
+            <div style="
+                display: flex;
+                align-items: center;
+                gap: var(--space-md);
+                background: rgba(255, 107, 107, 0.1);
+                border: 1px solid rgba(255, 107, 107, 0.3);
+                border-radius: var(--radius-lg);
+                padding: var(--space-md) var(--space-lg);
+                margin: var(--space-lg) 0 var(--space-md);
+            ">
+                <span style="font-size: 1.8rem; flex-shrink: 0;">🎬</span>
+                <div>
+                    <div style="font-weight: 600; color: var(--text-primary);">
+                        {{ total_peliculas }} película{{ total_peliculas|pluralize:",s" }} vinculada{{ total_peliculas|pluralize:",s" }}
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px;">
+                        {% if peliculas_activas > 0 %}{{ peliculas_activas }} activa{{ peliculas_activas|pluralize:",s" }}{% endif %}{% if peliculas_activas > 0 and peliculas_inactivas > 0 %} · {% endif %}{% if peliculas_inactivas > 0 %}{{ peliculas_inactivas }} inactiva{{ peliculas_inactivas|pluralize:",s" }}{% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Títulos como badges -->
+            {% if peliculas_muestra %}
+            <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: var(--space-md);">
+                {% for titulo in peliculas_muestra %}
+                    <span style="
+                        background: rgba(255,255,255,0.08);
+                        border: 1px solid rgba(255,255,255,0.15);
+                        border-radius: 2rem;
+                        padding: 0.25rem 0.75rem;
+                        font-size: 0.82rem;
+                        color: var(--text-secondary);
+                        white-space: nowrap;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        max-width: 220px;
+                    " title="{{ titulo }}">{{ titulo }}</span>
+                {% endfor %}
+                {% if peliculas_restantes > 0 %}
+                    <span style="
+                        background: rgba(255,255,255,0.04);
+                        border: 1px solid rgba(255,255,255,0.1);
+                        border-radius: 2rem;
+                        padding: 0.25rem 0.75rem;
+                        font-size: 0.82rem;
+                        color: var(--text-muted, #888);
+                        font-style: italic;
+                    ">+{{ peliculas_restantes }} más</span>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Alternativas -->
+            <p style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5; margin-bottom: var(--space-lg);">
+                Para eliminarlo, primero reasigná sus películas a otro director (editá la película), o usá
+                <strong style="color: var(--text-primary);">Modificar → Fusionar</strong> para consolidar directores duplicados.
+            </p>
+
+            <button type="button" class="btn btn-primary" style="width: 100%;" data-modal-close>
+                Volver a la lista
+            </button>
+        {% endif %}
+    </div>
+</div>

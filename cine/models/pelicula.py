@@ -16,13 +16,6 @@ class Pelicula(SoftDeleteMixin, models.Model):
     """
     Modelo para representar una película en el cine.
     """
-    # Opciones para clasificación
-    CLASIFICACION_CHOICES = [
-        ('ATP', 'Apta para todo público'),
-        ('+13', 'Mayores de 13 años'),
-        ('+16', 'Mayores de 16 años'),
-        ('+18', 'Mayores de 18 años'),
-    ]
 
     titulo = models.CharField(
         max_length=200,
@@ -30,10 +23,11 @@ class Pelicula(SoftDeleteMixin, models.Model):
         help_text="El título de la película."
     )
     sinopsis = models.TextField(help_text="Una breve descripción de la trama.")
-    director = models.CharField(
-        max_length=100,
-        blank=False,
-        help_text="El director de la película."
+    director = models.ForeignKey(
+        'Director',
+        on_delete=models.PROTECT,
+        related_name='peliculas',
+        help_text='Director principal de la pelicula.'
     )
     # Ahora soportamos múltiples géneros por película
     generos = models.ManyToManyField(Genero, related_name='peliculas', blank=True)
@@ -47,12 +41,12 @@ class Pelicula(SoftDeleteMixin, models.Model):
         help_text="La fecha de estreno en cines."
     )
     
-    # Clasificación por edad
-    clasificacion = models.CharField(
-        max_length=10,
-        choices=CLASIFICACION_CHOICES,
-        default='ATP',
-        help_text="Clasificación por edad de la película."
+    # Clasificación por edad - Ahora es FK a modelo Clasificacion
+    clasificacion = models.ForeignKey(
+        'Clasificacion',
+        on_delete=models.PROTECT,
+        related_name='peliculas',
+        help_text="Clasificación por edad de la película"
     )
     
     # ========================================================================
@@ -98,6 +92,14 @@ class Pelicula(SoftDeleteMixin, models.Model):
         blank=True,
         help_text="Año de estreno calculado automáticamente desde fecha_estreno"
     )
+    
+    # Campo para el trailer de YouTube desde TMDB
+    youtube_trailer_key = models.CharField(
+        max_length=20,
+        blank=True,
+        null=True,
+        help_text="ID del video de YouTube del trailer oficial (ej: 'dQw4w9WgXcQ')"
+    )
 
     def __str__(self):
         return self.titulo
@@ -106,26 +108,15 @@ class Pelicula(SoftDeleteMixin, models.Model):
     def get_poster_url(self):
         """
         Devuelve la URL del póster de la película.
-        
-        Lógica híbrida:
-        1. Si hay conexión a Cloudinary y existe imagen_red, devuelve URL de Cloudinary
-        2. Si no hay conexión o imagen_red está vacío, devuelve URL local
-        3. Si imagen_local está vacío, busca en imagen_portada (retrocompatibilidad)
-        4. Si no hay ninguna imagen, devuelve URL de placeholder
+
+        Lógica local-first (optimización de rendimiento):
+        1. Usa imagen_local
+        2. Si no existe, usa imagen_portada (retrocompatibilidad)
+        3. Si no hay ninguna imagen, devuelve placeholder
         
         Returns:
             str: URL de la imagen (Cloudinary, local o placeholder)
         """
-        # Intentar usar Cloudinary primero
-        if self.imagen_red:
-            try:
-                # Verificar si hay conexión antes de intentar obtener la URL
-                if verificar_conexion_cloudinary():
-                    # Cloudinary retorna la URL directamente al acceder al campo
-                    return self.imagen_red.url
-            except Exception as e:
-                logger.warning(f"Error al obtener URL de Cloudinary para película {self.pk}: {e}")
-        
         # Fallback 1: Usar imagen local optimizada
         if self.imagen_local:
             try:
@@ -205,51 +196,14 @@ class Pelicula(SoftDeleteMixin, models.Model):
             if re.search(r'[<>{}\[\]\\]', self.titulo):
                 raise ValidationError({'titulo': "El título contiene caracteres no permitidos por seguridad."})
 
-            if not re.search(r'[a-zA-Z0-9]{2,}', self.titulo):
+            if not re.search(r'[a-zA-Z0-9]{1,}', self.titulo):
                 raise ValidationError({
                     'titulo': f"El título '{self.titulo}' es demasiado corto o no contiene caracteres válidos."
                 })
 
-        if self.director:
-            # Limpieza de espacios
-            self.director = " ".join(self.director.split())
-
-            # Regex: Mínimo 2 caracteres alfanuméricos para el nombre del director
-            if re.search(r'\d', self.director):
-                raise ValidationError({
-                    'director': f"PROHIBIDO: El nombre del director '{self.director}' no puede contener números."
-                })
-
-            # B. Regex: Mínimo 2 letras (evita ".", "x", "-")
-            # Usamos [a-zA-ZáéíóúÁÉÍÓÚñÑ] para permitir tildes y eñes
-            if not re.search(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ]{2,}', self.director):
-                raise ValidationError({
-                    'director': f"El nombre del director '{self.director}' es demasiado corto o inválido."
-                })
 
         # ========================================================================
-        # 2. VALIDACIÓN: Títulos y Directores no pueden ser puramente numéricos
-        # ========================================================================
-        def es_numero_puro(texto):
-            try:
-                float(texto.strip())
-                return True
-            except ValueError:
-                return False
-
-        if self.titulo and es_numero_puro(self.titulo):
-            raise ValidationError({
-                'titulo': f"PROHIBIDO: El título '{self.titulo}' no puede ser solo un número. "
-                          "Debe ser un nombre descriptivo."
-            })
-
-        if self.director and es_numero_puro(self.director):
-            raise ValidationError({
-                'director': f"PROHIBIDO: El nombre del director '{self.director}' no puede ser un número."
-            })
-
-        # ========================================================================
-        # 3. VALIDACIÓN: Fecha de estreno
+        # 2. VALIDACIÓN: Fecha de estreno
         # ========================================================================
         if self.fecha_estreno:
             # Validar que el año no sea absurdamente antiguo (antes del cine)
@@ -257,20 +211,19 @@ class Pelicula(SoftDeleteMixin, models.Model):
                 raise ValidationError({
                     'fecha_estreno': f"La fecha de estreno no puede ser anterior a 1888 (invención del cine)."
                 })
-
-            # Solo validar "no pasado" para películas NUEVAS
-            # PERMITIDO: Hoy y futuro
-            # BLOQUEADO: Solo fechas anteriores a hoy (pasado)
-            # Permitir editar películas antiguas sin error
+            
+            # Validar que no sea más de 3 años en el futuro
+            from datetime import timedelta
             hoy = timezone.now().date()
-            if not self.pk and self.fecha_estreno < hoy:  # < significa "antes de hoy" (no incluye hoy)
+            fecha_maxima = hoy + timedelta(days=365*3)
+            if self.fecha_estreno > fecha_maxima:
                 raise ValidationError({
-                    'fecha_estreno': f"La fecha de estreno no puede ser anterior al día de hoy ({hoy.strftime('%d/%m/%Y')}). "
-                                    f"Puedes seleccionar hoy o cualquier fecha futura."
+                    'fecha_estreno': f"La fecha de estreno no puede ser más de 3 años en el futuro. "
+                                    f"Límite máximo: {fecha_maxima.strftime('%d/%m/%Y')}"
                 })
 
         # ========================================================================
-        # 4. VALIDACIÓN: Duración razonable
+        # 3. VALIDACIÓN: Duración razonable
         # ========================================================================
         if self.duracion and (self.duracion < 30 or self.duracion > 300):
             raise ValidationError({
@@ -278,7 +231,7 @@ class Pelicula(SoftDeleteMixin, models.Model):
             })
 
         # ========================================================================
-        # 5. VALIDACIÓN: Unicidad de título + año (para mostrar error en formulario)
+        # 4. VALIDACIÓN: Unicidad de título + año (para mostrar error en formulario)
         # ========================================================================
         # Calcular el año para la validación de unicidad
         if self.fecha_estreno:
@@ -309,9 +262,8 @@ class Pelicula(SoftDeleteMixin, models.Model):
         1. Sincronización automática de anio_estreno desde fecha_estreno
         2. Validaciones completas mediante full_clean()
         3. Título no puede ser un número (validado en clean())
-        4. Director no puede ser un número (validado en clean())
-        5. Fecha de estreno debe ser >= 1888
-        6. Bloqueo de cambio de título si ya tiene funciones con ventas (validado en clean())
+        4. Fecha de estreno debe ser >= 1888
+        5. Bloqueo de cambio de título si ya tiene funciones con ventas (validado en clean())
         """
 
         # ========================================================================
@@ -323,11 +275,6 @@ class Pelicula(SoftDeleteMixin, models.Model):
             # Corregir letras repetidas 3 o más veces (ej: "Holaaa" -> "Holaa")
             self.titulo = re.sub(r'(.)\1{2,}', r'\1\1', self.titulo)
         
-        if self.director:
-            # Eliminar espacios innecesarios y aplicar Title Case
-            self.director = self.director.strip().title()
-            # Corregir letras repetidas 3 o más veces
-            self.director = re.sub(r'(.)\1{2,}', r'\1\1', self.director)
 
         # ========================================================================
         # 1. SINCRONIZACIÓN: Calcular anio_estreno desde fecha_estreno
@@ -350,10 +297,10 @@ class Pelicula(SoftDeleteMixin, models.Model):
         
         # Verificar si hay una imagen en imagen_portada (campo legacy/formulario)
         if self.imagen_portada and hasattr(self.imagen_portada, 'file'):
-            imagen_nueva = self.imagen_portada.file
+            imagen_nueva = self.imagen_portada
         # O si se subió directamente a imagen_local
         elif self.imagen_local and hasattr(self.imagen_local, 'file'):
-            imagen_nueva = self.imagen_local.file
+            imagen_nueva = self.imagen_local
         
         # Procesar la imagen si hay una nueva
         if imagen_nueva:
@@ -457,3 +404,5 @@ class Pelicula(SoftDeleteMixin, models.Model):
                 violation_error_message='Ya existe una película con este título en el mismo año'
             )
         ]
+
+

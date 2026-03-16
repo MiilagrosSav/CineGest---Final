@@ -35,7 +35,7 @@ class NotificacionService:
         """Obtener configuración del cine (singleton)"""
         try:
             from cine.models import ConfiguracionCine
-            return ConfiguracionCine.obtener_configuracion()
+            return ConfiguracionCine.load()
         except Exception as e:
             logger.warning(f"No se pudo obtener configuración del cine: {e}")
             return None
@@ -150,7 +150,7 @@ class NotificacionService:
             # Obtener datos de la venta
             entradas = venta.entradas.select_related(
                 'id_funcion__pelicula',
-                'id_funcion__id_sala',
+                'id_funcion__sala',
                 'id_butaca'
             ).all()
             
@@ -164,28 +164,30 @@ class NotificacionService:
             # Generar QR individual para cada entrada
             entradas_con_qr = []
             for entrada in entradas:
-                entrada_qr = self._generar_qr_base64(f"ENTRADA:{entrada.codigo_entrada}")
+                entrada_qr = self._generar_qr_base64(f"ENTRADA:{entrada.id_entrada}")
                 entradas_con_qr.append({
                     'entrada': entrada,
                     'qr_src': entrada_qr
                 })
             
-            # Información de promociones/descuentos
+            # Detectar la promoción aplicada y el total real recalculando con
+            # include_detalle=True (bypasea la optimización de estado CONFIRMADA).
             promocion_aplicada = None
             descuento_info = None
-            
-            # Si la venta tiene cupón aplicado, obtener info de promoción
-            if hasattr(venta, 'cupon_utilizado') and venta.cupon_utilizado:
-                cupon = venta.cupon_utilizado
-                if hasattr(cupon, 'id_promocion'):
-                    promocion_aplicada = cupon.id_promocion
-                    # Calcular info de descuento
-                    subtotal = venta.monto_total  # Simplificado
+            total_real = venta.total  # fallback al total guardado
+            es_compra_por_intercambio = venta.intercambios.filter(estado='COMPLETADO').exists()
+            try:
+                total_calculado, promo_detectada, detalle_email = venta.calcular_total(include_detalle=True)
+                total_real = total_calculado
+                if (not es_compra_por_intercambio) and promo_detectada and detalle_email.get('ahorro', 0) > 0:
+                    promocion_aplicada = promo_detectada
                     descuento_info = {
-                        'subtotal': subtotal,
-                        'descuento': 0,  # Calcular según tipo de promoción
-                        'total_final': venta.monto_total
+                        'subtotal': detalle_email['total_original'],
+                        'descuento': detalle_email['ahorro'],
+                        'total_final': total_calculado,
                     }
+            except Exception:
+                pass
             
             # Preparar contexto
             context = {
@@ -197,6 +199,7 @@ class NotificacionService:
                 'qr_src': qr_src,
                 'promocion_aplicada': promocion_aplicada,
                 'descuento_info': descuento_info,
+                'total_real': total_real,
                 'configuracion_cine': configuracion_cine,
                 'site_name': self._get_site_name(request),
             }
@@ -250,17 +253,22 @@ class NotificacionService:
             configuracion_cine = self._get_configuracion_cine()
             usuario = venta.id_cliente.usuario
             
-            # Obtener entradas del intercambio
-            entradas_intercambiadas = intercambio.entradas.select_related(
+            # Obtener las nuevas entradas de la función destino dentro de la venta
+            from ventas.models import Entrada
+            entradas_intercambiadas = Entrada.objects.filter(
+                id_venta=venta,
+                id_funcion=funcion_destino,
+                estado__in=['VENDIDA', 'ENTREGADA', 'RESERVADA']
+            ).select_related(
                 'id_funcion__pelicula',
-                'id_funcion__id_sala',
+                'id_funcion__sala',
                 'id_butaca'
-            ).all()
+            )
             
             # Generar QR para nuevas entradas
             entradas_con_qr = []
             for entrada in entradas_intercambiadas:
-                entrada_qr = self._generar_qr_base64(f"ENTRADA:{entrada.codigo_entrada}")
+                entrada_qr = self._generar_qr_base64(f"ENTRADA:{entrada.id_entrada}")
                 entradas_con_qr.append({
                     'entrada': entrada,
                     'qr_src': entrada_qr
@@ -274,6 +282,7 @@ class NotificacionService:
                 'funcion_origen': funcion_origen,
                 'funcion_destino': funcion_destino,
                 'entradas': entradas_con_qr,
+                'entradas_nuevas': list(entradas_intercambiadas),  # lista plana para mostrar butacas en plantilla
                 'cantidad': entradas_intercambiadas.count(),
                 'configuracion_cine': configuracion_cine,
                 'site_name': self._get_site_name(request),
@@ -303,6 +312,67 @@ class NotificacionService:
             logger.error(f"Error enviando email de confirmación de intercambio #{intercambio.id_intercambio}: {e}")
             return False
     
+    def enviar_yield_promocion(
+        self,
+        cliente,
+        funcion,
+        promocion,
+        cupon,
+        cupon_url: str,
+    ) -> bool:
+        """
+        Enviar email de oferta de yield management (baja ocupación de sala).
+        Usa las plantillas promocion_yield.html / promocion_yield.txt.
+        """
+        try:
+            configuracion_cine = self._get_configuracion_cine()
+            usuario = cliente.usuario
+
+            # Texto del descuento
+            tipo = (getattr(promocion, 'tipo_descuento', '') or '').upper()
+            valor = getattr(promocion, 'valor_descuento', 0)
+            if tipo == 'PORCENTAJE':
+                descuento_texto = f'{int(valor)}% de descuento'
+            elif tipo == '2X1':
+                descuento_texto = '2x1 en entradas'
+            elif tipo == 'MONTO_FIJO':
+                descuento_texto = f'${int(valor)} de descuento'
+            else:
+                descuento_texto = 'Descuento especial'
+
+            context = {
+                'usuario': usuario,
+                'cliente': cliente,
+                'funcion': funcion,
+                'pelicula': funcion.pelicula,
+                'sala': funcion.sala,
+                'promocion': promocion,
+                'cupon': cupon,
+                'cupon_url': cupon_url,
+                'descuento_texto': descuento_texto,
+                'configuracion_cine': configuracion_cine,
+            }
+
+            html_content = render_to_string('core/emails/promocion_yield.html', context)
+            text_content = render_to_string('core/emails/promocion_yield.txt', context)
+
+            nombre_cine = configuracion_cine.nombre if configuracion_cine else 'CineGest'
+            subject = f'🎬 ¡Oferta especial! {funcion.pelicula.titulo} - {nombre_cine}'
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=self.from_email,
+                to=[usuario.email]
+            )
+            email.attach_alternative(html_content, 'text/html')
+            email.send(fail_silently=False)
+            logger.info(f'Email yield management enviado a {usuario.email} - Cupón: {cupon.token}')
+            return True
+
+        except Exception as e:
+            logger.error(f'Error enviando email yield management a {cliente.usuario.email}: {e}')
+            return False
+
     def enviar_oferta_promocion(
         self, 
         cliente, 
@@ -362,6 +432,224 @@ class NotificacionService:
             
         except Exception as e:
             logger.error(f"Error enviando email de oferta de promoción a {usuario.email}: {e}")
+            return False
+
+    def enviar_comprobante_pago(self, pago, request=None) -> bool:
+        """
+        Enviar comprobante de pago (recibo financiero) por email
+        
+        Este es un documento legal/contable que respalda la transacción monetaria,
+        distinto al ticket de entrada que es para acceder al cine.
+        
+        Args:
+            pago: Instancia de Pago
+            request: HttpRequest (opcional, para URLs absolutas)
+            
+        Returns:
+            True si se envió correctamente, False si falló
+        """
+        try:
+            from ventas.models import Venta
+            
+            configuracion_cine = self._get_configuracion_cine()
+            venta = pago.id_venta
+            usuario = venta.id_cliente.usuario
+            
+            # Obtener datos de la venta para el detalle
+            entradas = venta.entradas.select_related(
+                'id_funcion__pelicula',
+                'id_funcion__sala',
+            ).all()
+            
+            # Detectar la promoción aplicada y el precio efectivo por entrada recalculando
+            # con include_detalle=True (bypasea la optimización de estado CONFIRMADA).
+            promo_email = None
+            precio_unitario_efectivo = None
+            try:
+                _, promo_email, detalle_email = venta.calcular_total(include_detalle=True)
+                precio_unitario_efectivo = detalle_email.get('precio_unitario_final')
+            except Exception:
+                pass
+
+            # Agrupar entradas por película
+            peliculas_agrupadas = {}
+            for entrada in entradas:
+                pelicula_nombre = entrada.id_funcion.pelicula.titulo
+                # Usar precio efectivo con descuento si se detectó promo;
+                # si no, usar precio_unitario guardado en la entrada o precio_base como fallback.
+                precio_base_entrada = entrada.id_funcion.precio_base
+                precio = precio_unitario_efectivo or (entrada.precio_unitario if entrada.precio_unitario else precio_base_entrada)
+                if pelicula_nombre not in peliculas_agrupadas:
+                    peliculas_agrupadas[pelicula_nombre] = {
+                        'pelicula': entrada.id_funcion.pelicula,
+                        'cantidad': 0,
+                        'precio_unitario': precio,
+                    }
+                peliculas_agrupadas[pelicula_nombre]['cantidad'] += 1
+
+            # Calcular subtotales
+            conceptos = []
+            for pelicula_nombre, datos in peliculas_agrupadas.items():
+                subtotal = datos['cantidad'] * datos['precio_unitario']
+                conceptos.append({
+                    'descripcion': f"Entrada(s) - {pelicula_nombre}",
+                    'cantidad': datos['cantidad'],
+                    'precio_unitario': datos['precio_unitario'],
+                    'subtotal': subtotal,
+                })
+
+            # Información de descuento si aplica
+            descuento_aplicado = None
+            if promo_email:
+                descuento_aplicado = {
+                    'nombre': promo_email.nombre,
+                    'tipo': promo_email.tipo_descuento,
+                    'porcentaje': str(promo_email.valor_descuento) if promo_email.tipo_descuento == 'PORCENTAJE' else None,
+                }
+            elif hasattr(venta, 'cupon_utilizado') and venta.cupon_utilizado:
+                cupon = venta.cupon_utilizado
+                if hasattr(cupon, 'id_promocion') and cupon.id_promocion:
+                    descuento_aplicado = {
+                        'nombre': cupon.id_promocion.nombre,
+                        'tipo': 'PORCENTAJE',
+                        'porcentaje': cupon.id_promocion.descuento_porcentaje,
+                    }
+            
+            # Preparar contexto
+            context = {
+                'usuario': usuario,
+                'pago': pago,
+                'venta': venta,
+                'conceptos': conceptos,
+                'descuento_aplicado': descuento_aplicado,
+                'configuracion_cine': configuracion_cine,
+                'fecha_emision': pago.fecha_pago,
+                'metodo_pago': pago.id_metodo_pago.nombre,
+                'site_name': self._get_site_name(request),
+            }
+            
+            # Renderizar templates
+            html_content = render_to_string('core/emails/comprobante_pago.html', context)
+            text_content = render_to_string('core/emails/comprobante_pago.txt', context)
+            
+            # Crear email
+            nombre_cine = configuracion_cine.nombre if configuracion_cine else 'CineGest'
+            subject = f"Comprobante de Pago - Orden #{venta.id_venta} - {nombre_cine}"
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=self.from_email,
+                to=[usuario.email]
+            )
+            email.attach_alternative(html_content, "text/html")
+            
+            # Intentar generar y adjuntar PDF (opcional)
+            try:
+                pdf_content = self._generar_comprobante_pdf(context)
+                if pdf_content:
+                    email.attach(
+                        f'Comprobante_Pago_{venta.id_venta}.pdf',
+                        pdf_content,
+                        'application/pdf'
+                    )
+                    logger.info(f"PDF del comprobante adjunto para pago #{pago.id_pago}")
+            except Exception as e:
+                logger.warning(f"No se pudo generar PDF del comprobante: {e}")
+                # Continuar enviando el email sin PDF
+            
+            # Enviar
+            email.send(fail_silently=False)
+            logger.info(f"Comprobante de pago enviado a {usuario.email} para pago #{pago.id_pago}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error enviando comprobante de pago #{pago.id_pago}: {e}")
+            return False
+    
+    def _generar_comprobante_pdf(self, context):
+        """
+        Generar PDF del comprobante de pago usando WeasyPrint
+        
+        Args:
+            context: Diccionario con datos del comprobante
+            
+        Returns:
+            Bytes del PDF o None si falla
+        """
+        try:
+            from weasyprint import HTML
+            import tempfile
+            
+            # Renderizar HTML del comprobante
+            html_content = render_to_string('core/emails/comprobante_pago_pdf.html', context)
+            
+            # Generar PDF
+            pdf_file = HTML(string=html_content).write_pdf()
+            
+            return pdf_file
+            
+        except ImportError:
+            logger.warning("WeasyPrint no está instalado. No se puede generar PDF.")
+            return None
+        except Exception as e:
+            logger.error(f"Error generando PDF del comprobante: {e}")
+            return None
+
+    def enviar_ticket_presencial(self, venta, email_destino: str) -> bool:
+        """
+        Envía el ticket de una venta presencial a la dirección de correo indicada.
+        Reutiliza el template de confirmación de compra pero dirige el mail al
+        email capturado por el empleado en caja (no necesariamente el del cliente).
+        """
+        try:
+            configuracion_cine = self._get_configuracion_cine()
+
+            entradas = venta.entradas.select_related(
+                'id_funcion__pelicula', 'id_funcion__sala', 'id_butaca'
+            ).all()
+            primera_entrada = entradas.first()
+            cantidad = entradas.count()
+
+            entradas_con_qr = []
+            for entrada in entradas:
+                qr = self._generar_qr_base64(f"ENTRADA:{entrada.id_entrada}")
+                entradas_con_qr.append({'entrada': entrada, 'qr_src': qr})
+
+            qr_src = self._generar_qr_base64(f"VENTA:{venta.codigo_compra}")
+            total_real = venta.total or venta.calcular_total()
+
+            context = {
+                'usuario': venta.id_cliente.usuario,
+                'nombre_comprador': email_destino,
+                'venta': venta,
+                'primera_entrada': primera_entrada,
+                'cantidad': cantidad,
+                'entradas': entradas_con_qr,
+                'qr_src': qr_src,
+                'promocion_aplicada': None,
+                'descuento_info': None,
+                'total_real': total_real,
+                'configuracion_cine': configuracion_cine,
+                'site_name': configuracion_cine.nombre if configuracion_cine else 'CineGest',
+            }
+
+            html_content = render_to_string('core/emails/confirmacion_compra.html', context)
+            text_content = render_to_string('core/emails/confirmacion_compra.txt', context)
+
+            nombre_cine = configuracion_cine.nombre if configuracion_cine else 'CineGest'
+            subject = f"Tu entrada para {primera_entrada.id_funcion.pelicula.titulo} - {nombre_cine}"
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=text_content,
+                from_email=self.from_email,
+                to=[email_destino],
+            )
+            email.attach_alternative(html_content, "text/html")
+            email.send(fail_silently=False)
+            logger.info(f"Ticket presencial venta #{venta.id_venta} enviado a {email_destino}")
+            return True
+        except Exception as e:
+            logger.error(f"Error enviando ticket presencial venta #{venta.id_venta}: {e}")
             return False
 
 

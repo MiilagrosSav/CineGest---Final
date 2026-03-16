@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+﻿from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.generic import ListView, UpdateView, DeleteView
@@ -6,8 +6,10 @@ from django.urls import reverse_lazy
 from django.utils import timezone
 from django.http import JsonResponse 
 from django.db.models import Q
+from django.core.exceptions import ValidationError
 from django.views.decorators.csrf import ensure_csrf_cookie
 from datetime import datetime, timedelta, date, time
+from collections import Counter
 import json
 from cine.models import Funcion, Pelicula, Sala
 from cine.forms import FuncionForm, FuncionBatchForm
@@ -30,6 +32,16 @@ class FuncionListView(AdminRequiredMixin, ListView):
         Funcion.objects.filter(
             fecha_hora__lt=ahora
         ).exclude(estado='INACTIVA').update(estado='INACTIVA')
+
+        # Transición PREVENTA → ACTIVA: cuando llegó fecha_activacion o es el día de la función
+        hoy = ahora.date()
+        Funcion.objects.filter(
+            estado='PREVENTA',
+            fecha_hora__gte=ahora,
+        ).filter(
+            Q(fecha_activacion__lte=ahora) |
+            Q(fecha_activacion__isnull=True, fecha_hora__date__lte=hoy)
+        ).update(estado='ACTIVA')
         
         # Filtrar por estado: 'activas' (por defecto) o 'inactivas' (historial)
         estado = self.request.GET.get('estado', 'activas')
@@ -41,32 +53,32 @@ class FuncionListView(AdminRequiredMixin, ListView):
             queryset = queryset.filter(Q(fecha_hora__lt=ahora) | Q(activo=False) | Q(estado='INACTIVA'))
         else:
             queryset = Funcion.objects.select_related('pelicula', 'sala').prefetch_related('formatos_funcion__formato')
-            # Mostrar solo funciones activas, futuras y que NO estén marcadas como INACTIVA
+            # Mostrar solo funciones activas, futuras y que NO están marcadas como INACTIVA
             queryset = queryset.filter(fecha_hora__gte=ahora).exclude(estado='INACTIVA')
         
-        # Filtro por búsqueda (título de película, sala o formato)
+        # Filtro por búsqueda (ti­tulo de peli­cula, sala o formato)
         search = self.request.GET.get('search', '').strip()
         if search:
-            # buscar por título de película O nombre de sala O nombre de formato (case-insensitive)
+            # buscar por ti­tulo de peli­cula O nombre de sala O nombre de formato (case-insensitive)
             q = (
                 Q(pelicula__titulo__icontains=search) | 
                 Q(sala__nombre__icontains=search) |
                 Q(formatos_funcion__formato__nombre__icontains=search)
             )
-            # Si el término es numérico, también buscar por número de sala
+            # Si el termino es numerico, tambien buscar por numero de sala
             if search.isdigit():
                 try:
                     q |= Q(sala__numero=int(search))
                 except ValueError:
                     pass
-            queryset = queryset.filter(q).distinct()  # distinct() evita duplicados por formatos múltiples
+            queryset = queryset.filter(q).distinct()  # distinct() evita duplicados por formatos multiples
         
-        # Filtro por película específica
+        # Filtro por pelicula especi­fica
         pelicula_id = self.request.GET.get('pelicula', '').strip()
         if pelicula_id:
             queryset = queryset.filter(pelicula_id=pelicula_id)
         
-        # Filtro por sala específica
+        # Filtro por sala especifica
         sala_id = self.request.GET.get('sala', '').strip()
         if sala_id:
             queryset = queryset.filter(sala_id=sala_id)
@@ -82,7 +94,7 @@ class FuncionListView(AdminRequiredMixin, ListView):
                 fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
                 queryset = queryset.filter(fecha_hora__date__lte=fecha_fin_obj)
         except ValueError:
-            # ignorar rango si formato inválido
+            # ignorar rango si formato invalido
             pass
         
         # Filtro por formato
@@ -90,7 +102,7 @@ class FuncionListView(AdminRequiredMixin, ListView):
         if formato_id:
             queryset = queryset.filter(formatos_funcion__formato_id=formato_id)
         
-        # Filtro por estado de función (ACTIVA, PREVENTA, AGOTADA)
+        # Filtro por estado de funcion (ACTIVA, PREVENTA, AGOTADA)
         estado_funcion = self.request.GET.get('estado_funcion', '').strip()
         if estado_funcion:
             queryset = queryset.filter(estado=estado_funcion)
@@ -114,7 +126,7 @@ class FuncionListView(AdminRequiredMixin, ListView):
         return queryset
     
     def get_context_data(self, **kwargs):
-        """Agregar parámetros de búsqueda al contexto"""
+        """Agregar parametros de busqueda al contexto"""
         from cine.models import Formato
         
         context = super().get_context_data(**kwargs)
@@ -147,7 +159,7 @@ class FuncionListView(AdminRequiredMixin, ListView):
         context['salas'] = Sala.objects.all().order_by('numero')
         context['formatos'] = Formato.objects.all().order_by('nombre')
         
-        # Indicar si se está viendo historial (inactivas)
+        # Indicar si se esta viendo historial (inactivas)
         context['is_history'] = (self.request.GET.get('estado', 'activas') == 'inactivas')
         context['filtro_estado'] = self.request.GET.get('estado', 'activas')
         
@@ -161,198 +173,448 @@ class FuncionListView(AdminRequiredMixin, ListView):
             return render(request, 'cine/_funcion_table.html', context)
         return super().render_to_response(context, **response_kwargs)
 
-# CREATE: Vista para mostrar el formulario de creación
-# CAMBIO 2: REEMPLAZO DE 'FuncionCreateView' POR UNA VISTA DE FUNCIÓN (FBV)
-# La 'CreateView' original se reemplaza por esta función
+# CREATE: Vista para mostrar el formulario de creacion
+
+def _obtener_excepcion_para_fecha(configuracion, fecha):
+    from cine.models import ExcepcionHorario
+
+    return ExcepcionHorario.objects.filter(
+        configuracion_cine=configuracion,
+        fecha__lte=fecha
+    ).filter(
+        Q(fecha_fin__isnull=True, fecha=fecha) |
+        Q(fecha_fin__gte=fecha)
+    ).order_by('fecha').first()
+
+
+def _obtener_motivo_cierre_dia(configuracion, fecha):
+    excepcion = _obtener_excepcion_para_fecha(configuracion, fecha)
+    if excepcion and excepcion.cerrado:
+        return excepcion.descripcion or 'excepcion de horario'
+
+    if excepcion and not excepcion.cerrado:
+        return None
+
+    horarios_dia = configuracion.get_horarios_dia(fecha.weekday())
+    if not horarios_dia.exists():
+        return 'horario regular (sin atencion configurada para ese dia)'
+
+    return None
+
+
+def _agregar_intervalo_agenda(agenda_por_fecha, fecha, intervalo):
+    agenda_por_fecha.setdefault(fecha, [])
+    agenda_por_fecha[fecha].append(intervalo)
+    agenda_por_fecha[fecha].sort(key=lambda x: x['inicio'])
+
+
+def _buscar_conflicto_intervalo(intervalos, inicio, fin, requiere_4d, tiene_4d, tiene_estandar, pelicula_id):
+    for intervalo in intervalos:
+        if inicio < intervalo['fin'] and fin > intervalo['inicio']:
+            if inicio != intervalo['inicio']:
+                intervalo['motivo_bisala'] = (
+                    f'Conflicto de horario: La sala {intervalo.get("sala_nombre", "")}'.strip() +
+                    f' ya está ocupada por "{intervalo.get("titulo", "otra función")}".'
+                )
+                return intervalo
+
+            requiere_4d_otra = intervalo.get('requiere_4d')
+            if intervalo.get('pelicula_id') == pelicula_id:
+                if Funcion.permite_solape_bisala(requiere_4d, requiere_4d_otra, tiene_4d, tiene_estandar):
+                    continue
+                if requiere_4d is None or requiere_4d_otra is None:
+                    intervalo['motivo_bisala'] = 'No se puede solapar sin definir formato de experiencia (4D o estandar).'
+                elif requiere_4d and requiere_4d_otra:
+                    intervalo['motivo_bisala'] = 'Ambas funciones requieren butacas 4D. El solape solo se permite cuando una es 4D y la otra estandar.'
+                else:
+                    intervalo['motivo_bisala'] = 'Ambas funciones son estandar. El solape solo se permite cuando una es 4D y la otra estandar.'
+            else:
+                intervalo['motivo_bisala'] = (
+                    f'Conflicto de Proyección: La sala {intervalo.get("sala_nombre", "")}'.strip() +
+                    f' ya tiene programada la película "{intervalo.get("titulo", "otra función")}" en este horario.'
+                )
+            return intervalo
+    return None
+
+
+def _registrar_omision(omisiones, fecha_obj, hora_obj, tipo, detalle):
+    fecha_str = fecha_obj.strftime('%d/%m/%Y')
+    hora_str = hora_obj.strftime('%H:%M') if hora_obj else None
+
+    if hora_str:
+        mensaje = f'{fecha_str} {hora_str}: {detalle}'
+    else:
+        mensaje = f'{fecha_str}: {detalle}'
+
+    omisiones.append({
+        'tipo': tipo,
+        'fecha': fecha_str,
+        'hora': hora_str,
+        'detalle': detalle,
+        'mensaje': mensaje,
+    })
+
+
+def _descripcion_tipo_omision(tipo):
+    descripciones = {
+        'antes_estreno': 'intento antes del estreno',
+        'cine_cerrado': 'cine cerrado',
+        'hora_pasada': 'fecha/hora pasada',
+        'fuera_horario': 'fuera de horario de atencion',
+        'solape_limpieza': 'solape con limpieza',
+        'sala_ocupada': 'sala ocupada',
+        'sala_sin_4d': 'sala sin butacas 4D',
+        'sala_sin_estandar': 'sala sin butacas estandar',
+    }
+    return descripciones.get(tipo, tipo)
+
+
+def _resumen_omisiones_por_tipo(omisiones):
+    conteo = Counter(item['tipo'] for item in omisiones)
+    partes = [
+        f'{cantidad} por {_descripcion_tipo_omision(tipo)}'
+        for tipo, cantidad in conteo.items()
+    ]
+    return ', '.join(partes)
+
+
+def _procesar_carga_masiva_funciones(
+    pelicula,
+    sala,
+    fechas_objetivo,
+    horarios_obj_lista,
+    precio,
+    idioma,
+    estado,
+    fecha_activacion,
+    formatos_seleccionados=None
+):
+    from cine.models import ConfiguracionCine
+
+    configuracion = ConfiguracionCine.load()
+    minutos_limpieza = configuracion.minutos_limpieza
+    duracion_total = timedelta(minutes=pelicula.duracion + minutos_limpieza)
+    current_tz = timezone.get_current_timezone()
+    ahora = timezone.now()
+
+    omisiones = []
+    funciones_a_crear = []
+    agenda_por_fecha = {}
+
+    fechas_ordenadas = sorted(fechas_objetivo)
+    horarios_ordenados = sorted(horarios_obj_lista)
+
+    if not fechas_ordenadas:
+        return [], [], 0
+
+    funciones_existentes = Funcion.objects.select_for_update().filter(
+        sala=sala,
+        fecha_hora__date__gte=fechas_ordenadas[0],
+        fecha_hora__date__lte=fechas_ordenadas[-1]
+    ).select_related('pelicula').prefetch_related('formatos_funcion__formato').order_by('fecha_hora')
+
+    requiere_4d = Funcion.requiere_4d_en_formatos(formatos_seleccionados)
+    tiene_4d, tiene_estandar = Funcion.sala_tiene_butacas_para(sala)
+    if requiere_4d is not None:
+        if requiere_4d and not tiene_4d:
+            for fecha_objetivo in fechas_ordenadas:
+                for hora_obj in horarios_ordenados:
+                    _registrar_omision(
+                        omisiones,
+                        fecha_objetivo,
+                        hora_obj,
+                        'sala_sin_4d',
+                        'No se crea porque la sala no tiene butacas 4D.',
+                    )
+            omisiones_total = len(omisiones)
+            return [], omisiones, omisiones_total
+
+        if requiere_4d is False and not tiene_estandar:
+            for fecha_objetivo in fechas_ordenadas:
+                for hora_obj in horarios_ordenados:
+                    _registrar_omision(
+                        omisiones,
+                        fecha_objetivo,
+                        hora_obj,
+                        'sala_sin_estandar',
+                        'No se crea porque la sala no tiene butacas estandar.',
+                    )
+            omisiones_total = len(omisiones)
+            return [], omisiones, omisiones_total
+
+    for funcion_existente in funciones_existentes:
+        inicio_existente = funcion_existente.fecha_hora
+        fin_existente = inicio_existente + timedelta(
+            minutes=funcion_existente.pelicula.duracion + minutos_limpieza
+        )
+        fecha_existente = timezone.localtime(inicio_existente).date() if timezone.is_aware(inicio_existente) else inicio_existente.date()
+        _agregar_intervalo_agenda(
+            agenda_por_fecha,
+            fecha_existente,
+            {
+                'inicio': inicio_existente,
+                'fin': fin_existente,
+                'origen': 'existente',
+                'titulo': funcion_existente.pelicula.titulo,
+                'requiere_4d': Funcion.requiere_4d_en_formatos(funcion_existente.formatos_funcion.all()),
+                'pelicula_id': funcion_existente.pelicula_id,
+                'sala_nombre': sala.nombre,
+            }
+        )
+
+    for fecha_objetivo in fechas_ordenadas:
+
+        if fecha_objetivo < pelicula.fecha_estreno:
+            for hora_obj in horarios_ordenados:
+                _registrar_omision(
+                    omisiones,
+                    fecha_objetivo,
+                    hora_obj,
+                    'antes_estreno',
+                    (
+                        f'No se crea porque "{pelicula.titulo}" se estrena el '
+                        f'{pelicula.fecha_estreno.strftime("%d/%m/%Y")}.'
+                    ),
+                )
+            continue
+
+        motivo_cierre = _obtener_motivo_cierre_dia(configuracion, fecha_objetivo)
+        if motivo_cierre:
+            for hora_obj in horarios_ordenados:
+                _registrar_omision(
+                    omisiones,
+                    fecha_objetivo,
+                    hora_obj,
+                    'cine_cerrado',
+                    f'No se crea porque el cine esta cerrado por: {motivo_cierre}.',
+                )
+            continue
+
+        agenda_dia = agenda_por_fecha.setdefault(fecha_objetivo, [])
+
+        for hora_obj in horarios_ordenados:
+            fecha_hora = timezone.make_aware(
+                datetime.combine(fecha_objetivo, hora_obj),
+                current_tz
+            )
+            fin_funcion = fecha_hora + duracion_total
+
+            if fecha_hora < ahora:
+                _registrar_omision(
+                    omisiones,
+                    fecha_objetivo,
+                    hora_obj,
+                    'hora_pasada',
+                    'No se crea porque la fecha y hora de inicio ya pasaron.',
+                )
+                continue
+
+            es_valido, mensaje_error = configuracion.validar_rango_horario(
+                fecha_hora,
+                fin_funcion
+            )
+            if not es_valido:
+                _registrar_omision(
+                    omisiones,
+                    fecha_objetivo,
+                    hora_obj,
+                    'fuera_horario',
+                    f'No se crea porque queda fuera del horario permitido: {mensaje_error}',
+                )
+                continue
+
+            conflicto = _buscar_conflicto_intervalo(
+                agenda_dia,
+                fecha_hora,
+                fin_funcion,
+                requiere_4d,
+                tiene_4d,
+                tiene_estandar,
+                pelicula.id,
+            )
+            if conflicto:
+                motivo_bisala = conflicto.get('motivo_bisala')
+                motivo_bisala_texto = f' {motivo_bisala}' if motivo_bisala else ''
+                if conflicto.get('origen') == 'nuevo':
+                    fin_conflicto = conflicto.get('fin')
+                    fin_conflicto_str = (
+                        timezone.localtime(fin_conflicto).strftime('%H:%M')
+                        if fin_conflicto and timezone.is_aware(fin_conflicto)
+                        else fin_conflicto.strftime('%H:%M') if fin_conflicto else 'hora desconocida'
+                    )
+                    _registrar_omision(
+                        omisiones,
+                        fecha_objetivo,
+                        hora_obj,
+                        'solape_limpieza',
+                        (
+                            f'No se crea porque solapa con el tiempo de limpieza de la funcion anterior '
+                            f'(la sala queda libre recien a las {fin_conflicto_str}).{motivo_bisala_texto}'
+                        ),
+                    )
+                else:
+                    inicio_conflicto = conflicto.get('inicio')
+                    fin_conflicto = conflicto.get('fin')
+                    if inicio_conflicto and timezone.is_aware(inicio_conflicto):
+                        inicio_conflicto = timezone.localtime(inicio_conflicto)
+                    if fin_conflicto and timezone.is_aware(fin_conflicto):
+                        fin_conflicto = timezone.localtime(fin_conflicto)
+                    inicio_conflicto_str = inicio_conflicto.strftime('%H:%M') if inicio_conflicto else 'hora desconocida'
+                    fin_conflicto_str = fin_conflicto.strftime('%H:%M') if fin_conflicto else 'hora desconocida'
+                    _registrar_omision(
+                        omisiones,
+                        fecha_objetivo,
+                        hora_obj,
+                        'sala_ocupada',
+                        (
+                            f'No se crea porque la Sala {sala.nombre} esta ocupada por '
+                            f'"{conflicto.get("titulo", "otra funcion")}" entre '
+                            f'{inicio_conflicto_str} y {fin_conflicto_str}.{motivo_bisala_texto}'
+                        ),
+                    )
+                continue
+
+            funcion_nueva = Funcion(
+                pelicula=pelicula,
+                sala=sala,
+                fecha_hora=fecha_hora,
+                precio_base=precio,
+                idioma=idioma,
+                estado=estado,
+                fecha_activacion=fecha_activacion
+            )
+            funciones_a_crear.append(funcion_nueva)
+            _agregar_intervalo_agenda(
+                agenda_por_fecha,
+                fecha_objetivo,
+                {
+                    'inicio': fecha_hora,
+                    'fin': fin_funcion,
+                    'origen': 'nuevo',
+                    'titulo': pelicula.titulo,
+                    'requiere_4d': requiere_4d,
+                    'pelicula_id': pelicula.id,
+                    'sala_nombre': sala.nombre,
+                }
+            )
+
+    funciones_creadas = Funcion.objects.bulk_create(funciones_a_crear)
+    omisiones_total = len(omisiones)
+    return funciones_creadas, omisiones, omisiones_total
+
+
 @ensure_csrf_cookie
 @login_required
-@user_passes_test(lambda u: u.is_authenticated and (u.is_superuser or getattr(u, 'rol', None) == 'admin'), login_url='/accounts/dashboard/')  # Usamos una comprobación inline para evitar referencia temprana a es_admin
+@user_passes_test(lambda u: u.is_authenticated and (u.is_superuser or getattr(u, 'rol', None) == 'admin'), login_url='/accounts/dashboard/')
 def funcion_create_view(request):
     if request.method == 'POST':
-        # Usamos el nuevo formulario 'FuncionBatchForm'
         form = FuncionBatchForm(request.POST)
-        
         if form.is_valid():
-            # Los datos ya están validados, incluida la lógica de solapamiento
-            
-            # 1. Obtené los datos comunes
             pelicula = form.cleaned_data['pelicula']
             sala = form.cleaned_data['sala']
-            fecha = form.cleaned_data['fecha']
+            fechas_objetivo = form.cleaned_data['fechas_objetivo']
             precio = form.cleaned_data['precio_base']
-            idioma = form.cleaned_data.get('idioma')  # String: 'DOBLADA', 'SUBTITULADA', etc.
-            estado = form.cleaned_data.get('estado', 'ACTIVA')  # String: 'ACTIVA', 'PREVENTA', 'AGOTADA'
-            # Formatos por categoría (un solo objeto por categoría)
+            idioma = form.cleaned_data.get('idioma')
+            estado = form.cleaned_data.get('estado', 'ACTIVA')
+            fecha_activacion_date = form.cleaned_data.get('fecha_activacion')
+
+            fecha_activacion = None
+            if fecha_activacion_date:
+                fecha_activacion = timezone.make_aware(
+                    datetime.combine(fecha_activacion_date, time(0, 0))
+                )
+
             formato_visual = form.cleaned_data.get('formatos_visual')
             formato_pantalla = form.cleaned_data.get('formatos_pantalla')
             formato_experiencia = form.cleaned_data.get('formatos_experiencia')
-            
-            # 2. Obtené la *lista* de objetos 'time' desde el form
             horarios_obj_lista = form.cleaned_data['horarios']
-            
-            # ======================================================================
-            # VALIDACIÓN TEMPRANA: Verificar excepciones de horario ANTES de crear
-            # ======================================================================
-            from cine.models import ConfiguracionCine, ExcepcionHorario
-            from django.db.models import Q
-            
-            configuracion = ConfiguracionCine.load()
-            
-            # Buscar excepción que aplique a esta fecha (puede ser fecha exacta o dentro de un rango)
-            excepciones = ExcepcionHorario.objects.filter(
-                configuracion_cine=configuracion,
-                fecha__lte=fecha  # fecha de inicio <= fecha buscada
-            ).filter(
-                Q(fecha_fin__isnull=True, fecha=fecha) |  # Excepción de un solo día
-                Q(fecha_fin__gte=fecha)  # O fecha dentro del rango
-            )
-            
-            if excepciones.exists():
-                excepcion = excepciones.first()
-                
-                # Si el cine está cerrado, rechazar inmediatamente
-                if excepcion.cerrado:
-                    messages.error(
-                        request, 
-                        f'❌ No se pueden crear funciones el {fecha.strftime("%d/%m/%Y")}. '
-                        f'El cine está CERRADO. Motivo: {excepcion.descripcion or "Cine cerrado por excepción no especificada"}.'
+            formatos_seleccionados = [f for f in (formato_visual, formato_pantalla, formato_experiencia) if f]
+
+            try:
+                with transaction.atomic():
+                    funciones_creadas, omisiones, omisiones_total = _procesar_carga_masiva_funciones(
+                        pelicula=pelicula,
+                        sala=sala,
+                        fechas_objetivo=fechas_objetivo,
+                        horarios_obj_lista=horarios_obj_lista,
+                        precio=precio,
+                        idioma=idioma,
+                        estado=estado,
+                        fecha_activacion=fecha_activacion,
+                        formatos_seleccionados=formatos_seleccionados,
                     )
-                    # Re-renderizar el formulario con el error
-                    context = {
-                        'form': form,
-                        'titulo_pagina': 'Crear Función(es)',
-                        'nombre_boton': 'Crear',
-                        'es_edicion': False,
-                        'configuracion_cine': configuracion
-                    }
-                    return render(request, 'cine/funcion_form.html', context)
-                
-                # Si hay horario modificado, validar que los horarios estén dentro del rango
-                if excepcion.hora_apertura and excepcion.hora_cierre:
-                    horarios_invalidos = []
-                    for hora_obj in horarios_obj_lista:
-                        # Calcular hora de fin (inicio + duración película + limpieza)
-                        inicio_minutos = hora_obj.hour * 60 + hora_obj.minute
-                        duracion_total = pelicula.duracion + configuracion.minutos_limpieza
-                        fin_minutos = inicio_minutos + duracion_total
-                        
-                        # Manejar casos donde fin_minutos excede 24 horas
-                        if fin_minutos >= 1440:  # 24 * 60 = 1440 minutos
-                            # La función termina después de medianoche, usar 23:59 como referencia
-                            hora_fin = time(23, 59)
-                        else:
-                            hora_fin = time(fin_minutos // 60, fin_minutos % 60)
-                        
-                        # Verificar que TODO el rango esté dentro del horario excepcional
-                        if not (excepcion.hora_apertura <= hora_obj and hora_fin <= excepcion.hora_cierre):
-                            horarios_invalidos.append(hora_obj.strftime('%H:%M'))
-                    
-                    if horarios_invalidos:
-                        messages.error(
-                            request,
-                            f'❌ Los siguientes horarios exceden el horario especial del {fecha.strftime("%d/%m/%Y")} '
-                            f'({excepcion.hora_apertura.strftime("%H:%M")} - {excepcion.hora_cierre.strftime("%H:%M")}): '
-                            f'{", ".join(horarios_invalidos)}. Motivo: {excepcion.descripcion or "Horario modificado"}.'
+
+                    if any(funcion.pk is None for funcion in funciones_creadas):
+                        fechas_hora_creadas = [funcion.fecha_hora for funcion in funciones_creadas]
+                        funciones_creadas = list(
+                            Funcion.objects.filter(
+                                pelicula=pelicula,
+                                sala=sala,
+                                fecha_hora__in=fechas_hora_creadas
+                            ).order_by('fecha_hora')
                         )
-                        context = {
-                            'form': form,
-                            'titulo_pagina': 'Crear Función(es)',
-                            'nombre_boton': 'Crear',
-                            'es_edicion': False,
-                            'configuracion_cine': configuracion
-                        }
-                        return render(request, 'cine/funcion_form.html', context)
-            
-            # Si no hay excepciones para esta fecha, continuar normalmente
-            
-            funciones_creadas = 0
-            current_tz = timezone.get_current_timezone() # Para crear datetimes "aware"
-            
-            # 3. Hacé un bucle por cada horario y creá la función
-            # ✅ CORRECCIÓN CRÍTICA: Envuelto en transaction.atomic() para garantizar rollback
-            with transaction.atomic():
-                for hora_obj in horarios_obj_lista:
-                    try:
-                        # Combina la fecha (date) y la hora (time)
-                        fecha_y_hora_final_naive = datetime.combine(fecha, hora_obj)
-                        
-                        # Convierte a datetime "aware" (consciente de zona horaria)
-                        fecha_y_hora_final_aware = timezone.make_aware(fecha_y_hora_final_naive, current_tz)
-                        
-                        # Crea y guarda el objeto Funcion con el campo idioma
-                        funcion = Funcion.objects.create(
-                            pelicula=pelicula,
-                            sala=sala,
-                            fecha_hora=fecha_y_hora_final_aware,
-                            precio_base=precio,
-                            idioma=idioma,  # Guardar el idioma en el modelo
-                            estado=estado   # Guardar el estado en el modelo
-                        )
-                        
-                        # Crea las relaciones con los formatos en la tabla intermedia
+
+                    if formatos_seleccionados and funciones_creadas:
                         from cine.models import FuncionFormato
-                        for formato in (formato_visual, formato_pantalla, formato_experiencia):
-                            if formato:
-                                FuncionFormato.objects.create(
-                                    funcion=funcion,
-                                    formato=formato
+
+                        formatos_a_crear = []
+                        for funcion in funciones_creadas:
+                            for formato in formatos_seleccionados:
+                                formatos_a_crear.append(
+                                    FuncionFormato(funcion=funcion, formato=formato)
                                 )
-                        
-                        funciones_creadas += 1
-                    
-                    except Exception as e:
-                        # Si algo falla (aunque el form debería atajar todo)
-                        messages.error(request, f"Error al crear horario {hora_obj.strftime('%H:%M')}: {e}")
-                        raise  # Re-lanzar para activar rollback automático
+                        FuncionFormato.objects.bulk_create(formatos_a_crear)
+            except Exception as e:
+                form.add_error(None, f'No se pudo guardar el lote completo de funciones: {e}')
+            else:
+                total_funciones = len(funciones_creadas)
+                if total_funciones > 0:
+                    messages.success(request, f'Se crearon {total_funciones} funciones correctamente.')
 
-            if funciones_creadas > 0:
-                messages.success(request, f"¡Se crearon {funciones_creadas} funciones exitosamente!")
-            
-            # Mostrar cualquier error de validación 'clean' (ej. solapamiento)
-            if form.non_field_errors():
-                for error in form.non_field_errors():
-                    messages.error(request, error)
-            
-            # Si no hubo errores de solapamiento, redirigir
-            if not form.non_field_errors():
-                return redirect('cine:funcion_list')
+                if omisiones:
+                    for indice, omision in enumerate(omisiones, start=1):
+                        messages.warning(
+                            request,
+                            f'Omitida {indice}/{omisiones_total}: {omision["mensaje"]}'
+                        )
 
+                if total_funciones > 0:
+                    return redirect('cine:funcion_list')
+                return redirect('cine:funcion_create')
     else:
-        # Si es un GET, solo muestra el formulario vacío
         form = FuncionBatchForm()
 
-    # Contexto para el template
     context = {
         'form': form,
-        'titulo_pagina': '🎭 Programar Nuevas Funciones (por Lote)',
-        'nombre_boton': '✨ Crear Funciones'
+        'titulo_pagina': 'Programar Nuevas Funciones (por Lote)',
+        'nombre_boton': 'Crear Funciones'
     }
     return render(request, 'cine/funcion_form.html', context)
 
 
-# UPDATE: Vista para mostrar el formulario de edición
+# UPDATE: Vista para mostrar el formulario de edicion
 class FuncionUpdateView(AdminRequiredMixin, UpdateView):
     model = Funcion
-    form_class = FuncionBatchForm  # Usar el mismo formulario que para creación
+    form_class = FuncionBatchForm  # Usar el mismo formulario que para creacion
     template_name = 'cine/funcion_form.html'
     success_url = reverse_lazy('cine:funcion_list')
 
     def dispatch(self, request, *args, **kwargs):
-        """Validar que la función no haya terminado antes de permitir edición"""
+        """Validar que la funcion no haya terminado antes de permitir edicion"""
         # Necesitamos establecer self.object antes de validar
         self.object = self.get_object()
         funcion = self.object
         ahora = timezone.now()
         
-        # Calcular hora de fin de la función
+        # Calcular hora de fin de la funcion
         duracion_pelicula = funcion.pelicula.duracion
         hora_fin = funcion.fecha_hora + timedelta(minutes=duracion_pelicula)
         
-        # Si la función ya terminó, no permitir edición
+        # Si la funcion ya termino, no permitir edicion
         if hora_fin < ahora:
             messages.error(
                 request,
-                f'❌ No se puede editar la función de "{funcion.pelicula.titulo}" porque ya finalizó '
+                f'No se puede editar la función de "{funcion.pelicula.titulo}" porque ya finalizó '
                 f'el {hora_fin.strftime("%d/%m/%Y a las %H:%M")}.'
             )
             return redirect('cine:funcion_list')
@@ -364,7 +626,7 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         kwargs = {
             'initial': self.get_initial(),
             'prefix': self.get_prefix(),
-            'funcion': self.object,  # ✅ Pasar la función para validar ventas
+            'funcion': self.object,  # Pasar la funcion para validar ventas
         }
         
         if self.request.method in ('POST', 'PUT'):
@@ -380,20 +642,22 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         initial = super().get_initial()
         funcion = self.object
         
-        # Separar fecha_hora en fecha y horarios
+        # Separar fecha_hora en rango y dias
         initial['pelicula'] = funcion.pelicula.id
         initial['sala'] = funcion.sala.id
-        # 🐛 FIX: Convertir a string en formato YYYY-MM-DD para el widget HTML5
-        initial['fecha'] = funcion.fecha_hora.strftime('%Y-%m-%d')
-        # NO establecer horarios aquí - se cargarán automáticamente via AJAX
-        # initial['horarios'] se dejará vacío para que JavaScript lo llene
+        fecha_local = timezone.localtime(funcion.fecha_hora) if timezone.is_aware(funcion.fecha_hora) else funcion.fecha_hora
+        fecha_funcion = fecha_local.strftime('%Y-%m-%d')
+        initial['fecha_inicio'] = fecha_funcion
+        initial['fecha_fin'] = fecha_funcion
+        initial['dias_semana'] = [str(fecha_local.weekday())]
+        
         initial['precio_base'] = funcion.precio_base
         
         # Cargar los formatos actuales usando los IDs
         formatos_actuales = funcion.formatos_funcion.select_related('formato').all()
         visual = formatos_actuales.filter(formato__nombre__in=['2D', '3D']).first()
-        pantalla = formatos_actuales.filter(formato__nombre__in=['Pantalla Standard', 'IMAX', 'ScreenX']).first()
-        experiencia = formatos_actuales.filter(formato__nombre__in=['Experiencia Standard', '4DX', 'D-BOX']).first()
+        pantalla = formatos_actuales.filter(formato__nombre__in=['Pantalla estándar', 'IMAX', 'ScreenX']).first()
+        experiencia = formatos_actuales.filter(formato__nombre__in=['Experiencia estándar', '4D', 'D-BOX']).first()
         
         if visual:
             initial['formatos_visual'] = visual.formato.id
@@ -405,22 +669,31 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         # Cargar el idioma desde el campo directo de Funcion (no desde formatos)
         if funcion.idioma:
             initial['idioma'] = funcion.idioma
+        
+        # Cargar el estado de la funcion
+        if funcion.estado:
+            initial['estado'] = funcion.estado
+        
+        # Cargar la fecha de activaciónn si existe (para funciones en PREVENTA)
+        if funcion.fecha_activacion:
+            # Solo pasar la fecha, sin hora
+            initial['fecha_activacion'] = funcion.fecha_activacion.strftime('%Y-%m-%d')
 
-        # Fallbacks: si no encontró formatos, elegir una opción 'standard' por categoría
+        # Fallbacks: si no encontró formatos, elegir una opción 'estándar' por categoria
         try:
             from cine.models.formato import Formato
             if not initial.get('formatos_visual'):
-                fallback = Formato.objects.filter(nombre__in=['2D', '2D Standard']).first() or Formato.objects.filter(categoria='VISUAL').order_by('nombre').first()
+                fallback = Formato.objects.filter(nombre__in=['2D', '2D Estándar']).first() or Formato.objects.filter(categoria='VISUAL').order_by('nombre').first()
                 if fallback:
                     initial['formatos_visual'] = fallback.id
 
             if not initial.get('formatos_pantalla'):
-                fallback = Formato.objects.filter(nombre__icontains='Standard', categoria='PANTALLA').first() or Formato.objects.filter(categoria='PANTALLA').order_by('nombre').first()
+                fallback = Formato.objects.filter(nombre__icontains='estándar', categoria='PANTALLA').first() or Formato.objects.filter(categoria='PANTALLA').order_by('nombre').first()
                 if fallback:
                     initial['formatos_pantalla'] = fallback.id
 
             if not initial.get('formatos_experiencia'):
-                fallback = Formato.objects.filter(nombre__icontains='Standard', categoria='EXPERIENCIA').first() or Formato.objects.filter(categoria='EXPERIENCIA').order_by('nombre').first()
+                fallback = Formato.objects.filter(nombre__icontains='Estándar', categoria='EXPERIENCIA').first() or Formato.objects.filter(categoria='EXPERIENCIA').order_by('nombre').first()
                 if fallback:
                     initial['formatos_experiencia'] = fallback.id
         except Exception:
@@ -430,11 +703,11 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['titulo_pagina'] = '📝 Editar Función'
-        context['nombre_boton'] = '💾 Guardar Cambios'
+        context['titulo_pagina'] = 'Editar Función'
+        context['nombre_boton'] = 'Guardar Cambios'
         context['es_edicion'] = True
         
-        # Agregar info de la función actual para el JavaScript (como JSON)
+        # Agregar info de la funcion actual para el JavaScript (como JSON)
         funcion = self.object
         funcion_data = {
             'id': funcion.id,
@@ -448,14 +721,14 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         return context
     
     def form_valid(self, form):
-        """Actualizar la función con los datos del formulario batch"""
+        """Actualizar la funcion con los datos del formulario batch"""
         from cine.models import FuncionFormato
         
-        # 🔒 PROTECCIÓN: No permitir modificar funciones con entradas vendidas
+        # No permitir modificar funciones con entradas vendidas
         if hasattr(form, '_tiene_entradas_vendidas') and form._tiene_entradas_vendidas:
             messages.error(
                 self.request,
-                '🔒 No se puede modificar una función con entradas vendidas. '
+                'No se puede modificar una función con entradas vendidas. '
                 'Por contrato con el cliente, esta información es INMUTABLE.'
             )
             return redirect('cine:funcion_list')
@@ -468,17 +741,26 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         if hora_fin < ahora:
             messages.error(
                 self.request,
-                '❌ No se puede modificar una función que ya finalizó.'
+                'No se puede modificar una función que ya finalizó.'
             )
             return redirect('cine:funcion_list')
         
         # Obtener los datos del formulario
         pelicula = form.cleaned_data['pelicula']
         sala = form.cleaned_data['sala']
-        fecha = form.cleaned_data['fecha']
+        fecha = form.cleaned_data['fecha_inicio']
         horarios = form.cleaned_data['horarios']  # Lista de objetos time
         precio_base = form.cleaned_data['precio_base']
         idioma = form.cleaned_data.get('idioma')  # String: 'DOBLADA', 'SUBTITULADA', 'NATIVA'
+        estado = form.cleaned_data.get('estado', 'ACTIVA')  # String: 'ACTIVA', 'PREVENTA', 'AGOTADA'
+        fecha_activacion_date = form.cleaned_data.get('fecha_activacion')  # Date opcional para PREVENTA
+        
+        # Convertir fecha de activación a datetime a las 00:00 si existe
+        fecha_activacion = None
+        if fecha_activacion_date:
+            fecha_activacion = timezone.make_aware(
+                datetime.combine(fecha_activacion_date, time(0, 0))
+            )
         
         # En edición, tomar el primer horario seleccionado
         # (Si seleccionaron múltiples, solo se usará el primero para actualizar esta función)
@@ -495,23 +777,45 @@ class FuncionUpdateView(AdminRequiredMixin, UpdateView):
         self.object.sala = sala
         self.object.fecha_hora = fecha_hora
         self.object.precio_base = precio_base
-        self.object.idioma = idioma  # Actualizar el idioma
-        self.object.save()
-        
-        # Obtener los formatos seleccionados por categoría (solo los 3 formatos reales)
+        self.object.idioma = idioma
+        self.object.estado = estado
+        self.object.fecha_activacion = fecha_activacion
+
+        # Obtener los formatos seleccionados por categoria (solo los 3 formatos reales)
         formato_visual = form.cleaned_data.get('formatos_visual')
         formato_pantalla = form.cleaned_data.get('formatos_pantalla')
         formato_experiencia = form.cleaned_data.get('formatos_experiencia')
 
-        # Eliminar formatos antiguos
-        self.object.formatos_funcion.all().delete()
+        try:
+            with transaction.atomic():
+                self.object._formatos_seleccionados = [
+                    formato_visual,
+                    formato_pantalla,
+                    formato_experiencia,
+                ]
+                self.object.save()
 
-        # Crear los nuevos formatos (solo los 3 formatos, no el idioma)
-        for formato in (formato_visual, formato_pantalla, formato_experiencia):
-            if formato:
-                FuncionFormato.objects.create(funcion=self.object, formato=formato)
-        
-        messages.success(self.request, '✓ Función actualizada correctamente.')
+                # Eliminar formatos antiguos
+                self.object.formatos_funcion.all().delete()
+
+                # Crear los nuevos formatos (solo los 3 formatos, no el idioma)
+                for formato in (formato_visual, formato_pantalla, formato_experiencia):
+                    if formato:
+                        FuncionFormato.objects.create(funcion=self.object, formato=formato)
+        except ValidationError as e:
+            if hasattr(e, 'message_dict'):
+                for field_name, field_errors in e.message_dict.items():
+                    for error in field_errors:
+                        if field_name in form.fields:
+                            form.add_error(field_name, error)
+                        else:
+                            form.add_error(None, error)
+            else:
+                for error in e.messages:
+                    form.add_error(None, error)
+            return self.form_invalid(form)
+
+        messages.success(self.request, 'Funcion actualizada correctamente.')
         return redirect(self.success_url)
 
 # DELETE: Vista para confirmar la eliminación
@@ -562,7 +866,7 @@ class FuncionDeleteView(AdminRequiredMixin, DeleteView):
         success_url = self.get_success_url()
         
         try:
-            # Llamar a soft_delete con el usuario para registro de auditoría
+            # Llamar a soft_delete con el usuario para registro de auditorí­a
             if hasattr(self.object, 'soft_delete'):
                 self.object.soft_delete(user=request.user)
             else:
@@ -570,7 +874,7 @@ class FuncionDeleteView(AdminRequiredMixin, DeleteView):
             
             messages.success(
                 request,
-                f'✓ La función de "{self.object.pelicula.titulo}" del {self.object.fecha_hora.strftime("%d/%m/%Y %H:%M")} ha sido eliminada exitosamente.'
+                f'La función de "{self.object.pelicula.titulo}" del {self.object.fecha_hora.strftime("%d/%m/%Y %H:%M")} ha sido eliminada exitosamente.'
             )
             return redirect(success_url)
             
@@ -585,7 +889,7 @@ class FuncionDeleteView(AdminRequiredMixin, DeleteView):
             
             # Construir mensaje detallado
             msg_parts = [
-                f'❌ No se puede eliminar la función de "{self.object.pelicula.titulo}" '
+                f'No se puede eliminar la función de "{self.object.pelicula.titulo}" '
                 f'del {self.object.fecha_hora.strftime("%d/%m/%Y a las %H:%M")} porque tiene:'
             ]
             
@@ -603,7 +907,7 @@ class FuncionDeleteView(AdminRequiredMixin, DeleteView):
                 msg_parts.append(f'• {len(intercambios)} intercambio(s) asociado(s)')
             
             msg_parts.append('')
-            msg_parts.append('💡 Para poder eliminar esta función, primero debe:')
+            msg_parts.append('¡ Para poder eliminar esta función, primero debe:')
             if entradas:
                 msg_parts.append('   1. Cancelar o eliminar las entradas asociadas')
             if intercambios:
@@ -613,185 +917,461 @@ class FuncionDeleteView(AdminRequiredMixin, DeleteView):
             return redirect('cine:funcion_list')
 
 
+def _parse_dias_semana(dias_semana_raw):
+    dias = []
+    for item in dias_semana_raw:
+        for value in str(item).split(','):
+            value = value.strip()
+            if not value:
+                continue
+            try:
+                dia_int = int(value)
+            except ValueError:
+                raise ValueError('dias_semana inválido')
+            if dia_int < 0 or dia_int > 6:
+                raise ValueError('dias_semana inválido')
+            dias.append(dia_int)
+    return sorted(set(dias))
+
+
+def _sort_hora_str(hora_str):
+    horas, minutos = hora_str.split(':')
+    return int(horas), int(minutos)
+
+
+def _calcular_horarios_para_fecha(pelicula, sala, fecha, funcion_id=None, formato_experiencia_id=None):
+    """
+    Calcula horarios disponibles para una fecha puntual.
+    Reutilizable por modo simple (una fecha) y modo rango.
+    """
+    from django.db.models import Q
+    from cine.models import ConfiguracionCine, ExcepcionHorario
+
+    if fecha < date.today():
+        return {
+            'horarios': [],
+            'duracion_total': 0,
+            'mensaje': 'La fecha no puede ser en el pasado.',
+            'cerrado': True,
+            'error': True
+        }
+
+    configuracion = ConfiguracionCine.load()
+    minutos_limpieza = configuracion.minutos_limpieza
+    duracion_total_minutos = pelicula.duracion + minutos_limpieza
+
+    funciones_existentes = Funcion.objects.filter(
+        sala=sala,
+        fecha_hora__date=fecha
+    ).select_related('pelicula').prefetch_related('formatos_funcion__formato').order_by('fecha_hora')
+
+    if funcion_id:
+        funciones_existentes = funciones_existentes.exclude(pk=funcion_id)
+
+    requiere_4d_nueva = None
+    if formato_experiencia_id:
+        try:
+            from cine.models import Formato
+            formato_experiencia = Formato.objects.get(pk=formato_experiencia_id)
+            requiere_4d_nueva = Funcion.requiere_4d_en_formatos([formato_experiencia])
+        except (Formato.DoesNotExist, ValueError, TypeError):
+            requiere_4d_nueva = None
+
+    tiene_4d, tiene_estandar = Funcion.sala_tiene_butacas_para(sala)
+    permite_solape_estandar_con_4d = (
+        requiere_4d_nueva is False and tiene_4d and tiene_estandar
+    )
+    aviso_solape_bisala = False
+
+    excepciones = ExcepcionHorario.objects.filter(
+        configuracion_cine=configuracion,
+        fecha__lte=fecha
+    ).filter(
+        Q(fecha_fin__isnull=True, fecha=fecha) |
+        Q(fecha_fin__gte=fecha)
+    )
+
+    if excepciones.exists():
+        excepcion = excepciones.first()
+
+        if excepcion.cerrado:
+            return {
+                'horarios': [],
+                'duracion_total': duracion_total_minutos,
+                'mensaje': f'El cine esta cerrado el {fecha.strftime("%d/%m/%Y")}. Motivo: {excepcion.descripcion or "Cerrado"}',
+                'cerrado': True
+            }
+
+        if not (excepcion.hora_apertura and excepcion.hora_cierre):
+            return {
+                'horarios': [],
+                'duracion_total': duracion_total_minutos,
+                'mensaje': 'Excepción de horario malformada.',
+                'cerrado': True,
+                'error': True
+            }
+
+        class HorarioExcepcional:
+            def __init__(self, apertura, cierre):
+                self.hora_apertura = apertura
+                self.hora_cierre = cierre
+
+        horarios_dia = [HorarioExcepcional(excepcion.hora_apertura, excepcion.hora_cierre)]
+    else:
+        dia_semana = fecha.weekday()
+        horarios_dia = configuracion.get_horarios_dia(dia_semana)
+        if not horarios_dia.exists():
+            return {
+                'horarios': [],
+                'duracion_total': duracion_total_minutos,
+                'mensaje': 'El cine esta cerrado ese dia.',
+                'cerrado': True
+            }
+
+    horarios_disponibles = []
+    horarios_solapados = set()
+    ahora = timezone.localtime(timezone.now())
+    hora_minima_naive = None
+    if fecha == ahora.date():
+        hora_minima = ahora + timedelta(minutes=30)
+        hora_minima_naive = hora_minima.replace(tzinfo=None)
+
+    for horario in horarios_dia:
+        hora_actual = datetime.combine(fecha, horario.hora_apertura)
+        hora_cierre = datetime.combine(fecha, horario.hora_cierre)
+
+        if hora_minima_naive and hora_actual < hora_minima_naive:
+            hora_actual = hora_minima_naive
+            minutos = hora_actual.minute
+            minutos_redondeados = ((minutos + 14) // 15) * 15
+            if minutos_redondeados >= 60:
+                hora_actual = hora_actual.replace(minute=0) + timedelta(hours=1)
+            else:
+                hora_actual = hora_actual.replace(minute=minutos_redondeados)
+
+        while hora_actual <= hora_cierre:
+            fin_funcion = hora_actual + timedelta(minutes=duracion_total_minutos)
+            if fin_funcion.time() > horario.hora_cierre:
+                break
+
+            hay_solapamiento = False
+            solape_permitido = False
+            for funcion_existente in funciones_existentes:
+                inicio_existente = funcion_existente.fecha_hora
+                if timezone.is_aware(inicio_existente):
+                    inicio_existente = timezone.localtime(inicio_existente).replace(tzinfo=None)
+
+                fin_existente = inicio_existente + timedelta(
+                    minutes=funcion_existente.pelicula.duracion + minutos_limpieza
+                )
+
+                if hora_actual < fin_existente and fin_funcion > inicio_existente:
+                    requiere_4d_existente = Funcion.requiere_4d_en_formatos(
+                        funcion_existente.formatos_funcion.all()
+                    )
+                    if (
+                        permite_solape_estandar_con_4d
+                        and requiere_4d_existente is True
+                        and funcion_existente.pelicula_id == pelicula.id
+                        and hora_actual == inicio_existente
+                    ):
+                        aviso_solape_bisala = True
+                        solape_permitido = True
+                        continue
+                    if hora_actual != inicio_existente:
+                        hay_solapamiento = True
+                        break
+                    hay_solapamiento = True
+                    break
+
+            if not hay_solapamiento:
+                horario_str = hora_actual.strftime('%H:%M')
+                if horario_str not in horarios_disponibles:
+                    horarios_disponibles.append(horario_str)
+                if solape_permitido:
+                    horarios_solapados.add(horario_str)
+
+            hora_actual += timedelta(minutes=15)
+
+    mensaje_base = (
+        f'Cada funcion dura {pelicula.duracion} min + {minutos_limpieza} min de limpieza '
+        f'= {duracion_total_minutos} min total'
+    )
+    if aviso_solape_bisala:
+        mensaje_base = (
+            f'{mensaje_base}. Aviso: se habilitan horarios solapados porque '
+            f'Experiencia estandar no usa butacas 4D y la pelicula es la misma.'
+        )
+
+    return {
+        'horarios': horarios_disponibles,
+        'duracion_total': duracion_total_minutos,
+        'mensaje': mensaje_base,
+        'horarios_solapados': sorted(horarios_solapados, key=_sort_hora_str),
+        'cerrado': len(horarios_disponibles) == 0
+    }
+
+
+@login_required
+def precheck_dias_semana_disponibles(request):
+    """
+    Pre-chequeo preventivo para el frontend.
+    Deshabilita dias de semana que dentro del rango no tienen disponibilidad en ninguna fecha.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    pelicula_id = request.GET.get('pelicula_id')
+    sala_id = request.GET.get('sala_id')
+    fecha_inicio_str = request.GET.get('fecha_inicio')
+    fecha_fin_str = request.GET.get('fecha_fin')
+    formato_experiencia_id = request.GET.get('formato_experiencia_id')
+
+    if not all([pelicula_id, sala_id, fecha_inicio_str, fecha_fin_str]):
+        return JsonResponse({'error': 'Faltan parámetros'}, status=400)
+
+    try:
+        pelicula = Pelicula.objects.get(pk=pelicula_id)
+        sala = Sala.objects.get(pk=sala_id)
+        fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+        fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
+    except (Pelicula.DoesNotExist, Sala.DoesNotExist):
+        return JsonResponse({'error': 'Película o sala no encontrada'}, status=404)
+    except ValueError:
+        return JsonResponse({'error': 'Formato de fecha inválido'}, status=400)
+
+    if fecha_fin < fecha_inicio:
+        return JsonResponse({'error': 'La fecha_fin debe ser igual o posterior a fecha_inicio.'}, status=400)
+
+    dias_nombres = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sabado', 'Domingo']
+    respuesta_dias = []
+
+    for dia in range(7):
+        fechas_del_dia = []
+        fecha_cursor = fecha_inicio
+        while fecha_cursor <= fecha_fin:
+            if fecha_cursor.weekday() == dia:
+                fechas_del_dia.append(fecha_cursor)
+            fecha_cursor += timedelta(days=1)
+
+        if not fechas_del_dia:
+            respuesta_dias.append({
+                'dia': dia,
+                'nombre': dias_nombres[dia],
+                'disabled': True,
+                'motivo': 'Sin fechas de este dia dentro del rango seleccionado.'
+            })
+            continue
+
+        disponible_en_alguna = False
+        cierres_totales = 0
+        motivos = []
+
+        for fecha in fechas_del_dia:
+            resultado = _calcular_horarios_para_fecha(
+                pelicula,
+                sala,
+                fecha,
+                formato_experiencia_id=formato_experiencia_id,
+            )
+            horarios = resultado.get('horarios', [])
+            mensaje = resultado.get('mensaje', 'Sin disponibilidad')
+
+            if horarios:
+                disponible_en_alguna = True
+            else:
+                motivos.append(f'{fecha.strftime("%d/%m/%Y")}: {mensaje}')
+                if 'cerrad' in mensaje.lower():
+                    cierres_totales += 1
+
+        if disponible_en_alguna:
+            respuesta_dias.append({
+                'dia': dia,
+                'nombre': dias_nombres[dia],
+                'disabled': False,
+                'motivo': ''
+            })
+            continue
+
+        if cierres_totales == len(fechas_del_dia):
+            motivo = 'Cine cerrado en todas las fechas de este dia.'
+        else:
+            motivo = 'Sin horarios disponibles en todas las fechas de este dia.'
+
+        if motivos:
+            motivo = f'{motivo} ({motivos[0]})'
+
+        respuesta_dias.append({
+            'dia': dia,
+            'nombre': dias_nombres[dia],
+            'disabled': True,
+            'motivo': motivo
+        })
+
+    return JsonResponse({'dias': respuesta_dias})
+
+
 # AJAX: Vista para calcular horarios disponibles
 @login_required
 def calcular_horarios_disponibles(request):
     """
-    Vista AJAX que recibe película, sala y fecha,
-    y devuelve una lista de horarios disponibles que no se solapan.
+    Soporta 2 modos:
+    - Modo fecha puntual: pelicula + sala + fecha
+    - Modo rango: pelicula + sala + fecha_inicio + fecha_fin + dias_semana[]
+
+    En modo rango devuelve solo horarios comunes disponibles para todas las fechas seleccionadas.
     """
-    if request.method == 'GET':
-        pelicula_id = request.GET.get('pelicula_id')
-        sala_id = request.GET.get('sala_id')
-        fecha_str = request.GET.get('fecha')  # formato: YYYY-MM-DD
-        funcion_id = request.GET.get('funcion_id')  # opcional, para excluir en modo edición
-        
-        if not all([pelicula_id, sala_id, fecha_str]):
-            return JsonResponse({'error': 'Faltan parámetros'}, status=400)
-        
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    pelicula_id = request.GET.get('pelicula_id')
+    sala_id = request.GET.get('sala_id')
+    funcion_id = request.GET.get('funcion_id')
+    fecha_str = request.GET.get('fecha')
+    fecha_inicio_str = request.GET.get('fecha_inicio')
+    fecha_fin_str = request.GET.get('fecha_fin')
+    dias_semana_raw = request.GET.getlist('dias_semana')
+    formato_experiencia_id = request.GET.get('formato_experiencia_id')
+
+    if not pelicula_id or not sala_id:
+        return JsonResponse({'error': 'Faltan parámetros'}, status=400)
+
+    try:
+        pelicula = Pelicula.objects.get(pk=pelicula_id)
+        sala = Sala.objects.get(pk=sala_id)
+    except (Pelicula.DoesNotExist, Sala.DoesNotExist):
+        return JsonResponse({'error': 'Película o sala no encontrada'}, status=404)
+
+    # Modo rango
+    if fecha_inicio_str or fecha_fin_str:
+        if not fecha_inicio_str or not fecha_fin_str:
+            return JsonResponse({'error': 'Debes enviar fecha_inicio y fecha_fin.'}, status=400)
+
         try:
-            from cine.models import ConfiguracionCine, ExcepcionHorario
-            
-            pelicula = Pelicula.objects.get(pk=pelicula_id)
-            sala = Sala.objects.get(pk=sala_id)
-            fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
-            
-            # Verificar que la fecha no sea en el pasado
-            if fecha < date.today():
-                return JsonResponse({'error': 'La fecha no puede ser en el pasado'}, status=400)
-            
-            # Obtener configuración del cine
-            configuracion = ConfiguracionCine.load()
-            minutos_limpieza = configuracion.minutos_limpieza
-            
-            # Calcular duración total (película + minutos de limpieza configurados)
-            duracion_total_minutos = pelicula.duracion + minutos_limpieza
-            
-            # Obtener funciones ya programadas en esa sala y día
-            funciones_existentes = Funcion.objects.filter(
-                sala=sala,
-                fecha_hora__date=fecha
-            )
-            
-            # Si es modo edición, excluir la función actual
-            if funcion_id:
-                funciones_existentes = funciones_existentes.exclude(pk=funcion_id)
-            
-            funciones_existentes = funciones_existentes.order_by('fecha_hora')
-            
-            # ======================================================================
-            # VERIFICAR EXCEPCIONES DE HORARIO (PRIORIDAD SOBRE HORARIOS REGULARES)
-            # ======================================================================
-            from django.db.models import Q
-            
-            # Buscar excepción que aplique a esta fecha (puede ser fecha exacta o dentro de un rango)
-            excepciones = ExcepcionHorario.objects.filter(
-                configuracion_cine=configuracion,
-                fecha__lte=fecha  # fecha de inicio <= fecha buscada
-            ).filter(
-                Q(fecha_fin__isnull=True, fecha=fecha) |  # Excepción de un solo día
-                Q(fecha_fin__gte=fecha)  # O fecha dentro del rango
-            )
-            
-            if excepciones.exists():
-                excepcion = excepciones.first()
-                
-                # Si el cine está cerrado ese día, no hay horarios disponibles
-                if excepcion.cerrado:
-                    return JsonResponse({
-                        'horarios': [],
-                        'duracion_total': duracion_total_minutos,
-                        'mensaje': f'El cine está cerrado el {fecha.strftime("%d/%m/%Y")}. Motivo: {excepcion.descripcion}',
-                        'cerrado': True
-                    })
-                
-                # Si hay horario modificado, usar ese rango en lugar de los horarios regulares
-                if excepcion.hora_apertura and excepcion.hora_cierre:
-                    # Crear un objeto temporal similar a HorarioAtencion
-                    class HorarioExcepcional:
-                        def __init__(self, apertura, cierre):
-                            self.hora_apertura = apertura
-                            self.hora_cierre = cierre
-                    
-                    horarios_dia = [HorarioExcepcional(excepcion.hora_apertura, excepcion.hora_cierre)]
-                else:
-                    # Excepción malformada, no debería pasar
-                    return JsonResponse({'error': 'Excepción de horario malformada'}, status=500)
-            
-            else:
-                # No hay excepción, usar horarios regulares del día de la semana
-                dia_semana = fecha.weekday()  # 0=Monday, 6=Sunday
-                horarios_dia = configuracion.get_horarios_dia(dia_semana)
-                
-                # Verificar si el cine está abierto ese día
-                if not horarios_dia.exists():
-                    return JsonResponse({
-                        'horarios': [],
-                        'duracion_total': duracion_total_minutos,
-                        'mensaje': 'El cine está cerrado ese día de la semana',
-                        'cerrado': True
-                    })
-            
-            # Generar todos los horarios posibles cada 15 minutos
-            horarios_disponibles = []
-            current_tz = timezone.get_current_timezone()
-            
-            # IMPORTANTE: Si es HOY, solo mostrar horarios después de la hora actual
-            ahora = timezone.now()
-            hora_minima_naive = None
-            if fecha == ahora.date():
-                # Es hoy, necesitamos filtrar horarios pasados
-                hora_minima = ahora + timedelta(minutes=30)  # Al menos 30 min en el futuro
-                hora_minima_naive = hora_minima.replace(tzinfo=None)
-            
-            # Para cada rango horario del día, generar slots disponibles
-            for horario in horarios_dia:
-                # Crear datetime para el inicio del rango
-                hora_actual = datetime.combine(fecha, horario.hora_apertura)
-                hora_cierre = datetime.combine(fecha, horario.hora_cierre)
-                
-                # Si es hoy, ajustar hora_actual al mínimo permitido
-                if hora_minima_naive and hora_actual < hora_minima_naive:
-                    hora_actual = hora_minima_naive
-                    # Redondear al próximo múltiplo de 15 minutos
-                    minutos = hora_actual.minute
-                    minutos_redondeados = ((minutos + 14) // 15) * 15
-                    if minutos_redondeados >= 60:
-                        hora_actual = hora_actual.replace(minute=0) + timedelta(hours=1)
-                    else:
-                        hora_actual = hora_actual.replace(minute=minutos_redondeados)
-                
-                # Generar slots para este rango horario
-                while hora_actual <= hora_cierre:
-                    # Calcular fin de esta posible función (incluyendo limpieza)
-                    fin_funcion = hora_actual + timedelta(minutes=duracion_total_minutos)
-                    
-                    # Verificar que la función termine antes del cierre de este rango
-                    if fin_funcion.time() > horario.hora_cierre:
-                        break
-                    
-                    # Verificar si se solapa con alguna función existente
-                    hay_solapamiento = False
-                    for funcion_existente in funciones_existentes:
-                        inicio_existente = funcion_existente.fecha_hora
-                        # Convertir a naive para comparar (si es aware)
-                        if timezone.is_aware(inicio_existente):
-                            inicio_existente = timezone.localtime(inicio_existente).replace(tzinfo=None)
-                        
-                        fin_existente = inicio_existente + timedelta(minutes=funcion_existente.pelicula.duracion + 30)
-                        
-                        # Comparar en naive datetime
-                        if hora_actual < fin_existente and fin_funcion > inicio_existente:
-                            hay_solapamiento = True
-                            break
-                    
-                    # Si no hay solapamiento, agregar
-                    if not hay_solapamiento:
-                        horario_str = hora_actual.strftime('%H:%M')
-                        # Evitar duplicados si los rangos se solapan
-                        if horario_str not in horarios_disponibles:
-                            horarios_disponibles.append(horario_str)
-                    
-                    # Avanzar 15 minutos
-                    hora_actual += timedelta(minutes=15)
-            
-            return JsonResponse({
-                'horarios': horarios_disponibles,
-                'duracion_total': duracion_total_minutos,
-                'mensaje': f'Cada función dura {pelicula.duracion} min + {minutos_limpieza} min de limpieza = {duracion_total_minutos} min total'
-            })
-            
-        except (Pelicula.DoesNotExist, Sala.DoesNotExist):
-            return JsonResponse({'error': 'Película o sala no encontrada'}, status=404)
+            fecha_inicio = datetime.strptime(fecha_inicio_str, '%Y-%m-%d').date()
+            fecha_fin = datetime.strptime(fecha_fin_str, '%Y-%m-%d').date()
+            dias_semana = _parse_dias_semana(dias_semana_raw)
         except ValueError:
-            return JsonResponse({'error': 'Formato de fecha inválido'}, status=400)
-    
-    return JsonResponse({'error': 'Método no permitido'}, status=405)
+            return JsonResponse({'error': 'Formato de fecha o dí­as inválido.'}, status=400)
+
+        if fecha_fin < fecha_inicio:
+            return JsonResponse({'error': 'La fecha_fin debe ser igual o posterior a fecha_inicio.'}, status=400)
+
+        if not dias_semana:
+            return JsonResponse({'error': 'Debes seleccionar al menos un dí­a de la semana.'}, status=400)
+
+        fechas_objetivo = []
+        fecha_cursor = fecha_inicio
+        dias_set = set(dias_semana)
+        while fecha_cursor <= fecha_fin:
+            if fecha_cursor.weekday() in dias_set:
+                fechas_objetivo.append(fecha_cursor)
+            fecha_cursor += timedelta(days=1)
+
+        duracion_total = pelicula.duracion
+        if not fechas_objetivo:
+            return JsonResponse({
+                'horarios': [],
+                'duracion_total': duracion_total,
+                'mensaje': 'No hay fechas dentro del rango que coincidan con los dí­as seleccionados.',
+                'cerrado': True
+            })
+
+        horarios_comunes = None
+        solapados_comunes = None
+        dias_sin_disponibilidad = []
+        duracion_total = 0
+
+        for fecha in fechas_objetivo:
+            resultado_fecha = _calcular_horarios_para_fecha(
+                pelicula=pelicula,
+                sala=sala,
+                fecha=fecha,
+                funcion_id=funcion_id,
+                formato_experiencia_id=formato_experiencia_id,
+            )
+            duracion_total = resultado_fecha.get('duracion_total', duracion_total)
+
+            if resultado_fecha.get('error'):
+                return JsonResponse({'error': resultado_fecha['mensaje']}, status=400)
+
+            horarios_fecha = set(resultado_fecha.get('horarios', []))
+            solapados_fecha = set(resultado_fecha.get('horarios_solapados', []))
+            if horarios_comunes is None:
+                horarios_comunes = horarios_fecha
+            else:
+                horarios_comunes &= horarios_fecha
+
+            if solapados_comunes is None:
+                solapados_comunes = solapados_fecha
+            else:
+                solapados_comunes &= solapados_fecha
+
+            if not horarios_fecha:
+                dias_sin_disponibilidad.append({
+                    'fecha': fecha.strftime('%d/%m/%Y'),
+                    'motivo': resultado_fecha.get('mensaje', 'Sin disponibilidad')
+                })
+
+        horarios_finales = sorted(horarios_comunes or [], key=_sort_hora_str)
+        solapados_finales = sorted(
+            (solapados_comunes or set()) & set(horarios_finales),
+            key=_sort_hora_str,
+        )
+
+        if not horarios_finales:
+            mensaje = (
+                f'No hay horarios comunes disponibles para las {len(fechas_objetivo)} fechas seleccionadas.'
+            )
+            if dias_sin_disponibilidad:
+                primeras = ', '.join(x['fecha'] for x in dias_sin_disponibilidad[:4])
+                mensaje += f' Fechas sin disponibilidad: {primeras}.'
+
+            return JsonResponse({
+                'horarios': [],
+                'duracion_total': duracion_total,
+                'mensaje': mensaje,
+                'cerrado': True,
+                'dias_sin_disponibilidad': dias_sin_disponibilidad,
+                'total_fechas': len(fechas_objetivo)
+            })
+
+        return JsonResponse({
+            'horarios': horarios_finales,
+            'duracion_total': duracion_total,
+            'mensaje': f'Horarios comunes disponibles para {len(fechas_objetivo)} fecha(s) del rango.',
+            'cerrado': False,
+            'horarios_solapados': solapados_finales,
+            'dias_sin_disponibilidad': dias_sin_disponibilidad,
+            'total_fechas': len(fechas_objetivo)
+        })
+
+    # Modo fecha puntual (edicion / compatibilidad)
+    if not fecha_str:
+        return JsonResponse({'error': 'Falta el parámetro fecha.'}, status=400)
+
+    try:
+        fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'error': 'Formato de fecha inválido'}, status=400)
+
+    resultado = _calcular_horarios_para_fecha(
+        pelicula=pelicula,
+        sala=sala,
+        fecha=fecha,
+        funcion_id=funcion_id,
+        formato_experiencia_id=formato_experiencia_id,
+    )
+
+    if resultado.get('error'):
+        return JsonResponse({'error': resultado['mensaje']}, status=400)
+
+    return JsonResponse(resultado)
 
 
 def verificar_horario_fecha(request):
     """
-    Vista AJAX que verifica si hay excepciones de horario para una fecha específica.
+    Vista AJAX que verifica si hay excepciones de horario para una fecha especi­fica.
     
     Retorna:
     - cerrado: bool (True si el cine está cerrado)
@@ -812,12 +1392,12 @@ def verificar_horario_fecha(request):
             fecha = datetime.strptime(fecha_str, '%Y-%m-%d').date()
             configuracion = ConfiguracionCine.load()
             
-            # Buscar excepción que aplique a esta fecha (puede ser fecha exacta o dentro de un rango)
+            # Buscar excepcion que aplique a esta fecha (puede ser fecha exacta o dentro de un rango)
             excepciones = ExcepcionHorario.objects.filter(
                 configuracion_cine=configuracion,
                 fecha__lte=fecha  # fecha de inicio <= fecha buscada
             ).filter(
-                Q(fecha_fin__isnull=True, fecha=fecha) |  # Excepción de un solo día
+                Q(fecha_fin__isnull=True, fecha=fecha) |  # Excepcion de un solo di­a
                 Q(fecha_fin__gte=fecha)  # O fecha dentro del rango
             )
             
@@ -851,12 +1431,12 @@ def verificar_horario_fecha(request):
                     })
             
             else:
-                # Caso 3: Día normal (sin excepción)
+                
                 dia_semana = fecha.weekday()
                 horarios_dia = configuracion.get_horarios_dia(dia_semana)
                 
                 if not horarios_dia.exists():
-                    # El cine está cerrado ese día de la semana (sin horarios configurados)
+                    # El cine esta cerrado ese di­a de la semana (sin horarios configurados)
                     dias_nombres = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
                     return JsonResponse({
                         'cerrado': True,
@@ -889,3 +1469,5 @@ def verificar_horario_fecha(request):
             return JsonResponse({'error': str(e)}, status=500)
     
     return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+

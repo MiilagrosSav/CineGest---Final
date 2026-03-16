@@ -222,35 +222,30 @@
                                 </div>
                             </div>
 
-                            <!-- FECHAS DISPONIBLES EN PREVENTA -->
+                            <!-- FECHA DISPONIBLE EN PREVENTA -->
                             <div style="margin-top: var(--space-sm);">
-                                <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: var(--space-xs); font-weight: 600;">Fechas disponibles:</h4>
-                                
-                                {% for fecha_str, datos_fecha in item.fechas.items %}
-                                <div class="fecha-activacion-box" style="margin-bottom: var(--space-xs);">
-                                    <div style="font-weight: 700; color: #667eea; margin-bottom: 0.3rem;">
-                                        📅 {{ datos_fecha.fecha|date:"d/m/Y" }} ({{ datos_fecha.fecha|date:"l"|title }})
+                                <div class="fecha-activacion-box">
+                                    <div style="font-weight: 700; color: #667eea; margin-bottom: 0.5rem; font-size: 1rem;">
+                                        📅 {{ item.fecha|date:"d/m/Y" }} &mdash; {{ item.fecha|date:"l"|title }}
                                     </div>
-                                    
+                                    <h4 style="font-size: 0.85rem; color: var(--text-secondary); margin: 0 0 0.35rem 0; font-weight: 600;">Horarios:</h4>
                                     <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
-                                        {% for funcion in datos_fecha.funciones %}
-                                        <button type="button" 
-                                                class="horario-btn cta-preventa" 
+                                        {% for funcion in item.funciones %}
+                                        <button type="button"
+                                                class="horario-btn cta-preventa"
                                                 data-funcion-id="{{ funcion.id }}"
-                                                data-pelicula="{{ funcion.pelicula.titulo|escapejs }}"
+                                                data-pelicula="{{ funcion.pelicula.titulo|escape }}"
                                                 data-fecha="{{ funcion.fecha_hora|date:'d/m/Y' }}"
                                                 data-hora="{{ funcion.fecha_hora|date:'H:i' }}"
                                                 data-formato="{{ funcion.get_formatos_destacados|escapejs }}"
-                                                data-clasificacion="{{ funcion.pelicula.get_clasificacion_display|escapejs }}"
+                                                data-clasificacion="{{ funcion.pelicula.clasificacion.nombre|escapejs }}"
                                                 data-estado="{{ funcion.estado }}"
                                                 style="font-size: 0.85rem; padding: 0.4rem 0.8rem; color: white; font-weight: 600;">
-                                             {{ funcion.fecha_hora|date:"H:i" }}
-                                            
+                                            {{ funcion.fecha_hora|date:"H:i" }}
                                         </button>
                                         {% endfor %}
                                     </div>
                                 </div>
-                                {% endfor %}
                             </div>
                         </div>
                     </div>
@@ -349,13 +344,13 @@
     "{{ item.pelicula.id }}": {
         "titulo": "{{ item.pelicula.titulo|escapejs }}",
         "genero": "{{ item.pelicula.get_genero_display|escapejs }}",
-        "clasificacion": "{{ item.pelicula.get_clasificacion_display|escapejs }}",
+        "clasificacion": "{{ item.pelicula.clasificacion.nombre|escapejs }}",
         "duracion": "{{ item.pelicula.duracion }}",
         "fecha_estreno": "{{ item.pelicula.fecha_estreno|date:'d/m/Y'|default:'' }}",
         "sinopsis": "{{ item.pelicula.sinopsis|escapejs }}",
         "director": "{{ item.pelicula.director|default:''|escapejs }}",
         "imagen": "{{ item.pelicula.get_poster_url }}",
-        "formato": "{{ item.pelicula.get_formato_display|escapejs }}",
+        "formato": "{% if item.funciones %}{{ item.funciones.0.get_formatos_destacados|escapejs }}{% else %}Estándar{% endif %}",
         "comentarios": [
             {% for comentario in item.comentarios|slice:":3" %}
             {
@@ -371,6 +366,6 @@
 }
 </script>
 
-<script src="{% static 'cine/js/cartelera.js' %}?v=2.0"></script>
+<script src="{% static 'cine/js/cartelera.js' %}?v=2.6"></script>
 
 {% endblock %}

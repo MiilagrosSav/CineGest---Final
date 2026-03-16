@@ -12,6 +12,15 @@
         color: var(--text-light);
     }
 
+    /* Campo de solo lectura (Google users) */
+    .readonly-field,
+    input[readonly].form-input {
+        opacity: 0.55;
+        cursor: not-allowed;
+        background: rgba(255, 255, 255, 0.03) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
     /* Inputs */
     form input[type="text"],
     form input[type="email"] {

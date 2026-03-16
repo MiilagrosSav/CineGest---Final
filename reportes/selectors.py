@@ -15,14 +15,122 @@ from ventas.constants import EstadoEntrada
 from promociones.models.cuponGenerado import CuponGenerado
 from reportes.config import config
 
-def get_kpis(start_dt, end_dt):
+
+VALID_ENTRY_STATES = [
+    EstadoEntrada.VENDIDA,
+    EstadoEntrada.USADA,
+    EstadoEntrada.RESERVADA,
+]
+
+
+def _has_filter_value(filters, key):
+    return bool((filters or {}).get(key))
+
+
+def _build_entrada_filter_q(filters, prefix=''):
+    """Construye un objeto Q para filtrar entradas por filtros de venta/catalogación."""
+    filters = filters or {}
+    q = Q()
+
+    if _has_filter_value(filters, 'sala'):
+        q &= Q(**{f'{prefix}id_sala_id': int(filters['sala'])})
+    if _has_filter_value(filters, 'pelicula'):
+        q &= Q(**{f'{prefix}id_pelicula_id': int(filters['pelicula'])})
+    if _has_filter_value(filters, 'pelicula_busqueda'):
+        q &= Q(**{f'{prefix}id_pelicula__titulo__icontains': filters['pelicula_busqueda']})
+
+    if _has_filter_value(filters, 'tipo_venta'):
+        q &= Q(**{f'{prefix}id_venta__tipo_venta': filters['tipo_venta']})
+    if _has_filter_value(filters, 'metodo_pago'):
+        q &= Q(**{f'{prefix}id_venta__id_metodo_pago_id': int(filters['metodo_pago'])})
+    if _has_filter_value(filters, 'estado_venta'):
+        q &= Q(**{f'{prefix}id_venta__estado': filters['estado_venta']})
+    if _has_filter_value(filters, 'estado_pago'):
+        q &= Q(**{f'{prefix}id_venta__pago__estado': filters['estado_pago']})
+
+    if _has_filter_value(filters, 'empleado'):
+        if filters['empleado'] == 'sin_empleado':
+            q &= Q(**{f'{prefix}id_venta__id_empleado__isnull': True})
+        else:
+            q &= Q(**{f'{prefix}id_venta__id_empleado_id': int(filters['empleado'])})
+
+    return q
+
+
+def _apply_entrada_filters(qs, filters):
+    """Aplica filtros a queryset de Entrada."""
+    return qs.filter(_build_entrada_filter_q(filters))
+
+
+def _apply_venta_filters(qs, filters):
+    """Aplica filtros a queryset de Venta."""
+    filters = filters or {}
+
+    if _has_filter_value(filters, 'tipo_venta'):
+        qs = qs.filter(tipo_venta=filters['tipo_venta'])
+    if _has_filter_value(filters, 'metodo_pago'):
+        qs = qs.filter(id_metodo_pago_id=int(filters['metodo_pago']))
+    if _has_filter_value(filters, 'estado_venta'):
+        qs = qs.filter(estado=filters['estado_venta'])
+    if _has_filter_value(filters, 'estado_pago'):
+        qs = qs.filter(pago__estado=filters['estado_pago'])
+
+    if _has_filter_value(filters, 'empleado'):
+        if filters['empleado'] == 'sin_empleado':
+            qs = qs.filter(id_empleado__isnull=True)
+        else:
+            qs = qs.filter(id_empleado_id=int(filters['empleado']))
+
+    if _has_filter_value(filters, 'sala'):
+        qs = qs.filter(entradas__id_sala_id=int(filters['sala']))
+    if _has_filter_value(filters, 'pelicula'):
+        qs = qs.filter(entradas__id_pelicula_id=int(filters['pelicula']))
+    if _has_filter_value(filters, 'pelicula_busqueda'):
+        qs = qs.filter(entradas__id_pelicula__titulo__icontains=filters['pelicula_busqueda'])
+
+    return qs
+
+
+def _apply_funcion_filters(qs, fecha_inicio, fecha_fin, filters, date_field='fecha_hora'):
+    """Aplica filtros a queryset de Funcion evitando duplicados por JOIN en capacidades."""
+    filters = filters or {}
+
+    if _has_filter_value(filters, 'sala'):
+        qs = qs.filter(sala_id=int(filters['sala']))
+    if _has_filter_value(filters, 'pelicula'):
+        qs = qs.filter(pelicula_id=int(filters['pelicula']))
+    if _has_filter_value(filters, 'pelicula_busqueda'):
+        qs = qs.filter(pelicula__titulo__icontains=filters['pelicula_busqueda'])
+
+    sales_related = any(
+        _has_filter_value(filters, key)
+        for key in ('empleado', 'tipo_venta', 'metodo_pago', 'estado_venta', 'estado_pago')
+    )
+    if sales_related:
+        entradas_funcion_ids = (
+            Entrada.objects
+            .filter(
+                _build_entrada_filter_q(filters),
+                id_funcion__fecha_hora__range=(fecha_inicio, fecha_fin),
+            )
+            .values_list('id_funcion_id', flat=True)
+            .distinct()
+        )
+        qs = qs.filter(id__in=entradas_funcion_ids)
+
+    return qs
+
+def get_kpis(start_dt, end_dt, filters=None):
     """
     Calcula KPIs globales: total_recaudacion, total_tickets, ticket_promedio.
     """
-    totals = Entrada.objects.filter(
+    entradas_qs = Entrada.objects.filter(
         id_funcion__fecha_hora__range=(start_dt, end_dt),
-        estado__in=[EstadoEntrada.VENDIDA, EstadoEntrada.USADA, EstadoEntrada.RESERVADA] # Filtrar solo válidas
-    ).aggregate(
+        estado__in=VALID_ENTRY_STATES # Filtrar solo válidas
+    )
+    entradas_qs = _apply_entrada_filters(entradas_qs, filters)
+
+    totals = entradas_qs.aggregate(
         total_recaudacion=Coalesce(
             Sum('id_funcion__precio_base'), # O precio_final si lo guardas en la entrada/venta
             Value(Decimal('0.00')),
@@ -46,7 +154,7 @@ def get_kpis(start_dt, end_dt):
     }
 
 
-def get_datos_financieros(start_dt, end_dt, limit=10):
+def get_datos_financieros(start_dt, end_dt, limit=10, filters=None):
     """
     Obtiene ingresos por película (top N).
     """
@@ -57,12 +165,20 @@ def get_datos_financieros(start_dt, end_dt, limit=10):
         .distinct()
         .prefetch_related('entradas__id_funcion__pelicula', 'pago')
     )
+    ventas_qs = _apply_venta_filters(ventas_qs, filters)
 
     # Acumular por título de película
     accum = {}
     for venta in ventas_qs:
         # considerar solo entradas de la venta cuya función esté en el rango
-        entradas_validas = [e for e in venta.entradas.all() if start_dt <= e.id_funcion.fecha_hora <= end_dt and e.estado in [EstadoEntrada.VENDIDA, EstadoEntrada.USADA, EstadoEntrada.RESERVADA]]
+        entradas_validas = [
+            e for e in venta.entradas.all()
+            if start_dt <= e.id_funcion.fecha_hora <= end_dt and e.estado in VALID_ENTRY_STATES
+        ]
+        if _has_filter_value(filters, 'sala'):
+            entradas_validas = [e for e in entradas_validas if e.id_sala_id == int(filters['sala'])]
+        if _has_filter_value(filters, 'pelicula'):
+            entradas_validas = [e for e in entradas_validas if e.id_pelicula_id == int(filters['pelicula'])]
         if not entradas_validas:
             continue
 
@@ -95,11 +211,18 @@ def get_datos_financieros(start_dt, end_dt, limit=10):
 
         # Acumular (incluimos capacidad para calcular RevPAS y tickets vendidos)
         if titulo not in accum:
-            accum[titulo] = {'full': 0.0, 'paid': 0.0, 'capacity': 0.0, 'tickets': 0}
+            accum[titulo] = {
+                'full': 0.0,
+                'paid': 0.0,
+                'capacity': 0.0,
+                'tickets': 0,
+                'funciones_ids': set(),
+            }
         accum[titulo]['full'] += total_full
         accum[titulo]['paid'] += monto_pagado
         accum[titulo]['capacity'] += capacidad_total
         accum[titulo]['tickets'] += len(entradas_validas)
+        accum[titulo]['funciones_ids'].update(funciones_unicas.keys())
 
     # Convertir a lista ordenada por ingresos pagados (descendente)
     items = []
@@ -127,7 +250,12 @@ def get_datos_financieros(start_dt, end_dt, limit=10):
             'promo': round(it['promo'], 2), 
             'revpas': round(it.get('revpas', 0.0), 2), 
             'tickets': it.get('tickets', 0),
-            'ticket_promedio': round(it['paid'] / it['tickets'], 2) if it.get('tickets', 0) > 0 else 0.0
+            'ticket_promedio': round(it['paid'] / it['tickets'], 2) if it.get('tickets', 0) > 0 else 0.0,
+            'funciones_con_ventas': len(accum[it['titulo']].get('funciones_ids', set())),
+            'ingreso_por_funcion': round(
+                it['paid'] / len(accum[it['titulo']].get('funciones_ids', set())),
+                2,
+            ) if len(accum[it['titulo']].get('funciones_ids', set())) > 0 else 0.0,
         } 
         for it in items
     ]
@@ -140,7 +268,7 @@ def get_datos_financieros(start_dt, end_dt, limit=10):
     }
 
 
-def get_datos_ocupacion(start_dt, end_dt, filtrar_dias=False):
+def get_datos_ocupacion(start_dt, end_dt, filtrar_dias=False, filters=None):
     """
     Calcula ocupación semanal (% por día de la semana Lunes-Domingo).
     
@@ -163,12 +291,14 @@ def get_datos_ocupacion(start_dt, end_dt, filtrar_dias=False):
             current += timedelta(days=1)
     
     # 1. Demanda (Tickets Vendidos)
+    entradas_qs = Entrada.objects.filter(
+        id_funcion__fecha_hora__range=(start_dt, end_dt),
+        estado__in=VALID_ENTRY_STATES
+    )
+    entradas_qs = _apply_entrada_filters(entradas_qs, filters)
+
     tickets_by_weekday_qs = (
-        Entrada.objects
-        .filter(
-            id_funcion__fecha_hora__range=(start_dt, end_dt),
-            estado__in=[EstadoEntrada.VENDIDA, EstadoEntrada.USADA, EstadoEntrada.RESERVADA]
-        )
+        entradas_qs
         .annotate(weekday=ExtractWeekDay('id_funcion__fecha_hora'))
         .values('weekday')
         .annotate(tickets=Coalesce(Count('id_entrada'), Value(0)))
@@ -177,9 +307,11 @@ def get_datos_ocupacion(start_dt, end_dt, filtrar_dias=False):
 
     # 2. Oferta (Capacidad Total Ofertada)
     # CORRECCIÓN CLAVE: Usamos Sum('sala__capacidad_total')
+    funciones_base_qs = Funcion.objects.filter(fecha_hora__range=(start_dt, end_dt))
+    funciones_base_qs = _apply_funcion_filters(funciones_base_qs, start_dt, end_dt, filters)
+
     capacity_by_weekday_qs = (
-        Funcion.objects
-        .filter(fecha_hora__range=(start_dt, end_dt))
+        funciones_base_qs
         .annotate(weekday=ExtractWeekDay('fecha_hora'))
         .values('weekday')
         .annotate(
@@ -228,7 +360,7 @@ def get_datos_ocupacion(start_dt, end_dt, filtrar_dias=False):
     }
 
 
-def get_ocupacion_por_franja_horaria(start_dt, end_dt):
+def get_ocupacion_por_franja_horaria(start_dt, end_dt, filters=None):
     """
     Devuelve ocupación por franja horaria y por día de la semana.
 
@@ -250,10 +382,11 @@ def get_ocupacion_por_franja_horaria(start_dt, end_dt):
         Entrada.objects
         .filter(
             id_funcion__fecha_hora__range=(start_dt, end_dt),
-            estado__in=[EstadoEntrada.VENDIDA, EstadoEntrada.USADA, EstadoEntrada.RESERVADA]
+            estado__in=VALID_ENTRY_STATES
         )
         .select_related('id_funcion__sala')
     )
+    entradas_qs = _apply_entrada_filters(entradas_qs, filters)
 
     for e in entradas_qs:
         fh = e.id_funcion.fecha_hora
@@ -275,6 +408,7 @@ def get_ocupacion_por_franja_horaria(start_dt, end_dt):
         .filter(fecha_hora__range=(start_dt, end_dt))
         .select_related('sala')
     )
+    funciones = _apply_funcion_filters(funciones, start_dt, end_dt, filters)
 
     for f in funciones:
         weekday = f.fecha_hora.weekday()
@@ -338,7 +472,7 @@ def get_metricas_marketing(start_dt, end_dt):
     }
 
 
-def get_ranking_peliculas_performance(fecha_inicio, fecha_fin):
+def get_ranking_peliculas_performance(fecha_inicio, fecha_fin, filters=None):
     """
     Retorna ranking de películas ordenadas por índice de performance.
     
@@ -351,6 +485,7 @@ def get_ranking_peliculas_performance(fecha_inicio, fecha_fin):
     Returns:
         Lista de diccionarios con:
         - titulo_pelicula (str)
+        - total_funciones (int)
         - total_entradas (int)
         - total_capacidad (int)
         - ocupacion_promedio (float) # Porcentaje
@@ -359,16 +494,15 @@ def get_ranking_peliculas_performance(fecha_inicio, fecha_fin):
         - rating (str) # 'EXCELENTE', 'BUENO', 'REGULAR', 'MALO'
     """
     # Query optimizada: obtener funciones con annotate para contar entradas válidas
+    entrada_count_filter = Q(entradas__estado__in=VALID_ENTRY_STATES) & _build_entrada_filter_q(filters, 'entradas__')
     funciones_qs = Funcion.objects.filter(
         fecha_hora__range=(fecha_inicio, fecha_fin)
-    ).select_related('pelicula', 'sala').annotate(
+    )
+    funciones_qs = _apply_funcion_filters(funciones_qs, fecha_inicio, fecha_fin, filters)
+    funciones_qs = funciones_qs.select_related('pelicula', 'sala').annotate(
         num_entradas_validas=Count(
             'entradas',
-            filter=Q(entradas__estado__in=[
-                EstadoEntrada.VENDIDA, 
-                EstadoEntrada.USADA, 
-                EstadoEntrada.RESERVADA
-            ])
+            filter=entrada_count_filter
         )
     ).values(
         'pelicula__id',
@@ -389,10 +523,14 @@ def get_ranking_peliculas_performance(fecha_inicio, fecha_fin):
         if pelicula_id not in peliculas_data:
             peliculas_data[pelicula_id] = {
                 'titulo': titulo,
+                'total_funciones': 0,
                 'total_entradas': 0,
                 'total_capacidad': 0,
                 'revenue_total': Decimal('0.00')
             }
+
+        # Contar funciones programadas por pelicula.
+        peliculas_data[pelicula_id]['total_funciones'] += 1
         
         # Sumar capacidad de la sala de esta función
         capacidad_sala = funcion['sala__capacidad_total'] or 0
@@ -449,6 +587,7 @@ def get_ranking_peliculas_performance(fecha_inicio, fecha_fin):
         
         peliculas_list.append({
             'titulo_pelicula': data['titulo'],
+            'total_funciones': data['total_funciones'],
             'total_entradas': total_entradas,
             'total_capacidad': total_capacidad,
             'ocupacion_promedio': round(ocupacion_promedio, 2),
@@ -463,7 +602,7 @@ def get_ranking_peliculas_performance(fecha_inicio, fecha_fin):
     return peliculas_list
 
 
-def get_ranking_horarios_dia(fecha_inicio, fecha_fin, filtrar_dias=False):
+def get_ranking_horarios_dia(fecha_inicio, fecha_fin, filtrar_dias=False, filters=None):
     """
     Calcula ocupación REAL, asientos libres y mejores/peores horarios por día.
     
@@ -498,9 +637,12 @@ def get_ranking_horarios_dia(fecha_inicio, fecha_fin, filtrar_dias=False):
             current += timedelta(days=1)
     
     # Obtener funciones agrupadas por día y horario
+    entrada_count_filter = Q(entradas__estado__in=VALID_ENTRY_STATES) & _build_entrada_filter_q(filters, 'entradas__')
     funciones_qs = Funcion.objects.filter(
         fecha_hora__range=(fecha_inicio, fecha_fin)
-    ).annotate(
+    )
+    funciones_qs = _apply_funcion_filters(funciones_qs, fecha_inicio, fecha_fin, filters)
+    funciones_qs = funciones_qs.annotate(
         dia_semana=ExtractWeekDay('fecha_hora'),
         hora=ExtractHour('fecha_hora'),
         minuto=ExtractMinute('fecha_hora')
@@ -508,11 +650,7 @@ def get_ranking_horarios_dia(fecha_inicio, fecha_fin, filtrar_dias=False):
         capacidad_total=Sum('sala__capacidad_total'),
         entradas_vendidas=Count(
             'entradas',
-            filter=Q(entradas__estado__in=[
-                EstadoEntrada.VENDIDA,
-                EstadoEntrada.USADA,
-                EstadoEntrada.RESERVADA
-            ])
+            filter=entrada_count_filter
         )
     )
     
@@ -634,7 +772,7 @@ def get_ranking_horarios_dia(fecha_inicio, fecha_fin, filtrar_dias=False):
     return resultado
 
 
-def get_dashboard_alertas(fecha_inicio, fecha_fin):
+def get_dashboard_alertas(fecha_inicio, fecha_fin, filters=None):
     """
     Genera un dashboard de alertas con métricas clave y recomendaciones automáticas.
     
@@ -654,15 +792,18 @@ def get_dashboard_alertas(fecha_inicio, fecha_fin):
     """
     # 1. Calcular métricas de ocupación
     # Obtener total de entradas válidas
-    total_entradas = Entrada.objects.filter(
+    entradas_qs = Entrada.objects.filter(
         id_funcion__fecha_hora__range=(fecha_inicio, fecha_fin),
-        estado__in=[EstadoEntrada.VENDIDA, EstadoEntrada.USADA, EstadoEntrada.RESERVADA]
-    ).count()
+        estado__in=VALID_ENTRY_STATES
+    )
+    entradas_qs = _apply_entrada_filters(entradas_qs, filters)
+    total_entradas = entradas_qs.count()
     
     # Obtener capacidad total ofertada
-    capacidad_total_agg = Funcion.objects.filter(
-        fecha_hora__range=(fecha_inicio, fecha_fin)
-    ).aggregate(
+    funciones_qs = Funcion.objects.filter(fecha_hora__range=(fecha_inicio, fecha_fin))
+    funciones_qs = _apply_funcion_filters(funciones_qs, fecha_inicio, fecha_fin, filters)
+
+    capacidad_total_agg = funciones_qs.aggregate(
         capacidad_total=Coalesce(Sum('sala__capacidad_total'), Value(0))
     )
     capacidad_total = capacidad_total_agg['capacidad_total'] or 0
@@ -687,16 +828,12 @@ def get_dashboard_alertas(fecha_inicio, fecha_fin):
         status = 'BUENO'
     
     # 3. Contar funciones y películas
-    total_funciones = Funcion.objects.filter(
-        fecha_hora__range=(fecha_inicio, fecha_fin)
-    ).count()
+    total_funciones = funciones_qs.count()
     
-    total_peliculas = Funcion.objects.filter(
-        fecha_hora__range=(fecha_inicio, fecha_fin)
-    ).values('pelicula').distinct().count()
+    total_peliculas = funciones_qs.values('pelicula').distinct().count()
     
     # 4. Obtener ticket_promedio de get_kpis
-    kpis = get_kpis(fecha_inicio, fecha_fin)
+    kpis = get_kpis(fecha_inicio, fecha_fin, filters=filters)
     ticket_promedio = kpis.get('ticket_promedio', 0.0)
     
     # 5. Generar recomendaciones automáticas
@@ -710,7 +847,7 @@ def get_dashboard_alertas(fecha_inicio, fecha_fin):
     
     # WARNING: ocupación < 10%
     if ocupacion_global < 10:
-        recomendaciones.append('⚠️ WARNING: Ocupación muy baja - revisar cartelera de películas')
+        recomendaciones.append('⚠️Ocupación muy baja - revisar cartelera de películas')
         recomendaciones.append('💰 Considerar descuentos progresivos (15-25% según horario)')
     
     # Capacidad excesiva: desperdicio > 90%
@@ -750,7 +887,7 @@ def get_dashboard_alertas(fecha_inicio, fecha_fin):
     }
 
 
-def get_ranking_revpas(fecha_inicio, fecha_fin):
+def get_ranking_revpas(fecha_inicio, fecha_fin, filters=None):
     """
     Calcula revenue por asiento disponible (no solo vendido).
     RevPAS = Revenue Total / Capacidad Total Ofrecida
@@ -769,16 +906,15 @@ def get_ranking_revpas(fecha_inicio, fecha_fin):
         - rating (str) # 'EXCELENTE' (≥$0.40), 'BUENO' (≥$0.25), 'REGULAR' (≥$0.15), 'MALO' (<$0.15)
     """
     # Query optimizada: agrupar por película usando annotate
+    entrada_count_filter = Q(entradas__estado__in=VALID_ENTRY_STATES) & _build_entrada_filter_q(filters, 'entradas__')
     funciones_qs = Funcion.objects.filter(
         fecha_hora__range=(fecha_inicio, fecha_fin)
-    ).select_related('pelicula', 'sala').annotate(
+    )
+    funciones_qs = _apply_funcion_filters(funciones_qs, fecha_inicio, fecha_fin, filters)
+    funciones_qs = funciones_qs.select_related('pelicula', 'sala').annotate(
         num_entradas_validas=Count(
             'entradas',
-            filter=Q(entradas__estado__in=[
-                EstadoEntrada.VENDIDA,
-                EstadoEntrada.USADA,
-                EstadoEntrada.RESERVADA
-            ])
+            filter=entrada_count_filter
         )
     ).values(
         'pelicula__id',
@@ -855,7 +991,7 @@ def get_ranking_revpas(fecha_inicio, fecha_fin):
     return resultado
 
 
-def get_ranking_dia_revenue(fecha_inicio, fecha_fin, order_by='revenue_total', order_dir='desc'):
+def get_ranking_dia_revenue(fecha_inicio, fecha_fin, order_by='revenue_total', order_dir='desc', filters=None):
     """
     Analiza revenue por día de la semana.
     
@@ -879,8 +1015,10 @@ def get_ranking_dia_revenue(fecha_inicio, fecha_fin, order_by='revenue_total', o
     # Obtener revenue y tickets por día de la semana usando annotate
     entradas_qs = Entrada.objects.filter(
         id_funcion__fecha_hora__range=(fecha_inicio, fecha_fin),
-        estado__in=[EstadoEntrada.VENDIDA, EstadoEntrada.USADA, EstadoEntrada.RESERVADA]
-    ).annotate(
+        estado__in=VALID_ENTRY_STATES
+    )
+    entradas_qs = _apply_entrada_filters(entradas_qs, filters)
+    entradas_qs = entradas_qs.annotate(
         dia_semana=ExtractWeekDay('id_funcion__fecha_hora')
     ).values('dia_semana').annotate(
         total_tickets=Count('id_entrada'),
@@ -975,7 +1113,7 @@ def get_ranking_dia_revenue(fecha_inicio, fecha_fin, order_by='revenue_total', o
     return resultado_ordenado
 
 
-def get_analisis_franjas_horarias(fecha_inicio, fecha_fin):
+def get_analisis_franjas_horarias(fecha_inicio, fecha_fin, filters=None):
     """
     Analiza aprovechamiento por hora exacta (NO franjas predefinidas).
     Agrupa por hora de inicio de funciones (ExtractHour).
@@ -995,20 +1133,19 @@ def get_analisis_franjas_horarias(fecha_inicio, fecha_fin):
         - recomendacion (str) # Automática según umbrales
     """
     # Agrupar funciones por hora usando annotate
+    entrada_count_filter = Q(entradas__estado__in=VALID_ENTRY_STATES) & _build_entrada_filter_q(filters, 'entradas__')
     funciones_qs = Funcion.objects.filter(
         fecha_hora__range=(fecha_inicio, fecha_fin)
-    ).annotate(
+    )
+    funciones_qs = _apply_funcion_filters(funciones_qs, fecha_inicio, fecha_fin, filters)
+    funciones_qs = funciones_qs.annotate(
         hora_inicio=ExtractHour('fecha_hora')
     ).values('hora_inicio').annotate(
         total_funciones=Count('id'),
         capacidad_total=Coalesce(Sum('sala__capacidad_total'), Value(0)),
         entradas_vendidas=Count(
             'entradas',
-            filter=Q(entradas__estado__in=[
-                EstadoEntrada.VENDIDA,
-                EstadoEntrada.USADA,
-                EstadoEntrada.RESERVADA
-            ])
+            filter=entrada_count_filter
         )
     )
     
@@ -1058,7 +1195,7 @@ def get_analisis_franjas_horarias(fecha_inicio, fecha_fin):
     return resultado
 
 
-def get_ranking_salas(fecha_inicio, fecha_fin):
+def get_ranking_salas(fecha_inicio, fecha_fin, filters=None):
     """
     Ranking de salas ordenadas por porcentaje de ocupación promedio.
     
@@ -1078,17 +1215,16 @@ def get_ranking_salas(fecha_inicio, fecha_fin):
         - evaluacion (str)          # 'Bien aprovechada', 'Aprovechamiento moderado', 'Subutilizada'
     """
     # Query optimizada con annotate (evitar N+1)
+    entrada_count_filter = Q(funciones__entradas__estado__in=VALID_ENTRY_STATES) & _build_entrada_filter_q(filters, 'funciones__entradas__')
+    funciones_filtradas = Funcion.objects.filter(fecha_hora__range=(fecha_inicio, fecha_fin))
+    funciones_filtradas = _apply_funcion_filters(funciones_filtradas, fecha_inicio, fecha_fin, filters)
     salas_qs = Sala.objects.filter(
-        funciones__fecha_hora__range=(fecha_inicio, fecha_fin)
+        funciones__id__in=funciones_filtradas.values_list('id', flat=True)
     ).annotate(
         total_funciones=Count('funciones', distinct=True),
         butacas_ocupadas=Count(
             'funciones__entradas',
-            filter=Q(funciones__entradas__estado__in=[
-                EstadoEntrada.VENDIDA,
-                EstadoEntrada.USADA,
-                EstadoEntrada.RESERVADA
-            ]),
+            filter=entrada_count_filter,
             distinct=True  # Evita contar la misma entrada dos veces si hay JOINs múltiples
         )
     ).values('id', 'nombre', 'numero', 'capacidad_total', 'total_funciones', 'butacas_ocupadas')
@@ -1174,11 +1310,10 @@ def aplicar_ordenamiento_tabla(datos, tipo_tabla, columna_idx, direccion='desc')
         'peliculas': {
             '0': lambda x: x.get('_original_index', 0),
             '1': lambda x: x.get('titulo_pelicula', ''),
-            '2': lambda x: x.get('ocupacion_promedio', 0),
-            '3': lambda x: x.get('revenue_total', 0),
-            '4': lambda x: x.get('indice_performance', 0),
-            '5': lambda x: x.get('rating', ''),
-            '6': lambda x: x.get('total_entradas', 0)
+            '2': lambda x: x.get('total_funciones', 0),
+            '3': lambda x: x.get('total_entradas', 0),
+            '4': lambda x: x.get('ocupacion_promedio', 0),
+            '5': lambda x: x.get('indice_performance', 0)
         },
         'horarios': {
             '0': lambda x: config.DIAS_SEMANA_ES.index(x.get('dia_nombre', '')) if x.get('dia_nombre', '') in config.DIAS_SEMANA_ES else 999,
@@ -1201,11 +1336,20 @@ def aplicar_ordenamiento_tabla(datos, tipo_tabla, columna_idx, direccion='desc')
         'detalle_peliculas': {
             '0': lambda x: x.get('titulo', ''),
             '1': lambda x: x.get('tickets', 0),
-            '2': lambda x: x.get('ticket_promedio', 0),
+            '2': lambda x: x.get('funciones_con_ventas', 0),
+            '3': lambda x: x.get('ingreso_por_funcion', 0),
+            '4': lambda x: x.get('ticket_promedio', 0),
+            '5': lambda x: x.get('total', 0),
+            '6': lambda x: x.get('full', 0),
+            '7': lambda x: x.get('promo', 0),
+            '8': lambda x: x.get('revpas', 0)
+        },
+        'promociones': {
+            '0': lambda x: x.get('titulo', ''),
+            '1': lambda x: x.get('full', 0),
+            '2': lambda x: x.get('promo', 0),
             '3': lambda x: x.get('total', 0),
-            '4': lambda x: x.get('full', 0),
-            '5': lambda x: x.get('promo', 0),
-            '6': lambda x: x.get('revpas', 0)
+            '4': lambda x: ((x.get('promo', 0) / x.get('full', 1)) * 100) if x.get('full', 0) else 0
         },
         'ocupacion_detalle': {
             '0': lambda x: config.DIAS_SEMANA_ES.index(x.get('dia', '')) if x.get('dia', '') in config.DIAS_SEMANA_ES else 999,

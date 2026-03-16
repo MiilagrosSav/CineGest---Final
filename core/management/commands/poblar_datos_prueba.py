@@ -8,6 +8,7 @@ from django.db import transaction
 
 from cine.models import pelicula as pelicula_module
 from cine.models.pelicula import Pelicula
+from cine.models.clasificacion import Clasificacion
 from cine.models.genero import Genero
 from cine.models.sala import Sala
 from cine.models.butaca import Butaca
@@ -58,6 +59,15 @@ class Command(BaseCommand):
             ("Rápido y Furioso 20", [accion], 135),
         ]
 
+        # Obtener clasificación ATP
+        clasificacion_atp, _ = Clasificacion.objects.get_or_create(
+            nombre='ATP',
+            defaults={
+                'descripcion': 'Apta para todo público',
+                'edad_minima': 0
+            }
+        )
+        
         peliculas = {}
         for title, generos, dur in pel_data:
             pel, created = Pelicula.objects.get_or_create(
@@ -67,7 +77,7 @@ class Command(BaseCommand):
                     'director': fake.name(),
                     'duracion': dur,
                     'fecha_estreno': hoy,
-                    'clasificacion': 'ATP',
+                    'clasificacion': clasificacion_atp,
                     'es_estreno': False,
                 }
             )

@@ -5,10 +5,13 @@ from datetime import timedelta
 
 
 class AuditEntry(models.Model):
-    """Registro consolidado para entradas históricas generadas por django-simple-history.
+    """Registro consolidado para auditoria cruzada.
 
-    Este modelo se alimenta automáticamente desde las señales cuando un modelo histórico
-    (tabla `historical_*`) es creado por simple_history.
+    Diccionario rapido de tablas:
+    - AuditEntry: resumen de cambios (alta/edicion/baja) desde simple_history.
+    - historical_*: detalle historico por modelo con ip y usuario (simple_history).
+    - ventas_intercambio: auditoria de intercambios realizados.
+    - RegistroAcceso: auditoria de validaciones en puerta.
     """
     # Información del modelo y objeto
     model_name = models.CharField(max_length=200, db_index=True, help_text="Nombre de la tabla del modelo")

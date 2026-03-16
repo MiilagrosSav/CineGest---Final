@@ -125,7 +125,7 @@
             <div class="success-badge">✅ COMPRA CONFIRMADA</div>
         </div>
         
-        <h2>¡Gracias por tu compra, {{ usuario.first_name|default:usuario.username }}!</h2>
+        <h2>¡Gracias por tu compra, {{ nombre_comprador|default:usuario.first_name|default:usuario.username }}!</h2>
         
         <p>Tu compra ha sido procesada exitosamente. A continuación encontrarás los detalles de tu pedido:</p>
         
@@ -136,8 +136,7 @@
         <div class="ticket-info">
             <h3 style="margin-top: 0; color: #27ae60;">📋 Detalles de la Función</h3>
             
-            {% if entradas %}
-            {% with primera_entrada=entradas|first %}
+            {% if primera_entrada %}
             <div class="ticket-detail">
                 <span class="label">🎬 Película:</span>
                 <span class="value">{{ primera_entrada.id_funcion.pelicula.titulo }}</span>
@@ -157,7 +156,6 @@
                 <span class="label">🏛️ Sala:</span>
                 <span class="value">{{ primera_entrada.id_sala.nombre }}</span>
             </div>
-            {% endwith %}
             {% else %}
             <div class="ticket-detail">
                 <span class="label">⚠️</span>
@@ -204,11 +202,11 @@
         
         <h3>🪑 Tus Butacas Reservadas:</h3>
         <div class="seats-list">
-            {% for entrada in entradas %}
+            {% for item in entradas %}
             <div style="padding: 10px; margin-bottom: 8px; background: #f8f9fa; border-left: 3px solid #27ae60; border-radius: 3px;">
-                <div style="font-weight: 700; color: #2c3e50;">🎫 Butaca: {{ entrada.id_butaca.fila }}{{ entrada.id_butaca.numero }}</div>
+                <div style="font-weight: 700; color: #2c3e50;">🎫 Butaca: {{ item.entrada.id_butaca.fila }}{{ item.entrada.id_butaca.numero }}</div>
                 <div style="color: #666; font-size: 0.95rem; margin-top: 4px;">
-                    {{ entrada.id_funcion.pelicula.titulo }} — {{ entrada.id_funcion.fecha_hora|date:"d/m/Y H:i" }}
+                    {{ item.entrada.id_funcion.pelicula.titulo }} — {{ item.entrada.id_funcion.fecha_hora|date:"d/m/Y H:i" }}
                 </div>
             </div>
             {% endfor %}
@@ -248,15 +246,13 @@
         
         <div class="total-section">
             <div>TOTAL PAGADO</div>
-            <div class="total-amount">${{ total }}</div>
+            <div class="total-amount">${{ total_real|floatformat:2 }}</div>
         </div>
         
         <div class="important-info">
             <strong>ℹ️ Información Importante:</strong>
             <ul style="margin: 10px 0; padding-left: 20px;">
                 <li>Llega al cine con <strong>15 minutos de anticipación</strong></li>
-                <li>Presenta este email o tu DNI en la entrada</li>
-                <li>Puedes intercambiar tus entradas hasta <strong>24 horas antes</strong> de la función</li>
                 <li>Recuerda que una vez iniciada la función no se permiten intercambios</li>
             </ul>
         </div>

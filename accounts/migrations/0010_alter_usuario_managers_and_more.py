@@ -23,7 +23,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='cliente',
             name='fecha_nacimiento',
-            field=models.DateField(blank=True, help_text='Debe ser una fecha entre el 1/1/1900 y hoy', null=True, validators=[accounts.models.validar_fecha_nacimiento]),
+            field=models.DateField(blank=True, help_text='Debe ser una fecha entre el 1/1/1900 y hoy', null=True),
         ),
         migrations.AlterField(
             model_name='cliente',

@@ -4,12 +4,44 @@ Esto es necesario para que Mercado Pago pueda enviar las notificaciones de pago.
 """
 import os
 import sys
+import socket
+import time
 from pyngrok import ngrok
+from pyngrok.exception import PyngrokNgrokHTTPError
+
+
+def _is_local_server_up(host="127.0.0.1", port=8000, timeout=1.0):
+    """Return True if something is listening on host:port."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(timeout)
+        return sock.connect_ex((host, port)) == 0
+
+
+def _connect_with_retry(port=8000):
+    """Connect ngrok, retrying once if the reserved endpoint is in use."""
+    try:
+        return ngrok.connect(port, bind_tls=True)
+    except PyngrokNgrokHTTPError as exc:
+        # ERR_NGROK_334 means the account's endpoint is already online.
+        if "ERR_NGROK_334" not in str(exc):
+            raise
+
+        print("⚠️  El endpoint de ngrok ya está en uso. Intentando liberar y reconectar...")
+        ngrok.kill()
+        time.sleep(2)
+        return ngrok.connect(port, bind_tls=True)
 
 def start_ngrok():
+    if not _is_local_server_up(port=8000):
+        print("❌ No hay servidor Django escuchando en http://127.0.0.1:8000")
+        print("   En otra terminal ejecuta: python manage.py runserver 8000")
+        print("   Luego vuelve a ejecutar este script.\n")
+        raise RuntimeError("Django server is not running on port 8000")
+
     # Iniciar ngrok en el puerto 8000
     print("🚀 Iniciando ngrok...")
-    public_url = ngrok.connect(8000, bind_tls=True)
+    tunnel = _connect_with_retry(8000)
+    public_url = tunnel.public_url
     print(f"\n{'='*60}")
     print(f"✅ NGROK INICIADO CORRECTAMENTE")
     print(f"{'='*60}")
@@ -43,9 +75,6 @@ if __name__ == "__main__":
         
         # Mantener el script corriendo
         print("Presiona Ctrl+C para detener ngrok...\n")
-        import threading
-        import time
-        
         # Mantener el hilo principal activo
         while True:
             time.sleep(1)
@@ -55,3 +84,6 @@ if __name__ == "__main__":
         ngrok.kill()
         print("✅ Ngrok detenido\n")
         sys.exit(0)
+    except Exception as exc:
+        print(f"\n❌ No se pudo iniciar ngrok: {exc}\n")
+        sys.exit(1)

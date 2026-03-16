@@ -71,32 +71,75 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 8px;
-            margin-top: 1.5rem;
+            margin-top: 2rem;
+            padding: 10px 20px;
+            background: rgba(26, 22, 37, 0.4);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 12px;
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(5px);
         }
+        .dataTables_wrapper .dataTables_paginate ul.pagination,
+        .dataTables_wrapper .dataTables_paginate ul {
+            display: flex !important;
+            flex-direction: row;
+            list-style: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            gap: 10px;
+            align-items: center;
+        }
+        .dataTables_wrapper .dataTables_paginate ul.pagination li {
+            display: inline-flex;
+        }
+        .dataTables_wrapper .dataTables_paginate a.paginate_button,
+        .dataTables_wrapper .dataTables_paginate .page-link,
         .dataTables_wrapper .dataTables_paginate .paginate_button {
             color: var(--text-light) !important;
-            background: var(--glass-bg) !important;
-            border: 1px solid var(--glass-border) !important;
-            border-radius: 6px;
-            margin: 0 4px;
-            padding: 8px 12px !important;
-            min-width: 40px;
-            text-align: center;
+            background: rgba(255, 255, 255, 0.05) !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+            border-radius: 8px !important;
+            margin: 0 !important;
+            padding: 6px 14px !important;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none !important;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
-        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-            background: var(--primary-light) !important;
+        .dataTables_wrapper .dataTables_paginate a.paginate_button:hover,
+        .dataTables_wrapper .dataTables_paginate .page-link:hover,
+        .dataTables_wrapper .dataTables_paginate .paginate_button:not(.disabled):hover {
+            background: rgba(139, 92, 246, 0.25) !important;
             border-color: var(--primary) !important;
             color: #fff !important;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(139, 92, 246, 0.2);
+            text-decoration: none !important;
         }
-        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-            background: var(--primary) !important;
-            border-color: var(--primary) !important;
+        .dataTables_wrapper .dataTables_paginate .active .page-link,
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current, 
+        .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover {
+            background: linear-gradient(135deg, var(--primary), var(--secondary)) !important;
+            border-color: transparent !important;
             color: #fff !important;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+            transform: scale(1.05);
         }
+        .dataTables_wrapper .dataTables_paginate .disabled .page-link,
         .dataTables_wrapper .dataTables_paginate .paginate_button.disabled {
-            opacity: 0.5;
+            opacity: 0.3;
             cursor: not-allowed;
+            background: transparent !important;
+            border-color: transparent !important;
+            transform: none !important;
+            box-shadow: none !important;
         }
         .dataTables_wrapper .dataTables_info {
             color: var(--text-secondary);
@@ -252,6 +295,17 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
+        /* Advanced filters */
+        .report-filter-input {
+            background: rgba(17, 14, 26, 0.92) !important;
+            color: var(--text-light) !important;
+            border: 1px solid var(--glass-border) !important;
+        }
+        .report-filter-input option {
+            background: #171327;
+            color: #f2f2f2;
+        }
+
     </style>
 {% endblock %}
 
@@ -289,6 +343,91 @@
                     <a href="{{ rango_7_qs }}" class="filter-chip">7 Días</a>
                     <a href="{{ rango_30_qs }}" class="filter-chip">30 Días</a>
                     <a href="{{ rango_mes_qs }}" class="filter-chip">Este Mes</a>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.8rem; width: 100%;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Tipo Venta</label>
+                        <select name="tipo_venta" class="form-input report-filter-input">
+                            <option value="">Todos</option>
+                            <option value="ONLINE" {% if filtros_activos.tipo_venta == 'ONLINE' %}selected{% endif %}>Online</option>
+                            <option value="PRESENCIAL" {% if filtros_activos.tipo_venta == 'PRESENCIAL' %}selected{% endif %}>Presencial</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Empleado</label>
+                        <select name="empleado" class="form-input report-filter-input">
+                            <option value="">Todos</option>
+                            <option value="sin_empleado" {% if filtros_activos.empleado == 'sin_empleado' %}selected{% endif %}>Sin empleado</option>
+                            {% for emp in empleados_filtro %}
+                            <option value="{{ emp.usuario_id }}" {% if filtros_activos.empleado == emp.usuario_id|stringformat:'s' %}selected{% endif %}>
+                                {{ emp.usuario.get_full_name|default:emp.usuario.username }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Sala</label>
+                        <select name="sala" class="form-input report-filter-input">
+                            <option value="">Todas</option>
+                            {% for sala in salas_filtro %}
+                            <option value="{{ sala.id }}" {% if filtros_activos.sala == sala.id|stringformat:'s' %}selected{% endif %}>{{ sala.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Película</label>
+                        <input
+                            type="text"
+                            name="pelicula_busqueda"
+                            id="peliculaBusquedaInput"
+                            value="{{ filtros_activos.pelicula_busqueda }}"
+                            class="form-input report-filter-input"
+                            placeholder="Escribí título o número"
+                            pattern=".*[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ].*"
+                            title="Ingresá al menos una letra o número para buscar película"
+                            list="peliculaSugerencias"
+                            autocomplete="off"
+                        >
+                        <datalist id="peliculaSugerencias"></datalist>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Método Pago</label>
+                        <select name="metodo_pago" class="form-input report-filter-input">
+                            <option value="">Todos</option>
+                            {% for metodo in metodos_pago_filtro %}
+                            <option value="{{ metodo.id_metodo_pago }}" {% if filtros_activos.metodo_pago == metodo.id_metodo_pago|stringformat:'s' %}selected{% endif %}>{{ metodo.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Estado Venta</label>
+                        <select name="estado_venta" class="form-input report-filter-input">
+                            <option value="">Todos</option>
+                            {% for estado in estados_venta_filtro %}
+                            <option value="{{ estado }}" {% if filtros_activos.estado_venta == estado %}selected{% endif %}>{{ estado }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label" style="margin-bottom: 0.4rem;">Estado Pago</label>
+                        <select name="estado_pago" class="form-input report-filter-input">
+                            <option value="">Todos</option>
+                            {% for estado in estados_pago_filtro %}
+                            <option value="{{ estado }}" {% if filtros_activos.estado_pago == estado %}selected{% endif %}>{{ estado }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; width: 100%; margin-top: 0.2rem;">
+                    <a href="?fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="filter-chip">Limpiar filtros avanzados</a>
                 </div>
             </form>
         </div>
@@ -374,6 +513,8 @@
                         <tr>
                             <th>Película</th>
                             <th class="text-center">Tickets Vendidos</th>
+                            <th class="text-center">Funciones c/ Ventas</th>
+                            <th class="text-right">Ingreso por Función</th>
                             <th class="text-right">
                                 Ticket Prom. Película 
                                 <i class="bi bi-question-circle-fill help-icon" 
@@ -398,6 +539,8 @@
                         <tr>
                             <td style="font-weight: 600;">{{ item.titulo }}</td>
                             <td class="text-center" style="font-weight: 700; color: #17a2b8;">{{ item.tickets }}</td>
+                            <td class="text-center" style="font-weight: 700; color: #ffc107;">{{ item.funciones_con_ventas }}</td>
+                            <td class="text-right" style="font-weight: 600; color: #5dade2;">${{ item.ingreso_por_funcion|floatformat:2 }}</td>
                             <td class="text-right" style="font-weight: 600;">
                                 ${{ item.ticket_promedio|floatformat:2 }}
                             </td>
@@ -452,13 +595,6 @@
                                    data-bs-placement="top" 
                                    title="Revenue Per Available Seat (RevPAS): Mide cuánto ingreso genera cada butaca disponible. Valor alto indica mejor aprovechamiento de la capacidad."></i>
                             </th>
-                            <th class="text-center">
-                                Rating 
-                                <i class="bi bi-question-circle-fill help-icon" 
-                                   data-bs-toggle="tooltip" 
-                                   data-bs-placement="top" 
-                                   title="Clasificación de eficiencia basada en RevPAS: Excelente (>$50), Bueno ($30-$50), Regular ($15-$30), Malo (<$15)."></i>
-                            </th>
                         </tr>
                     </thead>
                     <tbody>
@@ -469,9 +605,6 @@
                             <td class="text-right">{{ item.capacidad_total }}</td>
                             <td class="text-right" style="font-weight: 700; color: var(--primary);">${{ item.revenue_total|floatformat:2 }}</td>
                             <td class="text-right" style="font-size: 1.1rem; font-weight: 700; color: #28a745;">${{ item.revpas|floatformat:2 }}</td>
-                            <td class="text-center">
-                                <span class="badge bg-{{ item.rating|lower }}">{{ item.rating }}</span>
-                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -506,11 +639,11 @@
                             <th class="text-right">Ingreso Total</th>
                             <th class="text-center">% del Total</th>
                             <th>
-                                Índice 
+                                Eficiencia 
                                 <i class="bi bi-question-circle-fill help-icon" 
                                    data-bs-toggle="tooltip" 
                                    data-bs-placement="top" 
-                                   title="Indicador de rendimiento (0-100). El día con mayor recaudación tiene índice 100. Permite comparar el peso relativo de cada día."></i>
+                                   title="Indicador de rendimiento (0-100). El día con mayor recaudación tiene eficiencia 100. Permite comparar el peso relativo de cada día."></i>
                             </th>
                         </tr>
                     </thead>
@@ -606,8 +739,59 @@
     fin: JSON.parse(`{{ fin_chart_json|safe }}`),
     fechaInicio: '{{ fecha_inicio }}',
     fechaFin: '{{ fecha_fin }}',
-    exportUrl: '{% url "reportes:exportar_financiero_pdf" %}'
+        exportUrl: '{% url "reportes:exportar_financiero_pdf" %}',
+        peliculaSuggestUrl: '{% url "reportes:ajax_peliculas" %}'
   };
+</script>
+<script>
+    // Autocomplete AJAX aislado para no depender de DataTables/Bootstrap
+    document.addEventListener('DOMContentLoaded', function() {
+        const peliculaInput = document.getElementById('peliculaBusquedaInput');
+        const peliculaList = document.getElementById('peliculaSugerencias');
+        let movieSearchTimeout = null;
+
+        if (!peliculaInput || !peliculaList || !window.financieroData || !window.financieroData.peliculaSuggestUrl) {
+            return;
+        }
+
+        peliculaInput.addEventListener('input', function() {
+            const q = (this.value || '').trim();
+            const hasAlphaNum = /[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ]/.test(q);
+
+            peliculaList.innerHTML = '';
+            if (!hasAlphaNum || q.length < 1) {
+                return;
+            }
+
+            clearTimeout(movieSearchTimeout);
+            movieSearchTimeout = setTimeout(async function() {
+                try {
+                    const url = `${window.financieroData.peliculaSuggestUrl}?q=${encodeURIComponent(q)}`;
+                    const response = await fetch(url, {
+                        credentials: 'same-origin',
+                        headers: {
+                            'Accept': 'application/json',
+                            'ngrok-skip-browser-warning': 'true'
+                        }
+                    });
+                    if (!response.ok) {
+                        return;
+                    }
+                    const contentType = (response.headers.get('content-type') || '').toLowerCase();
+                    if (!contentType.includes('application/json')) {
+                        return;
+                    }
+                    const data = await response.json();
+                    const items = (data && data.results) || [];
+                    peliculaList.innerHTML = items.map(function(title) {
+                        return `<option value="${String(title).replace(/"/g, '&quot;')}"></option>`;
+                    }).join('');
+                } catch (error) {
+                    console.warn('No se pudieron cargar sugerencias de películas', error);
+                }
+            }, 220);
+        });
+    });
 </script>
 <script src="{% static 'reportes/js/financiero.js' %}?v=1.1"></script>
 <!-- DataTables JS -->
@@ -623,7 +807,7 @@
             "emptyTable": "No hay datos disponibles en la tabla",
             "infoEmpty": "Mostrando registros del 0 al 0 de un total de 0 registros",
             "infoFiltered": "(filtrado de un total de _MAX_ registros)",
-            "search": "Buscar:",
+            "search": "BUSCAR:",
             "loadingRecords": "Cargando...",
             "paginate": {
                 "first": "Primero",
@@ -671,7 +855,7 @@
         const numRowsDetalle = $('#tablaDetallePeliculas tbody tr').length;
         window.tablaDetallePeliculasInstance = $('#tablaDetallePeliculas').DataTable({
             language: spanishConfig,
-            order: [[3, 'desc']], // Ordenar por Total descendente (ahora columna 3)
+            order: [[5, 'desc']], // Ordenar por Total descendente
             pageLength: 10,
             responsive: true,
             paging: numRowsDetalle > 10,
@@ -771,14 +955,16 @@
         }
         {% endif %}
 
-        // Inicializar tooltips de Bootstrap
-        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl, {
-                html: true,
-                trigger: 'hover focus'
+        // Inicializar tooltips de Bootstrap (solo si bootstrap.js está cargado)
+        if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            tooltipTriggerList.forEach(function (tooltipTriggerEl) {
+                new bootstrap.Tooltip(tooltipTriggerEl, {
+                    html: true,
+                    trigger: 'hover focus'
+                });
             });
-        });
+        }
     });
 </script>
 {% endblock %}

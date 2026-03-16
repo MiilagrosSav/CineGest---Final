@@ -102,7 +102,7 @@ def generar_excel_financiero(kpis, fin_data, fecha_inicio, fecha_fin):
     return buffer
 
 
-def generar_pdf_financiero(kpis, fin_data, fecha_inicio, fecha_fin, chart_base64=None, requested_by=None, ranking_revpas=None, ranking_dia_revenue=None):
+def generar_pdf_financiero(kpis, fin_data, fecha_inicio, fecha_fin, chart_base64=None, requested_by=None, ranking_revpas=None, ranking_dia_revenue=None, promociones_data=None, filtros_resumen=None):
     """
     Genera PDF con reporte financiero ejecutivo.
     
@@ -128,11 +128,13 @@ def generar_pdf_financiero(kpis, fin_data, fecha_inicio, fecha_fin, chart_base64
         'fecha_fin': fecha_fin,
         'kpis': kpis,
         'peliculas': fin_data.get('detalle', []),
+        'promociones_data': promociones_data if promociones_data is not None else fin_data.get('detalle', []),
         'chart_base64': chart_base64,
         'requested_by': requested_by,
         'configuracion_cine': configuracion_cine,
         'ranking_revpas': ranking_revpas or [],
         'ranking_dia_revenue': ranking_dia_revenue or [],
+        'filtros_resumen': filtros_resumen or 'Sin filtros adicionales',
     }
     
     html_string = render_to_string('reportes/pdf_financiero.html', context)
@@ -205,7 +207,7 @@ def generar_excel_operativo(occ_data, fecha_inicio, fecha_fin):
     return buffer
 
 
-def generar_pdf_operativo(occ_data, fecha_inicio, fecha_fin, chart_base64=None, heatmap_base64=None, marketing_base64=None, requested_by=None, dashboard_alertas=None, ranking_peliculas=None, ranking_horarios=None, ranking_salas=None, tiene_filtros_personalizados=False):
+def generar_pdf_operativo(occ_data, fecha_inicio, fecha_fin, chart_base64=None, heatmap_base64=None, marketing_base64=None, requested_by=None, dashboard_alertas=None, ranking_peliculas=None, ranking_horarios=None, ranking_salas=None, tiene_filtros_personalizados=False, filtros_resumen=None):
     """
     Genera PDF con reporte operativo de salas.
     
@@ -272,7 +274,8 @@ def generar_pdf_operativo(occ_data, fecha_inicio, fecha_fin, chart_base64=None, 
         'ranking_salas': ranking_salas or [],
         'tiene_horarios_validos': tiene_horarios_validos,
         'tiene_ocupacion_valida': tiene_ocupacion_valida,
-        'tiene_filtros_personalizados': tiene_filtros_personalizados
+        'tiene_filtros_personalizados': tiene_filtros_personalizados,
+        'filtros_resumen': filtros_resumen or 'Sin filtros adicionales'
     }
     
     html_string = render_to_string('reportes/pdf_operativo.html', context)
